@@ -2265,7 +2265,7 @@ function renderBudgetList() {
     window.__sviBdgShell = shell; window.__sviBdgGen = (window.__sviBdgGen || 0) + 1;
     ["__aprBound", "__avoBound", "__chkBound", "__condBound", "__dimBound", "__dlyBound", "__dlyFillBound", "__dlyGSelB", "__dlyKbBound", "__dlyLiftBound", "__dlyPinchBound",
      "__dlyPlanBound", "__dupBound", "__emptyBound", "__faBound", "__filtCntBound", "__foldBound", "__fuseBound", "__gcbBound", "__gnBound", "__i1Bound", "__ibdOn", "__incBound",
-     "__insBound", "__insTouch", "__layDetRs", "__layFocus", "__libBound", "__lkBound", "__lnkCbBound", "__lotTreeBound", "__mgBound", "__modIndBound", "__moreBound", "__onlyBound",
+     "__insBound", "__insTouch", "__layDetRs", "__layFocus", "__libBound", "__lnkCbBound", "__lotTreeBound", "__mgBound", "__modIndBound", "__moreBound", "__onlyBound",
      "__qqDescBound", "__rdblBound", "__ruleBound", "__sdTabBound", "__tabGenB", "__unlBound", "__unlGoBound"].forEach(k => { delete shell[k]; });
     /* dernier budget consulté : rouvert à la prochaine ouverture */
     try { localStorage.setItem("svi_lastbdg_v1", ref); } catch (e) {}
@@ -2688,8 +2688,6 @@ function renderBudgetList() {
       </div>
 
       <div class="bdg-d-page">
-        <div id="insLinkView" class="ins-link-view"></div>
-
         <div class="bdg-d-block blk-client">
           <div class="bdg-d-block-title blk-head" id="bdgClientTitle">
             <span class="ttl">${SVI_ICON.client}DÉSIGNATIONS CLIENT</span>
@@ -6240,43 +6238,6 @@ function sviBdgGlisserLignes(C) {
   }
 
   shell.onpointerdown = event => {
-    /* mode LIAISONS : la poignée d'en-tête règle la largeur des blocs TÂCHES */
-    /* mode LIAISONS : poignée du bas = hauteur du bloc (mémorisée) */
-    const lkH = event.target.closest(".lk-hrsz");
-    if (lkH) {
-      event.preventDefault(); event.stopPropagation();
-      const k = lkH.dataset.lkh, box = $("insLinkView");
-      const ref = lkH.parentElement.querySelector(k === "hier" ? ".lk-col" : ".lk-scroll");
-      const y0 = event.clientY, h0 = ref ? ref.getBoundingClientRect().height : 170;
-      let h = h0;
-      lkH.classList.add("on");
-      const mv = ev => { h = Math.max(80, Math.round(h0 + ev.clientY - y0)); box.style.setProperty("--lkh-" + k, h + "px"); };
-      const up = () => {
-        lkH.classList.remove("on");
-        document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
-        try { const H = JSON.parse(localStorage.getItem("svi_lkh_v1") || "{}"); H[k] = h; localStorage.setItem("svi_lkh_v1", JSON.stringify(H)); } catch (e) {}
-      };
-      document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
-      return;
-    }
-    const lkRs = event.target.closest(".lk-col .lk-rs");
-    if (lkRs) {
-      event.preventDefault(); event.stopPropagation();
-      const grid = lkRs.closest(".lk-grid");
-      const colsEl = [...grid.querySelectorAll(".lk-col")];
-      const i = colsEl.indexOf(lkRs.closest(".lk-col"));
-      const ws = colsEl.map(c => c.getBoundingClientRect().width);
-      const x0 = event.clientX, w0 = ws[i];
-      const mv = ev => { ws[i] = Math.max(120, Math.round(w0 + ev.clientX - x0)); grid.style.gridTemplateColumns = ws.map(v => v + "px").join(" "); };
-      const up = () => {
-        document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
-        const all = cwLoad();
-        ["lot", "prim", "sec"].forEach((k, j) => { all["lk_hier." + k] = Math.round(ws[j]); });
-        cwSave(all);
-      };
-      document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
-      return;
-    }
     /* v525 (remarque 5) : un titre de niveau de lot (créé) se glisse aussi, avec ses lots */
     /* v527 (remarque 1) : les lignes du DÉTAIL CHARGES et du DÉTAIL PRODUITS ne se déplacent pas — pas de trait à l'appui long */
     const insEl = INS_EDIT && event.target.closest('.ins-table:not([data-ik="chg"]):not([data-ik="prd"]) tr[data-iid], .ins-hcol .ins-li[data-iid], .ins-hcol .ins-li.lot-grp');
@@ -11789,114 +11750,7 @@ function sviBdgAnnulerLiaisons(C) {
   /* ---------- MODE LIAISONS ---------- */
   ECR.LK = { des: null, lot: null, prim: null, sec: null, prd: {}, chg: {}, err: "" };
   const lkName = (k, id) => { const r = INS[k].find(x => x.id === id); return r ? (k === "des" ? ((r.art ? r.art + " " : "") + (r.des || "")) : (r.v || r.des || "")) : ""; };
-  const insRenderLinks = () => {
-    const box = $("insLinkView");
-    if (!box) return;
-    const RO = !INS_EDIT;
-    const U = insUsed();
-    const az = (a, b) => String(a).localeCompare(String(b), "fr", { numeric: true });
-    /* lignes choisies en haut (consigne 14), filtres / tri de colonne (7), colonnes réglables (9) */
-    const top = (rows, isSel) => rows.map((r, i) => ({ r, i })).sort((a, b) => (isSel(b.r) - isSel(a.r)) || a.i - b.i).map(o => o.r);
-    const W = { art: 70, des: 340, u: 70, q: 110, lnk: 120, v: 220, lot: 160, prim: 180, sec: 200, np: 110, nc: 110, act: 110, qt: 200, lq: 120, lp: 110, lm: 140 };
-    const tbl = (t, cols, rows, lead, rowHTML) => {
-      const oc = coOrder(t, cols);
-      const w = k => cwLoad()[t + "." + k] || W[k] || 120;
-      return `<table class="bdg-d-table lk-table" style="width:${(lead ? 40 : 0) + oc.reduce((s, c) => s + w(c[0]), 0)}px">
-        <colgroup>${lead ? '<col style="width:40px">' : ""}${oc.map(c => `<col data-w="${t}.${c[0]}" style="width:${w(c[0])}px">`).join("")}</colgroup>
-        <thead><tr>${lead ? '<th class="center"></th>' : ""}${oc.map(c => cfHead(t, c[0], c[1], c[3])).join("")}</tr></thead>
-        <tbody>${rows.map(r => rowHTML(r, oc)).join("") || `<tr><td colspan="${oc.length + (lead ? 1 : 0)}" class="empty">AUCUNE LIGNE</td></tr>`}</tbody></table>`;
-    };
-    const radio = (k, id) => `<input type="radio" name="lk_${k}" data-lk="${k}" value="${id}" ${ECR.LK[k] === id ? "checked" : ""} ${RO ? "disabled" : ""}>`;
-    const nLinks = id => (INS.links || []).filter(l => l.des === id).length;
-    const unl = (k, id) => U[k] && !U[k].has(id) ? " ins-unl" : "";
-    /* DÉSIGNATIONS */
-    const DC = [["art", "ART", r => r.art || "", "center"], ["des", "DÉSIGNATION", r => r.des || "", ""], ["u", "UPB", r => r.u || "", "center"],
-      ["q", "QPB", r => r.q === "" || r.q === undefined ? "" : num(r.q), "number"], ["lnk", "LIAISONS", r => nLinks(r.id) ? nLinks(r.id) + " VALIDÉE(S)" : "", ""]];
-    const desList = top(cfApply("lk_des", DC, INS.des.filter(r => !r.t)), r => r.id === ECR.LK.des);
-    const desHTML = tbl("lk_des", DC, desList, true, (r, oc) => `<tr class="${ECR.LK.des === r.id ? "lk-sel" : ECR.LK.des ? "lk-dim" : ""}${unl("des", r.id)}" data-pick="des" data-id="${r.id}">
-        <td class="center">${radio("des", r.id)}</td>${oc.map(c => `<td class="${c[3]}">${c[0] === "lnk" ? (nLinks(r.id) ? `<span class="lk-ok">${nLinks(r.id)} VALIDÉE(S)</span>` : "")
-          : c[0] === "q" ? insFmt(insQty("des", r)) : esc(c[2](r))}</td>`).join("")}</tr>`);
-    /* TÂCHES : trois blocs (ordre alphabétique, largeur réglable) */
-    const ws = ["lot", "prim", "sec"].map(k => cwLoad()["lk_hier." + k]);
-    const gridCols = ws.every(Boolean) && window.innerWidth > 700 ? ws.map(x => x + "px").join(" ") : "";
-    const col = (k, title) => {
-      const C = [["v", title, r => r.v || "", ""]];
-      const list = top(cfApply("lk_" + k, C, [...INS[k]].sort((a, b) => az(a.v || "", b.v || ""))), r => r.id === ECR.LK[k]);
-      return `<div class="lk-col" data-lk-col="${k}"><div class="lk-ch bdg-h-head ${cfT("lk_" + k).f.v ? "cf-on" : ""}"><span class="cf-wrap"><span class="cf-lab">${title}${svCnt(list.length)}</span><span class="cf-btn"
-          data-cf="lk_${k}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span><span class="col-rs lk-rs"></span></div>
-        ${list.map(r => `<label class="lk-li ${ECR.LK[k] === r.id ? "lk-sel" : ""}${unl(k, r.id)}" data-pick="${k}" data-id="${r.id}">${radio(k, r.id)}<span>${esc(r.v || "")}</span></label>`).join("")
-          || `<div class="lk-li empty">AUCUNE LIGNE</div>`}</div>`;
-    };
-    /* DÉTAILS : produits (obligatoire = étoile), charges (ordre alphabétique) */
-    const det = k => {
-      const C = [["des", k === "prd" ? "DÉSIGNATION PRODUIT" : "DÉSIGNATION CHARGE", r => r.des || "", ""], ["u", k === "prd" ? "UPB" : "UCB", r => r.u || "", "center"],
-        ["qt", "QUANTITÉ DE LA TÂCHE", r => ECR.LK[k][r.id] ?? "", "number"]];
-      let rows = [...INS[k]];
-      if (k === "chg") rows.sort((a, b) => az(a.des || "", b.des || ""));
-      rows = top(cfApply("lk_" + k, C, rows), r => ECR.LK[k][r.id] !== undefined);
-      detN[k] = rows.length;
-      return `<div class="lk-scroll">${tbl("lk_" + k, C, rows, true, (r, oc) => {
-          const on = ECR.LK[k][r.id] !== undefined;
-          return `<tr class="${on ? "lk-sel" : ""}${unl(k, r.id)}" data-det="${k}" data-id="${r.id}"><td class="center"><input type="checkbox" class="lk-cb" ${on ? "checked" : ""} ${RO ? "disabled" : ""}></td>
-            ${oc.map(c => `<td class="${c[3]}">${c[0] === "qt" ? `<input class="lk-q" inputmode="decimal" value="${on ? esc(ECR.LK[k][r.id]) : ""}" ${RO ? "disabled" : ""}>` : esc(c[2](r))}</td>`).join("")}</tr>`;
-        })}</div>`;
-    };
-    /* DÉTAILS sous onglets, même format que SAISIE / validé */
-    const detN = {};
-    const lkTab = ["prd", "qlt", "dly"].includes(ECR.LK.tab) ? ECR.LK.tab : "chg";
-    /* QUALITÉ : lecture (saisie en mode SAISIE) ; DÉLAIS : saisis ici seulement */
-    const qltHTML = () => `<table class="bdg-d-table" style="width:600px"><thead><tr><th>QUALITÉ</th></tr></thead><tbody>${
-      (INS.qlt || []).map(r => `<tr><td>${esc(r.v || "")}</td></tr>`).join("") || '<tr><td class="empty">AUCUNE LIGNE</td></tr>'}</tbody></table>`;
-    const detBody = lkTab === "qlt" ? `<div class="lk-scroll">${qltHTML()}</div>`
-      : lkTab === "dly" ? `<div class="lk-scroll">${insDlyHTML(!RO, shell.__insDly && shell.__insDly.err)}</div>` : det(lkTab);
-    detN.qlt = (INS.qlt || []).length;
-    detN.dly = insTasks().length;
-    if (detN.prd === undefined) detN.prd = cfApply("lk_prd", [["des", "", r => r.des || ""], ["u", "", r => r.u || ""], ["qt", "", r => ECR.LK.prd[r.id] ?? ""]], [...INS.prd]).length;
-    if (detN.chg === undefined) detN.chg = cfApply("lk_chg", [["des", "", r => r.des || ""], ["u", "", r => r.u || ""], ["qt", "", r => ECR.LK.chg[r.id] ?? ""]], [...INS.chg]).length;
-    const tabBtn = (k, title, extra) => `<button type="button" class="bdg-d-tab${lkTab === k ? " active" : ""}${Object.keys(cfT("lk_" + k).f).length ? " cf-on" : ""}" data-lktab="${k}">${SVI_ICON[k] || ""}${title} ${svCnt(detN[k])}${extra || ""}</button>`;
-    const detHTML = `<div class="lk-dettabs"><div class="bdg-d-tabs lk-tabs">${tabBtn("chg", "DÉTAIL CHARGES")}${tabBtn("prd", 'DÉTAIL PRODUITS <b class="req-star">*</b>')}${tabBtn("qlt", "DÉTAIL QUALITÉ")}${tabBtn("dly", "DÉTAIL DÉLAIS")}</div>
-      <div class="bdg-d-block bdg-d-tabbody lk-blk lk-det">${detBody}<div class="blk-rsz lk-hrsz" data-lkh="det"></div></div></div>`;
-    const nPrd = Object.keys(ECR.LK.prd).length;
-    const complete = ECR.LK.des && ECR.LK.lot && ECR.LK.prim && ECR.LK.sec && nPrd > 0;
-    const chain = [lkName("des", ECR.LK.des), lkName("lot", ECR.LK.lot), lkName("prim", ECR.LK.prim), lkName("sec", ECR.LK.sec)]
-      .map(x => x || "…").join(" › ") + " › " + nPrd + " PRODUIT(S)" + (Object.keys(ECR.LK.chg).length ? " + " + Object.keys(ECR.LK.chg).length + " CHARGE(S)" : "");
-    /* LIAISONS VALIDÉES */
-    const LC = [["art", "ART", l => (INS.des.find(x => x.id === l.des) || {}).art || "", "center"],
-      ["des", "DÉSIGNATION", l => (INS.des.find(x => x.id === l.des) || {}).des || "", ""],
-      ["lot", "LOT", l => lkName("lot", l.lot), ""], ["prim", "ACTIVITÉ PRIMAIRE", l => lkName("prim", l.prim), ""],
-      ["sec", "ACTIVITÉ SECONDAIRE", l => lkName("sec", l.sec), ""], ["np", "PRODUITS", l => (l.prd || []).length, "center"],
-      ["nc", "CHARGES", l => (l.chg || []).length, "center"],
-      /* prix de la tâche primaire = PPB de la désignation client */
-      ["lq", "QUANTITÉ", l => insFmt((l.prd || []).reduce((t, x) => t + num(x.q || 0), 0)), "number"],
-      ["lp", "PPB", l => insFmt(num((INS.des.find(x => x.id === l.des) || {}).p || 0)), "number"],
-      ["lm", "MPB HT", l => insFmt((l.prd || []).reduce((t, x) => t + num(x.q || 0), 0) * num((INS.des.find(x => x.id === l.des) || {}).p || 0)), "number"]];
-    const lrows = cfApply("lk_links", LC, INS.links || []);
-    const linksHTML = tbl("lk_links", LC, lrows, false, (l, oc) => `<tr>${oc.map(c => `<td class="${c[3]}">${esc(c[2](l))}</td>`).join("")}</tr>`)
-      .replace(/<\/tr><\/thead>/, RO ? "</tr></thead>" : `<th class="center" style="width:110px"></th></tr></thead>`);
-    box.innerHTML = `
-      <div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">${SVI_ICON.client}DÉSIGNATIONS CLIENT ${svCnt(desList.length)}</span></div>
-        <div class="lk-scroll" style="height:var(--lkh-des,170px)">${desHTML}</div><div class="blk-rsz lk-hrsz" data-lkh="des"></div></div>
-      <div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">${SVI_ICON.hier}TÂCHES</span></div>
-        <div class="lk-grid" style="${gridCols ? "grid-template-columns:" + gridCols : ""}">${col("lot", "LOT")}${col("prim", "ACTIVITÉ PRIMAIRE")}${col("sec", "ACTIVITÉ SECONDAIRE")}</div><div class="blk-rsz lk-hrsz" data-lkh="hier"></div></div>
-      ${detHTML}
-      ${RO ? "" : `<div class="lk-chain"><span class="lk-path">CHAÎNE : ${esc(chain)}</span>
-        ${ECR.LK.err ? `<span class="lk-err">${esc(ECR.LK.err)}</span>` : ""}
-        <button type="button" class="lk-go" ${complete ? "" : "disabled"}>✓ VALIDER LA LIAISON</button></div>`}
-      <div class="bdg-d-block lk-blk"><div class="bdg-d-block-title"><span class="ttl">LIAISONS VALIDÉES ${svCnt(lrows.length)}</span></div>
-        <div class="lk-scroll lk-links" style="height:var(--lkh-links,170px)">${linksHTML}</div><div class="blk-rsz lk-hrsz" data-lkh="links"></div></div>`;
-    /* hauteurs des blocs réglées par la poignée (mémorisées) */
-    try { const H = JSON.parse(localStorage.getItem("svi_lkh_v1") || "{}"); Object.keys(H).forEach(k => box.style.setProperty("--lkh-" + k, H[k] + "px")); } catch (e) {}
-    sviMarkEmptyTabs(box);
-    /* bouton DÉLIER au bout de chaque liaison */
-    if (!RO) box.querySelectorAll(".lk-links tbody tr").forEach((tr, i) => {
-      const l = lrows[i];
-      if (!l) return;
-      const td = document.createElement("td");
-      td.className = "center";
-      td.innerHTML = `<button type="button" class="lk-del" data-lid="${l.id}">${INS_TRASH} DÉLIER</button>`;
-      tr.appendChild(td);
-    });
-  };
+  /* v891 : l'ancien écran LIAISONS séparé (CHAÎNE, ✓ VALIDER LA LIAISON, LIAISONS VALIDÉES), plus accessible, est retiré du code (cahier) */
   /* contrôle des règles avant validation (cahier des charges A et D) */
   /* règle A au moment du choix : message passager et choix refusé */
   const lkRuleA = (k, id) => {
@@ -11928,64 +11782,6 @@ function sviBdgAnnulerLiaisons(C) {
     if (dup) return "RÈGLE D : " + lkName("prd", dup) + " EST DÉJÀ DANS LA TÂCHE SECONDAIRE " + lkName("lot", ECR.LK.lot) + " › " + lkName("sec", ECR.LK.sec) + ".";
     return "";
   };
-  if (!shell.__lkBound) {
-    shell.__lkBound = true;
-    shell.addEventListener("change", e => {
-      const X = shell.__lk;
-      if (!X || !e.target.closest("#insLinkView")) return;
-      const r = e.target.closest("input[data-lk]");
-      if (r) { X.LK[r.dataset.lk] = r.value; X.LK.err = ""; X.render(); return; }
-      const cb = e.target.closest("input.lk-cb");
-      if (cb) {
-        const tr = cb.closest("tr[data-det]");
-        const k = tr.dataset.det, id = tr.dataset.id;
-        if (cb.checked) X.LK[k][id] = tr.querySelector(".lk-q").value || ""; else delete X.LK[k][id];
-        X.LK.err = ""; X.render(); return;
-      }
-      const q = e.target.closest("input.lk-q");
-      if (q) {
-        const tr = q.closest("tr[data-det]");
-        X.LK[tr.dataset.det][tr.dataset.id] = q.value.trim();
-        X.render();
-      }
-    });
-    shell.addEventListener("click", e => {
-      const X = shell.__lk;
-      if (!X || !e.target.closest("#insLinkView")) return;
-      /* toucher la ligne = toucher le rond (ou la case) */
-      if (!e.target.closest("input, button, .cf-btn, label")) {
-        const tr = e.target.closest("tr[data-pick]");
-        if (tr && !X.RO()) { X.LK[tr.dataset.pick] = tr.dataset.id; X.LK.err = ""; X.render(); return; }
-        const td = e.target.closest("tr[data-det]");
-        if (td && !X.RO()) { td.querySelector(".lk-cb")?.click(); return; }
-      }
-      const lt = e.target.closest(".bdg-d-tab[data-lktab]");
-      if (lt && !e.target.closest(".cf-btn")) { X.LK.tab = lt.dataset.lktab; X.render(); return; }
-      const del = e.target.closest(".lk-del");
-      if (del) {
-        svConfirm({ title: "DÉLIER", text: "LA LIAISON SERA DÉFAITE ; LES LIGNES RESTENT DANS LE BUDGET.", ok: "DÉLIER" }).then(go => {
-          if (!go) return;
-          X.INS.links = (X.INS.links || []).filter(l => l.id !== del.dataset.lid);
-          X.save("DÉLIER"); X.render();
-        });
-        return;
-      }
-      if (e.target.closest(".lk-go")) {
-        const err = X.check();
-        if (err) { X.LK.err = err; X.render(); return; }
-        const L = X.LK;
-        X.INS.links = X.INS.links || [];
-        X.INS.links.push({ id: X.insId(), des: L.des, lot: L.lot, prim: L.prim, sec: L.sec,
-          prd: Object.entries(L.prd).map(([id, q]) => ({ id, q: q === "" ? "" : num(q) })),
-          chg: Object.entries(L.chg).map(([id, q]) => ({ id, q: q === "" ? "" : num(q) })) });
-        /* on garde la désignation et le lot pour enchaîner la tâche suivante */
-        L.prim = null; L.sec = null; L.prd = {}; L.chg = {}; L.err = "";
-        X.save("LIAISON VALIDÉE"); X.render();
-      }
-    });
-  }
-  shell.__lk = INS ? { INS, LK: ECR.LK, insId, check: lkCheck, render: () => insRenderLinks(), RO: () => !INS_EDIT,
-    save: what => { insSave(); histLog("LIAISONS", what, fullRef); } } : null;
   /* détail produits : alerte (non bloquante) si les dimensions ne correspondent pas à l'unité
      U / F : NBR seul ; M / ML : NBR + 1 DIM ; M2 : NBR + 2 DIM ; M3 : NBR + 3 DIM */
   if (!shell.__dimBound) {
@@ -12166,7 +11962,7 @@ function sviBdgAnnulerLiaisons(C) {
         return;
       }
       const del = e.target.closest(".lk-del");
-      if (del && !e.target.closest("#insLinkView")) {
+      if (del) {
         svConfirm({ title: "DÉLIER", text: "LA LIAISON SERA DÉFAITE ; LES LIGNES RESTENT DANS LE BUDGET.", ok: "DÉLIER" }).then(go => {
           if (!go) return;
           X.INS.links = (X.INS.links || []).filter(l => l.id !== del.dataset.lid);
@@ -12177,7 +11973,7 @@ function sviBdgAnnulerLiaisons(C) {
     shell.addEventListener("change", e => {
       const X = shell.__fuse;
       const q = e.target.closest && e.target.closest("input.lk-q");
-      if (!X || !q || e.target.closest("#insLinkView")) return;
+      if (!X || !q) return;
       const id = q.closest("[data-iid]")?.dataset.iid;
       if (id && X.LK[q.dataset.qk][id] !== undefined) { X.LK[q.dataset.qk][id] = q.value.trim(); X.chain(); }
     });
@@ -12476,7 +12272,6 @@ function sviBdgAnnulerLiaisons(C) {
   /* bascule SAISIE / LIAISONS */
   const insApplyMode = () => {
     if (!INS) return;
-    shell.classList.remove("ins-mode-link");
     insRenderChain();
     insMarkUnlinked();
   };

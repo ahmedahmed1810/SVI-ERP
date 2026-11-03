@@ -15,7 +15,7 @@
     window.__sviBdgShell = shell; window.__sviBdgGen = (window.__sviBdgGen || 0) + 1;
     ["__aprBound", "__avoBound", "__chkBound", "__condBound", "__dimBound", "__dlyBound", "__dlyFillBound", "__dlyGSelB", "__dlyKbBound", "__dlyLiftBound", "__dlyPinchBound",
      "__dlyPlanBound", "__dupBound", "__emptyBound", "__faBound", "__filtCntBound", "__foldBound", "__fuseBound", "__gcbBound", "__gnBound", "__i1Bound", "__ibdOn", "__incBound",
-     "__insBound", "__insTouch", "__layDetRs", "__layFocus", "__libBound", "__lkBound", "__lnkCbBound", "__lotTreeBound", "__mgBound", "__modIndBound", "__moreBound", "__onlyBound",
+     "__insBound", "__insTouch", "__layDetRs", "__layFocus", "__libBound", "__lnkCbBound", "__lotTreeBound", "__mgBound", "__modIndBound", "__moreBound", "__onlyBound",
      "__qqDescBound", "__rdblBound", "__ruleBound", "__sdTabBound", "__tabGenB", "__unlBound", "__unlGoBound"].forEach(k => { delete shell[k]; });
     /* dernier budget consulté : rouvert à la prochaine ouverture */
     try { localStorage.setItem("svi_lastbdg_v1", ref); } catch (e) {}
@@ -438,8 +438,6 @@
       </div>
 
       <div class="bdg-d-page">
-        <div id="insLinkView" class="ins-link-view"></div>
-
         <div class="bdg-d-block blk-client">
           <div class="bdg-d-block-title blk-head" id="bdgClientTitle">
             <span class="ttl">${SVI_ICON.client}DÉSIGNATIONS CLIENT</span>

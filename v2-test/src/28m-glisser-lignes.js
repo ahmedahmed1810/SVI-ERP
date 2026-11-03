@@ -344,43 +344,6 @@ function sviBdgGlisserLignes(C) {
   }
 
   shell.onpointerdown = event => {
-    /* mode LIAISONS : la poignée d'en-tête règle la largeur des blocs TÂCHES */
-    /* mode LIAISONS : poignée du bas = hauteur du bloc (mémorisée) */
-    const lkH = event.target.closest(".lk-hrsz");
-    if (lkH) {
-      event.preventDefault(); event.stopPropagation();
-      const k = lkH.dataset.lkh, box = $("insLinkView");
-      const ref = lkH.parentElement.querySelector(k === "hier" ? ".lk-col" : ".lk-scroll");
-      const y0 = event.clientY, h0 = ref ? ref.getBoundingClientRect().height : 170;
-      let h = h0;
-      lkH.classList.add("on");
-      const mv = ev => { h = Math.max(80, Math.round(h0 + ev.clientY - y0)); box.style.setProperty("--lkh-" + k, h + "px"); };
-      const up = () => {
-        lkH.classList.remove("on");
-        document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
-        try { const H = JSON.parse(localStorage.getItem("svi_lkh_v1") || "{}"); H[k] = h; localStorage.setItem("svi_lkh_v1", JSON.stringify(H)); } catch (e) {}
-      };
-      document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
-      return;
-    }
-    const lkRs = event.target.closest(".lk-col .lk-rs");
-    if (lkRs) {
-      event.preventDefault(); event.stopPropagation();
-      const grid = lkRs.closest(".lk-grid");
-      const colsEl = [...grid.querySelectorAll(".lk-col")];
-      const i = colsEl.indexOf(lkRs.closest(".lk-col"));
-      const ws = colsEl.map(c => c.getBoundingClientRect().width);
-      const x0 = event.clientX, w0 = ws[i];
-      const mv = ev => { ws[i] = Math.max(120, Math.round(w0 + ev.clientX - x0)); grid.style.gridTemplateColumns = ws.map(v => v + "px").join(" "); };
-      const up = () => {
-        document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
-        const all = cwLoad();
-        ["lot", "prim", "sec"].forEach((k, j) => { all["lk_hier." + k] = Math.round(ws[j]); });
-        cwSave(all);
-      };
-      document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
-      return;
-    }
     /* v525 (remarque 5) : un titre de niveau de lot (créé) se glisse aussi, avec ses lots */
     /* v527 (remarque 1) : les lignes du DÉTAIL CHARGES et du DÉTAIL PRODUITS ne se déplacent pas — pas de trait à l'appui long */
     const insEl = INS_EDIT && event.target.closest('.ins-table:not([data-ik="chg"]):not([data-ik="prd"]) tr[data-iid], .ins-hcol .ins-li[data-iid], .ins-hcol .ins-li.lot-grp');

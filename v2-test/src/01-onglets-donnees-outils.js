@@ -6,7 +6,6 @@
    ========================================================= */
 const SV_TABSETS = [
   { c: "#bdgTabs", t: ".bdg-d-tab", k: "tab", set: "detail" },
-  { c: ".lk-tabs", t: ".bdg-d-tab", k: "lktab", set: "detail" },
   { c: ".rec-tabs", t: ".rec-tab", k: "rtab", set: "suivi" },
   { c: ".imp-tabs", t: ".imp-tab", k: "tab", set: "import" },
   { c: ".hist-filters", t: ".hist-f", k: "b", set: "hist" }

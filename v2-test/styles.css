@@ -1063,21 +1063,6 @@ tfoot td {
 /* lignes non liées : hachurées dans la couleur de l'état (rouge en instance) */
 /* lignes non liées : blanches, sans mise en forme (consigne 24) */
 .ins-table tr.ins-unl td, .ins-hcol .ins-li.ins-unl { background: #fff !important; }
-/* mode LIAISONS : les tableaux de saisie sont remplacés par la vue des liaisons */
-.ins-link-view { display: none; }
-.ins-mode-link .ins-link-view { display: block; order: -1; }
-.ins-mode-link .bdg-d-page > .blk-client, .ins-mode-link .bdg-d-page > .blk-hier,
-.ins-mode-link #bdgTabs, .ins-mode-link #bdgTabBody, .ins-mode-link #bdgDetailRsz { display: none !important; }
-.lk-blk { margin-bottom: 12px; }
-.lk-blk .bdg-d-block-title { display: flex; align-items: center; }
-.ins-link-view tr.lk-sel td { background: #fde8e8 !important; font-weight: 800; }
-.ins-link-view tr.lk-dim td { opacity: .45; }
-.ins-link-view input[type=radio], .ins-link-view input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--inst, #b91c1c); vertical-align: middle; }
-.lk-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 8px; }
-.lk-col { border: 1px solid #e5e9f0; border-radius: 8px; overflow: auto; }
-.lk-ch { padding: 6px 8px; background: #f6f7f9; font-weight: 800; font-size: 11px; color: #4b5563; position: sticky; top: 0; }
-.lk-li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid #f0f2f5; cursor: pointer; color: var(--inst, #b91c1c); }
-.lk-li.lk-sel { background: #fde8e8; font-weight: 800; }
 .lk-q { width: 110px; border: 1px solid #e7a3a3; border-radius: 6px; padding: 3px 6px; text-align: right; font: inherit; color: var(--inst, #b91c1c); }
 .lk-chain { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; padding: 10px 14px; background: #fff;
   border: 1.5px dashed var(--inst, #b91c1c); border-radius: 10px; font-weight: 800; color: var(--inst, #b91c1c); }
@@ -1087,7 +1072,6 @@ tfoot td {
 .lk-go:disabled { background: #e5e7eb; color: #9ca3af; cursor: default; }
 .lk-ok { background: #dcfce7; color: #166534; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 800; }
 .lk-del { border: 0; background: transparent; color: var(--inst, #b91c1c); font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
-@media (max-width: 700px) { .lk-grid { grid-template-columns: 1fr; } }
 /* délais : champs sans cadre, comme les autres tableaux de saisie */
 .dly-table td.ins-td { padding: 0 !important; }
 .dly-table :is(input.ins-in, textarea.ins-in, .ins-dv) { width: 100%; box-sizing: border-box; border: 0; background: transparent; font: inherit; color: inherit;
@@ -1096,23 +1080,10 @@ tfoot td {
 .dly-table :is(input.ins-in, textarea.ins-in, .ins-dv).number { text-align: right; }
 .dly-table :is(input.ins-in, textarea.ins-in, .ins-dv).center { text-align: center; }
 .bdg-inst-instance .dly-table :is(input.ins-in, textarea.ins-in, .ins-dv), .bdg-inst-fige .dly-table :is(input.ins-in, textarea.ins-in, .ins-dv) { color: var(--inst); -webkit-text-fill-color: var(--inst); }
-/* mode LIAISONS : FORMAT */
-.lk-scroll { height: 170px; max-height: none; overflow: auto; }
 .lk-table { table-layout: fixed; }
 .lk-table th { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lk-table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lk-table td:first-child, .lk-table th:first-child { overflow: visible; text-overflow: clip; }
-.lk-col { max-height: none; }
-.lk-col .lk-ch { display: flex; align-items: center; position: sticky; top: 0; z-index: 1; }
-.lk-col .lk-ch .cf-wrap { flex: 1; }
-.lk-col .lk-rs { position: static; width: 10px; align-self: stretch; cursor: col-resize; }
-.ins-link-view .lk-li.ins-unl, .ins-link-view tr.ins-unl td {
-  background: repeating-linear-gradient(135deg, var(--inst-bg, #fef2f2), var(--inst-bg, #fef2f2) 6px, var(--inst-hatch, #fee2e2) 6px, var(--inst-hatch, #fee2e2) 12px) !important; color: var(--inst, #b91c1c) !important; }
-.ins-link-view tr.lk-sel.ins-unl td, .ins-link-view .lk-li.lk-sel.ins-unl { background: #fde8e8 !important; color: var(--inst, #b91c1c) !important; }
-/* LIAISONS : détails sous onglets */
-.lk-dettabs { margin-bottom: 12px; }
-.lk-dettabs .bdg-d-tabs { align-items: flex-end; }
-.lk-dettabs .bdg-d-tabbody { margin-bottom: 0; }
 .req-star { color: #b91c1c; font-weight: 900; margin-left: 2px; }
 #svConf .svc-x { white-space: pre-line; }
 #svConf .svc-ok.svc-neutral { border-color: #172033; color: #172033; }
@@ -1121,8 +1092,6 @@ tfoot td {
 .bdg-d-page:not(.max-rec) .blk-suivi .rec-scroll { height: var(--h-suivi, 129px); max-height: none; }
 .bdg-d-page:not(.max-detail) .bdg-d-tabbody .bdg-d-scroll { height: var(--h-detail, 148px); max-height: none; }
 /* consigne 5 : en-têtes non tronqués */
-.ins-link-view .bdg-d-block-title .ttl { display: inline-flex; align-items: center; gap: 8px; }
-.lk-li.empty { justify-content: center; cursor: default; border: 0; }
 
 /* onglets vides : le compteur 0 suffit (pas de mise en forme spéciale) */
 /* DOC / TAF / OBS : validés dès leur saisie (boutons du haut) → noir, même dans un budget en instance ou figé */
@@ -1138,11 +1107,6 @@ tfoot td {
 .ins-hcol .bdg-h-head .ins-cball { margin-left: 2px; }
 .ins-tcb:indeterminate { opacity: .5; }
 .dlp-err { margin: 6px 8px; display: block; }
-/* mode LIAISONS : hauteur des blocs réglable par la poignée du bas (consigne 16) */
-.lk-col { height: var(--lkh-hier, 200px); }
-.lk-det .lk-scroll { height: var(--lkh-det, 170px); }
-.lk-blk .lk-grid { padding-bottom: 8px; }
-.lk-blk > .lk-hrsz { margin: 0; }
 /* onglets déplaçables : le défilement vertical reste possible, le glissement horizontal déplace l'onglet */
 .bdg-d-tab, .rec-tab, .imp-tab, .hist-f { touch-action: pan-y; -webkit-user-select: none; user-select: none; }
 .tab-drag { opacity: .6; outline: 2px dashed #94a3b8; outline-offset: -2px; }
@@ -1265,8 +1229,8 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 #instDup[hidden] { display: none; }
 .bdg-more-btn { font-weight: 900; line-height: 1; letter-spacing: 1px; }
 /* onglets à largeur égale : une seule rangée, défilement horizontal si elle dépasse */
-#bdgTabs, .rec-tabs, .imp-tabs, .lk-tabs { flex-wrap: nowrap !important; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
-#bdgTabs::-webkit-scrollbar, .rec-tabs::-webkit-scrollbar, .imp-tabs::-webkit-scrollbar, .lk-tabs::-webkit-scrollbar { display: none; }
+#bdgTabs, .rec-tabs, .imp-tabs { flex-wrap: nowrap !important; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+#bdgTabs::-webkit-scrollbar, .rec-tabs::-webkit-scrollbar, .imp-tabs::-webkit-scrollbar { display: none; }
 /* onglets : ⋯ toujours visible à droite ; poignée de largeur au bord droit de chaque onglet */
 #bdgTabs > .blk-tools { position: sticky; right: 0; margin-left: auto; background: inherit; z-index: 2; flex: none; }
 .tab-eq { position: relative; line-height: 1.2; }
@@ -3353,7 +3317,6 @@ table.svi-bdgl thead th .cf-wrap { float: none; width: 100%; }
 #ach .nvp .nvp-rsz.on::after, #ach .nvp .nvp-rsz:hover::after { background: #1d4ed8; }
 /* v772 : ORGANISATION DES BLOCS DU BUDGET — en-tête (nom, AGRANDIR, ⋯), rangée d'onglets, tableau */
 #bdgTabs > .bdg-d-tab.tab-menu { display: none; }
-.ins-mode-link #bdgDetailHead { display: none !important; }
 #bdgDetailHead { display: flex; align-items: center; justify-content: space-between; border: 1px solid #e1e5eb; border-bottom: 0; border-radius: 12px 12px 0 0; margin-bottom: 0; }
 #bdgDetailHead + #bdgTabs { border-radius: 0; margin-top: 0; }
 #bdgDetailHead .dhead-sub { margin-left: 6px; color: #3b6ea5; }
@@ -3547,7 +3510,7 @@ html body .blk-tools .blk-btn.blk-max-btn, #ach .nvp .blk-tools [data-nvmax] { d
   /* pliage : un pas de retrait par niveau, place réservée au signe */
   --fold-step: 20px; --fold-w: 16px;
 }
-.bdg-d-tabs, #bdgTabs, .rec-tabs, .lk-tabs { background: var(--tb-tab-bg); }
+.bdg-d-tabs, #bdgTabs, .rec-tabs { background: var(--tb-tab-bg); }
 .bdg-d-tab:not(.active):not(.tab-filt), .rec-tab:not(.on):not(.tab-filt) { background: var(--tb-tab-bg); }
 :is(table) thead th, .bdg-h-head { background: var(--tb-head-bg); }
 tr.ins-gtitle:not(.ins-hasck):not(.lk-sel):not(.lk-link):not(.lk-hit):not(.ro-on) td, .dly-grp:not(.ins-hasck):not(.lk-sel):not(.lk-link):not(.lk-hit):not(.ro-on) td,
