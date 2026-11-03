@@ -1243,7 +1243,7 @@
       const shownD = insShown("des");
       if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + insCkBadge("des") + insCntOwn("des", shownD.filter(r => !r.t).length, INS.des.filter(r => !r.t).length) + onlyBtn("des");
       lastShown.client = { cols: insCfCols("des"), rows: shownD, ins: true };
-      lastClientKeys = new Set();
+      ECR.lastClientKeys = new Set();
       /* même tableau que la version validée (identifiants gardés) */
       const tbl = $("bdgClientBody")?.closest("table");
       if (!tbl) return;

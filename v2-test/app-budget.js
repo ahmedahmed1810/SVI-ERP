@@ -2477,7 +2477,7 @@ function renderBudgetList() {
        det    = attributs des lignes visibles de Détail charges / produits filtrés,
        h      = valeurs gardées dans les colonnes lots / activités */
     let CONS = { client: null, det: null, h: {} };
-    let lastClientKeys = new Set();
+    ECR.lastClientKeys = new Set();
 
     const cons = (l, skip) => {
       const c = CONS;
@@ -4093,7 +4093,7 @@ function renderBudgetList() {
       const shownD = insShown("des");
       if (t) t.innerHTML = SVI_ICON.client + "DÉSIGNATIONS CLIENT " + insCkBadge("des") + insCntOwn("des", shownD.filter(r => !r.t).length, INS.des.filter(r => !r.t).length) + onlyBtn("des");
       lastShown.client = { cols: insCfCols("des"), rows: shownD, ins: true };
-      lastClientKeys = new Set();
+      ECR.lastClientKeys = new Set();
       /* même tableau que la version validée (identifiants gardés) */
       const tbl = $("bdgClientBody")?.closest("table");
       if (!tbl) return;
@@ -12012,7 +12012,7 @@ ${A}</Assignments>
       ];
 
       const shownClient = roApply("client", cfApply("client", ccols, base), g => g.key);
-      lastClientKeys = new Set(shownClient.map(g => g.key));
+      ECR.lastClientKeys = new Set(shownClient.map(g => g.key));
       lastShown.client = { cols: ccols, rows: shownClient };
       /* compteur du titre : lignes affichées (filtres compris) */
       { const t = document.querySelector("#bdgClientTitle .ttl");
@@ -12351,7 +12351,7 @@ ${A}</Assignments>
     /* recalcule les contraintes propagées par les filtres de colonne */
     const computeCons = (withClient = true) => {
       const has = t => CF[t] && Object.keys(CF[t].f).length > 0;
-      CONS.client = withClient && has("client") ? new Set(lastClientKeys) : null;
+      CONS.client = withClient && has("client") ? new Set(ECR.lastClientKeys) : null;
 
       let det = null;
       ["chg", "prd"].forEach(kind => {

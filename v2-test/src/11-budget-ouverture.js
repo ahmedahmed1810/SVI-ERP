@@ -227,7 +227,7 @@
        det    = attributs des lignes visibles de Détail charges / produits filtrés,
        h      = valeurs gardées dans les colonnes lots / activités */
     let CONS = { client: null, det: null, h: {} };
-    let lastClientKeys = new Set();
+    ECR.lastClientKeys = new Set();
 
     const cons = (l, skip) => {
       const c = CONS;
