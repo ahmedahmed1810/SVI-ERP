@@ -826,7 +826,7 @@ function sviAchInit() {
     if (t.classList.contains("ach-gin")) { const P = achPrm(), g = P.grp.find(x => x.id === t.closest("tr").dataset.gid); if (!g) return; const f = t.dataset.f, v = achU(t.value);
       if (f === "nom") { if (!v) { svToast("NOM DU GROUPE OBLIGATOIRE.", 3000, t); draw(); return; } if (P.grp.some(x => x.id !== g.id && achU(x.nom) === v)) { svToast("DOUBLON : " + v + " EXISTE DÉJÀ.", 3000, t); draw(); return; } }
       if (f === "pre") { if (!/^[A-Z]{2,5}$/.test(v)) { svToast("PRÉFIXE : 2 À 5 LETTRES (EX. FRE).", 3500, t); draw(); return; }
-        const u = achFrs().find(x => !x.del && x.st !== "instance" && !x.nov && achFrsGrpId(x) === g.id); if (u && v !== g.pre) { svToast("PRÉFIXE FIGÉ : LE GROUPE A DES FOURNISSEURS VALIDÉS (" + u.code + "), LEUR RÉFÉRENCE CHANGERAIT.", 4500, t); draw(); return; } }
+        const u = achFrs().find(x => !x.del && achSt(x) !== "instance" && !x.nov && achFrsGrpId(x) === g.id); if (u && v !== g.pre) { svToast("PRÉFIXE FIGÉ : LE GROUPE A DES FOURNISSEURS VALIDÉS (" + u.code + "), LEUR RÉFÉRENCE CHANGERAIT.", 4500, t); draw(); return; } }
       g[f] = v; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-bin")) {
       const P = achPrm(), b = P.banques.find(x => x.id === t.closest("tr").dataset.bid); if (!b) return;
@@ -1466,7 +1466,11 @@ function achBsnFiche(id, done) {
    ========================================================= */
 const achDFr = v => /^\d{4}-\d{2}-\d{2}/.test(String(v || "")) ? String(v).slice(8, 10) + "/" + String(v).slice(5, 7) + "/" + String(v).slice(0, 4) : "";
 const achF2 = v => (Number(v) || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/ | /g, " ");
-const achFrsNom = id => { const L = achFrs(), f = L.find(x => x.id === id); return f ? f.nom : "?"; };   /* v779 : le nom seul (la référence FRS-000n ne parle pas) */
+/* v921 (remarque 4 du 04/11/2026) : une pièce désigne son fournisseur par son identifiant ; une pièce venue d'ailleurs (import) peut porter
+   sa référence, son code ou son nom — reconnue aussi, pour que la pièce s'affiche dans la liste ET sur la page du fournisseur */
+const achFrsIs = (v, f) => !!v && !!f && (v === f.id || v === f.code || (!!f.nov && v === f.nov) || achU(v) === achU(f.nom) || (typeof achFrsRef === "function" && v === achFrsRef(f)));
+const achFrsOf = v => { if (!v) return null; const L = achFrs(); return L.find(x => x.id === v) || L.find(x => !x.del && achFrsIs(v, x)) || null; };
+const achFrsNom = id => { const f = achFrsOf(id); return f ? f.nom : "?"; };   /* v779 : le nom seul (la référence FRS-000n ne parle pas) */
 /* tableau générique d'une liste d'achats (consultations, devis) : même format que les articles */
 /* v765 : toutes les listes des achats au format du budget (47 : achNvList) — EN INSTANCE / VALIDÉS, dates, CRÉER… en bas,
    corbeille des lignes en instance (= ANNULER, la pièce est gardée) ; toucher une ligne ouvre sa fiche */
@@ -2473,7 +2477,10 @@ window.SVI_LIST_EXTRA = (window.SVI_LIST_EXTRA || []).concat([{ when: t => /^PAI
    dessous, les tableaux liés (consultations, devis, commandes…). ‹ › : élément précédent / suivant de la liste.
    Appliqué aux ARTICLES et aux FOURNISSEURS ; les autres listes suivront.
    ========================================================= */
-const achSt = x => x && x.st === "instance" ? "instance" : "valide";
+/* v921 (remarque 3 du 04/11/2026) : même cycle que le budget — EN INSTANCE (rouge) → FIGÉ (vert) → VALIDÉ (noir) ;
+   un élément figé reste dans la liste EN INSTANCE (achSt = « instance »), en vert ; achStF dit l'état exact */
+const achSt = x => x && (x.st === "instance" || x.st === "fige") ? "instance" : "valide";
+const achStF = x => x && x.st === "fige" ? "fige" : achSt(x);
 const achDay = v => String(v || "").slice(0, 10);
 const ACH_TRASH = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>`;
 const ACH_SW = '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h14M14 4l4 4-4 4M20 16H6M10 12l-4 4 4 4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -2583,7 +2590,7 @@ function achNvList(ctx, o) {
       <div class="novapp-budget-table-wrap"><table id="${o.id}" class="novapp-budget-table svi-bdgl${inst ? " nv-inst" : ""}" data-ach="${o.k}">
         <colgroup>${cols.map(c => `<col data-w="${o.t}.${c[0]}" style="width:${CW[o.t + "." + c[0]] ? CW[o.t + "." + c[0]] + "px" : ((W[c[0]] || 120) / tot * 100).toFixed(2) + "%"}">`).join("")}<col style="width:44px"><col style="width:40px"></colgroup>
         <thead><tr>${cols.map(c => cfHead(o.t, c[0], c[1], "bdg-list-head" + (c[3] === "number" ? " number" : ""))).join("")}<th class="bdg-act-h"></th>${sviListCbTh()}</tr></thead>
-        <tbody>${rows.map(x => `<tr data-id="${esc(x.id)}" data-iid="${esc(x.id)}" data-nvo="${esc(x.id)}" class="${isI(x) ? "inst-instance" : "inst-valide"}${x.del || x.state === "annule" ? " etat-bloque" : ""}${x.actif === false ? " etat-archive" : ""}">${cols.map(c => cell(x, c)).join("")}<td class="bdg-action-cell">${inst && !x.del && x.state !== "annule" ? `<button type="button" class="bdg-row-action bdg-row-del" data-nvdel="${esc(x.id)}" title="Supprimer" aria-label="Supprimer">${SVI_DEL_ICON}</button>` : ""}</td>${sviListCbTd()}</tr>`).join("")
+        <tbody>${rows.map(x => `<tr data-id="${esc(x.id)}" data-iid="${esc(x.id)}" data-nvo="${esc(x.id)}" class="${x.st === "fige" ? "inst-fige" : isI(x) ? "inst-instance" : "inst-valide"}${x.del || x.state === "annule" ? " etat-bloque" : ""}${x.actif === false ? " etat-archive" : ""}">${cols.map(c => cell(x, c)).join("")}<td class="bdg-action-cell">${inst && !x.del && x.state !== "annule" ? `<button type="button" class="bdg-row-action bdg-row-del" data-nvdel="${esc(x.id)}" title="Supprimer" aria-label="Supprimer">${SVI_DEL_ICON}</button>` : ""}</td>${sviListCbTd()}</tr>`).join("")
           || ""}
           ${inst && etat !== "corbeille" && etat !== "inactif" && etat !== "annule" ? `<tr class="bdg-newrow" data-nvnew><td colspan="${cols.length + 2}">${esc(o.newRow)}</td></tr>` : ""}</tbody></table></div></div></div>`;
   };
@@ -2643,7 +2650,7 @@ function achNvPageHTML(p, rec, ctx) {
       <tbody>${R.map(r => `<tr class="${r.cls || ""}">${r.cells.map((v, j) => { const g = (r.go || []).find(z => z[0] === j); return `<td class="${L.cols[j][1] || ""}">${j === 0 && r.open ? `<button type="button" class="ach-link" data-nvl="${esc(L.t)}|${r.__i}">${esc(v)}</button>` : g ? `<button type="button" class="ach-link" data-nvgo="${esc(g[1] + "|" + g[2])}">${esc(v)}</button>` : esc(typeof v === "number" ? achF2(v) : v)}</td>`; }).join("")}<td class="center"><input type="checkbox" class="nvp-cb"></td></tr>`).join("")}${L.add ? `<tr class="rec-new" data-nvadd="${k}"><td colspan="${n + 1}">${esc(L.add)}</td></tr>` : ""}</tbody>
       ${isL ? `<tfoot><tr class="bdg-d-total-row">${L.cols.map((c, j) => j === iM ? `<td class="number">${achF2(tot)}</td>` : j === iM - 1 ? `<td class="number">${R.length < L.rows.length ? "TOTAL PARTIEL" : "TOTAL"}</td>` : "<td></td>").join("")}<td></td></tr></tfoot>` : ""}</table></div>
       <div class="blk-rsz nvp-rsz" data-nvh="${k}" title="Glisser pour changer la hauteur"></div></div>`; };
-  return `<div class="nvp bdg-d-page ${p.st === "instance" && !p.del ? "bdg-inst-instance" : "nvp-valide"}" style="${achNvhStyle()}">
+  return `<div class="nvp bdg-d-page ${p.st === "fige" && !p.del ? "bdg-inst-fige" : p.st === "instance" && !p.del ? "bdg-inst-instance" : "nvp-valide"}" style="${achNvhStyle()}">
     <div class="bdg-d-sticky"><div class="novapp-list-titlebar">
       <button type="button" class="novapp-menu open-menu" aria-label="Menu">☰</button>
       <h1 class="bdg-d-h1 nvp-ref${p.del ? " nv-strike" : ""}">${esc(p.ref || p.code)}</h1>
@@ -2670,7 +2677,7 @@ function achMepOpen(cfg, P, rec, redraw, o) {
   const K = cfg.list.k, pr = achPrm(), lettres = P.ttc && !o.noPrice ? "ARRÊTÉ(E) À LA SOMME DE : " + frMoney(P.ttc) + " TTC." : "";
   const mention = K === "cmf" ? "N° " + (P.ref || P.code) + " À REPORTER SUR LE BON DE LIVRAISON ET LA FACTURE." : K === "caf" ? "MERCI DE RAPPELER LA RÉFÉRENCE " + (P.ref || P.code) + " DANS VOTRE DEVIS." : "";
   const soc = [pr.socIce ? "ICE : " + pr.socIce : "", pr.socIf ? "IF : " + pr.socIf : ""].filter(Boolean).join(" — ");
-  sviMep.open({ key: "ACH-" + String(cfg.list.k || "X").toUpperCase() + (o.noPrice ? "-SP" : ""), title: cfg.list.one + (o.noPrice ? " (SANS PRIX)" : ""), ref: P.ref || P.code, party: P.party || P.title, date: P.date || "", prelim: P.st === "instance",
+  sviMep.open({ key: "ACH-" + String(cfg.list.k || "X").toUpperCase() + (o.noPrice ? "-SP" : ""), title: cfg.list.one + (o.noPrice ? " (SANS PRIX)" : ""), ref: P.ref || P.code, party: P.party || P.title, date: P.date || "", prelim: P.st === "instance" || P.st === "fige",
     cols: Lg.cols.map((c, i) => ["c" + i, c[0], c[1] || ""]), rows: Lg.rows.map(r => r.cells), tot: o.noPrice ? [] : P.tot || [], note: [lettres, mention, soc].filter(Boolean).join("\n"),
     fields: { projet: P.projet || "", ttc: P.ttc && !o.noPrice ? achF2(P.ttc) + " MAD" : "", numFrs: P.numFrs || "", lettres, mention, soc },
     name: (P.ref || P.code) + " " + cfg.list.one, save: async (b, n) => { const r = await rec.savePdf(b, n); if (redraw) setTimeout(redraw, 0); return r; } });
@@ -2698,7 +2705,7 @@ function achNvMod(ctx, cfg) {
       if (k === "todo") { svToast("⚠ " + P.why.join(" · "), 5000, b); return true; }
       /* v774 : ⋯ principal commun — VALIDER en tête ; actions ; CORBEILLE / RESTAURER et FERMER en bas, séparés par un trait */
       /* v920 (remarques 1 et 2 du 04/11/2026) : même ordre que le ⋯ du budget — FIGER / VALIDER ; actions ; DISPOSITION PAR DÉFAUT ; SUPPRIMER (ou ANNULER / RESTAURER) et FERMER ; une icône par ligne */
-      if (k === "more") { const M = P.menu.concat([{ k: "__apr", lab: "APERÇU" }]).concat(cfg.list.k === "cmf" || cfg.list.k === "rcp" ? [{ k: "__aprsp", lab: "BON SANS PRIX (CHAUFFEUR, MAGASIN)" }] : []), top = M.filter(m => m.k === "val" || m.k === "fige"), bot = M.filter(m => m.k === "del" || m.k === "rest").map(m => ({ ...m, del: m.k === "del" })), mid = M.filter(m => !top.includes(m) && !["del", "rest"].includes(m.k));
+      if (k === "more") { const M = P.menu.concat([{ k: "__apr", lab: "APERÇU" }]).concat(cfg.list.k === "cmf" || cfg.list.k === "rcp" ? [{ k: "__aprsp", lab: "BON SANS PRIX (CHAUFFEUR, MAGASIN)" }] : []), top = M.filter(m => m.k === "val" || m.k === "fige" || m.k === "defige"), bot = M.filter(m => m.k === "del" || m.k === "rest").map(m => ({ ...m, del: m.k === "del" })), mid = M.filter(m => !top.includes(m) && !["del", "rest"].includes(m.k));
         sviHdrMenu(b, [top, mid, [{ k: "__lay", lab: "DISPOSITION PAR DÉFAUT" }], [...bot, { k: "__close", lab: "FERMER" }]], async a => { if (a === "__close") { pid = null; ctx.draw(); return; }
           if (a === "__lay") { if (!(await sviLayAsk())) return; const pg = b.closest(".nvp") || document.querySelector("#ach .nvp"); sviLayReset(pg);
             try { localStorage.removeItem(ACH_NVH_K); } catch (e) {} if (pg) { pg.querySelectorAll(".nvp-max").forEach(x => x.classList.remove("nvp-max")); pg.removeAttribute("style"); } ctx.draw(); return; } if (a === "__apr") { achMepOpen(cfg, P, rec, () => ctx.draw()); return; } if (a === "__aprsp") { achMepOpen(cfg, P, rec, () => ctx.draw(), { noPrice: true }); return; } await P.act(a, () => ctx.draw(), id => open(id)); }); return true; }
@@ -2716,7 +2723,7 @@ function achNvMod(ctx, cfg) {
         if (a === "exp") { const b = new Blob(["\ufeff" + tsv().split("\n").map(l => l.split("\t").map(v => /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v).join(";")).join("\n")], { type: "text/csv;charset=utf-8" });
           const u = URL.createObjectURL(b), an = document.createElement("a"); an.href = u; an.download = ttl.replace(/[\\/:*?"<>|]/g, "-") + ".csv"; document.body.appendChild(an); an.click(); setTimeout(() => { URL.revokeObjectURL(u); an.remove(); }, 1000); }
         if (a === "apr") { const Lb = L || { t: "SUIVI", cols: [...bl.querySelectorAll("thead th")].map(th => [th.textContent.trim(), ""]), rows: [...bl.querySelectorAll("tbody tr:not(.rec-new)")].map(tr => ({ cells: [...tr.cells].map(c => c.textContent.trim()) })) };   /* v783 : l'aperçu unique (MISE EN PAGE) */
-          sviMep.open({ key: "ACH-BLOC-" + achNvhKey(Lb.t).toUpperCase(), title: Lb.t, ref: P.ref || P.code, party: P.party || P.title, prelim: P.st === "instance", cols: vf(Lb.cols).map((c, i) => ["c" + i, c[0], c[1] || ""]), rows: Lb.rows.map(r => vf(r.cells)), name: ttl, save: (b, n) => rec.savePdf(b, n) }); } });
+          sviMep.open({ key: "ACH-BLOC-" + achNvhKey(Lb.t).toUpperCase(), title: Lb.t, ref: P.ref || P.code, party: P.party || P.title, prelim: P.st === "instance" || P.st === "fige", cols: vf(Lb.cols).map((c, i) => ["c" + i, c[0], c[1] || ""]), rows: Lb.rows.map(r => vf(r.cells)), name: ttl, save: (b, n) => rec.savePdf(b, n) }); } });
       return true; }
     const na = e.target.closest("[data-nvadd]"); if (na) { const L = P.links.find(x => achNvhKey(x.t) === na.dataset.nvadd); if (L && L.addFn) L.addFn(() => ctx.draw()); else P.info(() => ctx.draw()); return true; }   /* v780 : ligne CRÉER … ICI */
     const gg = e.target.closest("[data-nvgo]"); if (gg) { const [t, gid] = gg.dataset.nvgo.split("|"); achGo(t, gid); return true; }   /* v800 (3.6 – 3.7) : un nom ouvre sa page */
@@ -2792,7 +2799,16 @@ function achArtCv(id, done) {
   });
 }
 /* validation d'un élément (articles, fournisseurs) : contrôles puis confirmation */
+/* v921 (remarque 3) : FIGER (rouge → vert ; refusé tant qu'il reste une alerte) et REVENIR EN INSTANCE (vert → rouge) ; VALIDER seulement après FIGER */
+const achNvCycle = (x) => x.del ? [] : x.st === "fige" ? [{ k: "val", lab: "VALIDER" }, { k: "defige", lab: "REVENIR EN INSTANCE" }] : x.st === "instance" ? [{ k: "fige", lab: "FIGER" }] : [];
+async function achNvFiger(L, x, code, nom, why, save) {
+  if (why.length) { svToast("FIGER IMPOSSIBLE : " + why.join(" · "), 4500); return false; }
+  if (!(await svConfirm({ title: "FIGER", text: code + " — " + nom + " PASSE EN VERT : IL ATTEND SA VALIDATION.", ok: "FIGER", tone: "neutral" }))) return false;
+  x.st = "fige"; x.fige = achNow(); x.mod = x.fige; save(L); achHist(code, "FIGÉ", nom); return true;
+}
+function achNvDefiger(L, x, code, nom, save) { x.st = "instance"; delete x.fige; x.mod = achNow(); save(L); achHist(code, "REVENU EN INSTANCE", nom); return true; }
 async function achNvValider(L, x, code, nom, why, save) {
+  if (x.st === "instance") { svToast("FIGER D'ABORD : LA VALIDATION SUIT LE FIGEAGE.", 3500); return false; }
   if (why.length) { svToast("VALIDATION IMPOSSIBLE : " + why.join(" · "), 4500); return false; }
   if (!(await svConfirm({ title: "VALIDER", text: code + " — " + nom + " PASSE DANS LA LISTE DES VALIDÉS.", ok: "VALIDER", tone: "neutral" }))) return false;
   x.st = "valide"; x.val = achNow(); x.mod = x.val; save(L); achHist(code, "VALIDATION", nom); return true;
@@ -2819,11 +2835,13 @@ function achArtNvMod(ctx) {
     pageOf: id => { const a = achArts().find(x => x.id === id); if (!a) return null;
       const C = achCaf().filter(c => (c.lignes || []).some(l => same(l, a))), D = achDvf().filter(v => (v.lignes || []).some(l => same(l, a))), M = achCmf().filter(c => (c.lignes || []).some(l => same(l, a)));
       const lp = (v, k) => (v.lignes || []).find(l => same(l, a)) || {};
-      return { id, code: a.code, ref: achRefSvi(a, achArts(), "ARA"), tag: "ARTICLE", title: a.des + " (" + a.u + ")", st: achSt(a), del: !!a.del, inactif: a.actif === false, why: artWhy(a),
+      return { id, code: a.code, ref: achRefSvi(a, achArts(), "ARA"), tag: "ARTICLE", title: a.des + " (" + a.u + ")", st: achStF(a), del: !!a.del, inactif: a.actif === false, why: artWhy(a),
         info: done => achArtFiche(id, () => done()),
-        menu: [achSt(a) === "instance" && !a.del ? { k: "val", lab: "VALIDER" } : null, { k: "cv", lab: "UNITÉ DE CONVERSION" + ((a.cv || []).length ? " (" + a.cv.length + ")" : "") }, { k: "bdg", lab: "BUDGETS (" + achArtBudgets(a).length + ")" },
+        menu: [...achNvCycle(a), { k: "cv", lab: "UNITÉ DE CONVERSION" + ((a.cv || []).length ? " (" + a.cv.length + ")" : "") }, { k: "bdg", lab: "BUDGETS (" + achArtBudgets(a).length + ")" },
           a.del ? { k: "rest", lab: "RESTAURER" } : { k: "del", lab: "SUPPRIMER CET ARTICLE" }].filter(Boolean),
         act: async (k, redraw) => { const L = achArts(), x = L.find(y => y.id === id); if (!x) return;
+          if (k === "fige") { if (await achNvFiger(L, x, x.code, x.des, artWhy(x), achArtsSave)) redraw(); return; }
+          if (k === "defige") { achNvDefiger(L, x, x.code, x.des, achArtsSave); redraw(); return; }
           if (k === "val") { if (await achNvValider(L, x, x.code, x.des, artWhy(x), achArtsSave)) redraw(); return; }
           if (k === "cv") { achArtCv(id, redraw); return; }
           if (k === "bdg") { achBdgWin(x); return; }
@@ -2849,15 +2867,21 @@ function achFrsNvMod(ctx) {
       cols: mode => [["ref", "RÉFÉRENCE", f => achFrsRef(f), ""], ["grp", "GROUPE", f => achFrsGrp(f).nom, ""], ["nom", "NOM", f => f.nom, "", f => f.logo || ""], ["ville", "VILLE", f => f.ville || "", ""], ["ice", "ICE", f => achDig(f.ice), "center"], ["cond", "PAIEMENT", f => f.cond || "", ""]]
         .concat(mode === "valid" ? [["val", "VALIDÉ LE", f => achDFr(f.val || f.cree), "center"]] : []).concat([["cree", "SAISI LE", f => achDFr(f.cree), "center"]]) },
     pageOf: id => { const f = achFrs().find(x => x.id === id); if (!f) return null;
-      const D = achDvf().filter(v => v.frs === id), M = achCmf().filter(c => c.frs === id), FA = achFaf().filter(x => x.frs === id), PA = achPaf().filter(x => x.frs === id);
+      /* v921 (remarque 4) : toutes les pièces liées au fournisseur — consultations, devis, commandes, réceptions, retours, factures, avoirs, paiements */
+      const me = v => achFrsIs(v, f);
+      const D = achDvf().filter(v => me(v.frs)), M = achCmf().filter(c => me(c.frs)), FA = achFaf().filter(x => me(x.frs)), PA = achPaf().filter(x => me(x.frs));
+      const CA = achCaf().filter(c => (c.frs || []).some(me)), RC = achRcp().filter(r => me(r.frs) || M.some(c => c.id === r.cmf)), RT = achRtr().filter(x => me(x.frs) || M.some(c => c.id === x.cmf) || RC.some(r => r.id === x.rcp)), AV = achAvf().filter(x => me(x.frs));
+      const twins = achFrs().filter(x => x.id !== id && !x.del && achU(x.nom) === achU(f.nom));
       const arts = new Map(); D.filter(v => v.state !== "rejete" && v.state !== "annule").forEach(v => (v.lignes || []).forEach(l => { if (achN(l.pu) > 0) arts.set(achKey(l.des, l.u), { l, v }); }));
-      return { id, code: f.code, ref: achFrsRef(f), tag: "FOURNISSEUR", title: f.nom, st: achSt(f), del: !!f.del, inactif: f.actif === false, why: frsWhy(f),
+      return { id, code: f.code, ref: achFrsRef(f), tag: "FOURNISSEUR", title: f.nom, st: achStF(f), del: !!f.del, inactif: f.actif === false, why: frsWhy(f),
         info: done => achFrsFiche(id, "", () => done()),
-        menu: [achSt(f) === "instance" && !f.del ? { k: "val", lab: "VALIDER" } : null, { k: "rib", lab: "RIB" }, { k: "cte", lab: "CONTACTS (" + (f.cte || []).length + ")" }, { k: "evl", lab: "ÉVALUATIONS (" + (f.evl || []).length + ")" },
+        menu: [...achNvCycle(f), { k: "rib", lab: "RIB" }, { k: "cte", lab: "CONTACTS (" + (f.cte || []).length + ")" }, { k: "evl", lab: "ÉVALUATIONS (" + (f.evl || []).length + ")" },
           { k: "cgf", lab: "CONTRATS (" + (f.cgf || []).length + ")" }, { k: "docf", lab: "DOCUMENTS FISCAUX (" + (f.docf || []).length + ")" },
           f.del ? null : f.bloq ? { k: "debl", lab: "DÉBLOQUER" } : { k: "bloq", lab: "BLOQUER" },
           f.del ? null : f.arch ? { k: "desarch", lab: "DÉSARCHIVER" } : achExFinMois() && achFrsDormant(f) ? { k: "arch", lab: "ARCHIVER (DORMANT)" } : null, f.del ? { k: "rest", lab: "RESTAURER" } : { k: "del", lab: "SUPPRIMER CE FOURNISSEUR" }].filter(Boolean),
         act: async (k, redraw) => { const L = achFrs(), x = L.find(y => y.id === id); if (!x) return;
+          if (k === "fige") { if (await achNvFiger(L, x, x.code, x.nom, frsWhy(x), achFrsSave)) redraw(); return; }
+          if (k === "defige") { achNvDefiger(L, x, x.code, x.nom, achFrsSave); redraw(); return; }
           if (k === "val") { if (await achNvValider(L, x, x.code, x.nom, frsWhy(x), achFrsSave)) redraw(); return; }
           if (k === "evl") { achFrsEvalWin(id, redraw); return; }   /* v912 : évaluations hors du i */
           if (["rib", "cte", "cgf", "docf"].includes(k)) { achFrsFiche(id, k === "rib" ? "rib" : k, redraw); return; }
@@ -2871,18 +2895,23 @@ function achFrsNvMod(ctx) {
           if (k === "rest") { x.del = ""; achFrsSave(L); achHist(x.code, "RESTAURATION", x.nom); redraw(); } },
         links: [
           { t: "ARTICLES (DEVIS EN COURS)", cols: [["DÉSIGNATION"], ["U", "center"], ["PRIX HT", "number"], ["PRIX TTC", "number"], ["DEVIS"]], rows: [...arts.values()].map(({ l, v }) => { const t = l.tva === "" || l.tva === undefined ? achPrm().tva : achN(l.tva); return { cells: [l.des, l.u, achN(l.pu), achN(l.pu) * (1 + t / 100), v.ref] }; }) },
+          ...(twins.length ? [{ t: "AUTRES FICHES DU MÊME NOM", cols: [["RÉFÉRENCE"], ["NOM"], ["VILLE"], ["ÉTAT", "center"]], rows: twins.map(x => ({ cells: [achFrsRef(x), x.nom, x.ville || "", achStF(x) === "fige" ? "FIGÉ" : achSt(x) === "instance" ? "EN INSTANCE" : "VALIDÉ"], open: () => achGo("frs", x.id) })) }] : []),
+          { t: "CONSULTATIONS", cols: [["RÉFÉRENCE"], ["OBJET"], ["RÉPONSE", "center"], ["ÉTAT", "center"]], rows: CA.map(c => { const k = (c.frs || []).find(me), rp = (c.rep || {})[k] || {}; return { cells: [c.ref, c.objet || "", rp.st === "repondu" ? "RÉPONDU" : "EN ATTENTE", { ouverte: "OUVERTE", close: "CLOSE", annule: "ANNULÉE" }[c.state] || ""], open: () => achGo("caf", c.id), cls: c.state === "annule" ? "nv-strike" : "" }; }) },
           { t: "DEVIS", cols: [["RÉFÉRENCE"], ["ARTICLES"], ["MONTANT TTC", "number"]], rows: D.map(v => ({ cells: [v.ref, (v.lignes || []).map(l => l.des).join("; "), achDvfTot(v).ttc], open: () => achGo("dvf", v.id), cls: v.state === "rejete" || v.state === "annule" ? "nv-strike" : "" })) },
           { t: "COMMANDES", cols: [["RÉFÉRENCE"], ["ARTICLES"], ["MONTANT TTC", "number"], ["ÉTAT", "center"]], rows: M.map(c => ({ cells: [c.ref, (c.lignes || []).map(l => l.des).join("; "), achCmfTot(c).ttc, ACH_CMF_ST[c.state] || ""], open: () => achGo("cmf", c.id), cls: c.state === "annule" ? "nv-strike" : "" })) },
+          { t: "RÉCEPTIONS", cols: [["RÉFÉRENCE"], ["COMMANDE"], ["N° BL"], ["REÇU LE", "center"], ["ÉTAT", "center"]], rows: RC.map(r => ({ cells: [r.ref, ((achCmf().find(c => c.id === r.cmf) || {}).ref) || "SANS COMMANDE", r.pv ? "PV DE SERVICE FAIT" : r.nbl || "", achDFr(r.date), r.state === "annule" ? "ANNULÉE" : "ENREGISTRÉE"], open: () => achGo("rcp", r.id), cls: r.state === "annule" ? "nv-strike" : "" })) },
+          { t: "RETOURS", cols: [["RÉFÉRENCE"], ["ORIGINE"], ["DATE", "center"], ["MOTIF"]], rows: RT.map(x => ({ cells: [x.ref, x.kind === "cmd" ? ((achCmf().find(c => c.id === x.cmf) || {}).ref || "") : ((achRcp().find(r => r.id === x.rcp) || {}).ref || ""), achDFr(x.date), x.motif || ""], open: () => achGo(x.kind === "cmd" ? "rtc" : "rtr", x.id) })) },
           { t: "FACTURES", cols: [["RÉFÉRENCE"], ["N°"], ["MONTANT TTC", "number"], ["RESTE À PAYER", "number"], ["ÉTAT", "center"]], rows: FA.map(x => ({ cells: [x.ref, x.num || "", achFafTot(x).ttc, x.state === "annule" ? "" : achFafReste(x), achFafEtat(x)], open: () => achGo("faf", x.id), cls: x.state === "annule" ? "nv-strike" : "" })) },
+          { t: "AVOIRS", cols: [["RÉFÉRENCE"], ["N°"], ["FACTURE"], ["MONTANT TTC", "number"]], rows: AV.map(x => ({ cells: [x.ref, x.num || "", ((achFaf().find(y => y.id === x.fa) || {}).ref) || "", achN(x.ttc)], open: () => achGo("avf", x.id), cls: x.state === "annule" ? "nv-strike" : "" })) },
           { t: "PAIEMENTS", cols: [["RÉFÉRENCE"], ["MODE"], ["MONTANT", "number"], ["ÉTAT", "center"]], rows: PA.map(p => ({ cells: [p.ref, p.mode, achN(p.mt), ACH_PAF_ST[p.state] || ""], open: () => achGo("paf", p.id), cls: p.state === "annule" || p.state === "rejete" ? "nv-strike" : "" })) },
           /* v808 : blocs de la page du fournisseur (checklist, hors du i) — encours et solde, litiges, évaluations, dépendance */
           (() => { const fa = FA.filter(x => !x.del && x.state !== "annule"), fac = fa.reduce((t, x) => t + achFafTot(x).ttc, 0), enc = achFrsEnc(id),
-              av = achAvf().filter(a => a.frs === id && a.state !== "annule").reduce((t, a) => t + Math.max(0, achAvfReste(a)), 0), pl = achN(f.plafEnc);
+              av = achAvf().filter(a => me(a.frs) && a.state !== "annule").reduce((t, a) => t + Math.max(0, achAvfReste(a)), 0), pl = achN(f.plafEnc);
             return { t: "ENCOURS ET SOLDE", cols: [["FACTURÉ TTC", "number"], ["PAYÉ", "number"], ["AVOIRS À DÉDUIRE", "number"], ["ENCOURS", "number"], ["PLAFOND", "number"], ["SOLDE DÛ", "number"]],
               rows: fa.length || av ? [{ cells: [fac, fac - enc, av, enc, pl || "", enc - av], cls: pl && enc > pl + 0.005 ? "nv-alert" : "" }] : [] }; })(),
           { t: "LITIGES", cols: [["TYPE"], ["RÉFÉRENCE"], ["MOTIF"], ["DATE", "center"]],
             rows: FA.filter(x => x.state === "reclame").map(x => ({ cells: ["FACTURE RÉCLAMÉE", x.ref, x.motif || x.recl || "", achDFr(x.mod || x.cree)], open: () => achGo("faf", x.id) }))
-              .concat(achRtr().filter(r => r.frs === id).map(r => ({ cells: [r.kind === "cmd" ? "RETOUR DE COMMANDE" : "RETOUR DE MARCHANDISE", r.ref, r.motif || "", achDFr(r.date)] })))
+              .concat(achRtr().filter(r => me(r.frs)).map(r => ({ cells: [r.kind === "cmd" ? "RETOUR DE COMMANDE" : "RETOUR DE MARCHANDISE", r.ref, r.motif || "", achDFr(r.date)] })))
               .concat(PA.filter(p => p.state === "rejete").map(p => ({ cells: [p.mode + " REJETÉ", p.ref, p.motif || "", achDFr(p.mod)], open: () => achGo("paf", p.id) }))) },
           { t: "ÉVALUATIONS", cols: [["DATE", "center"], ["NOTE / 10", "number"], ["CRITÈRES"]],
             rows: (f.evl || []).map(x => ({ cells: [achDFr(x.date), Math.round(achN(x.moy) * 10) / 10, (x.crit || []).map(c => c.d + " " + c.n).join(", ")],  })) },

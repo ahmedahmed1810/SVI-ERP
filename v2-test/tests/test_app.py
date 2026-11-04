@@ -2931,7 +2931,7 @@ def main():
             const pg800 = !!v.querySelector('.nvp-ref'); v.querySelector('[data-nvp="close"]')?.click(); await w(250); if (!pg800) return 'v800 : page du nouveau fournisseur non ouverte';
             const n1 = achFrs().filter(f => !f.del).length + (v.querySelectorAll('#achFrsT tbody tr[data-id]').length === 1 && /EN INSTANCE/.test((v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent) ? 0 : 100);
             v.querySelector('[data-nvsw]').click(); await w(200); v.querySelector(`#achFrsT [data-nvo="${a.id}"]`).click(); await w(250);
-            const pgOk = /^FOURNISSEUR — BETON SUD/.test((document.getElementById('sviScreenTag') || {}).textContent || '') && /^FRS \\d{2}-\\d{4}\\/\\d{3}$/.test(v.querySelector('.nvp-ref').textContent) && v.querySelectorAll('.nvp-blk').length === 10;
+            const pgOk = /^FOURNISSEUR — BETON SUD/.test((document.getElementById('sviScreenTag') || {}).textContent || '') && /^FRS \\d{2}-\\d{4}\\/\\d{3}$/.test(v.querySelector('.nvp-ref').textContent) && v.querySelectorAll('.nvp-blk').length === 14;   /* v921 (remarque 4) : + CONSULTATIONS, RÉCEPTIONS, RETOURS, AVOIRS */
             v.querySelector('[data-nvp="info"]').click(); await w(300); const fc = document.querySelector('.frs-card');
             const secs = fc ? [...fc.querySelectorAll('.frs-st')].map(x => x.textContent.replace(/\\s*\\d+$/, '').split(' ')[0]).join(',') + '|' + [...fc.querySelectorAll('.frs-tabs .rec-tab')].map(x => x.textContent.trim()).join(',') + '|' + [...fc.querySelectorAll('.frs-sec')].filter(x => !x.hidden).length : 'pas de fiche';
             const ri = fc.querySelector('.frs-sub[data-sub="ribs"] .frs-s[data-c="rib"]'); ri.value = '011780000123456789012386'; fc.querySelector('[data-save]').click(); await w(250);
@@ -3090,6 +3090,9 @@ def main():
             document.querySelector('#blkMenu [data-a="cv"]').click(); await w(200); const cv = document.querySelector('#svConf'); cv.querySelector('[data-add]').click(); await w(100);
             const cvv = document.querySelector('#svConf'); cvv.querySelector('.cv-x[data-c="u"]').value = 'SAC'; cvv.querySelector('.cv-x[data-c="r"]').value = '20'; cvv.querySelector('[data-save]').click(); await w(250);
             r.push(JSON.stringify(achArts().find(a => a.id === A.id).cv));
+            /* v921 (remarque 3) : FIGER (vert) puis VALIDER */
+            v.querySelector('[data-nvp="more"]').click(); await w(150); document.querySelector('#blkMenu [data-a="fige"]').click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(300);
+            r.push(achArts().find(a => a.id === A.id).st, !!v.querySelector('.nvp.bdg-inst-fige'));
             v.querySelector('[data-nvp="more"]').click(); await w(150); document.querySelector('#blkMenu [data-a="val"]').click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(300);
             r.push(achArts().find(a => a.id === A.id).st, !v.querySelector('.nvp.bdg-inst-instance'));
             v.querySelector('[data-nvp="close"]').click(); await w(200); r.push((v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim());
@@ -3100,7 +3103,7 @@ def main():
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v764 : ARTICLES au format du budget — listes EN INSTANCE / VALIDÉS, dates, création par fenêtre (en instance, corbeille), page : bloc DOC / TAF / OBS, ⋯ VALIDER et UNITÉ DE CONVERSION, devis liés, ‹ ›",
               a764 == ["ARTICLES (VALIDÉS) 2", 2, 2, 1, "instance", "ARTICLES (EN INSTANCE) 1", 1, True, True, "ART-0003", True, 3, 1, True,
-                       "VALIDER|UNITÉ DE CONVERSION|BUDGETS (0)|APERÇU|DISPOSITION PAR DÉFAUT|SUPPRIMER CET ARTICLE|FERMER", '[{"u":"SAC","r":20}]', "valide", True, "ARTICLES (VALIDÉS) 3", True, True, True], a764)
+                       "FIGER|UNITÉ DE CONVERSION|BUDGETS (0)|APERÇU|DISPOSITION PAR DÉFAUT|SUPPRIMER CET ARTICLE|FERMER", '[{"u":"SAC","r":20}]', "fige", True, "valide", True, "ARTICLES (VALIDÉS) 3", True, True, True], a764)
         # v765 : toutes les listes des achats au format du budget — pas d'onglets, titre EN INSTANCE / VALIDÉS + bascule, dates, corbeille = ANNULER
         l765 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_caf_v1', 'svi_ach_caf_mode_v1', 'svi_ach_caf_etat2_v1'], keep = K.map(k => localStorage.getItem(k)); K.forEach(k => localStorage.removeItem(k));
             achCafSave([{ id: 'c1', ref: 'CAF 1', state: 'ouverte', cree: '2026-10-30T10:00:00Z', lignes: [], frs: [] }, { id: 'c2', ref: 'CAF 2', state: 'close', cree: '2026-10-20T10:00:00Z', valide: '2026-10-25T10:00:00Z', lignes: [], frs: [] }]);
