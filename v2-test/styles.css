@@ -1353,6 +1353,13 @@ détail technique en petit */
 #svConf .fmw-card input.fmw-in:not([type=checkbox]):not([type=color]), #svConf .fmw-card input.fmw-blk { width: 56px; text-align: center; }
 #home .home-head { display: flex; align-items: center; gap: 12px; }
 #home .home-head > div { flex: 1; }
+/* v928 (remarque 15) : petite fenêtre MASQUE DE SAISIE (posée au-dessus de la fenêtre ouverte, sans la fermer) */
+#svMaskPop { position: fixed; z-index: 10050; width: min(420px, calc(100vw - 16px)); background: #fff; border: 1px solid #d0d5dd; border-radius: 12px; box-shadow: 0 16px 40px rgba(15,23,42,.28); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+#svMaskPop .mkp-t { font-weight: 800; font-size: 13px; color: #172033; }
+#svMaskPop .mkp-f { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 800; color: #475467; }
+#svMaskPop .mkp-m { height: 32px; border: 1px solid #d0d5dd; border-radius: 7px; padding: 0 8px; font-size: 14px; }
+#svMaskPop .mkp-c, #svMaskPop .mkp-x, #svMaskPop .mkp-n { font-size: 11px; font-weight: 700; color: #475467; }
+#svMaskPop .mkp-b { display: flex; justify-content: flex-end; gap: 8px; }
 #home .home-note { padding: 14px 16px; color: #475467; font-size: 12px; font-weight: 700; }
 #blkMenu .dly-sc.on span { font-weight: 800; }
 #blkMenu [data-dly].off { opacity: .45; }

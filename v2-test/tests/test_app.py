@@ -2861,13 +2861,12 @@ def main():
             b1 && b1.click(); await w(100); const t = [...document.querySelectorAll('.sv-toast, #svToast, [class*=toast]')].map(e => e.textContent).join(' ');
             res.push(/APRÈS LA SAISIE/.test(t), !document.getElementById('budgetBackBtn'));
             const tot = document.querySelector('#bdgDatePanel .novapp-date-filter'); res.push(!!tot.querySelector('.svi-cnt') && tot.querySelector('.svi-cnt').textContent.trim() !== '');
-            document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300); document.querySelector('.prm-tab[data-prm="col"]').click(); await w(200);
-            const ci = document.querySelector('.prm-col .col-in[data-col="valide"]'); res.push(!!ci && document.querySelectorAll('.prm-col tbody tr').length === 9);   /* v790 : + PARTIELLEMENT ACHEVÉ ; v923 : + REMIS, NON LETTRÉ */
-            ci.value = '#123456'; ci.dispatchEvent(new Event('input', { bubbles: true })); ci.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
+            /* v928 : couleurs des états dans les RÉGLAGES COMMUNS (accueil), plus dans PARAMÉTRAGE › FORMAT */
+            sviFmtWin(null); await w(200); const ci = document.querySelector('#svConf .fmw-col[data-col="valide"]'); res.push(!!ci && document.querySelectorAll('#svConf .fmt-cols tbody tr').length === 9);
+            ci.value = '#123456'; ci.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('#svConf [data-save]').click(); await w(100);
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(400);
             res.push(getComputedStyle(document.querySelector('#budgetListTable tr[data-budget-ref="L-2"]').cells[3]).color);
-            document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(200); document.querySelector('.prm-col .col-rst[data-col="valide"]')?.click(); res.push(sviColors().valide);
-            document.querySelector('.prm-tab[data-prm="unit"]').click(); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300);
+            sviFmtWin(null); await w(150); document.querySelector('#svConf [data-def]').click(); document.querySelector('#svConf [data-save]').click(); await w(100); res.push(sviColors().valide);
             sviInstSet(JSON.parse(window.__kp754)); localStorage.setItem('svi_listmode_v1', 'inst'); localStorage.removeItem('svi_bdgfold_v1'); renderBudgetList(); return res; }""")
         check("v754 : « ! » devant VALIDÉ LE au-delà de 24 h (raison au toucher, parent en alerte), total à côté de TOUT, flèche dans RÉFÉRENCE, PARAMÉTRAGE › FORMAT › ÉTATS appliqué puis PAR DÉFAUT",
               k754 == [True, True, True, True, True, True, True, True, True, True, "rgb(18, 52, 86)", "#172033"], k754)
@@ -3139,10 +3138,9 @@ def main():
             const more = () => [...document.querySelectorAll('.novapp-list-shell .nvl-more')].find(b => b.offsetParent); const r = [];
             more().click(); await w(150); r.push(labs().filter(l => /COLONNES/.test(l)).join('|')); document.getElementById('blkMenu')?.remove();
             await w(500); const id = sviColhInfo(T()).id;
-            const open = async () => { document.querySelector('#navMenu .nav-btn[data-view="chs"]')?.click(); await w(300); sviParamTabs();
-              document.querySelector('#chs .prm-rub[data-rub="fmt"]').click(); await w(100); document.querySelector('#chs .prm-tab[data-prm="colh"]').click(); await w(150);
-              const row = document.querySelector(`#chs .prm-colh tr[data-colh="${id}"]`); r.push(row ? row.textContent.includes('LISTE DES BUDGETS') : 'pas de ligne'); row.click(); await w(150); };
-            await open(); const ins = [...document.querySelectorAll('#svConf .colh-r input')]; r.push(ins.length > 1 && ins.every(i => i.checked));
+            /* v928 : la rubrique FORMAT est supprimée — la fenêtre commune des colonnes s'ouvre directement */
+            const open = async () => { const x = sviColhRegList().find(y => y.id === id); r.push(x ? x.lab.includes('LISTE DES BUDGETS') : 'pas de ligne'); sviColhWinI(sviColhRegInfo(id)); await w(150); };
+            await open(); let ins = [...document.querySelectorAll('#svConf .colh-r input')]; r.push(ins.length > 1 && ins.every(i => i.checked));
             ins.forEach(i => { i.checked = false; }); document.querySelector('#svConf [data-ok]').click(); await w(100);
             r.push(!document.querySelector('#svConf .colh-err').hidden);
             ins.forEach((i, j) => { i.checked = j !== 0; }); document.querySelector('#svConf [data-ok]').click(); await w(200);
@@ -3254,8 +3252,7 @@ def main():
             document.querySelector('.prm-tab[data-prm="lib"]')?.click(); await w(100); document.querySelector('.prm-tab[data-prm="unit"]')?.click(); await w(200);
             r.push(Math.round(parseFloat(U().querySelector('col[data-k="n"]').style.width) - w0));
             if (keepW === null) localStorage.removeItem('svi_colw_v1'); else localStorage.setItem('svi_colw_v1', keepW);
-            document.querySelector('.prm-tab[data-prm="fif"]') && (document.querySelector('.prm-rub[data-rub="fmt"]')?.click(), await w(100), document.querySelector('.prm-tab[data-prm="fif"]').click(), await w(150));
-            const f = document.querySelector('.prm-fif table'); r.push(f ? [...f.tBodies[0].rows[0].cells].findIndex(c => c.querySelector('input[type=checkbox]')) === f.tBodies[0].rows[0].cells.length - 1 : 'pas de fif');
+            r.push(!document.querySelector('.prm-tab[data-prm="fif"]'));   /* v928 : APPLIQUER À remplacé par MODIFIER LE FORMAT (rubrique FORMAT supprimée) */
             /* fiche d'achat : LIGNES avec largeurs de colonnes, SUIVI avec loupes */
             const K = ['svi_ach_dvf_v1', 'svi_ach_frs_v1'], keep = K.map(k => localStorage.getItem(k));
             const F = []; const f1 = achFrsNew(F, { nom: 'AFRA' }); achFrsSave(F); achDvfSave([{ id: 'v1', ref: 'DVF 1', frs: f1.id, state: 'recu', lignes: [{ des: 'SABLE', u: 'M3', q: 5, pu: 100, tva: 20 }] }]);
@@ -3304,7 +3301,7 @@ def main():
             r.push(/DÉBLOQUÉ PAR/.test((document.querySelector('.paf-card .pa-att') || {}).textContent || ''));
             document.getElementById('svConf')?.remove();
             document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300);
-            const tb = document.querySelector('.prm-tab[data-prm="mask"]'); r.push(!!tb); if (tb) { tb.click(); await w(200); r.push(document.querySelectorAll('.prm-mask tr[data-mk]').length); }
+            r.push(!document.querySelector('.prm-tab[data-prm="mask"]'), sviMasks().filter(x => !x.k.startsWith('c:')).length);   /* v928 : masques posés sur le champ (appui long), plus dans PARAMÉTRAGE */
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); });
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v804 : MASQUES DE SAISIE (ICE, IF, RC, CNSS, TÉLÉPHONE) réglés dans PARAMÉTRAGE › FORMAT, mise en forme à la frappe, refus hors masque ; paiement bloqué si l'attestation fiscale est expirée, DÉBLOQUER avec motif",
@@ -3472,6 +3469,16 @@ def main():
             document.querySelector('#svConf [data-save]').click(); await w(150); r.cleared = Object.keys(sviFmt().by).length;
             r.home = !!document.querySelector('#home') && !!document.querySelector('.nav-btn[data-view="home"]');
             if (keepC === null) localStorage.removeItem('svi_colors_v1'); else localStorage.setItem('svi_colors_v1', keepC); sviColorsApply();
+            /* remarques 14 et 15 : plus de rubrique FORMAT ; masque posé sur un champ (appui long / clic droit), "texte" écrit d'office */
+            document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(250); r.noFmt = !document.querySelector('.prm-rub[data-rub="fmt"]') && !document.querySelector('.prm-tab[data-prm="mask"]');
+            r.tok = [sviMaskRun('"+212" 9 99 99 99 99', '612345678').out, sviMaskRun('"ABC"-999', '123').out, sviMaskRun('999-AAA', '123ab').out].join('|');
+            const keepM = localStorage.getItem('svi_masks_v1'); const d0 = sviWinNew(); d0.innerHTML = sviWinCard({ title: 'T', body: '<label class="frs-f"><span>IMMATRICULATION</span><input class="ins-in" data-k="imm" value=""></label>' }); sviWinShow(d0);
+            const fi = d0.querySelector('input'); fi.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })); await w(100);
+            const mp = document.getElementById('svMaskPop'); r.pop = !!mp && /IMMATRICULATION/.test(mp.textContent) && !!document.getElementById('svConf');
+            if (mp) { mp.querySelector('.mkp-m').value = '99999-A-99'; mp.querySelector('[data-ms]').click(); await w(100); }
+            fi.value = '12345B67'; fi.dispatchEvent(new Event('input', { bubbles: true })); r.applied = fi.value + '|' + (sviMaskOf('c:imm|IMMATRICULATION') || {}).m;
+            d0.remove(); if (keepM === null) localStorage.removeItem('svi_masks_v1'); else localStorage.setItem('svi_masks_v1', keepM);
+            document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(250);
             if (keepF === null) localStorage.removeItem('svi_format_v1'); else localStorage.setItem('svi_format_v1', keepF); sviFmtApply(); return r; }""")
         check("FORME 04/11, remarques 1 et 2 : états REMIS (orange) et NON LETTRÉ (violet) dans la palette ; FOND DES ONGLETS = couleur du fond seulement",
               f1104["etats"] == "EN INSTANCE,FIGÉ,PARTIELLEMENT ACHEVÉ,REMIS,VALIDÉ,NON LETTRÉ,EXPIRÉ,BLOQUÉ,ARCHIVÉ" and f1104["vars"] == "#ea580c,#a21caf"
@@ -3484,6 +3491,8 @@ def main():
               f1104["ifs"] == "53|bdgl_i,bdgl_v,bdg,caf_li,caf_lv,caf_fi,caf_fv" and f1104["cur"] in ("bdgl_i", "bdgl_v") and f1104["colh"] == "1,true,0,1" and f1104["loupe"], f1104)
         check("FORME 04/11, remarques 12 et 13 : MODIFIER LE FORMAT d'une interface (ÉTAT de l'écran puis les éléments, sans les parties des fenêtres) ; écran d'ACCUEIL et RÉGLAGES COMMUNS (APPLIQUER PARTOUT remplace les réglages par interface)",
               f1104["byCss"] and f1104["win1"] == "true,10,true" and f1104["saved"] == "#112233" and f1104["win2"] == "true,16,true" and f1104["cleared"] == 0 and f1104["home"], f1104)
+        check("FORME 04/11, remarques 14 et 15 : rubrique FORMAT et MASQUES DE SAISIE retirées de PARAMÉTRAGE ; masque posé sur un champ par appui long (clic droit), \"texte\" écrit d'office, autres signes placés d'office",
+              f1104["noFmt"] and f1104["tok"] == "+212 6 12 34 56 78|ABC-123|123-AB" and f1104["pop"] and f1104["applied"] == "12345-B-67|99999-A-99", f1104)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

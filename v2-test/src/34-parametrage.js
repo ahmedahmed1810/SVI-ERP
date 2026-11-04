@@ -212,10 +212,10 @@ function sviParamTabs() {
   const bar = document.createElement("div");
   bar.className = "prm-tabs";
   /* v790 (DOCUMENT UNIQUE §1.1) : une seule interface PARAMÉTRAGE à deux niveaux — RUBRIQUES (BUDGET, FORMAT), puis leurs onglets */
-  bar.innerHTML = `<div class="prm-rubs"><button type="button" class="prm-rub on" data-rub="bdg">BUDGET</button><button type="button" class="prm-rub" data-rub="fmt">FORMAT</button></div>`
+  bar.innerHTML = `<div class="prm-rubs"><button type="button" class="prm-rub on" data-rub="bdg">BUDGET</button></div>`
     + `<button type="button" class="prm-tab on" data-prm="unit" data-rub="bdg">UNITÉS</button><button type="button" class="prm-tab" data-prm="lib" data-rub="bdg">BIBLIOTHÈQUE DE PRIX</button>`
-    + `<button type="button" class="prm-tab prm-bdg" data-bdg="cal" data-rub="bdg">CALENDRIER</button><button type="button" class="prm-tab" data-prm="tva" data-rub="bdg">TVA</button><button type="button" class="prm-tab" data-prm="trk" data-rub="bdg">TRANSPORT</button>`
-    + `<button type="button" class="prm-tab" data-prm="col" data-rub="fmt" hidden>ÉTATS</button><button type="button" class="prm-tab" data-prm="fel" data-rub="fmt" hidden>ÉLÉMENTS</button><button type="button" class="prm-tab" data-prm="fif" data-rub="fmt" hidden>INTERFACES</button><button type="button" class="prm-tab" data-prm="colh" data-rub="fmt" hidden>COLONNES</button><button type="button" class="prm-tab" data-prm="mask" data-rub="fmt" hidden>MASQUES DE SAISIE</button>`;
+    + `<button type="button" class="prm-tab prm-bdg" data-bdg="cal" data-rub="bdg">CALENDRIER</button><button type="button" class="prm-tab" data-prm="tva" data-rub="bdg">TVA</button><button type="button" class="prm-tab" data-prm="trk" data-rub="bdg">TRANSPORT</button>`;
+  /* v928 (remarque 14 du 04/11/2026) : plus de rubrique FORMAT (ÉTATS, ÉLÉMENTS, INTERFACES, COLONNES) ni MASQUES DE SAISIE — réglages communs à l'accueil, MODIFIER LE FORMAT par interface, colonnes par la loupe, masques sur le champ */
   /* CALENDRIER et DATES DU BUDGET : pour le budget ouvert ; grisés sans budget ouvert (appui long = raison) */
   const why = () => { const L = window.__sviBdgLive; return !L ? "OUVRIR UN BUDGET D'ABORD" : !L.edit ? "BUDGET FIGÉ OU VALIDÉ : LECTURE SEULE" : ""; };
   const paint = () => bar.querySelectorAll(".prm-bdg").forEach(b => b.classList.toggle("off", !!why()));
@@ -242,26 +242,8 @@ function sviParamTabs() {
   lpane.className = "prm-lib";
   lpane.hidden = true;
   pane.after(lpane);
-  /* v754 : COULEURS des états (EN INSTANCE, FIGÉ, VALIDÉ, EXPIRÉ, BLOQUÉ, ARCHIVÉ) — communes à toute l'application */
-  const cpane = document.createElement("div");
-  cpane.className = "prm-col";
-  cpane.hidden = true;
-  lpane.after(cpane);
-  /* v790 : FORMAT › ÉLÉMENTS — fond, texte, taille, gras, italique, souligné de chaque élément ; FORMAT › INTERFACES — APPLIQUER À */
-  const epane = document.createElement("div"); epane.className = "prm-fel"; epane.hidden = true; cpane.after(epane);
-  const ipane = document.createElement("div"); ipane.className = "prm-fif"; ipane.hidden = true; epane.after(ipane);
-  /* v796 (DOCUMENT UNIQUE §6.8) : FORMAT › COLONNES — MASQUER / AFFICHER LES COLONNES de chaque tableau (« INTERFACE › TABLEAU ») ; toucher une ligne ouvre ses colonnes */
-  const hpane = document.createElement("div"); hpane.className = "prm-colh"; hpane.hidden = true; ipane.after(hpane);
-  const colhDraw = () => {
-    const L = sviColhRegList();
-    hpane.innerHTML = `<table class="prm-table fmt-t colh-reg"><colgroup><col style="width:420px"><col style="width:110px"><col style="width:110px"></colgroup>
-      <thead><tr><th>TABLEAU</th><th class="center">COLONNES</th><th class="center">MASQUÉES</th></tr></thead>
-      <tbody>${L.map(x => `<tr class="colh-open" data-colh="${esc(x.id)}"><td>${esc(x.lab)}</td><td class="center">${svCnt(x.cols.length)}</td><td class="center">${svCnt(x.hid.length)}</td></tr>`).join("")}</tbody></table>`;
-  };
-  /* v804 (checklist C1.44) : FORMAT › MASQUES DE SAISIE — 9 = un chiffre, A = une lettre, autre signe écrit tel quel */
-  const mpane = document.createElement("div"); mpane.className = "prm-mask"; mpane.hidden = true; hpane.after(mpane);
   /* v899 (cahier, décision du 03/11/2026) : BUDGET › TVA — TVA PAR DÉFAUT, un seul réglage commun au budget et aux achats */
-  const tpane = document.createElement("div"); tpane.className = "prm-tva"; tpane.hidden = true; mpane.after(tpane);
+  const tpane = document.createElement("div"); tpane.className = "prm-tva"; tpane.hidden = true; lpane.after(tpane);
   const tvaDraw = () => { const d = sviTvaDef();
     tpane.innerHTML = `<table class="prm-table fmt-t tva-t"><colgroup><col style="width:420px"><col style="width:140px"></colgroup>
       <thead><tr><th>RÉGLAGE</th><th class="center">TAUX %</th></tr></thead>
@@ -282,91 +264,21 @@ function sviParamTabs() {
     if (s === "") { sviTvaSave(null); tvaDraw(); return; }
     const v = num(s); if (!sviNumOk(s) || v < 0 || v > 100) { svToast("TVA NON VALIDE (0 À 100).", 3000, i); tvaDraw(); return; }
     sviTvaSave(v); tvaDraw(); });
-  const maskDraw = () => {
-    const L = sviMasks();
-    mpane.innerHTML = `<table class="prm-table fmt-t mask-t"><colgroup><col style="width:280px"><col style="width:220px"><col style="width:150px"><col style="width:220px"></colgroup>
-      <thead><tr><th>CHAMP</th><th>MASQUE</th><th class="center">LONGUEUR EXACTE</th><th>EXEMPLE</th></tr></thead>
-      <tbody>${L.map(x => `<tr data-mk="${esc(x.k)}"><td>${esc(x.lab)}</td><td><input class="ins-in mask-in" value="${esc(x.m)}" autocomplete="off" data-keepcase></td>
-        <td class="center"><input type="checkbox" class="mask-ex"${x.ex ? " checked" : ""}></td><td class="mask-exm">${esc(sviMaskFmt(x.k, "1A2B3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S"))}</td></tr>`).join("")}</tbody></table>
-      <div class="mask-note">9 = UN CHIFFRE · A = UNE LETTRE · TOUT AUTRE SIGNE (ESPACE, TIRET, +) EST ÉCRIT TEL QUEL · MASQUE VIDE = AUCUN CONTRÔLE</div>`;
-  };
-  mpane.addEventListener("change", e => {
-    const tr = e.target.closest("tr[data-mk]"); if (!tr) return;
-    const L = sviMasks(), x = L.find(y => y.k === tr.dataset.mk); if (!x) return;
-    const m = String(tr.querySelector(".mask-in").value || "").toUpperCase().replace(/\s+/g, " ").trim();
-    if (m && ![...m].some(sviMaskSlot)) { svToast("MASQUE SANS 9 NI A : AUCUNE SAISIE POSSIBLE.", 3500); maskDraw(); return; }
-    x.m = m; x.ex = tr.querySelector(".mask-ex").checked; sviMasksSave(L); maskDraw();
-  });
-  hpane.addEventListener("click", e => { const r = e.target.closest("tr.colh-open"); if (!r) return; const I = sviColhRegInfo(r.dataset.colh); if (!I) return; I.done = colhDraw; sviColhWinI(I); });
-  const felDraw = () => {
-    const F = sviFmt();
-    epane.innerHTML = `<table class="prm-table fmt-t"><colgroup><col style="width:300px"><col style="width:90px"><col style="width:90px"><col style="width:90px"><col style="width:70px"><col style="width:70px"><col style="width:80px"><col style="width:90px"><col style="width:120px"></colgroup>
-      <thead><tr><th>ÉLÉMENT</th><th class="center">FOND</th><th class="center">TEXTE</th><th class="center">TAILLE</th><th class="center">GRAS</th><th class="center">ITALIQUE</th><th class="center">SOULIGNÉ</th><th class="center">HAUTEUR</th><th></th></tr></thead>
-      <tbody>${SVI_FMT_EL.map(E => { const o = F.el[E.k] || {}, v = f => o[f] !== undefined ? o[f] : E.def[f];
-        return `<tr data-el="${E.k}"><td class="fmt-lab" style="background:${esc(v("bg"))};color:${esc(v("c"))};font-weight:${v("b") ? 800 : 400};font-style:${v("i") ? "italic" : "normal"};text-decoration:${v("u") ? "underline" : "none"}">${esc(E.lab)}</td>
-        ${(() => { const ok = f => !E.f || E.f.includes(f), no = '<td class="center fmt-na">—</td>';   /* v923 : réglage sans objet = — */
-          return (ok("bg") ? `<td class="center"><input type="color" class="fmt-in" data-f="bg" value="${esc(v("bg"))}"></td>` : no) + (ok("c") ? `<td class="center"><input type="color" class="fmt-in" data-f="c" value="${esc(v("c") || "#000000")}"></td>` : no)
-          + (ok("fs") ? `<td class="center"><input class="fmt-in fmt-fs center" data-f="fs" inputmode="numeric" value="${esc(v("fs"))}"></td>` : no)
-          + ["b", "i", "u"].map(f => ok(f) ? `<td class="center"><input type="checkbox" class="fmt-in" data-f="${f}"${v(f) ? " checked" : ""}></td>` : no).join("")
-          + (ok("h") && v("h") ? `<td class="center"><input class="fmt-in fmt-fs center" data-f="h" inputmode="numeric" value="${esc(v("h"))}"></td>` : no); })()}
-        <td class="center">${F.el[E.k] ? `<button type="button" class="col-rst" data-fel="${E.k}">PAR DÉFAUT</button>` : ""}</td></tr>`; }).join("")}</tbody></table>
-      ${(() => { const B = sviBlkRows(F); return `<table class="prm-table fmt-t fmt-blk"><colgroup><col style="width:300px"><col style="width:90px"></colgroup><thead><tr><th>BLOCS</th><th class="center">LIGNES</th></tr></thead>
-        <tbody><tr><td>LIGNES AFFICHÉES PAR DÉFAUT</td><td class="center"><input class="fmt-blk-in center" data-b="n" inputmode="numeric" value="${B.n}"></td></tr>
-        <tr><td>LIGNES EN MODE RÉDUIT (+ CRÉER ET TOTAL)</td><td class="center"><input class="fmt-blk-in center" data-b="r" inputmode="numeric" value="${B.r}"></td></tr></tbody></table>`; })()}`;   /* v925 (remarque 5) */
-  };
-  const fifDraw = () => {
-    const F = sviFmt(), on = k => !F.to || F.to.includes(k);
-    /* v793 (DOCUMENT UNIQUE §6.4) : case à droite */
-    ipane.innerHTML = `<table class="prm-table fmt-t"><colgroup><col style="width:360px"><col style="width:90px"></colgroup>
-      <thead><tr><th>APPLIQUER À</th><th class="center"><input type="checkbox" class="fif-all"${SVI_FMT_IF.every(x => on(x.k)) ? " checked" : ""}></th></tr></thead>
-      <tbody>${SVI_FMT_IF.map(x => `<tr><td>${esc(x.lab)}</td><td class="center"><input type="checkbox" class="fif-cb" data-if="${x.k}"${on(x.k) ? " checked" : ""}></td></tr>`).join("")}</tbody></table>`;
-  };
-  epane.addEventListener("input", e => { const i = e.target.closest(".fmt-in"); if (!i || i.type === "checkbox") return; const k = i.closest("tr").dataset.el, F = sviFmt(); F.el[k] = F.el[k] || {};
-    if (i.dataset.f === "fs") { const n = parseInt(String(i.value).replace(/\D/g, ""), 10); if (!(n >= 8 && n <= 40)) return; F.el[k].fs = n; }
-    else if (i.dataset.f === "h") { const n = parseInt(String(i.value).replace(/\D/g, ""), 10); if (!(n >= 10 && n <= 120)) return; F.el[k].h = n; }   /* v924 : hauteur 10 à 120 px */
-    else F.el[k][i.dataset.f] = i.value;
-    sviFmtSave(F); });
-  epane.addEventListener("change", e => { const i = e.target.closest(".fmt-in"); if (!i) return; if (i.type === "checkbox") { const k = i.closest("tr").dataset.el, F = sviFmt(); F.el[k] = F.el[k] || {}; F.el[k][i.dataset.f] = i.checked ? 1 : 0; sviFmtSave(F); } felDraw(); });
-  epane.addEventListener("change", e => { const i = e.target.closest(".fmt-blk-in"); if (!i) return; const F = sviFmt(), n = parseInt(String(i.value).replace(/\D/g, ""), 10);
-    if (!(n >= 1 && n <= 30)) { svToast("ENTRE 1 ET 30 LIGNES.", 2500, i); felDraw(); return; } F.blk = { ...sviBlkRows(F), [i.dataset.b]: n }; F.blk = sviBlkRows(F); sviFmtSave(F); felDraw(); });
-  epane.addEventListener("click", e => { const b = e.target.closest("[data-fel]"); if (!b) return; const F = sviFmt(); delete F.el[b.dataset.fel]; sviFmtSave(F); felDraw(); });
-  ipane.addEventListener("change", e => { const F = sviFmt();
-    if (e.target.matches(".fif-all")) F.to = e.target.checked ? null : [];
-    else if (e.target.matches(".fif-cb")) { const cur = F.to || SVI_FMT_IF.map(x => x.k), k = e.target.dataset.if; F.to = e.target.checked ? [...new Set([...cur, k])] : cur.filter(x => x !== k); if (F.to.length >= SVI_FMT_IF.length) F.to = null; }
-    sviFmtSave(F); fifDraw(); });
-  const colDraw = () => {
-    const C = sviColors();
-    cpane.innerHTML = `<table class="prm-table"><colgroup><col style="width:200px"><col style="width:90px"><col style="width:260px"><col style="width:120px"></colgroup>
-      <thead><tr><th>ÉTAT</th><th class="center">COULEUR</th><th>APERÇU</th><th></th></tr></thead>
-      <tbody>${SVI_COL_LAB.map(([k, l]) => `<tr data-col="${k}"><td>${l}</td><td class="center"><input type="color" class="col-in" data-col="${k}" value="${esc(C[k])}" aria-label="Couleur ${esc(l)}"></td>
-        <td class="col-prev" style="color:${esc(C[k])}">BDG 26-1101/001 — ${l}</td>
-        <td class="center">${C[k].toLowerCase() !== SVI_COL_DEF[k] ? `<button type="button" class="col-rst" data-col="${k}">PAR DÉFAUT</button>` : ""}</td></tr>`).join("")}</tbody></table>`;
-  };
-  cpane.addEventListener("input", e => { const i = e.target.closest(".col-in"); if (!i) return; const C = sviColors(); C[i.dataset.col] = i.value; sviColorsSave(C);
-    const pv = i.closest("tr").querySelector(".col-prev"); if (pv) pv.style.color = i.value; });
-  cpane.addEventListener("change", e => { if (e.target.closest(".col-in")) colDraw(); });
-  cpane.addEventListener("click", e => { const b = e.target.closest(".col-rst"); if (!b) return; const C = sviColors(); C[b.dataset.col] = SVI_COL_DEF[b.dataset.col]; sviColorsSave(C); colDraw(); });
   const show = which => {
-    const rub = ["col", "fel", "fif", "colh", "mask"].includes(which) ? "fmt" : "bdg";
+    if (["col", "fel", "fif", "colh", "mask"].includes(which)) which = "unit";   /* v928 : rubrique FORMAT supprimée */
+    const rub = "bdg";
     bar.querySelectorAll(".prm-rub").forEach(b => b.classList.toggle("on", b.dataset.rub === rub));
     bar.querySelectorAll(".prm-tab").forEach(b => { b.hidden = b.dataset.rub !== rub; });
     bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.prm === which));
     pane.hidden = which !== "unit";
     lpane.hidden = which !== "lib";
-    cpane.hidden = which !== "col";
-    epane.hidden = which !== "fel"; ipane.hidden = which !== "fif"; hpane.hidden = which !== "colh"; mpane.hidden = which !== "mask"; tpane.hidden = which !== "tva"; kpane.hidden = which !== "trk";
+    tpane.hidden = which !== "tva"; kpane.hidden = which !== "trk";
     if (which === "tva") tvaDraw(); if (which === "trk") trkDraw();
-    if (which === "fel") felDraw(); if (which === "fif") fifDraw(); if (which === "colh") colhDraw(); if (which === "mask") maskDraw();
     const h1 = head.querySelector("h1"), sub = head.querySelector("p");
     if (h1) h1.textContent = which === "trk" ? "TRANSPORT" : which === "tva" ? "TVA" : which === "lib" ? "BIBLIOTHÈQUE DE PRIX" : which === "col" ? "FORMAT — ÉTATS" : which === "fel" ? "FORMAT — ÉLÉMENTS" : which === "fif" ? "FORMAT — INTERFACES" : which === "colh" ? "FORMAT — COLONNES" : which === "mask" ? "FORMAT — MASQUES DE SAISIE" : "UNITÉS";
     if (sub) sub.textContent = which === "trk" ? "PRIX DU TRANSPORT AU KM, LE MÊME POUR TOUS LES FOURNISSEURS" : which === "tva" ? "TVA PAR DÉFAUT, COMMUNE AU BUDGET ET AUX ACHATS" : which === "lib" ? "RECETTES PAR ACTIVITÉ SECONDAIRE : CHARGES, UNITÉ, PRIX ET QUANTITÉ POUR UNE UNITÉ DE PRODUIT ; COMMUNE À TOUS LES BUDGETS" : "INTITULÉ ET ABRÉVIATION (L'ABRÉVIATION EST CELLE UTILISÉE DANS LES TABLEAUX)";
     if (which === "unit") draw();
     if (which === "lib") libDraw();
-    if (which === "col") { colDraw(); if (sub) sub.textContent = "COULEUR DE CHAQUE ÉTAT, COMMUNE À TOUTE L'APPLICATION ET À TOUS LES APPAREILS"; }
-    if (which === "fel" && sub) sub.textContent = "FOND, TEXTE, TAILLE ET STYLE DE CHAQUE ÉLÉMENT DES INTERFACES";
-    if (which === "fif" && sub) sub.textContent = "INTERFACES QUI PRENNENT LA PALETTE (TOUTES COCHÉES = PARTOUT)";
-    if (which === "colh" && sub) sub.textContent = "MASQUER / AFFICHER LES COLONNES DE CHAQUE TABLEAU (UN TABLEAU S'INSCRIT ICI DÈS SA PREMIÈRE OUVERTURE)";
-    if (which === "mask" && sub) sub.textContent = "FORME DE SAISIE DE L'ICE, DE L'IF, DU RC, DE LA CNSS ET DU TÉLÉPHONE ; UNE VALEUR HORS MASQUE EST REFUSÉE À L'ENREGISTREMENT";
     try { localStorage.setItem("svi_prm_v1", which); } catch (e) {}
   };
   /* v793 : UNITÉS au format commun des tableaux — loupe de tri / filtre sur chaque colonne, largeur des colonnes réglable et gardée */

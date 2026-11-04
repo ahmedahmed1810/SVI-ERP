@@ -20,26 +20,36 @@ function sviMasks() {
   if (!sviMaskMem || sviMaskMem.raw !== raw) {
     let o = {};
     try { o = JSON.parse(raw || "{}") || {}; } catch (e) {}
-    sviMaskMem = { raw, L: SVI_MASK_DEF.map(d => Object.assign({}, d, o[d.k] || {})) };
+    /* v928 (remarque 15) : + masques posés sur un champ par appui long (clé « c:… », avec leur libellé) */
+    sviMaskMem = { raw, L: SVI_MASK_DEF.map(d => Object.assign({}, d, o[d.k] || {})).concat(Object.keys(o).filter(k => !SVI_MASK_DEF.some(d => d.k === k) && o[k] && o[k].lab).map(k => ({ k, lab: o[k].lab, m: o[k].m || "", ex: !!o[k].ex }))) };
   }
   return sviMaskMem.L.map(x => Object.assign({}, x));
 }
 function sviMasksSave(L) {
   const o = {};
-  L.forEach(x => { o[x.k] = { m: String(x.m || ""), ex: !!x.ex }; });
+  L.forEach(x => { o[x.k] = { m: String(x.m || ""), ex: !!x.ex }; if (!SVI_MASK_DEF.some(d => d.k === x.k)) o[x.k].lab = x.lab || x.k; });
   try { localStorage.setItem(SVI_MASK_KEY, JSON.stringify(o)); } catch (e) {}
 }
 const sviMaskOf = k => sviMasks().find(x => x.k === k) || null;
 const sviMaskSlot = c => c === "9" || c === "A";
+/* v928 (remarque 15 du 04/11/2026) : écriture du masque — 9 = un chiffre, A = une lettre, "texte" entre guillemets = écrit d'office,
+   tout autre signe (espace, tiret, +) placé d'office. Ex. « 999-AAA », « "ABC"-999 », « "+212" 9 99 99 99 99 » */
+function sviMaskTok(m) {
+  const T = []; let q = false;
+  for (const c of String(m || "")) { if (c === '"') { q = !q; continue; } T.push(!q && (c === "9" || c === "A") ? { s: c } : { l: c }); }
+  return T;
+}
+const sviMaskSlots = m => sviMaskTok(m).filter(x => x.s).length;
 /* caractères utiles de la saisie (chiffres et lettres, en majuscules) */
 const sviMaskRaw = v => String(v ?? "").toUpperCase().replace(/[^0-9A-ZÀ-Ý]/g, "");
 /* met la saisie dans le masque : les signes fixes sont posés au fur et à mesure (un signe fixe déjà tapé n'est pas doublé) */
 function sviMaskRun(m, v) {
   const s = String(v ?? "").toUpperCase();
   let out = "", i = 0, n = 0;
-  for (const c of m) {
+  for (const tk of sviMaskTok(m)) {
     if (i >= s.length) break;
-    if (c === "9" || c === "A") {
+    const c = tk.s || tk.l;
+    if (tk.s) {
       const ok = c === "9" ? (x => /\d/.test(x)) : (x => /[A-ZÀ-Ý]/.test(x));
       while (i < s.length && !ok(s[i])) i++;
       if (i >= s.length) break;
@@ -56,10 +66,55 @@ function sviMaskFmt(k, v) {
 function sviMaskOk(k, v) {
   const M = sviMaskOf(k);
   if (!sviMaskRaw(v) || !M || !M.m) return true;
-  const r = sviMaskRun(M.m, v), need = [...M.m].filter(sviMaskSlot).length;
+  const r = sviMaskRun(M.m, v), need = sviMaskSlots(M.m);
   return !r.rest && r.n > 0 && (M.ex ? r.n === need : r.n <= need);
 }
 const sviMaskLab = k => (sviMaskOf(k) || {}).lab || k;
+/* v928 (remarque 15) : MASQUE POSÉ SUR UN CHAMP — appui long (clic droit sur ordinateur) sur un champ d'une fenêtre = fenêtre MASQUE DE SAISIE
+   (administrateur ; ouvert à tous en attendant les droits). Le champ est reconnu par sa clé (data-k / data-f / id) et son libellé. */
+function sviMaskLabOf(i) {
+  const t = x => String(x || "").replace(/[*\s]+$/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+  const l = i.closest("label"); if (l) { const s = l.querySelector("span"); if (s && !s.contains(i)) return t(s.textContent); }
+  let p = i.closest(".fld-wrap") || i; p = p.previousElementSibling; if (p && /doc-lab|frs-l/.test(p.className)) return t(p.textContent);
+  const td = i.closest("td"), tb = td && td.closest("table"); if (td && tb && tb.tHead) { const th = tb.tHead.rows[0] && tb.tHead.rows[0].cells[td.cellIndex]; if (th) return t(th.textContent); }
+  return t(i.placeholder || i.name || i.id || "CHAMP");
+}
+const sviMaskKeyOf = i => i.dataset.mask || ("c:" + (i.dataset.k || i.dataset.f || i.dataset.c || i.id || "") + "|" + sviMaskLabOf(i));
+const SVI_MASK_FIELD = "#svConf input, #docPop input";
+const sviMaskable = i => !!(i && i.matches && i.matches(SVI_MASK_FIELD) && (!i.type || ["text", "tel", "search"].includes(i.type)) && !i.readOnly && !i.disabled);
+document.addEventListener("focusin", e => { const i = e.target; if (!sviMaskable(i) || i.dataset.mask) return; const k = sviMaskKeyOf(i); if ((sviMaskOf(k) || {}).m) i.dataset.mask = k; }, true);
+function sviMaskWin(i) {
+  const k = sviMaskKeyOf(i), M = sviMaskOf(k) || { k, lab: sviMaskLabOf(i), m: "", ex: false };
+  document.getElementById("svMaskPop")?.remove();
+  const p = document.createElement("div"); p.id = "svMaskPop";
+  const ex = m => m ? sviMaskRun(m, "1A2B3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S").out : "";
+  p.innerHTML = `<div class="mkp-t">MASQUE DE SAISIE — ${esc(M.lab)}</div>
+    <label class="mkp-f"><span>MASQUE</span><input class="mkp-m" value="${esc(M.m)}" autocomplete="off" data-keepcase></label>
+    <label class="mkp-c"><input type="checkbox" class="mkp-ex"${M.ex ? " checked" : ""}> LONGUEUR EXACTE</label>
+    <div class="mkp-x">EXEMPLE : <b class="mkp-e">${esc(ex(M.m))}</b></div>
+    <div class="mkp-n">9 = UN CHIFFRE · A = UNE LETTRE · "TEXTE" = ÉCRIT D'OFFICE · AUTRE SIGNE (ESPACE, TIRET) PLACÉ D'OFFICE · VIDE = AUCUN MASQUE</div>
+    <div class="mkp-b"><button type="button" class="svc-b" data-mx>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ms>ENREGISTRER</button></div>`;
+  document.body.appendChild(p);
+  const r = i.getBoundingClientRect(); p.style.left = Math.max(8, Math.min(window.innerWidth - p.offsetWidth - 8, r.left)) + "px"; p.style.top = Math.max(8, Math.min(window.innerHeight - p.offsetHeight - 8, r.bottom + 6)) + "px";
+  const mi = p.querySelector(".mkp-m"); setTimeout(() => { try { mi.focus(); } catch (e) {} }, 30);
+  mi.addEventListener("input", () => { p.querySelector(".mkp-e").textContent = ex(mi.value.toUpperCase()); });
+  p.addEventListener("click", e => {
+    if (e.target.closest("[data-mx]")) { p.remove(); return; }
+    if (!e.target.closest("[data-ms]")) return;
+    const m = String(mi.value || "").toUpperCase().replace(/\s+/g, " ").trim();
+    if (m && !sviMaskSlots(m)) { svToast("MASQUE SANS 9 NI A : AUCUNE SAISIE POSSIBLE.", 3500, mi); return; }
+    const L = sviMasks(), x = L.find(y => y.k === k); if (x) { x.m = m; x.ex = p.querySelector(".mkp-ex").checked; } else L.push({ k, lab: M.lab, m, ex: p.querySelector(".mkp-ex").checked });
+    sviMasksSave(L); p.remove();
+    if (m) { i.dataset.mask = k; const f = sviMaskFmt(k, i.value); if (f !== i.value) i.value = f; } else if (k.startsWith("c:")) delete i.dataset.mask;
+    svToast(m ? "MASQUE ENREGISTRÉ : " + m : "MASQUE RETIRÉ.", 2500, i);
+  });
+}
+{ let tm = 0, x0 = 0, y0 = 0;
+  document.addEventListener("pointerdown", e => { const i = e.target; if (!sviMaskable(i) || e.button > 0) return; x0 = e.clientX; y0 = e.clientY; clearTimeout(tm);
+    tm = setTimeout(() => { tm = 0; sviMaskWin(i); }, (window.SVI_G && SVI_G.lp) || 450); }, true);
+  document.addEventListener("pointermove", e => { if (tm && Math.hypot(e.clientX - x0, e.clientY - y0) > ((window.SVI_G && SVI_G.drag) || 8)) { clearTimeout(tm); tm = 0; } }, true);
+  ["pointerup", "pointercancel"].forEach(t => document.addEventListener(t, () => { clearTimeout(tm); tm = 0; }, true));
+  document.addEventListener("contextmenu", e => { if (!sviMaskable(e.target)) return; e.preventDefault(); clearTimeout(tm); tm = 0; sviMaskWin(e.target); }, true); }
 /* mise en forme pendant la frappe, pour tout champ marqué data-mask */
 document.addEventListener("input", e => {
   const i = e.target;
