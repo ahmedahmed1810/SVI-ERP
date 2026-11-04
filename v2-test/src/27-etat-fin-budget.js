@@ -140,8 +140,8 @@
       $("instClose")?.addEventListener("click", guarded(toList));
       $("instDel")?.addEventListener("click", () => {
         const RC = budget.inst.rclOf;
-        svConfirm(RC ? { title: "SUPPRIMER LE RECALAGE R" + budget.inst.rcn, text: "LE RECALAGE EN COURS R" + budget.inst.rcn + " SERA SUPPRIMÉ ; L'ÉTAPE " + RC + " NE CHANGE PAS.", ok: "SUPPRIMER" }
-          : { title: "SUPPRIMER LE BUDGET", text: "LE BUDGET EN INSTANCE " + fullRef + " SERA SUPPRIMÉ, AVEC SES AVENANTS ET SES RECALAGES.", ok: "SUPPRIMER" }).then(go => {
+        svConfirm(RC ? { title: "SUPPRIMER CE RECALAGE R" + budget.inst.rcn, text: "LE RECALAGE EN COURS R" + budget.inst.rcn + " SERA SUPPRIMÉ ; L'ÉTAPE " + RC + " NE CHANGE PAS.", ok: "SUPPRIMER" }
+          : { title: "SUPPRIMER CE BUDGET", text: "LE BUDGET EN INSTANCE " + fullRef + " SERA SUPPRIMÉ, AVEC SES AVENANTS ET SES RECALAGES.", ok: "SUPPRIMER" }).then(go => {
           if (!go) return;
           /* v750 (point 1) : après la suppression, le budget précédent de la liste s'ouvre (le suivant s'il n'y en a pas) ;
              retour à la liste seulement s'il n'en reste aucun ; un avenant supprimé ouvre l'étape d'avant */
@@ -450,7 +450,7 @@
       const r = delButton.dataset.delBudget;
       const g = bdgGroups.get(r);
       if (!g || !g.inst) return;
-      svConfirm({ title: g.inst.parent ? "SUPPRIMER L'AVENANT" : "SUPPRIMER LE BUDGET", text: (g.inst.parent ? "L'AVENANT EN INSTANCE " : "LE BUDGET EN INSTANCE ") + g.project + " " + r + " SERA SUPPRIMÉ" + (g.inst.parent ? "" : ", AVEC SES AVENANTS ET SES RECALAGES") + ".", ok: "SUPPRIMER" }).then(go => {
+      svConfirm({ title: g.inst.parent ? "SUPPRIMER CET AVENANT" : "SUPPRIMER CE BUDGET", text: (g.inst.parent ? "L'AVENANT EN INSTANCE " : "LE BUDGET EN INSTANCE ") + g.project + " " + r + " SERA SUPPRIMÉ" + (g.inst.parent ? "" : ", AVEC SES AVENANTS ET SES RECALAGES") + ".", ok: "SUPPRIMER" }).then(go => {
         if (!go) return;
         try {
           const l = sviBdgFamilyDrop(sviInstGet(), r);   /* v681 : ses avenants avec lui ; v820 : et les recalages */

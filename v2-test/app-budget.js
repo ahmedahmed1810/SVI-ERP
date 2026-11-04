@@ -2684,7 +2684,7 @@ function renderBudgetList() {
               + (st === "fige" && !bi.virtual ? hb("instLock", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 7.5-1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`, "Revenir en édition", "")
                 : hb("instLock", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>`, bi.rclOf ? "Enregistrer le recalage" : "Figer (lecture seule)", RO))
               + (st === "fige" && !bi.virtual ? hb("instValid", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`, "Valider le budget", "")
-                : hb("instDel", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`, bi.rclOf ? "Supprimer le recalage" : "Supprimer ce budget", delWhy))
+                : hb("instDel", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`, bi.rclOf ? "Supprimer ce recalage" : bi.parent ? "Supprimer cet avenant" : "Supprimer ce budget", delWhy))
               + hb("instClose", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`, "Fermer", "");
           })()}
           <button type="button" class="inst-act" id="instDup" hidden title="Dupliquer ce budget" aria-label="Dupliquer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
@@ -3087,8 +3087,8 @@ function renderBudgetList() {
       $("instClose")?.addEventListener("click", guarded(toList));
       $("instDel")?.addEventListener("click", () => {
         const RC = budget.inst.rclOf;
-        svConfirm(RC ? { title: "SUPPRIMER LE RECALAGE R" + budget.inst.rcn, text: "LE RECALAGE EN COURS R" + budget.inst.rcn + " SERA SUPPRIMÉ ; L'ÉTAPE " + RC + " NE CHANGE PAS.", ok: "SUPPRIMER" }
-          : { title: "SUPPRIMER LE BUDGET", text: "LE BUDGET EN INSTANCE " + fullRef + " SERA SUPPRIMÉ, AVEC SES AVENANTS ET SES RECALAGES.", ok: "SUPPRIMER" }).then(go => {
+        svConfirm(RC ? { title: "SUPPRIMER CE RECALAGE R" + budget.inst.rcn, text: "LE RECALAGE EN COURS R" + budget.inst.rcn + " SERA SUPPRIMÉ ; L'ÉTAPE " + RC + " NE CHANGE PAS.", ok: "SUPPRIMER" }
+          : { title: "SUPPRIMER CE BUDGET", text: "LE BUDGET EN INSTANCE " + fullRef + " SERA SUPPRIMÉ, AVEC SES AVENANTS ET SES RECALAGES.", ok: "SUPPRIMER" }).then(go => {
           if (!go) return;
           /* v750 (point 1) : après la suppression, le budget précédent de la liste s'ouvre (le suivant s'il n'y en a pas) ;
              retour à la liste seulement s'il n'en reste aucun ; un avenant supprimé ouvre l'étape d'avant */
@@ -3397,7 +3397,7 @@ function renderBudgetList() {
       const r = delButton.dataset.delBudget;
       const g = bdgGroups.get(r);
       if (!g || !g.inst) return;
-      svConfirm({ title: g.inst.parent ? "SUPPRIMER L'AVENANT" : "SUPPRIMER LE BUDGET", text: (g.inst.parent ? "L'AVENANT EN INSTANCE " : "LE BUDGET EN INSTANCE ") + g.project + " " + r + " SERA SUPPRIMÉ" + (g.inst.parent ? "" : ", AVEC SES AVENANTS ET SES RECALAGES") + ".", ok: "SUPPRIMER" }).then(go => {
+      svConfirm({ title: g.inst.parent ? "SUPPRIMER CET AVENANT" : "SUPPRIMER CE BUDGET", text: (g.inst.parent ? "L'AVENANT EN INSTANCE " : "LE BUDGET EN INSTANCE ") + g.project + " " + r + " SERA SUPPRIMÉ" + (g.inst.parent ? "" : ", AVEC SES AVENANTS ET SES RECALAGES") + ".", ok: "SUPPRIMER" }).then(go => {
         if (!go) return;
         try {
           const l = sviBdgFamilyDrop(sviInstGet(), r);   /* v681 : ses avenants avec lui ; v820 : et les recalages */

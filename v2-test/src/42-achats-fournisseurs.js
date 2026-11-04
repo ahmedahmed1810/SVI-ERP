@@ -64,7 +64,7 @@ function achFrsMod(ctx) {
     if (act === "frs-back") { setEtat("actif"); SEL.clear(); draw(); return true; }
     if (act === "frs-del") {
       const A = ids.map(id => L.find(f => f.id === id)).filter(f => f && !f.del);
-      if (!A.length || !(await svConfirm({ title: "METTRE À LA CORBEILLE", html: `<ul class="svc-list">${A.map(f => `<li>${esc(f.code + " — " + f.nom)}</li>`).join("")}</ul><div class="svc-sub">RESTAURABLES DEPUIS LA CORBEILLE ; LEURS NUMÉROS NE SERONT PAS RÉUTILISÉS.</div>`, ok: "METTRE À LA CORBEILLE" }))) return true;
+      if (!A.length || !(await svConfirm({ title: "SUPPRIMER LES FOURNISSEURS COCHÉS", ok: "SUPPRIMER", html: `<ul class="svc-list">${A.map(f => `<li>${esc(f.code + " — " + f.nom)}</li>`).join("")}</ul><div class="svc-sub">RESTAURABLES DEPUIS LA CORBEILLE ; LEURS NUMÉROS NE SERONT PAS RÉUTILISÉS.</div>`, ok: "METTRE À LA CORBEILLE" }))) return true;
       const t = new Date().toISOString(); A.forEach(f => { f.del = t; f.mod = t; achHist(f.code, "CORBEILLE", f.nom); });
       achFrsSave(L); SEL.clear(); draw(); return true;
     }
