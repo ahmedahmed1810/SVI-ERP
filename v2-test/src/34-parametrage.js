@@ -300,14 +300,15 @@ function sviParamTabs() {
   hpane.addEventListener("click", e => { const r = e.target.closest("tr.colh-open"); if (!r) return; const I = sviColhRegInfo(r.dataset.colh); if (!I) return; I.done = colhDraw; sviColhWinI(I); });
   const felDraw = () => {
     const F = sviFmt();
-    epane.innerHTML = `<table class="prm-table fmt-t"><colgroup><col style="width:300px"><col style="width:90px"><col style="width:90px"><col style="width:90px"><col style="width:70px"><col style="width:70px"><col style="width:80px"><col style="width:120px"></colgroup>
-      <thead><tr><th>ÉLÉMENT</th><th class="center">FOND</th><th class="center">TEXTE</th><th class="center">TAILLE</th><th class="center">GRAS</th><th class="center">ITALIQUE</th><th class="center">SOULIGNÉ</th><th></th></tr></thead>
+    epane.innerHTML = `<table class="prm-table fmt-t"><colgroup><col style="width:300px"><col style="width:90px"><col style="width:90px"><col style="width:90px"><col style="width:70px"><col style="width:70px"><col style="width:80px"><col style="width:90px"><col style="width:120px"></colgroup>
+      <thead><tr><th>ÉLÉMENT</th><th class="center">FOND</th><th class="center">TEXTE</th><th class="center">TAILLE</th><th class="center">GRAS</th><th class="center">ITALIQUE</th><th class="center">SOULIGNÉ</th><th class="center">HAUTEUR</th><th></th></tr></thead>
       <tbody>${SVI_FMT_EL.map(E => { const o = F.el[E.k] || {}, v = f => o[f] !== undefined ? o[f] : E.def[f];
         return `<tr data-el="${E.k}"><td class="fmt-lab" style="background:${esc(v("bg"))};color:${esc(v("c"))};font-weight:${v("b") ? 800 : 400};font-style:${v("i") ? "italic" : "normal"};text-decoration:${v("u") ? "underline" : "none"}">${esc(E.lab)}</td>
         ${(() => { const ok = f => !E.f || E.f.includes(f), no = '<td class="center fmt-na">—</td>';   /* v923 : réglage sans objet = — */
           return (ok("bg") ? `<td class="center"><input type="color" class="fmt-in" data-f="bg" value="${esc(v("bg"))}"></td>` : no) + (ok("c") ? `<td class="center"><input type="color" class="fmt-in" data-f="c" value="${esc(v("c") || "#000000")}"></td>` : no)
           + (ok("fs") ? `<td class="center"><input class="fmt-in fmt-fs center" data-f="fs" inputmode="numeric" value="${esc(v("fs"))}"></td>` : no)
-          + ["b", "i", "u"].map(f => ok(f) ? `<td class="center"><input type="checkbox" class="fmt-in" data-f="${f}"${v(f) ? " checked" : ""}></td>` : no).join(""); })()}
+          + ["b", "i", "u"].map(f => ok(f) ? `<td class="center"><input type="checkbox" class="fmt-in" data-f="${f}"${v(f) ? " checked" : ""}></td>` : no).join("")
+          + (ok("h") && v("h") ? `<td class="center"><input class="fmt-in fmt-fs center" data-f="h" inputmode="numeric" value="${esc(v("h"))}"></td>` : no); })()}
         <td class="center">${F.el[E.k] ? `<button type="button" class="col-rst" data-fel="${E.k}">PAR DÉFAUT</button>` : ""}</td></tr>`; }).join("")}</tbody></table>`;
   };
   const fifDraw = () => {
@@ -318,7 +319,9 @@ function sviParamTabs() {
       <tbody>${SVI_FMT_IF.map(x => `<tr><td>${esc(x.lab)}</td><td class="center"><input type="checkbox" class="fif-cb" data-if="${x.k}"${on(x.k) ? " checked" : ""}></td></tr>`).join("")}</tbody></table>`;
   };
   epane.addEventListener("input", e => { const i = e.target.closest(".fmt-in"); if (!i || i.type === "checkbox") return; const k = i.closest("tr").dataset.el, F = sviFmt(); F.el[k] = F.el[k] || {};
-    if (i.dataset.f === "fs") { const n = parseInt(String(i.value).replace(/\D/g, ""), 10); if (!(n >= 8 && n <= 40)) return; F.el[k].fs = n; } else F.el[k][i.dataset.f] = i.value;
+    if (i.dataset.f === "fs") { const n = parseInt(String(i.value).replace(/\D/g, ""), 10); if (!(n >= 8 && n <= 40)) return; F.el[k].fs = n; }
+    else if (i.dataset.f === "h") { const n = parseInt(String(i.value).replace(/\D/g, ""), 10); if (!(n >= 10 && n <= 120)) return; F.el[k].h = n; }   /* v924 : hauteur 10 à 120 px */
+    else F.el[k][i.dataset.f] = i.value;
     sviFmtSave(F); });
   epane.addEventListener("change", e => { const i = e.target.closest(".fmt-in"); if (!i) return; if (i.type === "checkbox") { const k = i.closest("tr").dataset.el, F = sviFmt(); F.el[k] = F.el[k] || {}; F.el[k][i.dataset.f] = i.checked ? 1 : 0; sviFmtSave(F); } felDraw(); });
   epane.addEventListener("click", e => { const b = e.target.closest("[data-fel]"); if (!b) return; const F = sviFmt(); delete F.el[b.dataset.fel]; sviFmtSave(F); felDraw(); });

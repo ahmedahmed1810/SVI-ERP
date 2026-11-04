@@ -3445,10 +3445,16 @@ def main():
             /* remarque 2 : FOND DES ONGLETS — seul le fond est appliqué */
             const E = SVI_FMT_EL.find(x => x.k === 'tabs'); r.tabs = E.lab + '|' + (E.f || []).join(',');
             const css = sviFmtCss({ el: { tabs: { bg: '#123456', c: '#654321', fs: 20 } }, to: null }); r.tabsCss = /#123456/.test(css) && !/#654321/.test(css) && !/font-size:20px/.test(css);
+            /* remarques 3 et 4 : parties des fenêtres (une fois pour toutes) et hauteur de chaque élément ; lignes 21 px, titres des colonnes 22 px au départ */
+            const H = k => (SVI_FMT_EL.find(x => x.k === k) || { def: {} }).def.h; r.h = [H('row'), H('th')].join(',');
+            r.win = ['winbg', 'winlab', 'winin', 'wincan', 'winok'].every(k => SVI_FMT_EL.some(x => x.k === k && x.win));
+            const css2 = sviFmtCss({ el: { row: { h: 30 }, winok: { c: '#0a0b0c' } }, to: ['bdg'] }); r.hCss = /\.bdg-d-page table tbody td[^{]*\{[^}]*height:30px/.test(css2) && /html body #svConf \.svc-f \.svc-b\.svc-ok[^{]*\{[^}]*#0a0b0c/.test(css2);
             if (keepF === null) localStorage.removeItem('svi_format_v1'); else localStorage.setItem('svi_format_v1', keepF); sviFmtApply(); return r; }""")
         check("FORME 04/11, remarques 1 et 2 : états REMIS (orange) et NON LETTRÉ (violet) dans la palette ; FOND DES ONGLETS = couleur du fond seulement",
               f1104["etats"] == "EN INSTANCE,FIGÉ,PARTIELLEMENT ACHEVÉ,REMIS,VALIDÉ,NON LETTRÉ,EXPIRÉ,BLOQUÉ,ARCHIVÉ" and f1104["vars"] == "#ea580c,#a21caf"
               and f1104["tabs"] == "FOND DES ONGLETS|bg" and f1104["tabsCss"], f1104)
+        check("FORME 04/11, remarques 3 et 4 : parties des fenêtres réglées une fois pour toutes ; HAUTEUR de chaque élément (lignes 21 px, titres des colonnes 22 px au départ)",
+              f1104["h"] == "21,22" and f1104["win"] and f1104["hCss"], f1104)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
