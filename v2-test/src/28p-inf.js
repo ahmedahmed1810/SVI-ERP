@@ -140,7 +140,7 @@ function sviBdgInf(C) {
             ${items.map(([k, v]) => `
               <span class="doc-lab">${esc(k)}${INS && (k === "DATE CRÉATION" || k === "PROJET") ? STAR : ""}</span>
               ${k === "DATE CRÉATION" && editInt
-                ? `<span class="inf-cell inf-dt"><input class="doc-in inf-cre" type="date" value="${esc(String(budget.inst.created || "").slice(0, 10) || ((dt && dt.key) || ""))}"><input class="doc-in inf-cre-h" type="time" value="${esc(String(budget.inst.created || "").slice(11, 16))}"></span>`
+                ? `<input class="doc-in inf-cre" type="datetime-local" value="${esc((String(budget.inst.created || "").slice(0, 10) || ((dt && dt.key) || "")) + "T" + (String(budget.inst.created || "").slice(11, 16) || "00:00"))}">`   /* v922 (remarque 8 du 04/11/2026) : un seul champ, date ET heure affichées en entier (JJ/MM/AAAA À HH:MM) */
                 : k === "PROJET" && editInt
                 ? `<input class="doc-in inf-int" id="infPrj" value="${esc(v || "")}" autocomplete="off">`
                 : (k === "INTITULÉ" || k === "CLIENT") && editInt
@@ -168,15 +168,14 @@ function sviBdgInf(C) {
     });
     if (focus === "ao") setTimeout(() => { const i = p.querySelector("#infAoN"); if (i) { i.scrollIntoView({ block: "center" }); i.focus(); } }, 80);
     p.querySelectorAll("#infInt, #infCli, #infPrj, #infAoN, #infAoO").forEach(i => i.addEventListener("input", e => { const c = e.target.selectionStart; e.target.value = e.target.value.toUpperCase(); try { e.target.setSelectionRange(c, c); } catch (err) {} }));
-    const cd = p.querySelector("input.inf-cre"), chh = p.querySelector("input.inf-cre-h");
-    if (cd) sviDateField(cd);
+    const cd = p.querySelector("input.inf-cre");
     const collect = () => {
       const out = { ...pend };
       const gp = p.querySelector(".inf-gps"); if (gp) out.gps = gp.value.trim();
       const pj = p.querySelector("#infPrj"); if (pj) out.project = pj.value.trim().toUpperCase().replace(/\s+/g, " ");
       const ii = p.querySelector("#infInt"); if (ii) out.intitule = ii.value.trim().toUpperCase();
       const ic = p.querySelector("#infCli"); if (ic) out.client = ic.value.trim().toUpperCase();
-      if (cd) out.created = (cd.value || "") + (cd.value ? "T" + ((chh && chh.value) || "00:00") : "");
+      if (cd) out.created = cd.value ? cd.value.slice(0, 10) + "T" + (cd.value.slice(11, 16) || "00:00") : "";
       if (INS && p.querySelector("#infAoN")) {
         const t = p.querySelector('input[name="infAoT"]:checked'), A = INS.ao || {};
         const pub = t ? t.value === "pub" : (A.pub === undefined ? undefined : A.pub);

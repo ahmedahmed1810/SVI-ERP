@@ -3329,7 +3329,8 @@ thead th:not(:last-child) .col-rs::after { right: 50% !important; }
    dans tous les états de l'écran (budget, fiches d'achat) ; seule la ligne « CRÉER … ICI » reste rouge (§6.5 : rien n'est encore créé) */
 .bdg-d-page .blk-suivi > .bdg-d-block-title, .bdg-d-page .blk-suivi > .bdg-d-block-title :is(.ttl, .ttl *, svg) { color: var(--st-valide, #172033); }
 .bdg-d-page .blk-suivi .rec-tab.active, .bdg-d-page .blk-suivi .rec-tab.active .ico { color: var(--st-valide, #172033); }
-.bdg-d-page .blk-suivi .rec-tab.active { box-shadow: inset 0 -2px 0 var(--st-valide, #172033); }
+/* v922 (remarque 9 du 04/11/2026) : onglet actif du SUIVI comme ceux de RÉVISIONS — plus de trait noir dessous */
+.bdg-d-page .blk-suivi .rec-tab.active { box-shadow: none; }
 .bdg-d-page .blk-suivi tbody tr:not(.rec-new) td, .bdg-d-page .blk-suivi tbody tr:not(.rec-new) td *:not(.rec-open):not(.rec-imp):not(.ach-link) { color: var(--st-valide, #172033) !important; }
 .bdg-d-page .blk-suivi tbody tr.rec-new td { color: var(--tb-new-c, #b91c1c); background: var(--tb-new-bg, #fdf0f0); }
 /* v794 — document unique 3.5 : tableau des dates des listes — ligne du haut sans cadre blanc, flèche ▾ seule un peu à droite du mot, pastille alignée sur celles des dates */
