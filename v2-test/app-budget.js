@@ -18988,12 +18988,26 @@ function sviBdgDoublons(C) {
      désignations et charges = ART + DÉSIGNATION + UNITÉ ; produits = DÉSIGNATION + UNITÉ.
      Une saisie qui crée un doublon ouvre la fenêtre DOUBLON : RÉTABLIR ou FUSIONNER (liaisons reportées) ===== */
   const DUP_LAB = { des: "DÉSIGNATIONS CLIENT", lot: "LOTS", prim: "ACTIVITÉS PRIMAIRES", sec: "ACTIVITÉS SECONDAIRES", chg: "DÉTAIL CHARGES", prd: "DÉTAIL PRODUITS", qlt: "DÉTAIL QUALITÉ" };
-  const dupKeyOf = (k, r) => {
+  /* v918 (ALLÈGEMENT) : index des liaisons fait UNE fois pour tout un contrôle (avant : toutes les liaisons relues pour chaque ligne) —
+     charge → tâches (lot|sec) ; produit → sa première liaison ; mêmes clés qu'avant */
+  const dupIx = () => {
+    const CT = new Map(), PL = new Map(), BY = {};
+    (INS.links || []).forEach(l => {
+      (l.chg || []).forEach(x => { let s = CT.get(x.id); if (!s) CT.set(x.id, s = new Set()); s.add(l.lot + "|" + l.sec); });
+      (l.prd || []).forEach(x => { if (!PL.has(x.id)) PL.set(x.id, l); });
+    });
+    const f = (k, i, fl) => { let M = BY[k]; if (!M) { M = BY[k] = new Map(); (INS[k] || []).forEach(x => { if (!M.has(x.id)) M.set(x.id, x); }); } return U_((M.get(i) || {})[fl] || ""); };
+    return { chg: id => [...(CT.get(id) || [])].sort().join(","),
+      prd: id => { const l = PL.get(id); return l ? [f("des", l.des, "des"), f("lot", l.lot, "v"), f("prim", l.prim, "v"), f("sec", l.sec, "v")].join("|") : ""; } };
+  };
+  const dupKeyOf = (k, r, IX) => {
     if (!r || r.t) return "";
     if (k === "lot" || k === "prim" || k === "sec" || k === "qlt") return U_(r.v);
     if (!U_(r.des)) return "";
     /* FORMAT 117 : un même produit dans des tâches différentes n'est pas un doublon */
     /* v478 (remarque 7) : une charge est propre à sa tâche secondaire — même charge dans deux tâches différentes ≠ doublon */
+    if (k === "chg" && IX) return impId(k, r) + "#" + IX.chg(r.id);
+    if (k === "prd" && IX) return impId(k, r) + "#" + IX.prd(r.id);
     if (k === "chg") { const T = [...new Set((INS.links || []).filter(l => (l.chg || []).some(x => x.id === r.id)).map(l => l.lot + "|" + l.sec))].sort().join(","); return impId(k, r) + "#" + T; }
     return k === "prd" ? impId(k, r) + "#" + prdChainKey(r.id) : impId(k, r);
   };
@@ -19171,10 +19185,10 @@ function sviBdgDoublons(C) {
      on choisit PRENDRE L'EXISTANT ou GARDER LA NOUVELLE (ouverture du budget : FUSIONNER ou IGNORER) */
   /* refonte, étape 8 (v645) : règles dans 02d (calcul pur, testées) */
   const nearNorm = sviNearNorm, nearDigits = sviNearDigits, nearDist1 = sviNearDist1;
-  const nearCtx = (k, r) => {
+  const nearCtx = (k, r, IX) => {
     if (k === "lot" || k === "prim" || k === "sec" || k === "qlt") return "";
     if (k === "des") return U_(r.u);
-    const key = dupKeyOf(k, r); return U_(r.u) + "#" + String(key).split("#").slice(1).join("#");
+    const key = dupKeyOf(k, r, IX); return U_(r.u) + "#" + String(key).split("#").slice(1).join("#");
   };
   const isNear = sviIsNear;
   const NEAR_K = ["des", "lot", "prim", "sec", "chg", "prd"];
@@ -19204,17 +19218,20 @@ function sviBdgDoublons(C) {
   };
   /* ouverture du budget (et après un import) : paires proches déjà présentes, dans la fenêtre DOUBLON EXISTANT */
   const nearPairs = () => {
-    const out = [];
+    const out = [], IX = dupIx();
     NEAR_K.forEach(k => {
       const by = new Map();
-      (INS[k] || []).forEach(r => { if (r.t || !U_(nearName(k, r))) return; const c = nearCtx(k, r); if (!by.has(c)) by.set(c, []); by.get(c).push(r); });
+      (INS[k] || []).forEach(r => { if (r.t || !U_(nearName(k, r))) return; const c = nearCtx(k, r, IX); if (!by.has(c)) by.set(c, []); by.get(c).push(r); });
       by.forEach(L => {
         const names = new Map();
         L.forEach(r => { const n = U_(nearName(k, r)); if (!names.has(n)) names.set(n, r); });
         const U = [...names.values()];
+        /* v918 : intitulé normalisé et nombres calculés une fois par ligne (avant : à chaque paire) — mêmes paires */
+        const NM = U.map(r => nearName(k, r)), NN = NM.map(nearNorm), ND = NM.map(nearDigits);
         for (let i = 0; i < U.length; i++) for (let j = i + 1; j < U.length; j++) {
-          const a = nearName(k, U[i]), b = nearName(k, U[j]);
-          if (Math.abs(nearNorm(a).length - nearNorm(b).length) > 1 && nearNorm(a) !== nearNorm(b)) continue;
+          const a = NM[i], b = NM[j];
+          if (Math.abs(NN[i].length - NN[j].length) > 1 && NN[i] !== NN[j]) continue;
+          if (ND[i] !== ND[j]) continue;
           if (!isNear(a, b) || nearSkipped(k, a, b)) continue;
           const nl = x => (INS.links || []).filter(l => k === "prd" || k === "chg" ? (l[k] || []).some(y => y.id === x.id) : l[k] === x.id).length;
           const [keep, drop] = nl(U[j]) > nl(U[i]) ? [U[j], U[i]] : [U[i], U[j]];
@@ -19234,11 +19251,11 @@ function sviBdgDoublons(C) {
     try { skip = JSON.parse(sessionStorage.getItem("svi_dupskip") || "{}"); } catch (e) {}
     /* v626 : un doublon exact ne s'ignore plus (seulement les intitulés presque identiques) */
     if (force) Object.keys(skip).forEach(x => { if (!x.includes("|near|")) delete skip[x]; });
-    const items = [];
+    const items = [], IX = dupIx();
     Object.keys(DUP_LAB).forEach(k => {
       const seen = new Map();
       INS[k].forEach(r => {
-        const key = dupKeyOf(k, r);
+        const key = dupKeyOf(k, r, IX);
         if (!key) return;
         const first = seen.get(key);
         if (!first) { seen.set(key, r); return; }
@@ -19309,7 +19326,7 @@ function sviBdgDoublons(C) {
   };
   shell.__dupExisting = f => dupExisting(f);
   /* v626 : doublons exacts du budget (pour la fenêtre ⚠) — par tableau */
-  const dupCount = () => { const out = []; Object.keys(DUP_LAB).forEach(k => { const seen = new Set(); (INS[k] || []).forEach(r => { const key = dupKeyOf(k, r); if (!key) return; if (seen.has(key)) out.push({ k, r }); else seen.add(key); }); }); return out; };
+  const dupCount = () => { const out = [], IX = dupIx(); Object.keys(DUP_LAB).forEach(k => { const seen = new Set(); (INS[k] || []).forEach(r => { const key = dupKeyOf(k, r, IX); if (!key) return; if (seen.has(key)) out.push({ k, r }); else seen.add(key); }); }); return out; };
   /* FORMAT 108 : produits du budget avec NBR vide ou 0 → déliés, retirés, mis dans IMPORT NON CRÉÉ (après confirmation) */
   const insNbrFix = async () => {
     if (!INS || !INS_EDIT || shell.__nbrBusy) return;
