@@ -5,6 +5,7 @@ Depuis la v753, l'application est **assemblée en un fichier par module** à par
 ```
 python3 outils/assembler.py          # écrit app.js, app-budget.js, app-achats.js (v914 : app-autres.js supprimé avec BDS)
 python3 tests/test_app.py            # tests de non-régression
+python3 outils/mesure.py             # v915 : temps d'ouverture (gros budget d'essai, processeur ralenti ×4)
 ```
 
 | Fichier assemblé | Module | Fichiers de src/ |
