@@ -3074,6 +3074,10 @@ input[type=checkbox], input[type=radio] { accent-color: var(--tb-cb-c) !importan
 .blk-etp tr.st-fige td { color: var(--st-fige, #15803d) !important; }
 .blk-etp tr.st-valide td, .blk-etp tr.st-reserve td { color: var(--st-valide, #172033) !important; }
 .blk-etp tr.st-expire td { color: var(--st-expire, #b45309) !important; }
+/* v923 (remarque 1) : états REMIS et NON LETTRÉ (couleurs de la palette) */
+table tr.etat-remis td, table tr.inst-remis td, .st-remis { color: var(--st-remis, #ea580c); }
+table tr.etat-nonlettre td, table tr.inst-nonlettre td, .st-nonlettre { color: var(--st-nonlettre, #a21caf); }
+.fmt-t td.fmt-na { color: #9aa3af; }
 .blk-etp tr.st-archive td, .blk-etp tr.etp-arch td { color: var(--st-archive, #6d28d9) !important; }
 /* v780 (remarque 11) : corbeille des scénarios = la corbeille rouge de la liste des budgets */
 .scn-table .scn-del.bdg-row-del { color: var(--st-instance, #b91c1c); display: inline-flex; align-items: center; justify-content: center; }

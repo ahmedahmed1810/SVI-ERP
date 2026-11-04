@@ -2862,7 +2862,7 @@ def main():
             res.push(/APRÈS LA SAISIE/.test(t), !document.getElementById('budgetBackBtn'));
             const tot = document.querySelector('#bdgDatePanel .novapp-date-filter'); res.push(!!tot.querySelector('.svi-cnt') && tot.querySelector('.svi-cnt').textContent.trim() !== '');
             document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300); document.querySelector('.prm-tab[data-prm="col"]').click(); await w(200);
-            const ci = document.querySelector('.prm-col .col-in[data-col="valide"]'); res.push(!!ci && document.querySelectorAll('.prm-col tbody tr').length === 7);   /* v790 : + PARTIELLEMENT ACHEVÉ */
+            const ci = document.querySelector('.prm-col .col-in[data-col="valide"]'); res.push(!!ci && document.querySelectorAll('.prm-col tbody tr').length === 9);   /* v790 : + PARTIELLEMENT ACHEVÉ ; v923 : + REMIS, NON LETTRÉ */
             ci.value = '#123456'; ci.dispatchEvent(new Event('input', { bubbles: true })); ci.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(400);
             res.push(getComputedStyle(document.querySelector('#budgetListTable tr[data-budget-ref="L-2"]').cells[3]).color);
@@ -3438,6 +3438,17 @@ def main():
               r.push(/CLIENT/.test(p.querySelector('#nbErr').textContent), !!p.querySelector('#nbCli')); p.remove(); } else r.push('pas de ligne CRÉER');
             if (keepC === null) localStorage.removeItem('svi_clients_v1'); else localStorage.setItem('svi_clients_v1', keepC); return r; }""")
         check("v820 : points du cahier — client obligatoire (fiche CLIENT, sans doublon), suppression d'un budget avec ses avenants et recalages", c820 == ["B,RB", 1, "ONEE", True, True], c820)
+        # FORME du 04/11/2026 (remarques 1 à 16) — moteur commun de forme
+        f1104 = pg.evaluate("""async () => { const r = {}, keepF = localStorage.getItem('svi_format_v1');
+            /* remarque 1 : états REMIS et NON LETTRÉ dans la palette, variables posées */
+            r.etats = SVI_COL_LAB.map(x => x[1]).join(','); r.vars = [getComputedStyle(document.documentElement).getPropertyValue('--st-remis').trim(), getComputedStyle(document.documentElement).getPropertyValue('--st-nonlettre').trim()].join(',');
+            /* remarque 2 : FOND DES ONGLETS — seul le fond est appliqué */
+            const E = SVI_FMT_EL.find(x => x.k === 'tabs'); r.tabs = E.lab + '|' + (E.f || []).join(',');
+            const css = sviFmtCss({ el: { tabs: { bg: '#123456', c: '#654321', fs: 20 } }, to: null }); r.tabsCss = /#123456/.test(css) && !/#654321/.test(css) && !/font-size:20px/.test(css);
+            if (keepF === null) localStorage.removeItem('svi_format_v1'); else localStorage.setItem('svi_format_v1', keepF); sviFmtApply(); return r; }""")
+        check("FORME 04/11, remarques 1 et 2 : états REMIS (orange) et NON LETTRÉ (violet) dans la palette ; FOND DES ONGLETS = couleur du fond seulement",
+              f1104["etats"] == "EN INSTANCE,FIGÉ,PARTIELLEMENT ACHEVÉ,REMIS,VALIDÉ,NON LETTRÉ,EXPIRÉ,BLOQUÉ,ARCHIVÉ" and f1104["vars"] == "#ea580c,#a21caf"
+              and f1104["tabs"] == "FOND DES ONGLETS|bg" and f1104["tabsCss"], f1104)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

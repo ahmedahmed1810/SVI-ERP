@@ -3339,8 +3339,9 @@ function sviCfKit(o) {
    EXPIRÉ, BLOQUÉ et ARCHIVÉ servent aux états des budgets (lot 2).
    ========================================================= */
 const SVI_COL_KEY = "svi_colors_v1";
-const SVI_COL_DEF = { instance: "#b91c1c", fige: "#15803d", partiel: "#1d4ed8", valide: "#172033", expire: "#b45309", bloque: "#6b7280", archive: "#6d28d9" };
-const SVI_COL_LAB = [["instance", "EN INSTANCE"], ["fige", "FIGÉ"], ["partiel", "PARTIELLEMENT ACHEVÉ"], ["valide", "VALIDÉ"], ["expire", "EXPIRÉ"], ["bloque", "BLOQUÉ"], ["archive", "ARCHIVÉ"]];   /* v790 : PARTIELLEMENT ACHEVÉ (bleu) */
+/* v923 (remarque 1 du 04/11/2026) : REMIS orange (commande remise au fournisseur, paiement remis) ; NON LETTRÉ violet (banque, pour plus tard — distinct du violet d'ARCHIVÉ) */
+const SVI_COL_DEF = { instance: "#b91c1c", fige: "#15803d", partiel: "#1d4ed8", remis: "#ea580c", valide: "#172033", nonlettre: "#a21caf", expire: "#b45309", bloque: "#6b7280", archive: "#6d28d9" };
+const SVI_COL_LAB = [["instance", "EN INSTANCE"], ["fige", "FIGÉ"], ["partiel", "PARTIELLEMENT ACHEVÉ"], ["remis", "REMIS"], ["valide", "VALIDÉ"], ["nonlettre", "NON LETTRÉ"], ["expire", "EXPIRÉ"], ["bloque", "BLOQUÉ"], ["archive", "ARCHIVÉ"]];   /* v790 : PARTIELLEMENT ACHEVÉ (bleu) */
 function sviColors() {
   let v = null; try { v = JSON.parse(localStorage.getItem(SVI_COL_KEY) || "null"); } catch (e) {}
   const o = { ...SVI_COL_DEF };
@@ -3366,7 +3367,8 @@ const SVI_FMT_KEY = "svi_format_v1";
 const SVI_FMT_EL = [
   { k: "top", lab: "BARRE DU HAUT DE L'INTERFACE", sel: [".bdg-d-sticky .novapp-list-titlebar", ".novapp-list-shell > .novapp-list-titlebar"], def: { bg: "#ffffff", c: "#172033", fs: 28, b: 1 } },
   { k: "blk", lab: "EN-TÊTE DE BLOC", sel: [".bdg-d-block > .bdg-d-block-title"], def: { bg: "#dde2e9", c: "#b91c1c", fs: 11, b: 1 } },
-  { k: "tabs", lab: "RANGÉE D'ONGLETS", sel: [".bdg-d-tabs", "#bdgTabs", ".rec-tabs"], def: { bg: "#eceff3", c: "#6b7280", fs: 12, b: 1 } },
+  /* v923 (remarque 2) : FOND DES ONGLETS — seule la couleur du fond a un sens (f = réglages permis) */
+  { k: "tabs", lab: "FOND DES ONGLETS", sel: [".bdg-d-tabs", "#bdgTabs", ".rec-tabs"], def: { bg: "#eceff3" }, f: ["bg"] },
   { k: "tab", lab: "ONGLET", sel: [".bdg-d-tab:not(.active)", ".rec-tab:not(.on)"], def: { bg: "#eceff3", c: "#6b7280", fs: 12, b: 1 } },
   { k: "taba", lab: "ONGLET ACTIF", sel: [".bdg-d-tab.active", ".rec-tab.on"], def: { bg: "#ffffff", c: "#b91c1c", fs: 12, b: 1 } },
   { k: "th", lab: "TITRES DES COLONNES (EN-TÊTE DE TABLEAU)", sel: ["table thead th", ".ins-hcol .bdg-h-head"], def: { bg: "#f6f7f9", c: "#6b7480", fs: 11, b: 1 } },
@@ -3391,7 +3393,8 @@ function sviFmtCss(F) {
   const out = [], all = !F.to || F.to.length >= SVI_FMT_IF.length;
   const SC = all ? null : SVI_FMT_IF.filter(x => F.to.includes(x.k)).flatMap(x => x.sc);
   SVI_FMT_EL.forEach(E => {
-    const o = F.el[E.k]; if (!o) return;
+    const o0 = F.el[E.k]; if (!o0) return;
+    const o = E.f ? Object.fromEntries(Object.entries(o0).filter(([f]) => E.f.includes(f))) : o0;   /* v923 : seulement les réglages permis */
     const d = [];
     if (o.bg) d.push(`background:${o.bg}!important`);
     if (o.c) d.push(`color:${o.c}!important;-webkit-text-fill-color:${o.c}!important`);
@@ -5170,9 +5173,10 @@ function sviParamTabs() {
       <thead><tr><th>ÉLÉMENT</th><th class="center">FOND</th><th class="center">TEXTE</th><th class="center">TAILLE</th><th class="center">GRAS</th><th class="center">ITALIQUE</th><th class="center">SOULIGNÉ</th><th></th></tr></thead>
       <tbody>${SVI_FMT_EL.map(E => { const o = F.el[E.k] || {}, v = f => o[f] !== undefined ? o[f] : E.def[f];
         return `<tr data-el="${E.k}"><td class="fmt-lab" style="background:${esc(v("bg"))};color:${esc(v("c"))};font-weight:${v("b") ? 800 : 400};font-style:${v("i") ? "italic" : "normal"};text-decoration:${v("u") ? "underline" : "none"}">${esc(E.lab)}</td>
-        <td class="center"><input type="color" class="fmt-in" data-f="bg" value="${esc(v("bg"))}"></td><td class="center"><input type="color" class="fmt-in" data-f="c" value="${esc(v("c"))}"></td>
-        <td class="center"><input class="fmt-in fmt-fs center" data-f="fs" inputmode="numeric" value="${esc(v("fs"))}"></td>
-        ${["b", "i", "u"].map(f => `<td class="center"><input type="checkbox" class="fmt-in" data-f="${f}"${v(f) ? " checked" : ""}></td>`).join("")}
+        ${(() => { const ok = f => !E.f || E.f.includes(f), no = '<td class="center fmt-na">—</td>';   /* v923 : réglage sans objet = — */
+          return (ok("bg") ? `<td class="center"><input type="color" class="fmt-in" data-f="bg" value="${esc(v("bg"))}"></td>` : no) + (ok("c") ? `<td class="center"><input type="color" class="fmt-in" data-f="c" value="${esc(v("c") || "#000000")}"></td>` : no)
+          + (ok("fs") ? `<td class="center"><input class="fmt-in fmt-fs center" data-f="fs" inputmode="numeric" value="${esc(v("fs"))}"></td>` : no)
+          + ["b", "i", "u"].map(f => ok(f) ? `<td class="center"><input type="checkbox" class="fmt-in" data-f="${f}"${v(f) ? " checked" : ""}></td>` : no).join(""); })()}
         <td class="center">${F.el[E.k] ? `<button type="button" class="col-rst" data-fel="${E.k}">PAR DÉFAUT</button>` : ""}</td></tr>`; }).join("")}</tbody></table>`;
   };
   const fifDraw = () => {
