@@ -229,8 +229,12 @@ document.addEventListener("click", e => {
   const shell = b.closest(".novapp-list-shell"), t = shell ? shell.querySelector("table") : sviColhTableNear(b), h1 = shell ? shell.querySelector(".novapp-list-titlebar h1") : b.closest("#ach")?.querySelector(".section-head h2, .section-head h1");
   /* v818 : actions propres à une liste, ajoutées par son module (SVI_LIST_EXTRA : { when(titre), items, act(k) }) */
   const ttl = h1 ? (h1.childNodes[0] ? h1.childNodes[0].textContent : h1.textContent).trim() : "", EX = (window.SVI_LIST_EXTRA || []).filter(x => { try { return x.when(ttl); } catch (er) { return false; } });
-  sviHdrMenu(b, [sviColhItems(t), EX.flatMap(x => x.items), [{ k: "apr", lab: "APERÇU" }]].filter(g => g.length), a => {
+  sviHdrMenu(b, [sviColhItems(t), EX.flatMap(x => x.items), [{ k: "apr", lab: "APERÇU" }], [{ k: "__lay", lab: "DISPOSITION PAR DÉFAUT" }]].filter(g => g.length), a => {
     { const x = EX.find(y => y.items.some(i => i.k === a)); if (x) { x.act(a); return; } }
+    /* v920 (remarque 1) : DISPOSITION PAR DÉFAUT aussi dans les listes — colonnes d'origine, puis la liste est redessinée */
+    if (a === "__lay") { sviLayAsk().then(go => { if (!go) return; sviLayReset(shell || (t && t.closest("section, .novapp-list-shell")) || document);
+      const v = b.closest("#ach"); if (v && v.__achTab) { let k = "art"; try { k = localStorage.getItem("svi_ach_tab_v1") || "art"; } catch (e) {} v.__achTab(k); }
+      else if (typeof renderBudgetList === "function") renderBudgetList(); }); return; }
     if (!t || sviColhPick(a, t)) return;
     const vis = sviColhVis(t);
     const ths = [...t.tHead.rows[0].cells].map(th => (th.querySelector(".cf-lab") || th).textContent.trim()), keep = ths.map((x, i) => x && vis.includes(i) ? i : -1).filter(i => i >= 0);

@@ -23977,10 +23977,10 @@ function sviBdgExportImport(C) {
       const pick = ks => ks.map(k => items.find(x => x.a === k)).filter(Boolean);
       const A = [hb("instLock"), hb("instValid")].filter(Boolean);
       const B = pick(["cmp", "dt-lnk", "dt-apr", "dt-ind1"]);
-      if (INS && shell.__moWin && budget.inst && !budget.inst.virtual) B.push({ a: "mow", lab: "COÛT D'UNE JOURNÉE DE MAIN-D'ŒUVRE", ic: "" });
+      if (INS && shell.__moWin && budget.inst && !budget.inst.virtual) B.push({ a: "mow", lab: "COÛT D'UNE JOURNÉE DE MAIN-D'ŒUVRE", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></svg>' });   /* v920 : icône sur chaque ligne */
       const lay = items.find(x => x.a === "lay") || { a: "lay", lab: "DISPOSITION PAR DÉFAUT", ic: "" }; lay.off = false;
       const C = items.filter(x => !A.includes(x) && !B.includes(x) && x !== lay);
-      if ($("avCompBtn")) C.push({ a: "hb-avCompBtn", lab: "COMPOSITION DU CONSOLIDÉ", ic: "" });
+      if ($("avCompBtn")) C.push({ a: "hb-avCompBtn", lab: "COMPOSITION DU CONSOLIDÉ", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 6h14M5 12h14M5 18h9"/></svg>' });
       const D = [hb("instDel"), hb("instClose")].filter(Boolean);
       items.length = 0;
       [A, B, C, [lay], D].filter(g => g.length).forEach((g, i) => { if (i) items.push({ sep: 1 }); items.push(...g); }); }

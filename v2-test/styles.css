@@ -1343,6 +1343,8 @@ détail technique en petit */
 #svConf .sup-in.sup-bad { border-color: #b91c1c; color: #b91c1c; }
 /* FORMAT 97 : menu ⋯ du détail — commandes du planning et affichage du Gantt */
 #blkMenu .blk-sep { flex: none; height: 1px; background: #e5e9ef; margin: 4px 0; }
+/* v920 : ligne sans icône dans un menu qui en a — même marge */
+#blkMenu .mi-sp { display: inline-block; width: 15px; height: 15px; flex: none; }
 #blkMenu .dly-sc.on span { font-weight: 800; }
 #blkMenu [data-dly].off { opacity: .45; }
 /* FORMAT 91 : en-tête SEMAINE / MOIS */
