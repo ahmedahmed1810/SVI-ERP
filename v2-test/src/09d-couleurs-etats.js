@@ -58,6 +58,31 @@ const SVI_FMT_IF = [
   { k: "prm", lab: "PARAMÉTRAGE", sc: ["#chs"] },
   { k: "win", lab: "FENÊTRES", sc: ["#svConf"] }
 ];
+/* v926 (remarque 10 du 04/11/2026, document unique 1.7) : LES INTERFACES — chaque pièce en a quatre (liste en instance, liste des validés,
+   fiche en instance, fiche validée) ; le budget trois (listes en instance / validés, fiche budget) ; dans l'ordre du menu ≡.
+   L'interface affichée est posée sur la page (html[data-svif]) : MODIFIER LE FORMAT vise celle-là. */
+const SVI_IF_ACH = [["caf", "CONSULTATION", "CONSULTATIONS"], ["dvf", "DEVIS", "DEVIS"], ["cmf", "COMMANDE", "COMMANDES"], ["rtc", "RETOUR DE COMMANDE", "RETOURS DE COMMANDE"],
+  ["rcp", "RÉCEPTION", "RÉCEPTIONS"], ["rtr", "RETOUR DE RÉCEPTION", "RETOURS DE RÉCEPTION"], ["faf", "FACTURE", "FACTURES"], ["avf", "AVOIR", "AVOIRS"], ["paf", "PAIEMENT", "PAIEMENTS"],
+  ["frs", "FOURNISSEUR", "FOURNISSEURS"], ["art", "ARTICLE", "ARTICLES"], ["bsn", "BESOIN", "BESOINS"]];
+const SVI_IFS = [
+  { k: "bdgl_i", grp: "BUDGET", lab: "BUDGETS EN INSTANCE (LISTE)" }, { k: "bdgl_v", grp: "BUDGET", lab: "BUDGETS VALIDÉS (LISTE)" }, { k: "bdg", grp: "BUDGET", lab: "FICHE BUDGET" },
+  ...SVI_IF_ACH.flatMap(([k, one, many]) => [{ k: k + "_li", grp: "ACHATS", lab: many + " EN INSTANCE (LISTE)" }, { k: k + "_lv", grp: "ACHATS", lab: many + " VALIDÉS (LISTE)" },
+    { k: k + "_fi", grp: "ACHATS", lab: "FICHE " + one + " EN INSTANCE" }, { k: k + "_fv", grp: "ACHATS", lab: "FICHE " + one + " VALIDÉE" }]),
+  { k: "achprm", grp: "ACHATS", lab: "PARAMÈTRES ACHATS" }, { k: "prm", grp: "PARAMÉTRAGE", lab: "PARAMÉTRAGE" }
+];
+function sviIfCur() {
+  const on = id => { const v = document.getElementById(id); return !!v && v.classList.contains("active-view"); };
+  if (on("bdg")) { if (document.querySelector("#bdg .bdg-d-page")) return "bdg"; let m = "inst"; try { m = localStorage.getItem("svi_listmode_v1") || "inst"; } catch (e) {} return m === "valid" ? "bdgl_v" : "bdgl_i"; }
+  if (on("ach")) { let t = "art"; try { t = localStorage.getItem("svi_ach_tab_v1") || "art"; } catch (e) {} if (t === "prm") return "achprm";
+    const pg = document.querySelector("#ach .nvp"); if (pg) return t + (pg.matches(".bdg-inst-instance, .bdg-inst-fige") ? "_fi" : "_fv");
+    return t + (document.querySelector("#ach table.nv-inst") ? "_li" : "_lv"); }
+  if (on("chs")) return "prm";
+  return "";
+}
+{ let raf = 0; const set = () => { raf = 0; const k = sviIfCur(), r = document.documentElement; if ((r.dataset.svif || "") !== k) { if (k) r.dataset.svif = k; else delete r.dataset.svif; } };
+  const go = () => { if (!raf) raf = requestAnimationFrame(set); };
+  const start = () => { new MutationObserver(go).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] }); go(); };
+  if (document.body) start(); else document.addEventListener("DOMContentLoaded", start); }
 function sviFmt() {
   let v = null; try { v = JSON.parse(localStorage.getItem(SVI_FMT_KEY) || "null"); } catch (e) {}
   return v && typeof v === "object" ? { el: v.el || {}, to: Array.isArray(v.to) ? v.to : null, blk: v.blk || {} } : { el: {}, to: null, blk: {} };

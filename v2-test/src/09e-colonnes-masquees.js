@@ -77,11 +77,25 @@ function sviColhTableNear(el) {
 }
 /* v788 (remarque 17) : UNE seule entrée « MASQUER / AFFICHER LES COLONNES » — une seule fenêtre, toutes les colonnes,
    cochée = affichée, décochée = masquée ; au moins une reste cochée */
+/* v926 (remarque 11 du 04/11/2026, document unique 6.8) : MASQUER LA COLONNE dans la loupe ; AFFICHER LES COLONNES MASQUÉES dans le ⋯ du bloc,
+   avec le compteur — toutes réaffichées d'un coup pour ce tableau (ouvert à tous en attendant les droits) */
+const sviColhSame = id => [...document.querySelectorAll("table")].filter(t => { const I = sviColhInfo(t); return I && I.id === id; });
+function sviColhHide(table, key) {
+  const I = sviColhInfo(table); if (!I || !I.cols.some(c => c.k === key)) return false;
+  if (I.hid.includes(key)) return true;
+  if (I.cols.length - I.hid.length <= 1) { svToast("UNE COLONNE AU MOINS RESTE AFFICHÉE.", 2500); return false; }
+  const S = colhLoad(); S[I.id] = [...I.hid, key]; delete S[I.id + "_i"]; delete S[I.id + "_v"]; colhSave(S);
+  sviColhSame(I.id).forEach(sviColhApply); return true;
+}
+function sviColhShowAll(table) {
+  const I = sviColhInfo(table); if (!I) return false;
+  const S = colhLoad(); S[I.id] = []; delete S[I.id + "_i"]; delete S[I.id + "_v"]; colhSave(S);
+  sviColhSame(I.id).forEach(sviColhApply); return true;
+}
 function sviColhItems(table) {
-  return [];   /* v796 (document unique 6.8) : plus dans les menus ⋯ — PARAMÉTRAGE › FORMAT › COLONNES */
-  const I = sviColhInfo(table);
-  if (!I || I.cols.length < 2) return [];
-  return [{ k: "__colwin", lab: "MASQUER / AFFICHER LES COLONNES" + (I.hid.length ? " (" + I.hid.length + " MASQUÉE" + (I.hid.length > 1 ? "S" : "") + ")" : "") }];
+  const I = sviColhInfo(table); if (!I || I.cols.length < 2 || !I.hid.length) return [];   /* rien de masqué : pas de ligne */
+  const n = I.hid.length;
+  return [{ k: "__colshow", lab: "AFFICHER LES COLONNES MASQUÉES — " + n + " COLONNE" + (n > 1 ? "S" : "") + " MASQUÉE" + (n > 1 ? "S" : "") }];
 }
 /* fenêtre commune : tableau des colonnes, une case par colonne (format des tableaux de l'application) */
 function sviColhWin(table) { sviColhWinI(sviColhInfo(table)); }
@@ -110,7 +124,8 @@ function sviColhWinI(I) {
   });
 }
 function sviColhPick(a, table) {
-  if (a === "__colwin" || a === "__colhide" || a === "__colshow") { sviColhWin(table); return true; }
+  if (a === "__colshow") { const I = sviColhInfo(table); if (I && !I.hid.length) svToast("AUCUNE COLONNE MASQUÉE.", 2000); else sviColhShowAll(table); return true; }
+  if (a === "__colwin" || a === "__colhide") { sviColhWin(table); return true; }
   return false;
 }
 

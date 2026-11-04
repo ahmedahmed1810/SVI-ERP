@@ -181,6 +181,7 @@ function sviCfKit(o) {
     m.innerHTML = `
       <div class="cf-rsz" title="Largeur et hauteur"></div>
       <button type="button" class="cf-x" aria-label="Fermer">✕</button>
+      ${typeof sviColhHide === "function" && sviColhInfo(btn.closest("table")) ? '<button type="button" class="cf-hide">MASQUER LA COLONNE</button><div class="cf-sep"></div>' : ""}
       <button type="button" class="cf-sort" data-dir="asc">TRIER DE A À Z</button>
       <button type="button" class="cf-sort" data-dir="desc">TRIER DE Z À A</button>${shell.__cfPar ? shell.__cfPar(t, key) : ""}
       <div class="cf-sep"></div>
@@ -194,6 +195,8 @@ function sviCfKit(o) {
         <button type="button" class="cf-ok">OK</button>
       </div>`;
     document.body.appendChild(m);
+    /* v926 (remarque 11) : MASQUER LA COLONNE, tout en haut du menu de la loupe */
+    m.querySelector(".cf-hide")?.addEventListener("click", ev => { ev.stopPropagation(); const tb = btn.closest("table"); cfClose(); if (tb) sviColhHide(tb, key); });
 
     cfPlace = () => {
       if (!document.body.contains(m)) return;

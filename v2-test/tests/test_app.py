@@ -3453,6 +3453,15 @@ def main():
             const B0 = sviBlkRows({ el: {} }); r.blk0 = B0.n + ',' + B0.r; sviFmtSave({ el: {}, to: null, blk: { n: 8, r: 2 } }); const B1 = sviBlkRows();
             r.blk1 = B1.n + ',' + B1.r + ',' + getComputedStyle(document.documentElement).getPropertyValue('--svi-hdef-t').trim();
             r.font = /Arial/.test(getComputedStyle(document.querySelector('button')).fontFamily) && !/TYPE DE CARACTÈRES/.test(sviMep.toString ? '' : '');
+            /* remarque 10 : interfaces — 4 par pièce, 3 pour le budget, ordre du menu ≡ ; l'interface affichée est connue */
+            r.ifs = SVI_IFS.length + '|' + SVI_IFS.slice(0, 7).map(x => x.k).join(',');
+            document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await new Promise(z => setTimeout(z, 300)); r.cur = document.documentElement.dataset.svif || '';
+            /* remarque 11 : MASQUER LA COLONNE (loupe), AFFICHER LES COLONNES MASQUÉES (⋯ du bloc, compteur) */
+            const keepH = localStorage.getItem('svi_colh_v1'); const T = document.getElementById('budgetListTable'); const I0 = sviColhInfo(T);
+            const k1 = I0.cols[1].k; sviColhHide(T, k1); const n1 = sviColhInfo(T).hid.length, lab = sviColhItems(T)[0].lab; sviColhPick('__colshow', T); const n2 = sviColhInfo(T).hid.length;
+            T.querySelector(`.cf-btn[data-col="${k1}"]`)?.click(); await new Promise(z => setTimeout(z, 150)); const hb = document.querySelector('#cfMenu .cf-hide'); r.loupe = !!hb && hb.nextElementSibling && document.querySelector('#cfMenu').firstElementChild !== hb;
+            hb && hb.click(); await new Promise(z => setTimeout(z, 150)); const n3 = sviColhInfo(T).hid.length; sviColhShowAll(T);
+            r.colh = [n1, /1 COLONNE MASQUÉE/.test(lab), n2, n3].join(','); if (keepH === null) localStorage.removeItem('svi_colh_v1'); else localStorage.setItem('svi_colh_v1', keepH);
             if (keepF === null) localStorage.removeItem('svi_format_v1'); else localStorage.setItem('svi_format_v1', keepF); sviFmtApply(); return r; }""")
         check("FORME 04/11, remarques 1 et 2 : états REMIS (orange) et NON LETTRÉ (violet) dans la palette ; FOND DES ONGLETS = couleur du fond seulement",
               f1104["etats"] == "EN INSTANCE,FIGÉ,PARTIELLEMENT ACHEVÉ,REMIS,VALIDÉ,NON LETTRÉ,EXPIRÉ,BLOQUÉ,ARCHIVÉ" and f1104["vars"] == "#ea580c,#a21caf"
@@ -3461,6 +3470,8 @@ def main():
               f1104["h"] == "21,22" and f1104["win"] and f1104["hCss"], f1104)
         check("FORME 04/11, remarques 5 et 6 : blocs — lignes par défaut (5) et en mode réduit (1) réglables, hauteur par défaut recalculée ; police fixe Arial à l'écran",
               f1104["blk0"] == "5,1" and f1104["blk1"] == "8,2,211px" and f1104["font"], f1104)
+        check("FORME 04/11, remarques 10 et 11 : interfaces (4 par pièce, 3 pour le budget, ordre du menu) et interface affichée connue ; MASQUER LA COLONNE dans la loupe, AFFICHER LES COLONNES MASQUÉES (compteur) dans le ⋯",
+              f1104["ifs"] == "53|bdgl_i,bdgl_v,bdg,caf_li,caf_lv,caf_fi,caf_fv" and f1104["cur"] in ("bdgl_i", "bdgl_v") and f1104["colh"] == "1,true,0,1" and f1104["loupe"], f1104)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

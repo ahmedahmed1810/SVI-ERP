@@ -3172,6 +3172,7 @@ function sviCfKit(o) {
     m.innerHTML = `
       <div class="cf-rsz" title="Largeur et hauteur"></div>
       <button type="button" class="cf-x" aria-label="Fermer">✕</button>
+      ${typeof sviColhHide === "function" && sviColhInfo(btn.closest("table")) ? '<button type="button" class="cf-hide">MASQUER LA COLONNE</button><div class="cf-sep"></div>' : ""}
       <button type="button" class="cf-sort" data-dir="asc">TRIER DE A À Z</button>
       <button type="button" class="cf-sort" data-dir="desc">TRIER DE Z À A</button>${shell.__cfPar ? shell.__cfPar(t, key) : ""}
       <div class="cf-sep"></div>
@@ -3185,6 +3186,8 @@ function sviCfKit(o) {
         <button type="button" class="cf-ok">OK</button>
       </div>`;
     document.body.appendChild(m);
+    /* v926 (remarque 11) : MASQUER LA COLONNE, tout en haut du menu de la loupe */
+    m.querySelector(".cf-hide")?.addEventListener("click", ev => { ev.stopPropagation(); const tb = btn.closest("table"); cfClose(); if (tb) sviColhHide(tb, key); });
 
     cfPlace = () => {
       if (!document.body.contains(m)) return;
@@ -3392,6 +3395,31 @@ const SVI_FMT_IF = [
   { k: "prm", lab: "PARAMÉTRAGE", sc: ["#chs"] },
   { k: "win", lab: "FENÊTRES", sc: ["#svConf"] }
 ];
+/* v926 (remarque 10 du 04/11/2026, document unique 1.7) : LES INTERFACES — chaque pièce en a quatre (liste en instance, liste des validés,
+   fiche en instance, fiche validée) ; le budget trois (listes en instance / validés, fiche budget) ; dans l'ordre du menu ≡.
+   L'interface affichée est posée sur la page (html[data-svif]) : MODIFIER LE FORMAT vise celle-là. */
+const SVI_IF_ACH = [["caf", "CONSULTATION", "CONSULTATIONS"], ["dvf", "DEVIS", "DEVIS"], ["cmf", "COMMANDE", "COMMANDES"], ["rtc", "RETOUR DE COMMANDE", "RETOURS DE COMMANDE"],
+  ["rcp", "RÉCEPTION", "RÉCEPTIONS"], ["rtr", "RETOUR DE RÉCEPTION", "RETOURS DE RÉCEPTION"], ["faf", "FACTURE", "FACTURES"], ["avf", "AVOIR", "AVOIRS"], ["paf", "PAIEMENT", "PAIEMENTS"],
+  ["frs", "FOURNISSEUR", "FOURNISSEURS"], ["art", "ARTICLE", "ARTICLES"], ["bsn", "BESOIN", "BESOINS"]];
+const SVI_IFS = [
+  { k: "bdgl_i", grp: "BUDGET", lab: "BUDGETS EN INSTANCE (LISTE)" }, { k: "bdgl_v", grp: "BUDGET", lab: "BUDGETS VALIDÉS (LISTE)" }, { k: "bdg", grp: "BUDGET", lab: "FICHE BUDGET" },
+  ...SVI_IF_ACH.flatMap(([k, one, many]) => [{ k: k + "_li", grp: "ACHATS", lab: many + " EN INSTANCE (LISTE)" }, { k: k + "_lv", grp: "ACHATS", lab: many + " VALIDÉS (LISTE)" },
+    { k: k + "_fi", grp: "ACHATS", lab: "FICHE " + one + " EN INSTANCE" }, { k: k + "_fv", grp: "ACHATS", lab: "FICHE " + one + " VALIDÉE" }]),
+  { k: "achprm", grp: "ACHATS", lab: "PARAMÈTRES ACHATS" }, { k: "prm", grp: "PARAMÉTRAGE", lab: "PARAMÉTRAGE" }
+];
+function sviIfCur() {
+  const on = id => { const v = document.getElementById(id); return !!v && v.classList.contains("active-view"); };
+  if (on("bdg")) { if (document.querySelector("#bdg .bdg-d-page")) return "bdg"; let m = "inst"; try { m = localStorage.getItem("svi_listmode_v1") || "inst"; } catch (e) {} return m === "valid" ? "bdgl_v" : "bdgl_i"; }
+  if (on("ach")) { let t = "art"; try { t = localStorage.getItem("svi_ach_tab_v1") || "art"; } catch (e) {} if (t === "prm") return "achprm";
+    const pg = document.querySelector("#ach .nvp"); if (pg) return t + (pg.matches(".bdg-inst-instance, .bdg-inst-fige") ? "_fi" : "_fv");
+    return t + (document.querySelector("#ach table.nv-inst") ? "_li" : "_lv"); }
+  if (on("chs")) return "prm";
+  return "";
+}
+{ let raf = 0; const set = () => { raf = 0; const k = sviIfCur(), r = document.documentElement; if ((r.dataset.svif || "") !== k) { if (k) r.dataset.svif = k; else delete r.dataset.svif; } };
+  const go = () => { if (!raf) raf = requestAnimationFrame(set); };
+  const start = () => { new MutationObserver(go).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] }); go(); };
+  if (document.body) start(); else document.addEventListener("DOMContentLoaded", start); }
 function sviFmt() {
   let v = null; try { v = JSON.parse(localStorage.getItem(SVI_FMT_KEY) || "null"); } catch (e) {}
   return v && typeof v === "object" ? { el: v.el || {}, to: Array.isArray(v.to) ? v.to : null, blk: v.blk || {} } : { el: {}, to: null, blk: {} };
@@ -3601,11 +3629,25 @@ function sviColhTableNear(el) {
 }
 /* v788 (remarque 17) : UNE seule entrée « MASQUER / AFFICHER LES COLONNES » — une seule fenêtre, toutes les colonnes,
    cochée = affichée, décochée = masquée ; au moins une reste cochée */
+/* v926 (remarque 11 du 04/11/2026, document unique 6.8) : MASQUER LA COLONNE dans la loupe ; AFFICHER LES COLONNES MASQUÉES dans le ⋯ du bloc,
+   avec le compteur — toutes réaffichées d'un coup pour ce tableau (ouvert à tous en attendant les droits) */
+const sviColhSame = id => [...document.querySelectorAll("table")].filter(t => { const I = sviColhInfo(t); return I && I.id === id; });
+function sviColhHide(table, key) {
+  const I = sviColhInfo(table); if (!I || !I.cols.some(c => c.k === key)) return false;
+  if (I.hid.includes(key)) return true;
+  if (I.cols.length - I.hid.length <= 1) { svToast("UNE COLONNE AU MOINS RESTE AFFICHÉE.", 2500); return false; }
+  const S = colhLoad(); S[I.id] = [...I.hid, key]; delete S[I.id + "_i"]; delete S[I.id + "_v"]; colhSave(S);
+  sviColhSame(I.id).forEach(sviColhApply); return true;
+}
+function sviColhShowAll(table) {
+  const I = sviColhInfo(table); if (!I) return false;
+  const S = colhLoad(); S[I.id] = []; delete S[I.id + "_i"]; delete S[I.id + "_v"]; colhSave(S);
+  sviColhSame(I.id).forEach(sviColhApply); return true;
+}
 function sviColhItems(table) {
-  return [];   /* v796 (document unique 6.8) : plus dans les menus ⋯ — PARAMÉTRAGE › FORMAT › COLONNES */
-  const I = sviColhInfo(table);
-  if (!I || I.cols.length < 2) return [];
-  return [{ k: "__colwin", lab: "MASQUER / AFFICHER LES COLONNES" + (I.hid.length ? " (" + I.hid.length + " MASQUÉE" + (I.hid.length > 1 ? "S" : "") + ")" : "") }];
+  const I = sviColhInfo(table); if (!I || I.cols.length < 2 || !I.hid.length) return [];   /* rien de masqué : pas de ligne */
+  const n = I.hid.length;
+  return [{ k: "__colshow", lab: "AFFICHER LES COLONNES MASQUÉES — " + n + " COLONNE" + (n > 1 ? "S" : "") + " MASQUÉE" + (n > 1 ? "S" : "") }];
 }
 /* fenêtre commune : tableau des colonnes, une case par colonne (format des tableaux de l'application) */
 function sviColhWin(table) { sviColhWinI(sviColhInfo(table)); }
@@ -3634,7 +3676,8 @@ function sviColhWinI(I) {
   });
 }
 function sviColhPick(a, table) {
-  if (a === "__colwin" || a === "__colhide" || a === "__colshow") { sviColhWin(table); return true; }
+  if (a === "__colshow") { const I = sviColhInfo(table); if (I && !I.hid.length) svToast("AUCUNE COLONNE MASQUÉE.", 2000); else sviColhShowAll(table); return true; }
+  if (a === "__colwin" || a === "__colhide") { sviColhWin(table); return true; }
   return false;
 }
 
