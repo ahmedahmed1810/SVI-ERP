@@ -708,31 +708,6 @@ function sviBdgSaisieDirecte(C) {
   };
   shell.__impMenu = openImportMenu;
 
-  const doImport = blk => {
-    const inp = document.createElement("input");
-    inp.type = "file";
-    inp.accept = ".xlsx,.xls,.csv,.json,.txt";
-    inp.onchange = async () => {
-      const f = inp.files[0];
-      if (!f) return;
-      try {
-        if (/\.json$/i.test(f.name)) {
-          const data = JSON.parse(await f.text());
-          const arr = Array.isArray(data) ? data : [data];
-          const head = [...new Set(arr.flatMap(o => Object.keys(o || {})))];
-          showImport(f.name, head, arr.map(o => head.map(h => o?.[h])));
-        } else {
-          const X = await loadXLSX();
-          const wb = X.read(await f.arrayBuffer(), { type: "array" });
-          const aoa = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
-          showImport(f.name, aoa[0] || [], aoa.slice(1));
-        }
-      } catch (e) {
-        svImportFail({ source: f.name, tries: [{ err: e }], hint: "VÉRIFIER QUE LE FICHIER EST UN EXCEL (.XLSX), UN CSV OU UN JSON, NON PROTÉGÉ PAR MOT DE PASSE." });
-      }
-    };
-    inp.click();
-  };
 
 
 

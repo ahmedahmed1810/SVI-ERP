@@ -588,36 +588,6 @@ function sviBdgExportImport(C) {
   };
 
 
-  const importGSheet = async () => {
-    const url = await askSheetLink();
-    if (!url) return;
-    const id = (url.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1];
-    const gid = (url.match(/[#&?]gid=(\d+)/) || [])[1] || "0";
-    if (!id) { svImportFail({ source: url, tries: [{ err: "LIEN GOOGLE SHEETS NON RECONNU" }], hint: "COPIER LE LIEN COMPLET DE LA FEUILLE (IL CONTIENT /spreadsheets/d/…)." }); return; }
-    /* lecture par le script (avec votre compte : pas besoin de partager la feuille) */
-    let first = "";
-    for (const call of [() => apiGet("sheetRead", { link: url }), () => apiPost("sheetRead", { link: url })]) {
-      try {
-        const d = await call();
-        if (d && d.ok && Array.isArray(d.values)) {
-          showImport(d.name || "Google Sheets", d.values[0] || [], d.values.slice(1));
-          return;
-        }
-        first = first || "LE SCRIPT NE CONNAÎT PAS ENCORE LA LECTURE DE FEUILLE (NOUVELLE VERSION À DÉPLOYER)";
-      } catch (e) { first = first || (e && e.message) || String(e); }
-    }
-    /* repli : feuille partagée « Toute personne disposant du lien » */
-    try {
-      const r = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`);
-      if (!r.ok) throw new Error("HTTP " + r.status + " — ACCÈS REFUSÉ (FEUILLE NON PARTAGÉE)");
-      const X = await loadXLSX();
-      const wb = X.read(await r.text(), { type: "string" });
-      const aoa = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
-      showImport("Google Sheets", aoa[0] || [], aoa.slice(1));
-    } catch (e) {
-      svImportFail({ source: "GOOGLE SHEETS — " + url, tries: [{ via: "PAR LE SCRIPT", err: first }, { via: "PAR LE LIEN PUBLIC", err: e }], hint: "VÉRIFIER LE LIEN, QUE VOTRE COMPTE GOOGLE A ACCÈS À LA FEUILLE, OU LA PARTAGER « TOUTE PERSONNE DISPOSANT DU LIEN » ; SINON EXPORTER LA FEUILLE EN EXCEL ET IMPORTER LE FICHIER." });
-    }
-  };
 
   /* ===== IMPORTER depuis un autre budget de l'application =====
      budget source au choix, lignes cochées par onglet ;

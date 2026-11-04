@@ -2107,7 +2107,6 @@ const ACH_FAF_ST = { instance: "EN INSTANCE", reclame: "RÉCLAMÉE", bap: "BON �
 const ACH_PAF_ST = { instance: "EN INSTANCE", emis: "ÉMIS", encaisse: "ENCAISSÉ", rejete: "REJETÉ", annule: "ANNULÉ" };
 const achFafEtat = f => f.state === "bap" && achFafReste(f) <= 0.005 ? "PAYÉE" : f.state === "bap" && achFafPaid(f.id) > 0 ? "PAYÉE EN PARTIE" : ACH_FAF_ST[f.state] || "";
 const achId = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-const achDin = v => String(v || "").slice(0, 10);
 function achFafMod(ctx) {
   return achListMod(ctx, { k: "faf", t: "ach_faf", id: "achFafT", list: achFaf, name: "FACTURES", save: achFafSave, info: achFafInfo, inst: f => f.state === "instance" || f.state === "reclame", etatKey: "svi_ach_faf_etat_v1", newLab: "NOUVELLE FACTURE", newRow: "CRÉER UNE FACTURE ICI… (OU DEPUIS LA COMMANDE : FACTURER)", open: (id, done) => achFafFiche(id, null, done),
     etats: [["actif", "À PAYER"], ["instance", "EN INSTANCE"], ["reclame", "RÉCLAMÉES"], ["bap", "BON À PAYER"], ["payee", "PAYÉES"], ["alerte", "ALERTE"], ["annule", "ANNULÉES"], ["tout", "TOUT"]],

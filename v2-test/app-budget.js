@@ -3496,137 +3496,7 @@ function renderBudgetList() {
   } catch (e) {}
 }
 
-function budgetTotals(group) {
-  const ht =
-    group.rows.reduce(
-      (total, row) =>
-        total +
-        num(
-          firstValue(
-            row,
-            ["MNB", "MONTANT HT", "MPB HT", "MPB"]
-          )
-        ),
-      0
-    );
 
-  const tva =
-    num(
-      firstValue(
-        group.first,
-        ["TVA", "TAUX TVA"]
-      )
-    );
-
-  const tvaAmount =
-    tva
-      ? ht * tva / (tva > 1 ? 100 : 1)
-      : 0;
-
-  return { ht, tvaAmount, ttc: ht + tvaAmount };
-}
-
-function printBudgetPDF(ref) {
-  const group = bdgGroups.get(ref);
-
-  if (!group || !group.rows.length) {
-    sviAlert("Budget introuvable.");
-    return;
-  }
-
-  const totals = budgetTotals(group);
-
-  const lines = group.rows.map((row, index) => {
-    const type =
-      firstValue(row, ["CHG/PRD", "TYPE"]);
-
-    const detail =
-      firstValue(
-        row,
-        ["DETAIL BUDGET", "DESIGNATION", "DÉSIGNATION"]
-      );
-
-    const unit =
-      firstValue(row, ["UTB", "UNITE", "UNITÉ"]);
-
-    const qty =
-      firstValue(
-        row,
-        ["QTB", "QUANTITE", "QUANTITÉ", "NBR"]
-      );
-
-    const price =
-      firstValue(row, ["PUB", "PRIX", "PU"]);
-
-    const amount =
-      firstValue(row, ["MNB", "MONTANT", "MPB"]);
-
-    return `
-      <tr>
-        <td>${index + 1}</td>
-        <td>${esc(type)}</td>
-        <td>${esc(detail)}</td>
-        <td>${esc(unit)}</td>
-        <td class="n">${esc(qty)}</td>
-        <td class="n">${money(price)}</td>
-        <td class="n">${money(amount)}</td>
-      </tr>
-    `;
-  }).join("");
-
-  const printWindow =
-    window.open("", "_blank");
-
-  if (!printWindow) {
-    sviAlert("Impossible d'ouvrir le document. Autorisez les fenêtres pop-up.");
-    return;
-  }
-
-  printWindow.document.write(`<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<title>${esc(ref)} - ${esc(group.project)}</title>
-<style>
-  body { font-family: Arial, sans-serif; font-size: 11px; color: #111; margin: 24px; }
-  h1 { font-size: 18px; margin: 0 0 4px; }
-  .sub { color: #555; margin-bottom: 16px; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { border: 1px solid #bbb; padding: 5px 6px; text-align: left; }
-  th { background: #eee; }
-  .n { text-align: right; white-space: nowrap; }
-  tfoot td { font-weight: bold; background: #f6f6f6; }
-  @media print { body { margin: 10mm; } }
-</style>
-</head>
-<body>
-  <h1>${esc(ref)}</h1>
-  <div class="sub">Projet : ${esc(group.project)}</div>
-  <table>
-    <thead>
-      <tr>
-        <th>N°</th><th>TYPE</th><th>DÉTAIL BUDGET</th>
-        <th>UNITÉ</th><th class="n">QUANTITÉ</th>
-        <th class="n">PRIX</th><th class="n">MONTANT</th>
-      </tr>
-    </thead>
-    <tbody>${lines}</tbody>
-    <tfoot>
-      <tr><td colspan="6">TOTAL HT</td><td class="n">${money(totals.ht)}</td></tr>
-      <tr><td colspan="6">TVA</td><td class="n">${money(totals.tvaAmount)}</td></tr>
-      <tr><td colspan="6">TOTAL TTC</td><td class="n">${money(totals.ttc)}</td></tr>
-    </tfoot>
-  </table>
-</body>
-</html>`);
-
-  printWindow.document.close();
-  printWindow.focus();
-
-  setTimeout(() => {
-    try { printWindow.print(); } catch (_) {}
-  }, 400);
-}
 
 function openProjectPopup(ref) {
   const group = bdgGroups.get(ref);
@@ -7067,31 +6937,6 @@ function sviBdgSaisieDirecte(C) {
   };
   shell.__impMenu = openImportMenu;
 
-  const doImport = blk => {
-    const inp = document.createElement("input");
-    inp.type = "file";
-    inp.accept = ".xlsx,.xls,.csv,.json,.txt";
-    inp.onchange = async () => {
-      const f = inp.files[0];
-      if (!f) return;
-      try {
-        if (/\.json$/i.test(f.name)) {
-          const data = JSON.parse(await f.text());
-          const arr = Array.isArray(data) ? data : [data];
-          const head = [...new Set(arr.flatMap(o => Object.keys(o || {})))];
-          showImport(f.name, head, arr.map(o => head.map(h => o?.[h])));
-        } else {
-          const X = await loadXLSX();
-          const wb = X.read(await f.arrayBuffer(), { type: "array" });
-          const aoa = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
-          showImport(f.name, aoa[0] || [], aoa.slice(1));
-        }
-      } catch (e) {
-        svImportFail({ source: f.name, tries: [{ err: e }], hint: "VÉRIFIER QUE LE FICHIER EST UN EXCEL (.XLSX), UN CSV OU UN JSON, NON PROTÉGÉ PAR MOT DE PASSE." });
-      }
-    };
-    inp.click();
-  };
 
 
 
@@ -22563,36 +22408,6 @@ function sviBdgExportImport(C) {
   };
 
 
-  const importGSheet = async () => {
-    const url = await askSheetLink();
-    if (!url) return;
-    const id = (url.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1];
-    const gid = (url.match(/[#&?]gid=(\d+)/) || [])[1] || "0";
-    if (!id) { svImportFail({ source: url, tries: [{ err: "LIEN GOOGLE SHEETS NON RECONNU" }], hint: "COPIER LE LIEN COMPLET DE LA FEUILLE (IL CONTIENT /spreadsheets/d/…)." }); return; }
-    /* lecture par le script (avec votre compte : pas besoin de partager la feuille) */
-    let first = "";
-    for (const call of [() => apiGet("sheetRead", { link: url }), () => apiPost("sheetRead", { link: url })]) {
-      try {
-        const d = await call();
-        if (d && d.ok && Array.isArray(d.values)) {
-          showImport(d.name || "Google Sheets", d.values[0] || [], d.values.slice(1));
-          return;
-        }
-        first = first || "LE SCRIPT NE CONNAÎT PAS ENCORE LA LECTURE DE FEUILLE (NOUVELLE VERSION À DÉPLOYER)";
-      } catch (e) { first = first || (e && e.message) || String(e); }
-    }
-    /* repli : feuille partagée « Toute personne disposant du lien » */
-    try {
-      const r = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`);
-      if (!r.ok) throw new Error("HTTP " + r.status + " — ACCÈS REFUSÉ (FEUILLE NON PARTAGÉE)");
-      const X = await loadXLSX();
-      const wb = X.read(await r.text(), { type: "string" });
-      const aoa = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
-      showImport("Google Sheets", aoa[0] || [], aoa.slice(1));
-    } catch (e) {
-      svImportFail({ source: "GOOGLE SHEETS — " + url, tries: [{ via: "PAR LE SCRIPT", err: first }, { via: "PAR LE LIEN PUBLIC", err: e }], hint: "VÉRIFIER LE LIEN, QUE VOTRE COMPTE GOOGLE A ACCÈS À LA FEUILLE, OU LA PARTAGER « TOUTE PERSONNE DISPOSANT DU LIEN » ; SINON EXPORTER LA FEUILLE EN EXCEL ET IMPORTER LE FICHIER." });
-    }
-  };
 
   /* ===== IMPORTER depuis un autre budget de l'application =====
      budget source au choix, lignes cochées par onglet ;

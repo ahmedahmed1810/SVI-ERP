@@ -150,8 +150,7 @@ main {
    BOUTONS
    ========================================================= */
 
-.primary,
-.icon-btn {
+.primary {
   border: 0;
   background: #1769c2;
   color: white;
@@ -164,37 +163,13 @@ main {
   padding: 10px 14px;
 }
 
-.icon-btn {
-  width: 30px;
-  height: 30px;
-  font-size: 20px;
-}
 
 /* =========================================================
    OUTILS / RECHERCHE
    ========================================================= */
 
-.toolbar {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  margin: 8px 0;
-}
 
-.toolbar input,
-.panel-search {
-  width: 100%;
-  border: 1px solid #d7deea;
-  background: white;
-  border-radius: 7px;
-  padding: 9px 10px;
-  outline: none;
-}
 
-.toolbar input:focus,
-.panel-search:focus {
-  border-color: #1769c2;
-}
 
 .count {
   white-space: nowrap;
@@ -275,34 +250,15 @@ tfoot td {
    BDS
    ========================================================= */
 
-.hierarchy {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
 
-.panel,
-.brd-panel {
+.panel {
   background: #fff;
   border: 1px solid #dce3ee;
   border-radius: 10px;
   overflow: hidden;
 }
 
-.panel-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 11px;
-  background: #eef4fb;
-  color: #23344f;
-}
 
-.panel-search {
-  margin: 8px;
-  width: calc(100% - 16px);
-}
 
 .list {
   height: 300px;
@@ -310,147 +266,32 @@ tfoot td {
   -webkit-overflow-scrolling: touch;
 }
 
-.list-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 10px;
-  border-top: 1px solid #edf0f5;
-  cursor: pointer;
-}
 
-.list-item:hover {
-  background: #f7fbff;
-}
 
-.list-item.selected {
-  background: #dcecff;
-  color: #0f4f96;
-  font-weight: 800;
-}
 
-.list-item .code {
-  min-width: 58px;
-  font-weight: 800;
-}
 
-.list-item .name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
-.brd-panel {
-  margin-top: 12px;
-}
 
-.brd-head {
-  align-items: flex-start;
-}
 
-.context {
-  font-size: 10px;
-  color: #657086;
-  margin-top: 4px;
-}
 
 /* =========================================================
    BDG — SELECTEURS
    ========================================================= */
 
-.bdg-selectors {
-  display: grid;
-  grid-template-columns:
-    minmax(110px, 0.7fr)
-    minmax(150px, 1fr)
-    minmax(180px, 1.2fr)
-    minmax(180px, 1.2fr)
-    minmax(220px, 1.4fr);
-  gap: 9px;
-  padding: 12px;
-  margin-bottom: 12px;
-  background: #fff;
-  border: 1px solid #dce3ee;
-  border-radius: 10px;
-}
 
-.bdg-selectors label {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  min-width: 0;
-}
 
-.bdg-selectors label span {
-  color: #657086;
-  font-size: 10px;
-  font-weight: 800;
-}
 
-.bdg-selectors select,
-.bdg-selectors input {
-  width: 100%;
-  min-width: 0;
-  height: 38px;
-  padding: 0 9px;
-  border: 1px solid #d7deea;
-  border-radius: 7px;
-  background: #fff;
-  color: #172033;
-  font-size: 11px;
-  outline: none;
-}
 
-.bdg-selectors select:focus,
-.bdg-selectors input:focus {
-  border-color: #1769c2;
-}
 
-.bdg-selectors input[readonly] {
-  background: #fff6bf;
-  font-weight: 800;
-}
 
 /* =========================================================
    BDG — PRODUITS / CHARGES
    ========================================================= */
 
-.bdg-workgrid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-  gap: 10px;
-  width: 100%;
-}
 
-.bdg-panel {
-  min-width: 0;
-  background: #fff;
-  border: 1px solid #dce3ee;
-  border-radius: 10px;
-  overflow: hidden;
-}
 
-.bdg-panel-head {
-  min-height: 46px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 11px;
-  background: #eef4fb;
-  color: #23344f;
-}
 
-.bdg-panel-head strong {
-  font-size: 12px;
-}
 
-#productPanel,
-#chargePanel {
-  border: 0;
-  border-radius: 0;
-}
 
 #productTable,
 #chargeTable {
@@ -476,13 +317,6 @@ tfoot td {
    BDG — ANALYSE
    ========================================================= */
 
-.bdg-analysis {
-  margin-top: 12px;
-  background: #fff;
-  border: 1px solid #dce3ee;
-  border-radius: 10px;
-  overflow: hidden;
-}
 
 .bdg-tabs {
   display: flex;
@@ -524,32 +358,12 @@ tfoot td {
    PLACEHOLDER
    ========================================================= */
 
-.placeholder-card {
-  background: #fff;
-  border: 1px dashed #aeb9ca;
-  border-radius: 12px;
-  padding: 35px;
-  text-align: center;
-  color: #657086;
-  font-weight: 800;
-}
 
 /* =========================================================
    MODALE
    ========================================================= */
 
-.modal {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  background: #0007;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px;
-}
 
-.modal.hidden,
 .popup.hidden {
   display: none;
 }
@@ -563,28 +377,8 @@ tfoot td {
   box-shadow: 0 18px 60px #0005;
 }
 
-.modal-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #123a70;
-  color: white;
-  padding: 12px 14px;
-}
 
-.close-btn {
-  border: 0;
-  background: transparent;
-  color: white;
-  font-size: 24px;
-}
 
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  padding: 15px;
-}
 
 .field {
   display: flex;
@@ -608,12 +402,6 @@ tfoot td {
   padding: 10px;
 }
 
-.form-actions {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
 
 .secondary {
   border: 1px solid #cbd4e2;
@@ -667,25 +455,13 @@ tfoot td {
     max-width: none;
   }
 
-  .hierarchy {
-    grid-template-columns: 1fr 1fr;
-  }
 
   .list {
     height: 230px;
   }
 
-  .bdg-selectors {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 
-  .bdg-designation {
-    grid-column: span 2;
-  }
 
-  .bdg-workgrid {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* =========================================================
@@ -707,20 +483,13 @@ tfoot td {
     flex: 1;
   }
 
-  .hierarchy {
-    grid-template-columns: 1fr;
-  }
 
   .list {
     height: 180px;
   }
 
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
 
-  .field.full,
-  .form-actions {
+  .field.full {
     grid-column: 1;
   }
 
@@ -728,17 +497,8 @@ tfoot td {
     font-size: 17px;
   }
 
-  .bdg-selectors {
-    grid-template-columns: 1fr;
-  }
 
-  .bdg-designation {
-    grid-column: auto;
-  }
 
-  .bdg-workgrid {
-    grid-template-columns: 1fr;
-  }
 
   .bdg-tabs {
     width: 100%;
@@ -792,8 +552,6 @@ tfoot td {
 @media (max-width:650px) { .novapp-budget-layout { flex-direction:column; margin:16px 10px; } .novapp-date-panel { width:100%; } }
 
 /* colonne ARTICLE centrée (CHS, bordereau des prix) */
-#chsTable th:first-child, #chsTable td:first-child,
-#brdTable th:first-child, #brdTable td:first-child { text-align: center; }
 
 /* observation importante : « ! » rouge devant la référence du budget */
 .obs-bang { color:#c81e1e; font-weight:900; cursor:pointer; display:inline-block; padding:4px 6px; margin:-4px 0 -4px -6px; }
@@ -819,17 +577,6 @@ tfoot td {
 .novapp-list-titlebar h1 { display: flex; align-items: center; gap: 8px; }
 .novapp-date-filter, .novapp-date-item { font-size: 12px; }
 .novapp-date-item .svi-cnt { margin-left: 6px; }
-.bdg-list-menu {
-  position: fixed; z-index: 10050; width: 210px; background: #fff; border: 1px solid #d6dbe3;
-  border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,.18); padding: 8px; display: flex; flex-direction: column; gap: 6px;
-}
-.bdg-list-menu .blm-title { font-size: 11px; font-weight: 800; color: #6b7480; padding: 2px 4px 4px; }
-.bdg-list-menu button {
-  height: 32px; border: 1px solid #e1e5eb; border-radius: 6px; background: #fff; font-size: 12px; font-weight: 700;
-  color: #172033; text-align: left; padding: 0 10px; cursor: pointer;
-}
-.bdg-list-menu button.on { background: #dbeafe; border-color: #93b4e8; color: #1d4ed8; }
-.bdg-list-menu .blm-q { height: 32px; border: 1px solid #d6dbe3; border-radius: 6px; padding: 0 10px; font-size: 12px; }
 
 /* ===== budgets EN INSTANCE : rouge (édition), vert (figé) ===== */
 
@@ -1058,19 +805,15 @@ tfoot td {
 #svConf .svc-ok { border-color: #b91c1c; color: #b91c1c; }
 
 /* ===== budget en instance : bascule SAISIE / LIAISONS ===== */
-.ins-unl-btn { margin-left: 10px; border: 1px solid var(--inst, #b91c1c); color: var(--inst, #b91c1c); background: var(--inst-bg, #fef2f2); border-radius: 8px; padding: 5px 10px;
-  font-weight: 800; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; flex: none; }
 /* lignes non liées : hachurées dans la couleur de l'état (rouge en instance) */
 /* lignes non liées : blanches, sans mise en forme (consigne 24) */
 .ins-table tr.ins-unl td, .ins-hcol .ins-li.ins-unl { background: #fff !important; }
 .lk-q { width: 110px; border: 1px solid #e7a3a3; border-radius: 6px; padding: 3px 6px; text-align: right; font: inherit; color: var(--inst, #b91c1c); }
 .lk-chain { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; padding: 10px 14px; background: #fff;
   border: 1.5px dashed var(--inst, #b91c1c); border-radius: 10px; font-weight: 800; color: var(--inst, #b91c1c); }
-.lk-path { flex: 1; font-size: 12px; }
 .lk-err { flex-basis: 100%; order: 3; font-size: 12px; color: #b91c1c; background: #fef2f2; border-radius: 6px; padding: 6px 8px; }
 .lk-go { background: var(--inst, #b91c1c); color: #fff; border: 0; border-radius: 8px; padding: 9px 16px; font-weight: 800; cursor: pointer; }
 .lk-go:disabled { background: #e5e7eb; color: #9ca3af; cursor: default; }
-.lk-ok { background: #dcfce7; color: #166534; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 800; }
 .lk-del { border: 0; background: transparent; color: var(--inst, #b91c1c); font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
 /* délais : champs sans cadre, comme les autres tableaux de saisie */
 .dly-table td.ins-td { padding: 0 !important; }
@@ -1153,7 +896,6 @@ th.lk-qh { color: var(--inst, #b91c1c) !important; }
 .bdg-d-pills { align-items: center; }
 #insChain.lk-chain-top { margin: 0 0 0 auto; padding: 4px 6px 4px 12px; border: 1.5px dashed var(--inst, #b91c1c); border-radius: 10px; 
   display: flex; align-items: center; gap: 10px; flex-wrap: nowrap;  min-width: 0; }
-#insChain.lk-chain-top .lk-path { font-size: 11px; font-weight: 800; color: var(--inst, #b91c1c); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
 #insChain.lk-chain-top .lk-err { position: absolute; right: 16px; top: 100%; margin-top: 4px; max-width: 60%; z-index: 5; flex-basis: auto; order: 0; }
 #insChain.lk-chain-top { position: relative; }
 #insChain.lk-chain-top .lk-go { flex: none; padding: 7px 12px; font-size: 12px; }
@@ -1692,7 +1434,7 @@ td.ins-tdv { position: relative; }
 /* signe › / ⌄ des lots sur le Gantt : zone de toucher agrandie */
 #dlyGantt .gb-fsg { padding: 4px 7px; margin: -4px 0 0 -7px; font-size: 14px; }
 /* v456 : menu qui défile — flèche ▼ collée en bas tant qu'il reste des entrées plus bas */
-#blkMenu.sv-more::after, #bdgListMenu.sv-more::after { content: "▼"; position: sticky; bottom: -4px; display: block; flex: none; margin: 0 -4px -4px; padding: 6px 0 4px; text-align: center; font-size: 11px; color: #64748b; background: linear-gradient(rgba(255,255,255,0), #fff 45%); pointer-events: none; }
+#blkMenu.sv-more::after { content: "▼"; position: sticky; bottom: -4px; display: block; flex: none; margin: 0 -4px -4px; padding: 6px 0 4px; text-align: center; font-size: 11px; color: #64748b; background: linear-gradient(rgba(255,255,255,0), #fff 45%); pointer-events: none; }
 /* v457 : INF (dates du projet), bouton ⚠ À COMPLÉTER */
 .inf-sub { display: block; font-size: 9.5px; font-weight: 700; color: #64748b; letter-spacing: .02em; margin-top: 1px; }
 .inf-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -1954,7 +1696,6 @@ td.svi-cs { background: var(--inst-bg, #eef0f3) !important;  }
 
 /* v510 (remarque 70) : CONDITION dans le menu de la loupe (nombres, dates) */
 #cfMenu .cf-cond { padding: 6px 8px; border-top: 1px solid #e4e7ec; border-bottom: 1px solid #e4e7ec; display: flex; flex-direction: column; gap: 5px; }
-#cfMenu .cf-ct { font-size: 10px; font-weight: 800; color: #475467; }
 #cfMenu .cf-op { height: 28px; border: 1px solid #d0d5dd; border-radius: 6px; font: inherit; font-size: 12px; font-weight: 700; background: #fff; }
 #cfMenu .cf-cv { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 #cfMenu .cf-cv.off, #cfMenu .cf-et.off, #cfMenu .cf-bw.off { display: none; }
@@ -2342,7 +2083,6 @@ td:has(input.dlp-in[data-f=deb]:focus, input.dlp-in[data-f=fin]:focus, input.sv-
 .grd-miss { font-size: 9px; font-weight: 800; color: #98a2b3; }
 
 /* v570 (remarque longue 1) : fenêtre GÉNÉRER / COMPRESSER */
-.gc-cbs { margin: 6px 0 8px; gap: 8px 24px; }
 .gc-t td:last-child { width: 120px; }
 .gc-cut { font-size: 9px; font-weight: 800; color: #98a2b3; }
 
@@ -2612,18 +2352,10 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
 #svConf .rat-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-size: 12px; font-weight: 700; }
 #svConf .rat-top label { display: inline-flex; align-items: center; gap: 6px; }
 #svConf .rat-lots { max-height: 30vh; overflow: auto; border: 1px solid #e5e9f0; border-radius: 8px; padding: 4px 10px; }
-#svConf .rat-scroll { flex: 0 1 auto; max-height: 40vh; }
-#svConf .rat-t td { vertical-align: top; white-space: normal; }
-#svConf .rat-t td small { display: block; color: #6b7280; font-weight: 700; font-size: 10px; }
-#svConf .rat-pk { display: flex; flex-wrap: wrap; gap: 4px; min-width: 200px; }
 #svConf .rat-chip { background: #eef2f7; border-radius: 6px; padding: 2px 6px; font-size: 11px; font-weight: 800; }
 #svConf .rat-chip i { font-style: normal; color: #6b7280; } #svConf .rat-chip b { color: #b91c1c; margin-left: 4px; cursor: pointer; }
-#svConf .rat-add, #svConf .rat-md { height: 26px; border: 1px solid #d6dbe3; border-radius: 6px; font: inherit; font-size: 11px; font-weight: 700; max-width: 220px; }
-#svConf .rat-nm { width: 160px; height: 26px; border: 1px solid #d6dbe3; border-radius: 6px; font: inherit; font-weight: 800; font-size: 11px; padding: 0 6px; text-transform: uppercase; }
-#svConf .rat-sv { width: 80px; height: 26px; border: 1px solid #d6dbe3; border-radius: 6px; text-align: right; font: inherit; font-weight: 800; padding: 0 6px; }
+#svConf .rat-add { height: 26px; border: 1px solid #d6dbe3; border-radius: 6px; font: inherit; font-size: 11px; font-weight: 700; max-width: 220px; }
 #svConf .rat-over b { color: #b91c1c; } #svConf .rat-err b { color: #b45309; }
-#svConf .rat-gbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 12px; font-weight: 700; }
-#svConf .rat-gbar label { display: inline-flex; align-items: center; gap: 5px; }
 #svConf .rat-g { overflow: auto; border: 1px solid #e5e9f0; border-radius: 8px; }
 #svConf .rat-svg { width: 100%; height: 100%; font-size: 11px; font-weight: 700; fill: #344054; }
 #svConf .rat-leg { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 11px; font-weight: 800; }
@@ -2748,25 +2480,14 @@ td.svi-tdf > :is(input.dlp-in, input.sv-date) { box-shadow: none !important; }
 .ind-table .ind-sv { width: 90px !important; text-align: right; }
 
 /* v681 : avenants — liste intermédiaire, prix moyen pondéré dans GLOBAL */
-.av-card { width: min(820px, 96vw); }
-.av-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
-.av-bar .av-sp { flex: 1; }
-.av-tab.on { background: #172033; color: #fff; }
-.av-t tr.av-row { cursor: pointer; }
-.av-t tr.av-instance td { color: #b42318; }
-.av-t tr.av-fige td { color: #067647; }
 td.ins-pmp input { font-style: italic; text-decoration: underline dotted; }
 td.ins-pmp::after { content: "PMP"; position: absolute; right: 2px; top: 1px; font-size: 8px; font-weight: 800; color: #7a5af8; }
 td.ins-pmp { position: relative; }
 
 /* v684 : libellés « BUDGETS : » / « AVENANTS : », barre du consolidé, liste des étapes */
 .novapp-list-actions { align-items: center; }
-.novapp-list-actions .list-lab, .av-top .list-lab { font-size: 13px; font-weight: 700; color: #3f4856; letter-spacing: .02em; white-space: nowrap; }
-.novapp-list-actions button:disabled, .av-top .av-ic:disabled { opacity: .35; cursor: not-allowed; }
-.av-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-.av-top .av-ic { width: 36px; height: 36px; border: 1px solid #dfe4eb; border-radius: 10px; background: #fff; color: #3f4856; font-size: 18px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
-.av-top .av-inc { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #3f4856; margin-left: 6px; cursor: pointer; }
-.av-top .av-inc input { width: 18px; height: 18px; margin: 0; }
+.novapp-list-actions .list-lab { font-size: 13px; font-weight: 700; color: #3f4856; letter-spacing: .02em; white-space: nowrap; }
+.novapp-list-actions button:disabled { opacity: .35; cursor: not-allowed; }
 .av-list-ov { position: fixed; inset: 0; z-index: 10000; background: #fff; overflow: auto; }
 .av-list-ov .novapp-list-shell { min-height: 100%; }
 .av-stg-t tbody tr[data-r] { cursor: pointer; }
@@ -2782,7 +2503,6 @@ td.ins-pmp { position: relative; }
 .scn-table th.ver-arch, .scn-table th.ver-arch small { color: #9aa3b2; }
 .scn-table .cmp-del { border: 0; background: transparent; color: #b91c1c; font-weight: 800; cursor: pointer; margin-left: 4px; }
 .scn-table .rat-err { color: #b45309; }
-.scn-table tr.scn-fix td { background: #f8fafc; }
 .scn-table .ver-acts { white-space: nowrap; }
 .scn-table .ver-acts .svc-b, .scn-table .ver-ip { height: 19px; min-width: 0; padding: 0 8px; font-size: 10px; line-height: 17px; margin: 0 2px; border-radius: 5px; }
 .scn-table .cmp-nm { width: 100%; height: 19px; box-sizing: border-box; font: inherit; font-weight: 700; border: 1px solid #d6dbe3; border-radius: 4px; padding: 0 4px; }
@@ -2805,9 +2525,6 @@ td.ins-pmp { position: relative; }
 .scn-table .scn-plus { width: 26px; height: 19px; border: 1px solid #cbd2db; border-radius: 5px; background: #fff; font-weight: 900; cursor: pointer; padding: 0; line-height: 17px; }
 .scn-table th.scn-plus-th { text-align: center; }
 /* v687 : liste des étapes (bouton CONSOLIDÉ), composition du consolidé */
-.av-list-ov .novapp-list-titlebar .av-glob { height: 36px; padding: 0 12px; border: 1px solid #dfe4eb; border-radius: 10px; background: #fff; color: #172033; font-weight: 800; font-size: 13px; cursor: pointer; margin-left: 10px; }
-.av-top .av-comp { font-size: 12px; font-weight: 700; color: #172033; }
-.av-top .av-comp-b { height: 30px; padding: 0 12px; border: 1px solid #cbd2db; border-radius: 8px; background: #fff; font-weight: 800; font-size: 12px; cursor: pointer; }
 .av-comp-card { width: min(620px, 96vw); }
 .av-tree { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; max-height: 60vh; overflow-y: auto; }
 .av-tree .av-tn { display: flex; align-items: center; gap: 8px; min-height: 30px; font-size: 13px; cursor: pointer; }
@@ -2820,7 +2537,6 @@ td.ins-pmp { position: relative; }
 .novapp-list-titlebar .bdg-d-badge { flex: none; cursor: pointer; margin-left: 2px; }
 .novapp-list-titlebar .bdg-d-inf { font-style: italic; font-family: Georgia, serif; font-size: 14px; }
 .bdg-d-head.bdg-d-head-min { padding: 0 28px; }
-.bdg-d-head-min .av-top { margin: 8px 0 10px; }
 .bdg-d-head-min .lk-chain-top:not([hidden]) { margin: 8px 0; }
 /* lignes SAISIR ICI des DOCUMENTS / TAF / OBSERVATIONS */
 .rec-table tr.rec-new td { background: var(--inst-bg, #f8fafc); color: var(--inst, #6b7480); opacity: .85; cursor: pointer; }
@@ -2860,7 +2576,6 @@ td.ins-pmp { position: relative; }
 .bdg-d-page.max-rec .blk-rec-on.blk-ver .rec-scroll { height: calc(var(--avail) - 50px); max-height: none; }
 .ver-table tr.ver-row { cursor: pointer; }
 .auto-a { color: #9aa3b2; font-size: 12px; font-weight: 700; margin-left: 3px; }
-.ver-bar .list-lab { color: #3f4856; }
 /* v691 : import — source en arborescence, blocs à cocher */
 #docPop .imp-src-head { padding: 8px 10px 4px; font-weight: 900; font-size: 12px; color: #3f4856; }
 #docPop .imp-src-head small { color: #9aa3b2; font-weight: 700; }
@@ -2871,7 +2586,6 @@ td.ins-pmp { position: relative; }
 #budgetListTable tr.bdg-fam, table.svi-bdgl tr.bdg-fam { cursor: pointer; }
 #budgetListTable .bdg-fold, table.svi-bdgl .bdg-fold { display: inline-block; width: 14px; font-weight: 900; color: #3f4856; margin-right: 4px; }
 #budgetListTable tr.bdg-kid td:first-child, table.svi-bdgl tr.bdg-kid td:first-child { padding-left: 36px; }
-#budgetListTable tr.bdg-kid .bdg-kid-lab, table.svi-bdgl tr.bdg-kid .bdg-kid-lab { font-weight: 800; }
 #budgetListTable tr.bdg-kid small, table.svi-bdgl tr.bdg-kid small { color: #9aa3b2; font-weight: 600; }
 #budgetListTable tr.bdg-kid.inst-instance.row-av td, table.svi-bdgl tr.bdg-kid.inst-instance.row-av td { color: #dc2626; }
 #budgetListTable tr.bdg-kid.inst-fige.row-av td, table.svi-bdgl tr.bdg-kid.inst-fige.row-av td { color: #22a052; }
@@ -3072,7 +2786,7 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .prm-lib .lib-rec { border: 1px solid #e5e9f0; border-radius: 10px; padding: 8px; margin-bottom: 10px; background: #fff; }
 .prm-lib .lib-rh { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; font-size: 12px; }
 .prm-lib .lib-rh .lib-in[data-f=nom] { width: 180px; } .prm-lib .lib-rh small { color: #667085; margin-left: auto; }
-.prm-lib .lib-cdel, .prm-lib .lib-del { border: 0; background: none; color: #b42318; font-weight: 800; cursor: pointer; }
+.prm-lib .lib-del { border: 0; background: none; color: #b42318; font-weight: 800; cursor: pointer; }
 .lib-chk { color: #b54708; background: #fffaeb; border: 1px solid #fedf89; border-radius: 6px; padding: 1px 6px; font-size: 10px; font-weight: 800; }
 .lib-pick .lib-r { display: block; border: 1px solid #e5e9f0; border-radius: 8px; padding: 8px; margin: 0 0 8px; cursor: pointer; }
 .lib-pick .lib-r.lib-used { border-color: #2e90fa; background: #f5faff; }
@@ -3080,16 +2794,12 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .lib-tag { color: #175cd3; background: #eff8ff; border-radius: 6px; padding: 1px 6px; font-size: 10px; font-weight: 800; }
 .lk-chain .lk-lib { border: 1px solid #2e90fa; background: #eff8ff; color: #175cd3; border-radius: 8px; padding: 4px 10px; font-weight: 800; font-size: 11px; margin-right: 6px; cursor: pointer; }
 /* v740 : CUMUL (FORMAT 265, 266) */
-.bdg-cum-btn { margin-left: 10px; border: 1px solid #1d3a8a; background: #1d3a8a; color: #fff; border-radius: 8px; padding: 4px 10px; font-weight: 800; font-size: 12px; vertical-align: middle; cursor: pointer; }
-.bdg-cum-btn:disabled { background: #fff; color: #98a2b3; border-color: #d0d5dd; cursor: default; }
-.bdg-action-cell .bdg-cum { width: 16px; height: 16px; vertical-align: middle; margin-right: 4px; }
 .cum-band { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; background: #f2f4f7; border: 1px solid #d0d5dd; border-radius: 8px; padding: 6px 10px; margin: 6px 0; font-size: 11px; font-weight: 800; color: #344054; }
 .cum-band b { color: #1d3a8a; } .cum-band .cum-st { font-weight: 700; } .cum-band .cum-valide { color: #111827; } .cum-band .cum-fige { color: #067647; } .cum-band .cum-instance { color: #b42318; }
 
 /* ===== v749 : ACHATS (étape 1 : articles et paramètres) — mêmes tableaux que le budget ===== */
 #ach .ach-body { padding: 0 0 24px; }
 #ach .ach-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 8px; }
-#ach .ach-cnt { font-weight: 800; font-size: 12px; color: #172033; margin-right: 8px; }
 #ach .ach-b { border: 1px solid #d5dbe3; background: #fff; border-radius: 8px; padding: 6px 10px; font-size: 11px; font-weight: 800; color: #172033; cursor: pointer; }
 #ach .ach-b:disabled { opacity: .45; cursor: default; }
 #ach .ach-scroll { overflow: auto; max-height: calc(100vh - 230px); -webkit-overflow-scrolling: touch; background: #fff; border: 1px solid #e5e9f0; border-radius: 10px; }
@@ -3115,7 +2825,6 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 #ach .ach-prm { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
 #ach .ach-pbox { display: flex; flex-direction: column; gap: 6px; }
 #ach .ach-pt { font-size: 11px; font-weight: 800; color: #172033; }
-#ach .ach-ptva { width: 80px; border: 1px solid #d5dbe3; border-radius: 6px; height: 26px; text-align: right; padding: 0 6px; font-weight: 700; }
 #ach .ach-note { font-size: 10px; color: #8a909c; max-width: 520px; }
 .ach-pick { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; font-size: 12px; }
 #ach .ach-tvaw { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
@@ -3251,11 +2960,6 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .frs-card .frs-add { margin-top: 2px; }
 @media (max-width: 700px) { .frs-card .frs-g { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* ===== v760 : BESOINS ===== */
-#achBsnT tr.bsn-valide td { color: var(--st-valide, #172033); }
-#achBsnT tr.bsn-instance td { color: var(--st-instance, #b91c1c); }
-#achBsnT tr.bsn-annule td { color: #9aa3b2; text-decoration: line-through; }
-#achBsnT td.bsn-blk { font-weight: 900; background: #fef2f2; }
-#achBsnT tr.bsn-newrow td { cursor: pointer; }
 .bsn-card .bsn-ctl { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 4px 0 10px; padding: 8px 10px; border-radius: 8px; background: #eef4fb; font-size: 12px; font-weight: 700; color: #12355b; }
 .bsn-card .bsn-ctl.near { background: #fff7ed; color: #9a3412; }
 .bsn-card .bsn-ctl.over { background: #fef2f2; color: #b91c1c; }
@@ -3263,18 +2967,10 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .bsn-card .bsn-deb { font-size: 12px; font-weight: 800; color: #166534; }
 .bsn-card select.ins-in, .bsn-card .frs-f input { height: 30px; border: 1px solid #d6dbe3; border-radius: 6px; padding: 0 8px; font-size: 12px; font-weight: 700; background: #fff; }
 /* ===== v761 : CONSULTATIONS et DEVIS ===== */
-#achCafT tr.caf-close td, #achDvfT tr.dvf-retenu td { color: var(--st-valide, #172033); }
-#achCafT tr.caf-ouverte td, #achDvfT tr.dvf-recu td { color: var(--st-instance, #b91c1c); }
-#achCafT tr.caf-annule td, #achDvfT tr.dvf-annule td, #achDvfT tr.dvf-rejete td { color: #9aa3b2; }
-#achCafT tr.caf-newrow td, #achDvfT tr.dvf-newrow td { cursor: pointer; }
 .caf-card .caf-cmp td, .caf-card .caf-cmp th { white-space: nowrap; }
 .caf-card .caf-tot td, .dvf-card .caf-tot td { background: #f3f6fa; }
 .caf-card .frs-sub select, .dvf-card .frs-sub select { width: 100%; height: 28px; border: 1px solid #d6dbe3; border-radius: 6px; font-size: 12px; font-weight: 700; background: #fff; }
 /* ===== v762 : COMMANDES, RÉCEPTIONS, RETOURS ===== */
-#achCmfT tr.cmf-valide td, #achCmfT tr.cmf-solde td { color: var(--st-valide, #172033); }
-#achCmfT tr.cmf-instance td { color: var(--st-instance, #b91c1c); }
-#achCmfT tr.cmf-annule td, #achRcpT tr.rcp-annule td { color: #9aa3b2; }
-#achCmfT tr.cmf-newrow td, #achRcpT tr.rcp-newrow td { cursor: pointer; }
 .cmf-card .cmf-src { font-size: 10px; color: #6b7480; white-space: nowrap; }
 .cmf-card .frs-sub td input, .rcp-card .frs-sub td input, .rcp-card .frs-sub td select { min-width: 60px; }
 .ach-tabs { flex-wrap: wrap; }
@@ -3282,21 +2978,11 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .fa-over { color: var(--danger, #c62828) !important; font-weight: 700; }
 /* v764 : listes et pages des achats au format du budget (articles, fournisseurs) */
 #ach.ach-page .section-head h1 { font-size: 22px; }
-#ach .nvp-bar { display: flex;  align-items: center; margin-bottom: 10px; }
-#ach .nvp-tools { display: inline-flex; gap: 8px; }
-#ach .nvp-ic { width: 40px; height: 40px; border: 1px solid #d6dbe3; border-radius: 10px; background: #fff; font-size: 20px; cursor: pointer; color: #12355b; }
-#ach .nvp-card { border: 1px solid #e3e7ee; border-radius: 12px; background: #fff; padding: 16px 20px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(15, 23, 42, .06); }
-#ach .nvp-top { display: flex; align-items: center; gap: 10px; }
-#ach .nvp-code { font-size: 24px; font-weight: 800; color: #12355b; }
-#ach .nvp-inst .nvp-code, #ach .nvp-inst .nvp-name { color: var(--st-instance, #c62828); }
-#ach .nvp-st { font-size: 12px; font-weight: 800; color: #64748b; margin-left: auto; }
-#ach .nvp-name { display: block; margin-top: 8px; border: 0; background: none; padding: 0; font: inherit; font-size: 18px; font-weight: 800; color: #12355b; text-decoration: underline; cursor: pointer; text-align: left; }
 #ach .nvp-rec, #ach .nvp-blk { margin-bottom: 14px; }
 /* v764 : blocs de la page (mêmes formes que la page du budget, sans dépendre de son style) */
 #ach .nvp .bdg-d-block { margin-bottom: 14px; border: 1px solid #e1e5eb; border-radius: 12px; background: #fff; overflow: hidden; }
 #ach .nvp .rec-table th.number, #ach .nvp .rec-table td.number { text-align: right; }
 #ach .nvp .rec-table th.center, #ach .nvp .rec-table td.center { text-align: center; }
-#ach .nvp-bar { justify-content: flex-end; }
 
 /* v766 : listes des achats = liste des budgets (mêmes classes ; règles #budgetListTable / #bdgDatePanel doublées pour table.svi-bdgl / .svi-bdgp) */
 #ach.ach-bdgl { margin: -14px; }
