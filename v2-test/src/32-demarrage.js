@@ -162,3 +162,13 @@ document.addEventListener("click", e => {
 { const go = () => { try { sviAchLoad().catch(() => {}); } catch (e) {} };
   const idle = () => (window.requestIdleCallback ? requestIdleCallback(go, { timeout: 1500 }) : setTimeout(go, 300));
   if (document.readyState === "complete") idle(); else window.addEventListener("load", idle); }
+
+/* v927 (remarque 13 du 04/11/2026) : ÉCRAN D'ACCUEIL — nom de l'utilisateur, menu ☰, ⋯ = RÉGLAGES COMMUNS (tout le programme) */
+const sviHomeDraw = () => { const u = document.getElementById("homeUser"); if (u) { let n = ""; try { n = sviUser(); } catch (e) {} u.textContent = n ? "UTILISATEUR : " + n : ""; }
+  const b = document.getElementById("homeBody"); if (b && !b.childElementCount) b.innerHTML = `<div class="home-note">MENU ☰ : BUDGET, ACHATS, PARAMÉTRAGE, DONNÉES SOURCES. ⋯ : RÉGLAGES COMMUNS DU FORMAT (TOUT LE PROGRAMME).</div>`; };
+document.addEventListener("click", e => {
+  const m = e.target.closest && e.target.closest("#homeMore"); if (!m) return; e.stopPropagation();
+  sviHdrMenu(m, [[{ k: "__fmtall", lab: "RÉGLAGES COMMUNS (FORMAT DE TOUT LE PROGRAMME)", ic: SVI_MI.__fmt }]], a => { if (a === "__fmtall") sviFmtWin(null); });
+}, true);
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => setTimeout(sviHomeDraw, 50)); else setTimeout(sviHomeDraw, 50);
+document.addEventListener("click", e => { if (e.target.closest && e.target.closest('.nav-btn[data-view="home"]')) setTimeout(sviHomeDraw, 0); });

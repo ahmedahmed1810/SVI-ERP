@@ -85,7 +85,29 @@ function sviIfCur() {
   if (document.body) start(); else document.addEventListener("DOMContentLoaded", start); }
 function sviFmt() {
   let v = null; try { v = JSON.parse(localStorage.getItem(SVI_FMT_KEY) || "null"); } catch (e) {}
-  return v && typeof v === "object" ? { el: v.el || {}, to: Array.isArray(v.to) ? v.to : null, blk: v.blk || {} } : { el: {}, to: null, blk: {} };
+  return v && typeof v === "object" ? { el: v.el || {}, to: Array.isArray(v.to) ? v.to : null, blk: v.blk || {}, by: v.by && typeof v.by === "object" ? v.by : {} } : { el: {}, to: null, blk: {}, by: {} };
+}
+/* v927 (remarque 12 du 04/11/2026) : réglage propre à une interface (MODIFIER LE FORMAT) — F.by[interface] = { el, st: { c, bg } } ;
+   il passe devant le réglage commun, seulement quand cette interface est affichée (html[data-svif]) */
+const sviFmtDecl = o => { const d = [];
+  if (o.bg) d.push(`background:${o.bg}!important`);
+  if (o.c) d.push(`color:${o.c}!important;-webkit-text-fill-color:${o.c}!important`);
+  if (o.fs) d.push(`font-size:${+o.fs}px!important`);
+  if (o.b !== undefined) d.push(`font-weight:${o.b ? 800 : 400}!important`);
+  if (o.i !== undefined) d.push(`font-style:${o.i ? "italic" : "normal"}!important`);
+  if (o.u !== undefined) d.push(`text-decoration:${o.u ? "underline" : "none"}!important`);
+  if (+o.h >= 10 && +o.h <= 120) d.push(`height:${+o.h}px!important;min-height:0!important;box-sizing:border-box!important`);
+  return d; };
+function sviFmtCssBy(F) {
+  const out = [];
+  Object.keys(F.by || {}).forEach(k => { const B = F.by[k] || {}, P = `html[data-svif="${k}"] body `;
+    SVI_FMT_EL.forEach(E => { if (E.win) return; const o0 = (B.el || {})[E.k]; if (!o0) return;
+      const o = E.f ? Object.fromEntries(Object.entries(o0).filter(([f]) => E.f.includes(f))) : o0, d = sviFmtDecl(o); if (!d.length) return;
+      out.push(E.sel.map(x => P + x).join(", ") + " { " + d.join("; ") + " }"); });
+    const st = B.st || {};
+    if (st.c) out.push(`${P}.bdg-d-page, ${P}.nvp, ${P}.novapp-list-shell { --inst: ${st.c}; --st-instance: ${st.c}; --st-valide: ${st.c}; }`);
+    if (st.bg) out.push(`html[data-svif="${k}"] body, ${P}.view, ${P}.bdg-d-page, ${P}.nvp { background: ${st.bg} !important; }`); });
+  return out.join("\n");
 }
 function sviFmtCss(F) {
   const out = [], all = !F.to || F.to.length >= SVI_FMT_IF.length;
@@ -106,6 +128,7 @@ function sviFmtCss(F) {
     if (!sels.length) return;
     out.push(sels.map(x => "html body " + x).join(", ") + " { " + d.join("; ") + " }");
   });
+  const by = sviFmtCssBy(F); if (by) out.push(by);
   return out.join("\n");
 }
 /* v925 (remarque 5 du 04/11/2026) : BLOCS — lignes affichées par défaut (5) et en mode réduit (1, + CRÉER + TOTAL) ; agrandir reste à la poignée */
@@ -119,6 +142,57 @@ function sviFmtApply() {
     r.setProperty("--svi-blk-n", n); r.setProperty("--svi-hdef-t", (H("th") + n * H("row") + H("tot")) + "px"); r.setProperty("--svi-hdef-n", (H("th") + n * H("row") + 2) + "px");
     r.setProperty("--svi-hdef-h", (n * 21 + 23) + "px"); r.setProperty("--svi-hdef-a", (n * 34 + 30) + "px"); } catch (e) {}
 }
+/* v927 (remarques 12 et 13) : FENÊTRE DU FORMAT — MODIFIER LE FORMAT (une interface : ÉTAT de l'écran puis les éléments) ou
+   RÉGLAGES COMMUNS (accueil : couleurs des états, éléments, parties des fenêtres, blocs ; APPLIQUER PARTOUT remplace les réglages par interface) */
+function sviFmtWin(ifk) {
+  const D = JSON.parse(JSON.stringify(sviFmt())); D.by = D.by || {};
+  const CD = { ...sviColors() };
+  const S = ifk ? (D.by[ifk] = D.by[ifk] || { el: {}, st: {} }) : D; S.el = S.el || {}; if (ifk) S.st = S.st || {};
+  const IF = ifk ? (SVI_IFS.find(x => x.k === ifk) || { lab: ifk }) : null, valid = ifk && /_(lv|fv)$|bdgl_v/.test(ifk);
+  const ELS = SVI_FMT_EL.filter(E => !ifk || !E.win);
+  const val = (E, f) => { const o = S.el[E.k] || {}; if (o[f] !== undefined) return o[f]; if (ifk && (D.el[E.k] || {})[f] !== undefined) return D.el[E.k][f]; return E.def[f]; };
+  const ok = (E, f) => !E.f || E.f.includes(f), NA = '<td class="center fmt-na">—</td>';
+  const preview = () => { const st = document.getElementById("sviFmtStyle"); if (st) st.textContent = sviFmtCss(D); const r = document.documentElement; Object.keys(CD).forEach(k => r.style.setProperty("--st-" + k, CD[k])); };
+  const d = sviWinNew();
+  const draw = () => {
+    const stRow = ifk ? `<table class="prm-table fmt-t fmt-st"><colgroup><col style="width:300px"><col style="width:110px"><col style="width:110px"></colgroup><thead><tr><th>ÉTAT DE L'ÉCRAN</th><th class="center">TEXTE</th><th class="center">FOND</th></tr></thead>
+        <tbody><tr><td>${valid ? "VALIDÉ" : "EN INSTANCE"}</td><td class="center"><input type="color" class="fmw-st" data-f="c" value="${esc(S.st.c || (valid ? CD.valide : CD.instance))}"></td><td class="center"><input type="color" class="fmw-st" data-f="bg" value="${esc(S.st.bg || "#f4f7fb")}"></td></tr></tbody></table>`
+      : `<table class="prm-table fmt-t fmt-cols"><colgroup><col style="width:300px"><col style="width:110px"></colgroup><thead><tr><th>ÉTATS</th><th class="center">COULEUR</th></tr></thead>
+        <tbody>${SVI_COL_LAB.map(([k, l]) => `<tr><td style="color:${esc(CD[k])}">${l}</td><td class="center"><input type="color" class="fmw-col" data-col="${k}" value="${esc(CD[k])}"></td></tr>`).join("")}</tbody></table>`;
+    const elT = `<table class="prm-table fmt-t fmt-el"><colgroup><col style="width:300px"><col style="width:70px"><col style="width:70px"><col style="width:70px"><col style="width:60px"><col style="width:70px"><col style="width:76px"><col style="width:76px"></colgroup>
+        <thead><tr><th>ÉLÉMENT</th><th class="center">FOND</th><th class="center">TEXTE</th><th class="center">TAILLE</th><th class="center">GRAS</th><th class="center">ITALIQUE</th><th class="center">SOULIGNÉ</th><th class="center">HAUTEUR</th></tr></thead>
+        <tbody>${ELS.map(E => `<tr data-el="${E.k}"><td>${esc(E.lab)}</td>`
+          + (ok(E, "bg") ? `<td class="center"><input type="color" class="fmw-in" data-f="bg" value="${esc(val(E, "bg") || "#ffffff")}"></td>` : NA)
+          + (ok(E, "c") ? `<td class="center"><input type="color" class="fmw-in" data-f="c" value="${esc(val(E, "c") || "#000000")}"></td>` : NA)
+          + (ok(E, "fs") ? `<td class="center"><input class="fmw-in center" data-f="fs" inputmode="numeric" value="${esc(val(E, "fs") || "")}"></td>` : NA)
+          + ["b", "i", "u"].map(f => ok(E, f) ? `<td class="center"><input type="checkbox" class="fmw-in" data-f="${f}"${val(E, f) ? " checked" : ""}></td>` : NA).join("")
+          + (ok(E, "h") && val(E, "h") ? `<td class="center"><input class="fmw-in center" data-f="h" inputmode="numeric" value="${esc(val(E, "h"))}"></td>` : NA) + `</tr>`).join("")}</tbody></table>`;
+    const B = sviBlkRows(D);
+    const blkT = ifk ? "" : `<table class="prm-table fmt-t fmt-blk"><colgroup><col style="width:300px"><col style="width:90px"></colgroup><thead><tr><th>BLOCS</th><th class="center">LIGNES</th></tr></thead>
+        <tbody><tr><td>LIGNES AFFICHÉES PAR DÉFAUT</td><td class="center"><input class="fmw-blk center" data-b="n" inputmode="numeric" value="${B.n}"></td></tr>
+        <tr><td>LIGNES EN MODE RÉDUIT (+ CRÉER ET TOTAL)</td><td class="center"><input class="fmw-blk center" data-b="r" inputmode="numeric" value="${B.r}"></td></tr></tbody></table>`;
+    d.innerHTML = sviWinCard({ cls: "fmw-card", close: "data-x", title: ifk ? "MODIFIER LE FORMAT — " + esc(IF.lab) : "RÉGLAGES COMMUNS — TOUT LE PROGRAMME",
+      body: `<div class="fmw-scroll">${stRow}${elT}${blkT}</div>`,
+      foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b" data-def>PAR DÉFAUT</button><button type="button" class="svc-b svc-ok svc-neutral" data-save>${ifk ? "ENREGISTRER" : "APPLIQUER PARTOUT"}</button>` });
+  };
+  draw(); sviWinShow(d);
+  const num = (v, a, b) => { const n = parseInt(String(v).replace(/\D/g, ""), 10); return n >= a && n <= b ? n : null; };
+  d.addEventListener("input", e => { const i = e.target;
+    if (i.matches(".fmw-st")) { S.st[i.dataset.f] = i.value; preview(); return; }
+    if (i.matches(".fmw-col")) { CD[i.dataset.col] = i.value; preview(); return; }
+    if (i.matches(".fmw-in") && i.type !== "checkbox") { const k = i.closest("tr").dataset.el, f = i.dataset.f; S.el[k] = S.el[k] || {};
+      if (f === "fs" || f === "h") { const n = f === "fs" ? num(i.value, 8, 40) : num(i.value, 10, 120); if (n === null) return; S.el[k][f] = n; } else S.el[k][f] = i.value; preview(); } });
+  d.addEventListener("change", e => { const i = e.target;
+    if (i.matches(".fmw-in") && i.type === "checkbox") { const k = i.closest("tr").dataset.el; S.el[k] = S.el[k] || {}; S.el[k][i.dataset.f] = i.checked ? 1 : 0; preview(); }
+    if (i.matches(".fmw-blk")) { const n = num(i.value, 1, 30); if (n === null) { svToast("ENTRE 1 ET 30 LIGNES.", 2500, i); return; } D.blk = { ...sviBlkRows(D), [i.dataset.b]: n }; D.blk = sviBlkRows(D); } });
+  d.addEventListener("click", e => {
+    if (e.target === d || e.target.closest("[data-x]")) { d.remove(); sviFmtApply(); sviColorsApply(); return; }
+    if (e.target.closest("[data-def]")) { if (ifk) { S.el = {}; S.st = {}; } else { D.el = {}; D.blk = {}; Object.assign(CD, SVI_COL_DEF); } preview(); draw(); return; }
+    if (e.target.closest("[data-save]")) { if (ifk) { if (!Object.keys(S.el).length && !Object.keys(S.st).length) delete D.by[ifk]; } else D.by = {};
+      sviFmtSave(D); sviColorsSave(CD); d.remove(); svToast(ifk ? "FORMAT DE CETTE INTERFACE ENREGISTRÉ." : "RÉGLAGES COMMUNS APPLIQUÉS PARTOUT.", 2500); } });
+  return d;
+}
+const sviFmtCurWin = () => sviFmtWin(document.documentElement.dataset.svif || sviIfCur() || "bdg");
 function sviFmtSave(F) { try { localStorage.setItem(SVI_FMT_KEY, JSON.stringify(F)); } catch (e) {} sviFmtApply(); }
 try { sviFmtApply(); } catch (e) {}
 
@@ -163,6 +237,7 @@ function sviHdrBar(o = {}) {
 /* v920 (remarques 1 et 2 du 04/11/2026) : une icône devant chaque ligne des menus ⋯ (même style que le ⋯ du budget) — par clé d'action ;
    une ligne sans icône garde la même marge */
 const SVI_MI = {
+  "__fmt": '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.7 0-1.2-1-1.5-1-2.6 0-.9.7-1.6 1.6-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="15" cy="7" r="1.2"/></svg>',
   "defige": '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-2"/></svg>',
   "val": '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   "fige": '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',

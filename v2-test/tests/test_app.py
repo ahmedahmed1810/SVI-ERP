@@ -2833,7 +2833,7 @@ def main():
             const r = [top.join(','), sub.join(','), open, still, stay, document.getElementById('ach').classList.contains('active-view'), (document.querySelector('#ach .novapp-list-titlebar h1') || document.querySelector('#ach .section-head h1')).textContent.trim().replace(/ \(.*$/, '')];
             M.querySelector('.nav-grp').click(); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); M.classList.add('hidden'); await w(600); return r; }""")
         check("v751 / v752 : menu ☰ — ordre BDG, ACHAT, BESOIN, PARAMÉTRAGE ; ACHAT dépliable (CONSULTATIONS, DEVIS, COMMANDES, RÉCEPTIONS, FACTURES, PAIEMENTS, FOURNISSEURS, ARTICLES, ACC), BESOIN dessous ; entrées à venir grisées ; ARTICLES ouvre les achats",
-              m751 == ["BDG,ACHAT,BESOIN,PARAMÉTRAGE,DONNÉES SOURCE", "TABLEAU DE BORD,CONSULTATIONS,DEVIS,COMMANDES,RETOURS DE COMMANDE,RÉCEPTIONS,RETOURS DE RÉCEPTION,FACTURES,AVOIRS,PAIEMENTS,FOURNISSEURS,ARTICLES,PARAMÈTRES ACHATS,ACC", True, True, True, True, "ARTICLES"], m751)
+              m751 == ["ACCUEIL,BDG,ACHAT,BESOIN,PARAMÉTRAGE,DONNÉES SOURCE", "TABLEAU DE BORD,CONSULTATIONS,DEVIS,COMMANDES,RETOURS DE COMMANDE,RÉCEPTIONS,RETOURS DE RÉCEPTION,FACTURES,AVOIRS,PAIEMENTS,FOURNISSEURS,ARTICLES,PARAMÈTRES ACHATS,ACC", True, True, True, True, "ARTICLES"], m751)
         # v752 : icône devant chaque entrée du menu ; liste des budgets en gras ; lignes du dessous décalées ; corbeille de la couleur de sa ligne
         k752 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const M = document.getElementById('navMenu');
             const ic = [...M.querySelectorAll('.nav-btn, .nav-grp, .nav-off, .nav-src')].every(b => !!b.querySelector('svg.nav-ic'));
@@ -3103,7 +3103,7 @@ def main():
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v764 : ARTICLES au format du budget — listes EN INSTANCE / VALIDÉS, dates, création par fenêtre (en instance, corbeille), page : bloc DOC / TAF / OBS, ⋯ VALIDER et UNITÉ DE CONVERSION, devis liés, ‹ ›",
               a764 == ["ARTICLES (VALIDÉS) 2", 2, 2, 1, "instance", "ARTICLES (EN INSTANCE) 1", 1, True, True, "ART-0003", True, 3, 1, True,
-                       "FIGER|UNITÉ DE CONVERSION|BUDGETS (0)|APERÇU|DISPOSITION PAR DÉFAUT|SUPPRIMER CET ARTICLE|FERMER", '[{"u":"SAC","r":20}]', "fige", True, "valide", True, "ARTICLES (VALIDÉS) 3", True, True, True], a764)
+                       "FIGER|UNITÉ DE CONVERSION|BUDGETS (0)|APERÇU|MODIFIER LE FORMAT|DISPOSITION PAR DÉFAUT|SUPPRIMER CET ARTICLE|FERMER", '[{"u":"SAC","r":20}]', "fige", True, "valide", True, "ARTICLES (VALIDÉS) 3", True, True, True], a764)
         # v765 : toutes les listes des achats au format du budget — pas d'onglets, titre EN INSTANCE / VALIDÉS + bascule, dates, corbeille = ANNULER
         l765 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_caf_v1', 'svi_ach_caf_mode_v1', 'svi_ach_caf_etat2_v1'], keep = K.map(k => localStorage.getItem(k)); K.forEach(k => localStorage.removeItem(k));
             achCafSave([{ id: 'c1', ref: 'CAF 1', state: 'ouverte', cree: '2026-10-30T10:00:00Z', lignes: [], frs: [] }, { id: 'c2', ref: 'CAF 2', state: 'close', cree: '2026-10-20T10:00:00Z', valide: '2026-10-25T10:00:00Z', lignes: [], frs: [] }]);
@@ -3462,6 +3462,16 @@ def main():
             T.querySelector(`.cf-btn[data-col="${k1}"]`)?.click(); await new Promise(z => setTimeout(z, 150)); const hb = document.querySelector('#cfMenu .cf-hide'); r.loupe = !!hb && hb.nextElementSibling && document.querySelector('#cfMenu').firstElementChild !== hb;
             hb && hb.click(); await new Promise(z => setTimeout(z, 150)); const n3 = sviColhInfo(T).hid.length; sviColhShowAll(T);
             r.colh = [n1, /1 COLONNE MASQUÉE/.test(lab), n2, n3].join(','); if (keepH === null) localStorage.removeItem('svi_colh_v1'); else localStorage.setItem('svi_colh_v1', keepH);
+            /* remarques 12 et 13 : MODIFIER LE FORMAT (une interface, ÉTAT de l'écran puis les éléments) ; RÉGLAGES COMMUNS de l'accueil (APPLIQUER PARTOUT remplace les réglages par interface) */
+            const keepC = localStorage.getItem('svi_colors_v1'); const w = ms => new Promise(z => setTimeout(z, ms));
+            r.byCss = /html\[data-svif="dvf_fi"\] body table tbody td[^{]*\{[^}]*height:30px/.test(sviFmtCss({ el: {}, by: { dvf_fi: { el: { row: { h: 30 } }, st: {} } } }));
+            sviFmtWin('frs_fi'); await w(150); r.win1 = [!!document.querySelector('#svConf .fmt-st'), document.querySelectorAll('#svConf .fmt-el tbody tr').length, /FICHE FOURNISSEUR EN INSTANCE/.test(document.querySelector('#svConf .svc-t').textContent)].join(',');
+            const c = document.querySelector('#svConf .fmw-st[data-f="c"]'); c.value = '#112233'; c.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('#svConf [data-save]').click(); await w(150);
+            r.saved = (sviFmt().by.frs_fi || { st: {} }).st.c;
+            sviFmtWin(null); await w(150); r.win2 = [!!document.querySelector('#svConf .fmt-cols'), document.querySelectorAll('#svConf .fmt-el tbody tr').length, !!document.querySelector('#svConf .fmt-blk')].join(',');
+            document.querySelector('#svConf [data-save]').click(); await w(150); r.cleared = Object.keys(sviFmt().by).length;
+            r.home = !!document.querySelector('#home') && !!document.querySelector('.nav-btn[data-view="home"]');
+            if (keepC === null) localStorage.removeItem('svi_colors_v1'); else localStorage.setItem('svi_colors_v1', keepC); sviColorsApply();
             if (keepF === null) localStorage.removeItem('svi_format_v1'); else localStorage.setItem('svi_format_v1', keepF); sviFmtApply(); return r; }""")
         check("FORME 04/11, remarques 1 et 2 : états REMIS (orange) et NON LETTRÉ (violet) dans la palette ; FOND DES ONGLETS = couleur du fond seulement",
               f1104["etats"] == "EN INSTANCE,FIGÉ,PARTIELLEMENT ACHEVÉ,REMIS,VALIDÉ,NON LETTRÉ,EXPIRÉ,BLOQUÉ,ARCHIVÉ" and f1104["vars"] == "#ea580c,#a21caf"
@@ -3472,6 +3482,8 @@ def main():
               f1104["blk0"] == "5,1" and f1104["blk1"] == "8,2,211px" and f1104["font"], f1104)
         check("FORME 04/11, remarques 10 et 11 : interfaces (4 par pièce, 3 pour le budget, ordre du menu) et interface affichée connue ; MASQUER LA COLONNE dans la loupe, AFFICHER LES COLONNES MASQUÉES (compteur) dans le ⋯",
               f1104["ifs"] == "53|bdgl_i,bdgl_v,bdg,caf_li,caf_lv,caf_fi,caf_fv" and f1104["cur"] in ("bdgl_i", "bdgl_v") and f1104["colh"] == "1,true,0,1" and f1104["loupe"], f1104)
+        check("FORME 04/11, remarques 12 et 13 : MODIFIER LE FORMAT d'une interface (ÉTAT de l'écran puis les éléments, sans les parties des fenêtres) ; écran d'ACCUEIL et RÉGLAGES COMMUNS (APPLIQUER PARTOUT remplace les réglages par interface)",
+              f1104["byCss"] and f1104["win1"] == "true,10,true" and f1104["saved"] == "#112233" and f1104["win2"] == "true,16,true" and f1104["cleared"] == 0 and f1104["home"], f1104)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

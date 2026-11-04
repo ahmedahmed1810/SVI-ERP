@@ -27,7 +27,7 @@
 
   <link
     rel="stylesheet"
-    href="styles.css?v=926"
+    href="styles.css?v=927"
   >
 </head>
 
@@ -89,9 +89,19 @@
          PARAMÉTRAGE (ancien écran CHS, retiré en v742 ; l'identifiant « chs » est gardé pour le menu)
          =================================================== -->
 
+    <!-- v927 (remarque 13 du 04/11/2026) : ÉCRAN D'ACCUEIL — ouvert après la connexion ; ⋯ = RÉGLAGES COMMUNS (tout le programme) -->
+    <section id="home" class="view active-view">
+      <div class="section-head home-head">
+        <button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button>
+        <div><h1>SVI ERP — ACCUEIL</h1><p id="homeUser"></p></div>
+        <button type="button" class="inst-act bdg-more-btn home-more" id="homeMore" title="Réglages communs" aria-label="Réglages communs">⋯</button>
+      </div>
+      <div class="home-body" id="homeBody"></div>
+    </section>
+
     <section
       id="chs"
-      class="view active-view"
+      class="view"
     >
 
       <div class="section-head">
@@ -160,6 +170,7 @@
 
 <div id="navMenu" class="popup hidden">
   <!-- v752 : ordre BDG, ACHAT (dépliable, comme NovApp), BESOIN, PARAMÉTRAGE ; une icône devant chaque entrée -->
+  <button class="nav-btn active" data-view="home"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>ACCUEIL</button>
   <button class="nav-btn" data-view="bdg"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg><span>BDG</span></button>
   <button type="button" class="nav-grp" data-grp="ach" aria-expanded="false"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2.5l2.2 11h10.6L20.5 8H7"/><circle cx="9.5" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/></svg><span>ACHAT</span><i>›</i></button>
   <div class="nav-sub" data-grp="ach" hidden>
@@ -179,7 +190,7 @@
     <button type="button" class="nav-off" data-why="ACC : À VENIR."><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg><span>ACC</span></button>
   </div>
   <button class="nav-btn" data-view="ach" data-ach="bsn"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h10M9 12h10M9 19h6"/><path d="M4 4.5v2M3 5.5h2M4 11.5v2M3 12.5h2M4 18.5v2M3 19.5h2"/></svg><span>BESOIN</span></button>
-  <button class="nav-btn active" data-view="chs"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></svg><span>PARAMÉTRAGE</span></button>
+  <button class="nav-btn" data-view="chs"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></svg><span>PARAMÉTRAGE</span></button>
   <div class="nav-sep"></div>
   <button type="button" class="nav-src" id="navSrcBtn"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.5"/><path d="M5 5.5v13c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-13M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></svg><span>DONNÉES SOURCE</span></button>
 </div>
@@ -190,8 +201,8 @@
        ===================================================== -->
 
   <!-- v753 : un fichier par module (assemblés par outils/assembler.py) — socle commun d'abord -->
-  <script src="app.js?v=926"></script>
-  <script src="app-budget.js?v=926"></script>
+  <script src="app.js?v=927"></script>
+  <script src="app-budget.js?v=927"></script>
 
 </body>
 

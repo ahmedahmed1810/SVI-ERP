@@ -23963,13 +23963,15 @@ function sviBdgExportImport(C) {
         { a: "ind", lab: "LISTE DES INDICATEURS", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="4" cy="6" r="1.4" fill="currentColor"/><circle cx="4" cy="12" r="1.4" fill="currentColor"/><circle cx="4" cy="18" r="1.4" fill="currentColor"/></svg>' },
         { a: "multi", lab: "MAIN-D'ŒUVRE DE TOUS LES BUDGETS", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M6 20v-6h3v6M11 20V9h3v11M16 20v-9h3v9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>' },
         { a: "sign", lab: "SIGNATURES À PRÉVOIR", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18c3-6 5-9 7-9s-1 7 1 7 3-4 5-4 1 4 3 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 21h16" stroke="currentColor" stroke-width="1.5"/></svg>' }] : []),
+      /* v927 (remarque 12) : MODIFIER LE FORMAT, juste avant IMPORTER / EXPORTER (réservé à qui a le droit — ouvert à tous en attendant les droits) */
+      { a: "fmt", lab: "MODIFIER LE FORMAT", ic: SVI_MI.__fmt },
       { a: "exp", lab: "EXPORTER LE BUDGET", ic: '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M4.5 5.5 8 2l3.5 3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' },
       ...(INS_EDIT ? [{ a: "imp", lab: "IMPORTER UN BUDGET", ic: '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : []),
       ...(INS_EDIT && INS && INS.src ? [{ a: "src", lab: "ACTUALISER DEPUIS LA SOURCE", ic: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.7-4.4M4 4v4h4M4 13a8 8 0 0 0 14.7 4.4M20 20v-4h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }] : []),
     ];
     /* v694 : le menu ⋯ ne garde que les entrées utiles à l'écran — consolidé : aperçus, exports, indicateurs ;
        version : RESTAURER, EN FAIRE UN SCÉNARIO, exports, indicateurs ; recalage : NOUVEAU RECALAGE, exports, indicateurs */
-    { const bi = budget.inst, keep = bi && bi.scv ? ["prt", "lay", "rat", "ind", "exp", "cmp"] : bi && bi.virtual ? (bi.vname ? ["prt", "cum", "vrest", "vscn", "lay", "rat", "ind", "exp", "cmp"] : ["prt", "cum", "blk", "arch", "lay", "rat", "ind", "multi", "exp", "av", "cph", "cmp"]) : bi && bi.rclOf ? ["prt", "cum", "rcl", "lay", "rat", "ind", "exp", "plans", "cmp"] : null;
+    { const bi = budget.inst, keep = bi && bi.scv ? ["prt", "fmt", "lay", "rat", "ind", "exp", "cmp"] : bi && bi.virtual ? (bi.vname ? ["prt", "cum", "vrest", "vscn", "fmt", "lay", "rat", "ind", "exp", "cmp"] : ["prt", "cum", "blk", "arch", "fmt", "lay", "rat", "ind", "multi", "exp", "av", "cph", "cmp"]) : bi && bi.rclOf ? ["prt", "cum", "rcl", "fmt", "lay", "rat", "ind", "exp", "plans", "cmp"] : null;
       if (keep) for (let i = items.length - 1; i >= 0; i--) if (!keep.includes(items[i].a)) items.splice(i, 1); }
     /* v774 (points 2, 9, 10) : ⋯ principal — FIGER / VALIDER en tête ; COMPARER / CUMULER, TABLEAU DE BORD, APPRO. PRÉVISIONNEL, INDICATEURS,
        COÛT D'UNE JOURNÉE DE MAIN-D'ŒUVRE (provisoire) ; les autres actions ; DISPOSITION PAR DÉFAUT ; SUPPRIMER (avec confirmation) et FERMER */
@@ -24018,6 +24020,7 @@ function sviBdgExportImport(C) {
       else if (it.dataset.a === "plans") plWin();   /* v671 (axe 6) */   /* v668 (axe 7) */
       else if (it.dataset.a === "multi") multiWin();   /* v668 (axe 8) */
       else if (it.dataset.a === "sign") signWin();   /* v668 */
+      else if (it.dataset.a === "fmt") sviFmtCurWin();
       else if (it.dataset.a === "exp") openExportMenu("budget");
       else if (it.dataset.a === "imp") { if (shell.__impMenu) shell.__impMenu("budget"); else openBudgetImport(); }   /* v758 : entrée et fenêtre d'import uniques */
       else if (it.dataset.a === "src") srcRefresh();

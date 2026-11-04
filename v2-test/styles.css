@@ -1347,6 +1347,13 @@ détail technique en petit */
 #blkMenu .blk-sep { flex: none; height: 1px; background: #e5e9ef; margin: 4px 0; }
 /* v920 : ligne sans icône dans un menu qui en a — même marge */
 #blkMenu .mi-sp { display: inline-block; width: 15px; height: 15px; flex: none; }
+/* v927 : fenêtre du FORMAT et écran d'accueil */
+#svConf .fmw-card { width: min(860px, calc(100vw - 24px)) !important; max-width: none !important; }
+#svConf .fmw-scroll { max-height: min(64vh, 640px); overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+#svConf .fmw-card input.fmw-in:not([type=checkbox]):not([type=color]), #svConf .fmw-card input.fmw-blk { width: 56px; text-align: center; }
+#home .home-head { display: flex; align-items: center; gap: 12px; }
+#home .home-head > div { flex: 1; }
+#home .home-note { padding: 14px 16px; color: #475467; font-size: 12px; font-weight: 700; }
 #blkMenu .dly-sc.on span { font-weight: 800; }
 #blkMenu [data-dly].off { opacity: .45; }
 /* FORMAT 91 : en-tête SEMAINE / MOIS */

@@ -47,7 +47,9 @@ function initNav() {
           }
 
           $("pageSubtitle").textContent =
-            btn.dataset.view === "chs"
+            btn.dataset.view === "home"
+              ? "VERSION 2 — ACCUEIL"
+              : btn.dataset.view === "chs"
               ? "VERSION 2 — PARAMÉTRAGE"
               : btn.dataset.view === "ach"
                 ? "VERSION 2 — ACHATS"
