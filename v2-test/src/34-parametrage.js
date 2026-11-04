@@ -309,7 +309,10 @@ function sviParamTabs() {
           + (ok("fs") ? `<td class="center"><input class="fmt-in fmt-fs center" data-f="fs" inputmode="numeric" value="${esc(v("fs"))}"></td>` : no)
           + ["b", "i", "u"].map(f => ok(f) ? `<td class="center"><input type="checkbox" class="fmt-in" data-f="${f}"${v(f) ? " checked" : ""}></td>` : no).join("")
           + (ok("h") && v("h") ? `<td class="center"><input class="fmt-in fmt-fs center" data-f="h" inputmode="numeric" value="${esc(v("h"))}"></td>` : no); })()}
-        <td class="center">${F.el[E.k] ? `<button type="button" class="col-rst" data-fel="${E.k}">PAR DÉFAUT</button>` : ""}</td></tr>`; }).join("")}</tbody></table>`;
+        <td class="center">${F.el[E.k] ? `<button type="button" class="col-rst" data-fel="${E.k}">PAR DÉFAUT</button>` : ""}</td></tr>`; }).join("")}</tbody></table>
+      ${(() => { const B = sviBlkRows(F); return `<table class="prm-table fmt-t fmt-blk"><colgroup><col style="width:300px"><col style="width:90px"></colgroup><thead><tr><th>BLOCS</th><th class="center">LIGNES</th></tr></thead>
+        <tbody><tr><td>LIGNES AFFICHÉES PAR DÉFAUT</td><td class="center"><input class="fmt-blk-in center" data-b="n" inputmode="numeric" value="${B.n}"></td></tr>
+        <tr><td>LIGNES EN MODE RÉDUIT (+ CRÉER ET TOTAL)</td><td class="center"><input class="fmt-blk-in center" data-b="r" inputmode="numeric" value="${B.r}"></td></tr></tbody></table>`; })()}`;   /* v925 (remarque 5) */
   };
   const fifDraw = () => {
     const F = sviFmt(), on = k => !F.to || F.to.includes(k);
@@ -324,6 +327,8 @@ function sviParamTabs() {
     else F.el[k][i.dataset.f] = i.value;
     sviFmtSave(F); });
   epane.addEventListener("change", e => { const i = e.target.closest(".fmt-in"); if (!i) return; if (i.type === "checkbox") { const k = i.closest("tr").dataset.el, F = sviFmt(); F.el[k] = F.el[k] || {}; F.el[k][i.dataset.f] = i.checked ? 1 : 0; sviFmtSave(F); } felDraw(); });
+  epane.addEventListener("change", e => { const i = e.target.closest(".fmt-blk-in"); if (!i) return; const F = sviFmt(), n = parseInt(String(i.value).replace(/\D/g, ""), 10);
+    if (!(n >= 1 && n <= 30)) { svToast("ENTRE 1 ET 30 LIGNES.", 2500, i); felDraw(); return; } F.blk = { ...sviBlkRows(F), [i.dataset.b]: n }; F.blk = sviBlkRows(F); sviFmtSave(F); felDraw(); });
   epane.addEventListener("click", e => { const b = e.target.closest("[data-fel]"); if (!b) return; const F = sviFmt(); delete F.el[b.dataset.fel]; sviFmtSave(F); felDraw(); });
   ipane.addEventListener("change", e => { const F = sviFmt();
     if (e.target.matches(".fif-all")) F.to = e.target.checked ? null : [];

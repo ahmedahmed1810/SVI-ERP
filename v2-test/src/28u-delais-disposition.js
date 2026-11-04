@@ -221,8 +221,9 @@ function sviBdgDelaisDisposition(C) {
     const rows = [...tb.tBodies].flatMap(b => [...b.rows]).filter(r => r.offsetHeight);
     const tot = rows.filter(r => r.classList.length && /tot/i.test(r.className) && /\bTOTAL\b/.test(r.textContent || ""));   /* v743 : classe d'abord (rapide), texte ensuite */
     /* v787 : la ligne « CRÉER … ICI » est fixée en bas — mode réduit = UNE ligne de données entière + la ligne CRÉER */
-    const nrw = rows.find(r => !tot.includes(r) && r.matches("tr.ins-new")), dat = rows.find(r => !tot.includes(r) && r !== nrw);
-    const row = { getBoundingClientRect: () => ({ height: (dat ? dat.getBoundingClientRect().height : 0) + (nrw ? nrw.getBoundingClientRect().height : 0) || 21 }) };
+    /* v925 (remarque 5) : mode réduit = r lignes entières (réglage des blocs, 1 par défaut) + CRÉER (+ TOTAL) */
+    const nrw = rows.find(r => !tot.includes(r) && r.matches("tr.ins-new")), dats = rows.filter(r => !tot.includes(r) && r !== nrw).slice(0, sviBlkRows().r);
+    const row = { getBoundingClientRect: () => ({ height: dats.reduce((s, d) => s + d.getBoundingClientRect().height, 0) + (nrw ? nrw.getBoundingClientRect().height : 0) || 21 }) };
     const foot = (tb.tFoot && tb.tFoot.offsetHeight ? tb.tFoot.getBoundingClientRect().height : 0) + tot.reduce((t, r) => t + r.getBoundingClientRect().height, 0);
     let ban = 0; scr.parentElement && scr.parentElement.querySelectorAll(":scope > .dly-iso").forEach(b => { ban += b.offsetHeight; });
     const bar = Math.max(0, scr.offsetHeight - scr.clientHeight);
@@ -243,9 +244,9 @@ function sviBdgDelaisDisposition(C) {
     const tb = [...scr.querySelectorAll("table")].find(t => t.offsetHeight && t.tHead); if (!tb) return 44;
     const top = tb.getBoundingClientRect().top - scr.getBoundingClientRect().top + scr.scrollTop;
     const rows = [...tb.tBodies].flatMap(b => [...b.rows]).filter(r => r.offsetHeight);
-    const nrw = rows.find(r => r.matches(LAY_NEW)), dat = rows.find(r => r !== nrw && !(r.classList.length && /tot/i.test(r.className)));
+    const nrw = rows.find(r => r.matches(LAY_NEW)), dats = rows.filter(r => r !== nrw && !(r.classList.length && /tot/i.test(r.className))).slice(0, sviBlkRows().r);
     const foot = tb.tFoot && tb.tFoot.offsetHeight ? tb.tFoot.getBoundingClientRect().height : 0;
-    return Math.ceil(top + tb.tHead.getBoundingClientRect().height + ((dat ? dat.getBoundingClientRect().height : 0) + (nrw ? nrw.getBoundingClientRect().height : 0) || 21) + foot + Math.max(0, scr.offsetHeight - scr.clientHeight)) + 1;
+    return Math.ceil(top + tb.tHead.getBoundingClientRect().height + (dats.reduce((s, d) => s + d.getBoundingClientRect().height, 0) + (nrw ? nrw.getBoundingClientRect().height : 0) || 21) + foot + Math.max(0, scr.offsetHeight - scr.clientHeight)) + 1;
   };
   /* à la hauteur minimale : la seule ligne visible est la ligne de saisie, entière */
   const layMinScroll = () => { const pg = page$(); if (!pg) return;
@@ -268,7 +269,7 @@ function sviBdgDelaisDisposition(C) {
     laySave({}); layApply();
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const pg = page$(); if (!pg) return; const lay = { h: {} };
-      LAY_UNITS.forEach(u => { if (pg.classList.contains("max-" + u)) return; const m = layMinOf(u); if (!m) return; lay.h[u] = Math.ceil(m + 4 * layRowH(u)); });
+      LAY_UNITS.forEach(u => { if (pg.classList.contains("max-" + u)) return; const m = layMinOf(u); if (!m) return; lay.h[u] = Math.ceil(m + Math.max(0, sviBlkRows().n - sviBlkRows().r) * layRowH(u)); });   /* v925 : n lignes (réglage des blocs) */
       laySave(lay); layApply(); setTimeout(layMinScroll, 30);
     }));
   };

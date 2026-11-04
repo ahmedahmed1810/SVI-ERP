@@ -60,7 +60,7 @@ const SVI_FMT_IF = [
 ];
 function sviFmt() {
   let v = null; try { v = JSON.parse(localStorage.getItem(SVI_FMT_KEY) || "null"); } catch (e) {}
-  return v && typeof v === "object" ? { el: v.el || {}, to: Array.isArray(v.to) ? v.to : null } : { el: {}, to: null };
+  return v && typeof v === "object" ? { el: v.el || {}, to: Array.isArray(v.to) ? v.to : null, blk: v.blk || {} } : { el: {}, to: null, blk: {} };
 }
 function sviFmtCss(F) {
   const out = [], all = !F.to || F.to.length >= SVI_FMT_IF.length;
@@ -83,10 +83,16 @@ function sviFmtCss(F) {
   });
   return out.join("\n");
 }
+/* v925 (remarque 5 du 04/11/2026) : BLOCS — lignes affichées par défaut (5) et en mode réduit (1, + CRÉER + TOTAL) ; agrandir reste à la poignée */
+function sviBlkRows(F) { const b = ((F || sviFmt()).blk) || {}, n = Math.max(1, Math.min(30, parseInt(b.n, 10) || 5)), r = Math.max(1, Math.min(n, parseInt(b.r, 10) || 1)); return { n, r }; }
 function sviFmtApply() {
   let st = document.getElementById("sviFmtStyle");
   if (!st) { st = document.createElement("style"); st.id = "sviFmtStyle"; (document.head || document.documentElement).appendChild(st); }
-  st.textContent = sviFmtCss(sviFmt());
+  const F = sviFmt(); st.textContent = sviFmtCss(F);
+  /* v925 : hauteurs par défaut des blocs = titres des colonnes + n lignes (+ TOTAL), d'après les hauteurs réglées */
+  try { const { n } = sviBlkRows(F), H = k => +((F.el[k] || {}).h) || (SVI_FMT_EL.find(x => x.k === k) || { def: {} }).def.h || 21, r = document.documentElement.style;
+    r.setProperty("--svi-blk-n", n); r.setProperty("--svi-hdef-t", (H("th") + n * H("row") + H("tot")) + "px"); r.setProperty("--svi-hdef-n", (H("th") + n * H("row") + 2) + "px");
+    r.setProperty("--svi-hdef-h", (n * 21 + 23) + "px"); r.setProperty("--svi-hdef-a", (n * 34 + 30) + "px"); } catch (e) {}
 }
 function sviFmtSave(F) { try { localStorage.setItem(SVI_FMT_KEY, JSON.stringify(F)); } catch (e) {} sviFmtApply(); }
 try { sviFmtApply(); } catch (e) {}

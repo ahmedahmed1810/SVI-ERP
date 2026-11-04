@@ -3449,12 +3449,18 @@ def main():
             const H = k => (SVI_FMT_EL.find(x => x.k === k) || { def: {} }).def.h; r.h = [H('row'), H('th')].join(',');
             r.win = ['winbg', 'winlab', 'winin', 'wincan', 'winok'].every(k => SVI_FMT_EL.some(x => x.k === k && x.win));
             const css2 = sviFmtCss({ el: { row: { h: 30 }, winok: { c: '#0a0b0c' } }, to: ['bdg'] }); r.hCss = /\.bdg-d-page table tbody td[^{]*\{[^}]*height:30px/.test(css2) && /html body #svConf \.svc-f \.svc-b\.svc-ok[^{]*\{[^}]*#0a0b0c/.test(css2);
+            /* remarque 5 : lignes des blocs (5 par défaut, 1 en mode réduit) ; remarque 6 : police fixe */
+            const B0 = sviBlkRows({ el: {} }); r.blk0 = B0.n + ',' + B0.r; sviFmtSave({ el: {}, to: null, blk: { n: 8, r: 2 } }); const B1 = sviBlkRows();
+            r.blk1 = B1.n + ',' + B1.r + ',' + getComputedStyle(document.documentElement).getPropertyValue('--svi-hdef-t').trim();
+            r.font = /Arial/.test(getComputedStyle(document.querySelector('button')).fontFamily) && !/TYPE DE CARACTÈRES/.test(sviMep.toString ? '' : '');
             if (keepF === null) localStorage.removeItem('svi_format_v1'); else localStorage.setItem('svi_format_v1', keepF); sviFmtApply(); return r; }""")
         check("FORME 04/11, remarques 1 et 2 : états REMIS (orange) et NON LETTRÉ (violet) dans la palette ; FOND DES ONGLETS = couleur du fond seulement",
               f1104["etats"] == "EN INSTANCE,FIGÉ,PARTIELLEMENT ACHEVÉ,REMIS,VALIDÉ,NON LETTRÉ,EXPIRÉ,BLOQUÉ,ARCHIVÉ" and f1104["vars"] == "#ea580c,#a21caf"
               and f1104["tabs"] == "FOND DES ONGLETS|bg" and f1104["tabsCss"], f1104)
         check("FORME 04/11, remarques 3 et 4 : parties des fenêtres réglées une fois pour toutes ; HAUTEUR de chaque élément (lignes 21 px, titres des colonnes 22 px au départ)",
               f1104["h"] == "21,22" and f1104["win"] and f1104["hCss"], f1104)
+        check("FORME 04/11, remarques 5 et 6 : blocs — lignes par défaut (5) et en mode réduit (1) réglables, hauteur par défaut recalculée ; police fixe Arial à l'écran",
+              f1104["blk0"] == "5,1" and f1104["blk1"] == "8,2,211px" and f1104["font"], f1104)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

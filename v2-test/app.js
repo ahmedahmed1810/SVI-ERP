@@ -3394,7 +3394,7 @@ const SVI_FMT_IF = [
 ];
 function sviFmt() {
   let v = null; try { v = JSON.parse(localStorage.getItem(SVI_FMT_KEY) || "null"); } catch (e) {}
-  return v && typeof v === "object" ? { el: v.el || {}, to: Array.isArray(v.to) ? v.to : null } : { el: {}, to: null };
+  return v && typeof v === "object" ? { el: v.el || {}, to: Array.isArray(v.to) ? v.to : null, blk: v.blk || {} } : { el: {}, to: null, blk: {} };
 }
 function sviFmtCss(F) {
   const out = [], all = !F.to || F.to.length >= SVI_FMT_IF.length;
@@ -3417,10 +3417,16 @@ function sviFmtCss(F) {
   });
   return out.join("\n");
 }
+/* v925 (remarque 5 du 04/11/2026) : BLOCS — lignes affichées par défaut (5) et en mode réduit (1, + CRÉER + TOTAL) ; agrandir reste à la poignée */
+function sviBlkRows(F) { const b = ((F || sviFmt()).blk) || {}, n = Math.max(1, Math.min(30, parseInt(b.n, 10) || 5)), r = Math.max(1, Math.min(n, parseInt(b.r, 10) || 1)); return { n, r }; }
 function sviFmtApply() {
   let st = document.getElementById("sviFmtStyle");
   if (!st) { st = document.createElement("style"); st.id = "sviFmtStyle"; (document.head || document.documentElement).appendChild(st); }
-  st.textContent = sviFmtCss(sviFmt());
+  const F = sviFmt(); st.textContent = sviFmtCss(F);
+  /* v925 : hauteurs par défaut des blocs = titres des colonnes + n lignes (+ TOTAL), d'après les hauteurs réglées */
+  try { const { n } = sviBlkRows(F), H = k => +((F.el[k] || {}).h) || (SVI_FMT_EL.find(x => x.k === k) || { def: {} }).def.h || 21, r = document.documentElement.style;
+    r.setProperty("--svi-blk-n", n); r.setProperty("--svi-hdef-t", (H("th") + n * H("row") + H("tot")) + "px"); r.setProperty("--svi-hdef-n", (H("th") + n * H("row") + 2) + "px");
+    r.setProperty("--svi-hdef-h", (n * 21 + 23) + "px"); r.setProperty("--svi-hdef-a", (n * 34 + 30) + "px"); } catch (e) {}
 }
 function sviFmtSave(F) { try { localStorage.setItem(SVI_FMT_KEY, JSON.stringify(F)); } catch (e) {} sviFmtApply(); }
 try { sviFmtApply(); } catch (e) {}
@@ -3859,8 +3865,8 @@ const sviMep = (() => {
     totaux: { x: 474, y: 600, w: 280, h: 90, flow: true }, sign: { x: 404, y: 880, w: 170, h: 120 }, cachet: { x: 584, y: 880, w: 170, h: 120 }, pied: { x: 40, y: 1040, w: 714, h: 66 } };
   const LBL = { entete: "ENTÊTE", date: "DATE", titre: "TITRE", frs: "CLIENT / FOURNISSEUR", ref: "RÉFÉRENCE", corps: "TABLEAU", totaux: "TOTAUX", sign: "SIGNATURE", cachet: "CACHET", pied: "PIED DE PAGE" };
   const FIX = ["entete", "pied", "sign", "cachet", "corps"], TXT = ["date", "titre", "frs", "ref"], STY = ["date", "titre", "frs", "ref", "corps", "totaux", "pied", "entete"];
-  const FS = { date: 15, titre: 24, frs: 22, ref: 16, corps: 12, totaux: 13, pied: 11, entete: 13 }, BOLD = ["date", "titre", "frs", "ref"];
-  const FF = [["", "PAR DÉFAUT (ARIAL)"], ['"Times New Roman",Times,serif', "TIMES NEW ROMAN"], ["Arial,Helvetica,sans-serif", "ARIAL"], ["Verdana,Geneva,sans-serif", "VERDANA"], ["Tahoma,Verdana,sans-serif", "TAHOMA"], ["Georgia,serif", "GEORGIA"], ['"Courier New",Courier,monospace', "COURIER NEW"]];
+  /* v925 (remarque 6) : Times, police non réglable ; texte à 10 pt (13,3 px), titres plus grands */
+  const FS = { date: 13.3, titre: 24, frs: 22, ref: 16, corps: 13.3, totaux: 13.3, pied: 13.3, entete: 13.3 }, BOLD = ["date", "titre", "frs", "ref"];
   const FLD = [["date", "DATE (VILLE, LE …)"], ["ddoc", "DATE DU DOCUMENT"], ["ref", "RÉFÉRENCE"], ["frs", "CLIENT / FOURNISSEUR"], ["titre", "TITRE DU DOCUMENT"], ["projet", "PROJET"], ["numFrs", "N° DOCUMENT TIERS"], ["ttc", "MONTANT TTC"], ["lettres", "MONTANT EN LETTRES"], ["mention", "MENTION À REPORTER (N° DE LA PIÈCE)"], ["soc", "ICE ET IF DE LA SOCIÉTÉ"], ["ent", "ENTREPRISE"]];
   const isX = k => String(k).startsWith("x_");
   const E = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -3888,7 +3894,7 @@ const sviMep = (() => {
       + (head ? `<tr>${shown.map(c => `<th>${E(c[1])}</th>`).join("")}</tr>` : "")
       + rows.map(r => `<tr>${shown.map(c => { const v = r[c[3]]; return `<td class="${c[2] === "number" ? "nm" : c[2] === "center" ? "c" : ""}">${E(typeof v === "number" ? (typeof money === "function" ? money(v) : v) : v ?? "")}</td>`; }).join("")}</tr>`).join("") + "</table>"; };
   const totHTML = () => D.endHtml ? D.endHtml : (D.tot || []).length ? `<table class="mep-tot"><colgroup><col style="width:55%"><col style="width:45%"></colgroup>${D.tot.map(([l, v]) => `<tr><th>${E(l)}</th><td>${E(typeof v === "number" ? (typeof money === "function" ? money(v) : v) : v)}</td></tr>`).join("")}</table>${D.note ? `<div class="mep-note">${E(D.note).replace(/\n/g, "<br>")}</div>` : ""}` : D.note ? `<div class="mep-note">${E(D.note).replace(/\n/g, "<br>")}</div>` : "";
-  const sty = (k, b) => (b.ff ? "font-family:" + b.ff + ";" : "") + (b.va && b.va !== "top" ? "display:flex;flex-direction:column;justify-content:" + (b.va === "middle" ? "center" : "flex-end") + ";" : "")
+  const sty = (k, b) => (b.va && b.va !== "top" ? "display:flex;flex-direction:column;justify-content:" + (b.va === "middle" ? "center" : "flex-end") + ";" : "")
     + "font-size:" + (b.fs || FS[k] || 13) + "px;" + (b.col ? "color:" + b.col + ";" : "") + ((b.b !== undefined ? b.b : BOLD.includes(k)) ? "font-weight:700;" : "font-weight:400;") + (b.i ? "font-style:italic;" : "") + (b.u ? "text-decoration:underline;" : "")
     + (b.bg ? "background:#fff;" : "") + (k === "corps" ? (b.rh !== undefined ? "--rp:" + b.rh + "px;" : "") + (b.hbg ? "--hbg:" + b.hbg + ";" : "") : "") + "z-index:" + (b.z || 1) + ";";
   const blockHTML = (k, b, inner, ed, pos) => `<div class="mep-b mep-${k.replace(/^x_.*/, "x")}${ed ? " ed" : ""}${ed && SEL === k ? " sel" : ""}" data-pb="${k}" style="left:${pos.x}px;top:${pos.y}px;width:${pos.w}px;${(k === "corps" || k === "totaux") && !ed ? "min-height" : "height"}:${pos.h}px;text-align:${b.al || "left"};${sty(k, b)}">${inner}${ed ? `<span class="mep-lb">${isX(k) ? (b.kind === "text" ? "TEXTE" : "CHAMP") : LBL[k]}</span><span class="mep-rz" data-rz="${k}"></span>` : ""}</div>`;
@@ -3956,8 +3962,7 @@ const sviMep = (() => {
       if (TXT.includes(SEL) || isX(SEL)) h += btns("ALIGNEMENT", "data-lal", [["left", "GAUCHE"], ["center", "CENTRE"], ["right", "DROITE"]], b.al || "left");
       if (STY.includes(SEL) || isX(SEL)) {
         const isB = b.b !== undefined ? b.b : BOLD.includes(SEL);
-        h += `<div class="mep-l">TYPE DE CARACTÈRES</div><select data-lff>${FF.map(f => `<option value="${E(f[0])}"${(b.ff || "") === f[0] ? " selected" : ""}>${f[1]}</option>`).join("")}</select>`
-          + `<div class="mep-l">TAILLE DES CARACTÈRES</div><div class="mep-al"><button type="button" class="mep-btn" data-lfs="-1">A −</button><span class="mep-fs">${b.fs || FS[SEL] || 13} px</span><button type="button" class="mep-btn" data-lfs="1">A +</button></div>`
+        h += `<div class="mep-l">TAILLE DES CARACTÈRES</div><div class="mep-al"><button type="button" class="mep-btn" data-lfs="-1">A −</button><span class="mep-fs">${b.fs || FS[SEL] || 13} px</span><button type="button" class="mep-btn" data-lfs="1">A +</button></div>`
           + `<div class="mep-l">COULEUR</div><div class="mep-al"><input type="color" data-lcol value="${b.col || "#000000"}">${["#000000", "#1f2430", "#2050d8", "#ca3a31", "#4ba054", "#8a909c"].map(c => `<button type="button" class="mep-sw${(b.col || "#000000") === c ? " on" : ""}" data-lcs="${c}" style="background:${c}"></button>`).join("")}</div>`
           + `<div class="mep-l">STYLE</div><div class="mep-al"><button type="button" class="mep-btn${isB ? " on" : ""}" data-lst="b" style="font-weight:800">G</button><button type="button" class="mep-btn${b.i ? " on" : ""}" data-lst="i" style="font-style:italic">I</button><button type="button" class="mep-btn${b.u ? " on" : ""}" data-lst="u" style="text-decoration:underline">S</button></div>`;
       }
@@ -4028,7 +4033,6 @@ const sviMep = (() => {
     if (t.matches("[data-ladd]") && t.value) { const k = "x_" + Date.now().toString(36), W = PW[ED.__o || "p"][0]; ED[k] = { kind: t.value === "text" ? "text" : "field", field: t.value === "text" ? "" : t.value, txt: t.value === "text" ? "TEXTE" : "", x: W / 2 - 120, y: 60, w: 240, h: 30, al: "left" }; SEL = k; draw(); return; }
     if (!b) return;
     if (t.matches("[data-lfld]")) { b.field = t.value; draw(); }
-    if (t.matches("[data-lff]")) { b.ff = t.value; draw(); }
     if (t.matches("[data-lcol]")) { b.col = t.value; draw(); }
     if (t.matches("[data-lvis]")) { const C = colsOf(b), v = new Set(C.vis); if (t.checked) v.add(t.dataset.lvis); else v.delete(t.dataset.lvis); b.vis = C.all.map(c => c[0]).filter(k => v.has(k)); draw(); }
     if (t.matches("[data-lrest]")) { b.rest = t.dataset.lrest; draw(); } };
@@ -5186,7 +5190,10 @@ function sviParamTabs() {
           + (ok("fs") ? `<td class="center"><input class="fmt-in fmt-fs center" data-f="fs" inputmode="numeric" value="${esc(v("fs"))}"></td>` : no)
           + ["b", "i", "u"].map(f => ok(f) ? `<td class="center"><input type="checkbox" class="fmt-in" data-f="${f}"${v(f) ? " checked" : ""}></td>` : no).join("")
           + (ok("h") && v("h") ? `<td class="center"><input class="fmt-in fmt-fs center" data-f="h" inputmode="numeric" value="${esc(v("h"))}"></td>` : no); })()}
-        <td class="center">${F.el[E.k] ? `<button type="button" class="col-rst" data-fel="${E.k}">PAR DÉFAUT</button>` : ""}</td></tr>`; }).join("")}</tbody></table>`;
+        <td class="center">${F.el[E.k] ? `<button type="button" class="col-rst" data-fel="${E.k}">PAR DÉFAUT</button>` : ""}</td></tr>`; }).join("")}</tbody></table>
+      ${(() => { const B = sviBlkRows(F); return `<table class="prm-table fmt-t fmt-blk"><colgroup><col style="width:300px"><col style="width:90px"></colgroup><thead><tr><th>BLOCS</th><th class="center">LIGNES</th></tr></thead>
+        <tbody><tr><td>LIGNES AFFICHÉES PAR DÉFAUT</td><td class="center"><input class="fmt-blk-in center" data-b="n" inputmode="numeric" value="${B.n}"></td></tr>
+        <tr><td>LIGNES EN MODE RÉDUIT (+ CRÉER ET TOTAL)</td><td class="center"><input class="fmt-blk-in center" data-b="r" inputmode="numeric" value="${B.r}"></td></tr></tbody></table>`; })()}`;   /* v925 (remarque 5) */
   };
   const fifDraw = () => {
     const F = sviFmt(), on = k => !F.to || F.to.includes(k);
@@ -5201,6 +5208,8 @@ function sviParamTabs() {
     else F.el[k][i.dataset.f] = i.value;
     sviFmtSave(F); });
   epane.addEventListener("change", e => { const i = e.target.closest(".fmt-in"); if (!i) return; if (i.type === "checkbox") { const k = i.closest("tr").dataset.el, F = sviFmt(); F.el[k] = F.el[k] || {}; F.el[k][i.dataset.f] = i.checked ? 1 : 0; sviFmtSave(F); } felDraw(); });
+  epane.addEventListener("change", e => { const i = e.target.closest(".fmt-blk-in"); if (!i) return; const F = sviFmt(), n = parseInt(String(i.value).replace(/\D/g, ""), 10);
+    if (!(n >= 1 && n <= 30)) { svToast("ENTRE 1 ET 30 LIGNES.", 2500, i); felDraw(); return; } F.blk = { ...sviBlkRows(F), [i.dataset.b]: n }; F.blk = sviBlkRows(F); sviFmtSave(F); felDraw(); });
   epane.addEventListener("click", e => { const b = e.target.closest("[data-fel]"); if (!b) return; const F = sviFmt(); delete F.el[b.dataset.fel]; sviFmtSave(F); felDraw(); });
   ipane.addEventListener("change", e => { const F = sviFmt();
     if (e.target.matches(".fif-all")) F.to = e.target.checked ? null : [];

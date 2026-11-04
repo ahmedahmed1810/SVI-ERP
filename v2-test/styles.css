@@ -49,11 +49,13 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* v925 (remarque 6 du 04/11/2026) : police fixe, non réglable — Arial à l'écran (Times 10 pt à l'impression, MISE EN PAGE) */
 button,
 input,
 select,
 textarea {
   font: inherit;
+  font-family: Arial, Helvetica, sans-serif;
   text-transform: uppercase;
 }
 
@@ -619,10 +621,10 @@ tfoot td {
 /* ===== budget en instance / figé : blocs à hauteur fixe (vides ou non) ===== */
 /* désignations client : hauteur fixe de 5 lignes (en-tête + 5 lignes + total),
    ajustable par la poignée, même vide ou avec plus de lignes */
-.bdg-d-block > .bdg-d-scroll.bdg-d-client-scroll { height: var(--h-client, 148px); }
+.bdg-d-block > .bdg-d-scroll.bdg-d-client-scroll { height: var(--h-client, var(--svi-hdef-t, 148px)); }
 .bdg-inst-instance .bdg-d-tabbody .bdg-d-scroll,
-.bdg-inst-fige .bdg-d-tabbody .bdg-d-scroll { height: var(--h-detail, 148px); }
-.bdg-inst-instance .bdg-h-col, .bdg-inst-fige .bdg-h-col { height: var(--h-hier, 128px); }
+.bdg-inst-fige .bdg-d-tabbody .bdg-d-scroll { height: var(--h-detail, var(--svi-hdef-t, 148px)); }
+.bdg-inst-instance .bdg-h-col, .bdg-inst-fige .bdg-h-col { height: var(--h-hier, var(--svi-hdef-h, 128px)); }
 
 /* ===== saisie directe ===== */
 .ins-table td.ins-td { padding: 0 !important; }
@@ -831,9 +833,9 @@ tfoot td {
 #svConf .svc-x { white-space: pre-line; }
 #svConf .svc-ok.svc-neutral { border-color: #172033; color: #172033; }
 /* consigne 16 : blocs à hauteur fixe de 5 lignes, même vides (tous les modes) */
-.bdg-d-page:not(.max-client) .bdg-d-block > .bdg-d-scroll.bdg-d-client-scroll { height: var(--h-client, 148px) !important; max-height: none !important; }
-.bdg-d-page:not(.max-rec) .blk-suivi .rec-scroll { height: var(--h-suivi, 129px); max-height: none; }
-.bdg-d-page:not(.max-detail) .bdg-d-tabbody .bdg-d-scroll { height: var(--h-detail, 148px); max-height: none; }
+.bdg-d-page:not(.max-client) .bdg-d-block > .bdg-d-scroll.bdg-d-client-scroll { height: var(--h-client, var(--svi-hdef-t, 148px)) !important; max-height: none !important; }
+.bdg-d-page:not(.max-rec) .blk-suivi .rec-scroll { height: var(--h-suivi, var(--svi-hdef-n, 129px)); max-height: none; }
+.bdg-d-page:not(.max-detail) .bdg-d-tabbody .bdg-d-scroll { height: var(--h-detail, var(--svi-hdef-t, 148px)); max-height: none; }
 /* consigne 5 : en-têtes non tronqués */
 
 /* onglets vides : le compteur 0 suffit (pas de mise en forme spéciale) */
@@ -2993,7 +2995,7 @@ table.svi-bdgl tbody tr[data-nvo] { cursor: pointer; }
 table.svi-bdgl thead th .cf-wrap { float: none; width: 100%; }
 #ach .nvp .nv-strike td { text-decoration: line-through; color: #94a3b8; }
 /* v771 : bloc AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES comme les autres blocs — 5 lignes par défaut, défilement au-delà, poignée libre */
-.blk-etp .etp-pane .rec-scroll { height: auto; max-height: var(--h-etp, 129px); overflow: auto; }
+.blk-etp .etp-pane .rec-scroll { height: auto; max-height: var(--h-etp, var(--svi-hdef-n, 129px)); overflow: auto; }
 .bdg-d-page.max-etp .blk-etp .etp-pane .rec-scroll { max-height: none !important; }
 /* fenêtre de SÉLECTION : FERMER bien visible, colonne CUMUL */
 .cmpm-close { font-weight: 900 !important; border: 2px solid #12355b !important; color: #12355b !important; background: #fff !important; }
@@ -3116,7 +3118,8 @@ body.mep-open { overflow: hidden; }
 #sviMep .mep-area { overflow: auto; padding: 20px; }
 #sviMep .mep-pages { display: flex; flex-direction: column; align-items: center; gap: 16px; }
 #sviMep .mep-pw { position: relative; }
-#sviMep .mep-pg { position: absolute; left: 0; top: 0; background: #fff; color: #000; box-shadow: 0 2px 12px rgba(0,0,0,.12); transform-origin: 0 0; overflow: hidden; font: 13px/1.35 Arial, Helvetica, sans-serif; text-transform: none; }
+#sviMep .mep-pg { position: absolute; left: 0; top: 0; background: #fff; color: #000; box-shadow: 0 2px 12px rgba(0,0,0,.12); transform-origin: 0 0; overflow: hidden; font: 10pt/1.35 "Times New Roman", Times, serif; text-transform: none; }
+#sviMep .mep-pg * { font-family: "Times New Roman", Times, serif !important; }   /* v925 (remarque 6) : impression en Times, police non réglable */
 #sviMep .mep-b { position: absolute; box-sizing: border-box; overflow: visible; }
 #sviMep .mep-b img { max-width: 100%; max-height: 100%; display: block; margin: 0 auto; }
 #sviMep .mep-entete img { width: 100%; height: 100%; object-fit: contain; }
@@ -3137,6 +3140,7 @@ body.mep-open { overflow: hidden; }
 #sviMep .mep-lb { position: absolute; left: 0; top: -17px; font: 700 10px Arial, sans-serif; color: #2050d8; background: #fff; padding: 0 4px; white-space: nowrap; }
 #sviMep .mep-rz { position: absolute; right: -9px; bottom: -9px; width: 18px; height: 18px; border-radius: 50%; background: #2050d8; border: 2px solid #fff; cursor: nwse-resize; touch-action: none; }
 @media print {
+  body, body * { font-family: "Times New Roman", Times, serif !important; }
   body.mep-printing > *:not(#sviMep) { display: none !important; }
   body.mep-printing #sviMep { position: static; display: block; background: #fff; }
   body.mep-printing #sviMep .mep-side { display: none; }
