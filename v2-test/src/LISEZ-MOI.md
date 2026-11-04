@@ -14,7 +14,7 @@ python3 outils/mesure.py             # v915 : temps d'ouverture (gros budget d'e
 | `app-budget.js` | BUDGET | 02b, 02c, 02d, 02f, 07, 10 à 27, 30 |
 | `app-achats.js` | ACHATS | 40 à 45 |
 
-`index.html` charge les quatre fichiers dans cet ordre, avec le même numéro de version. Tous les écouteurs globaux (clavier, saisie, calendrier, menu) sont dans le socle, dans le même ordre qu'avant ; les autres modules ne contiennent que des déclarations (sauf ACHATS, qui démarre son écran). Un nouveau fichier de `src/` se range dans `MODULES` de `outils/assembler.py`, sinon l'assemblage s'arrête.
+v916 : `index.html` ne charge plus que `app.js` puis `app-budget.js` ; `app-achats.js` est chargé par le socle (32-demarrage.js, `sviAchLoad`) dès que la page est prête, ou au premier toucher d'une entrée ACHATS. Avant v916, `index.html` chargeait les fichiers dans cet ordre, avec le même numéro de version. Tous les écouteurs globaux (clavier, saisie, calendrier, menu) sont dans le socle, dans le même ordre qu'avant ; les autres modules ne contiennent que des déclarations (sauf ACHATS, qui démarre son écran). Un nouveau fichier de `src/` se range dans `MODULES` de `outils/assembler.py`, sinon l'assemblage s'arrête.
 
 Les fichiers 11 à 27 forment ensemble la fonction `openBudgetDetail` (écran d'un budget) : ils se suivent et partagent les mêmes variables ; un fichier seul n'est donc pas un module JavaScript complet. Une ligne repère `/* ⟪ src/… ⟫ */` marque dans chaque fichier assemblé le début de chaque fichier de src/.
 

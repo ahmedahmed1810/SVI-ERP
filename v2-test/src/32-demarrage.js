@@ -133,3 +133,32 @@ function budgetDate(ref) {
 }
 
 
+
+/* v916 (mission ALLÈGEMENT, étape 2) : le module ACHATS (app-achats.js) n'est plus chargé au démarrage —
+   il se charge tout seul dès que l'écran est prêt (temps libre), et au plus tard au premier toucher d'une entrée ACHATS
+   (le toucher est rejoué une fois le module chargé). Même numéro de version que app.js. */
+let SVI_ACH_P = null;
+const sviAchLoad = () => {
+  if (typeof sviAchInit === "function") return Promise.resolve();
+  if (SVI_ACH_P) return SVI_ACH_P;
+  const me = [...document.scripts].find(s => /\/app\.js(\?|$)/.test(s.src));
+  const q = me && me.src.includes("?") ? me.src.slice(me.src.indexOf("?")) : "";
+  SVI_ACH_P = new Promise((ok, ko) => {
+    const s = document.createElement("script");
+    s.src = "app-achats.js" + q; s.async = false;
+    s.onload = () => setTimeout(ok, 0);   /* après le démarrage du module (41 : setTimeout) */ s.onerror = () => { SVI_ACH_P = null; s.remove(); ko(new Error("ACHATS")); };
+    document.head.appendChild(s);
+  });
+  return SVI_ACH_P;
+};
+window.sviAchLoad = sviAchLoad;
+document.addEventListener("click", e => {
+  if (typeof sviAchInit === "function") return;
+  const b = e.target && e.target.closest && e.target.closest('[data-ach], .nav-btn[data-view="ach"]');
+  if (!b) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  sviAchLoad().then(() => b.click()).catch(() => { try { svToast("ACHATS : CHARGEMENT IMPOSSIBLE — VÉRIFIER LA CONNEXION ET RÉESSAYER.", 4000); } catch (er) {} });
+}, true);
+{ const go = () => { try { sviAchLoad().catch(() => {}); } catch (e) {} };
+  const idle = () => (window.requestIdleCallback ? requestIdleCallback(go, { timeout: 1500 }) : setTimeout(go, 300));
+  if (document.readyState === "complete") idle(); else window.addEventListener("load", idle); }

@@ -54,8 +54,10 @@ def static_checks():
     check("fichiers des modules : syntaxe valide", not errs, errs)
     import re
     tags = re.findall(r'<script src="(app[\w-]*\.js)\?v=(\d+)"', open(os.path.join(ROOT, "index.html"), encoding="utf-8").read())
-    check("index.html charge app.js, app-budget.js, app-achats.js (même version ; v914 : app-autres.js supprimé avec BDS)",
-          [t[0] for t in tags] == ["app.js", "app-budget.js", "app-achats.js"] and len({t[1] for t in tags}) == 1, tags)
+    # v916 (ALLÈGEMENT) : app-achats.js n'est plus dans index.html — le socle le charge à la demande (même version que app.js)
+    soc = open(os.path.join(ROOT, "app.js"), encoding="utf-8").read()
+    check("index.html charge app.js puis app-budget.js (même version) ; ACHATS chargé à la demande par le socle (v916)",
+          [t[0] for t in tags] == ["app.js", "app-budget.js"] and len({t[1] for t in tags}) == 1 and '"app-achats.js" + q' in soc, tags)
 
 class MepView:
     """v784 : l'aperçu s'ouvre dans l'application (éditeur MISE EN PAGE unique), plus dans une autre fenêtre."""

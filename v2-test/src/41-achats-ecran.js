@@ -425,5 +425,6 @@ function svChooseArt(A) {
     });
   });
 }
-if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", sviAchInit); else sviAchInit();
+/* v916 : module chargé à la demande (page déjà prête) — démarré après la lecture de tous ses fichiers (ACH_SW… déclarés plus loin) */
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", sviAchInit); else setTimeout(sviAchInit, 0);
 document.addEventListener("click", e => { const nb = e.target.closest && e.target.closest('.nav-btn[data-view="ach"]'); if (nb) setTimeout(() => { const v = document.getElementById("ach"); if (!v) return; if (nb.dataset.ach && v.__achTab) v.__achTab(nb.dataset.ach); else if (v.__achDraw) v.__achDraw(); }, 0); });
