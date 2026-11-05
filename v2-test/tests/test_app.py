@@ -3923,6 +3923,15 @@ def main():
   r.frs = c(bt[0]); r.dvf = c(bt[1]); r.q = getComputedStyle(b.querySelector('tr.nvr-instance td.q')).color;
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("DOCUMENT UNIQUE 2.10 : sur une ligne en instance, le fournisseur validé reste noir et le devis partiel bleu (couleurs de la palette, même si le format de l'interface ou des lignes change) ; les champs simples prennent la couleur de la pièce de la ligne", b210.get('frs') == 'rgb(23, 32, 51)/rgb(23, 32, 51)' and b210.get('dvf') == 'rgb(29, 78, 216)/rgb(29, 78, 216)' and b210.get('q') == 'rgb(0, 255, 0)', b210)
+        c613 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_dvf_v1'], keep = K.map(k => localStorage.getItem(k));
+  await sviAchLoad(); achDvfSave([{ id: 'VA', ref: 'DVF A', state: 'valide', date: '2026-10-31', lignes: [{ des: 'X', u: 'U', q: 1, pu: 1 }] }, { id: 'VB', ref: 'DVF B', state: 'instance', date: '2026-10-31', lignes: [] }]);
+  document.querySelector('#navMenu .nav-btn[data-ach="dvf"]').click(); await w(400);
+  const sw = () => document.querySelector('#ach [data-nvsw]'), t = () => document.querySelector('#ach table.svi-bdgl');
+  const st = () => ({ inst: t().classList.contains('nv-inst'), act: t().querySelectorAll('.bdg-act-h, .bdg-action-cell').length, cols: t().querySelectorAll('colgroup col').length, ths: t().querySelectorAll('thead th').length });
+  const a = st(); for (let k = 0; k < 4 && st().inst === a.inst; k++) { sw().click(); await w(400); } const b = st(); r.v = a.inst ? b : a; r.i = a.inst ? a : b;
+  const p = document.querySelector('#ach .svi-bdgp'); r.pw = Math.round(p.getBoundingClientRect().width);
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check('DOCUMENT UNIQUE 6.13 : liste validée des achats sans colonne de corbeille (la liste en instance la garde) ; panneau des dates resserré', c613.get('v', {}).get('act') == 0 and c613['v']['cols'] == c613['v']['ths'] and c613.get('i', {}).get('act', 0) > 0 and c613['i']['cols'] == c613['i']['ths'] and c613.get('pw', 999) < 165, c613)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
