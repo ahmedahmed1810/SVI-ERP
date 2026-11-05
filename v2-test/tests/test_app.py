@@ -3516,7 +3516,7 @@ def main():
         check("SÉRIE B, B3 et B4 : blocs liés des fiches — ligne entière à la couleur de l'état ; hauteur commune (lignes par défaut / mode réduit) par le ⋯ du bloc", b34.get("cls") == "nvr-instance|nvr-valide|nvr-instance" and b34.get("menu") == "AGRANDIR|5 LIGNES (PAR DÉFAUT)|MODE RÉDUIT (1 LIGNE)" and b34.get("red") == "commandes", b34)
         b5 = pg.evaluate("""() => { const E = SVI_FMT_EL.find(x => x.k === 'toptag'); return !!E && E.sel.includes('#sviScreenTag') && /#sviScreenTag[^{]*\{[^}]*font-size:18px/.test(sviFmtCss({ el: { toptag: { fs: 18, bg: '#000000' } } })); }""")
         check('SÉRIE B, B5 : bandeau du milieu de la barre du haut réglable avec elle (fond, texte, taille)', b5 is True, b5)
-        b6 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_pg_v1');
+        b6 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_pg_v1'); { const o0 = sviPg(); o0.banques = []; sviPgSave(o0); }
   document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300);
   r.tabs = [...document.querySelectorAll('#chs .pg-tabs .prm-tab')].map(b => b.textContent.trim()).join('|'); r.first = (document.querySelector('#chs .prm-tab.on') || {}).dataset?.prm;
   r.gen = !!document.querySelector('#chs .prm-pg .tva-def') && !!document.querySelector('#chs .prm-pg .trk-km') && !document.querySelector('.prm-tab[data-prm="tva"]');
@@ -3529,6 +3529,18 @@ def main():
   document.querySelector('.prm-tab[data-prm="cal"]').click(); await w(150); const o = sviPg(); o.cal = [{ id: 'c1', a: '2030-01-01', b: '2030-01-02', m: 'FÉRIÉ' }]; sviPgSave(o); r.cal = sviCalOf({}).off.join(',') + '|' + sviCalOf({ cal: { off: [] } }).off.length;
   if (keep === null) localStorage.removeItem('svi_pg_v1'); else localStorage.setItem('svi_pg_v1', keep); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("SÉRIE B, B6 B2 B7 B8 B9 B20 B22 B24 B31 B38 B41 : PARAMÉTRAGE GÉNÉRAL — une rangée d'onglets (GÉNÉRAL en premier), TVA et transport dans GÉNÉRAL, BANQUES pliables (agences, code banque 3 chiffres), COMPTABILITÉ, CALENDRIER de la société repris par les budgets sans calendrier propre", b6.get("tabs", "").startswith("GÉNÉRAL|SOCIÉTÉ|UNITÉS") and b6.get("gen") and b6.get("banq") == "BANQUE POPULAIRE,>AGENCE CENTRE|1" and b6.get("code") and b6.get("cpt") == "4411" and b6.get("cal") == "2030-01-01,2030-01-02|0", b6)
+        b10 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_ach_prm_v1'), kt = localStorage.getItem('svi_achprm_tab_v1');
+  localStorage.removeItem('svi_achprm_tab_v1'); document.querySelector('#navMenu .nav-btn[data-ach="prm"]').click(); await w(400); const v = document.getElementById('ach');
+  r.tabs = [...v.querySelectorAll('[data-ptab]')].map(b => b.textContent.trim()).join('|'); r.boxes = [...v.querySelectorAll('.ach-pt')].map(b => b.textContent.trim()).join('|');
+  const a = v.querySelector('.ach-alr[data-k="cmd"]'); a.value = '15'; a.dispatchEvent(new Event('change', { bubbles: true })); await w(100); r.alr = achPrm().alr.cmd;
+  v.querySelector('.ach-espnew').click(); await w(150); r.esp = achPrm().espL.length;
+  const s = v.querySelector('.ach-seunew'); s.value = '5000'; s.dispatchEvent(new Event('change', { bubbles: true })); await w(150);
+  const g = v.querySelector('.ach-seu[data-f="g"]'); g.value = '3, 1'; g.dispatchEvent(new Event('change', { bubbles: true })); await w(150); r.seu = JSON.stringify(achPrm().seuV.map(x => [x.mt, x.g, x.h]));
+  r.noBq = !/BANQUES/.test(v.textContent) && !/NOVAPP/.test(v.textContent) && !/PRÉVU DU BUDGET/.test(v.textContent);
+  v.querySelector('[data-ptab="cat"]').click(); await w(200); r.cat = !!v.querySelector('#achCatT');
+  if (keep === null) localStorage.removeItem('svi_ach_prm_v1'); else localStorage.setItem('svi_ach_prm_v1', keep); if (kt === null) localStorage.removeItem('svi_achprm_tab_v1'); else localStorage.setItem('svi_achprm_tab_v1', kt);
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check('SÉRIE B, B10 B12a B36 B30 B12 B13 B14 B15 B19 : ACHATS › PARAMÈTRES en onglets (GÉNÉRAL, CATÉGORIES, GROUPES), tableaux alignés — règles internes, alertes de retard, plafonds en espèces par période, mentions imprimées, seuils de validation ; banques, import NovApp et alerte 90 % du budget retirés', b10.get('tabs','').startswith('GÉNÉRAL|CATÉGORIES|GROUPES') and b10.get('alr') == 15 and b10.get('esp', 0) >= 2 and b10.get('seu') == '[[5000,["3","1"],true]]' and b10.get('noBq') and b10.get('cat'), b10)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

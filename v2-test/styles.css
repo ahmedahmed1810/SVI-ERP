@@ -1384,6 +1384,12 @@ détail technique en petit */
 #chs .pg-t td:first-child { white-space: nowrap; } #chs .pg-t td:first-child > .prm-in { width: auto; min-width: 160px; }
 #chs .pg-tree tr.pg-lv0 td { font-weight: 800; background: var(--tb-ttl-bg, #ece8e1); }
 #chs .pg-logo img { max-height: 60px; display: block; margin-bottom: 6px; }
+/* série B (B12a, B36) : ACHATS › PARAMÈTRES au format commun — onglets, tableaux alignés, même espacement */
+#ach .ach-prm { flex-direction: column; flex-wrap: nowrap; gap: 14px; align-items: stretch; }
+#ach .ach-prm > .ach-ptabs { display: flex; width: 100%; }
+#ach .ach-prm > .ach-ptabs > .bdg-d-tab { flex: 1 1 0; }
+#ach .ach-prm .ach-pgen td, #ach .ach-prm .ach-palr td, #ach .ach-prm .ach-pment td { height: 30px; }
+#ach .ach-prm .ach-pgen input.number, #ach .ach-prm .ach-palr input.number { width: 120px; text-align: right; }
 #home .home-note { padding: 14px 16px; color: #475467; font-size: 12px; font-weight: 700; }
 #blkMenu .dly-sc.on span { font-weight: 800; }
 #blkMenu [data-dly].off { opacity: .45; }
