@@ -1406,6 +1406,12 @@ détail technique en petit */
 .art-scroll[data-at="frs"] .frs-g > :not(.art-frs) { display: none; }
 .art-scroll .art-frs { grid-column: 1 / -1; }
 .art-bang { color: #dc2626; font-size: 1.2em; }
+/* B11, B17, B28 : fiche du champ */
+#svMaskPop textarea.mkp-tip { width: 100%; box-sizing: border-box; }
+#svMaskPop .mkp-t2 { margin-top: 10px; font-size: 12px; }
+#svMaskPop .mkp-some { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+#svMaskPop .mkp-some[hidden] { display: none; }
+#svMaskPop .mkp-some .mkp-n { flex: 1 1 100%; }
 #home .home-note { padding: 14px 16px; color: #475467; font-size: 12px; font-weight: 700; }
 #blkMenu .dly-sc.on span { font-weight: 800; }
 #blkMenu [data-dly].off { opacity: .45; }

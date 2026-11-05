@@ -35,7 +35,9 @@ const sviMep = (() => {
     Object.keys(DEF).forEach(k => { const d = DEF[k]; L[k] = Object.assign({ ...d, x: Math.round(d.x * sx), y: Math.round(d.y * sy), w: Math.round(d.w * sx), h: Math.round(d.h * sy) }, u.__o === orient ? u[k] || {} : {}); });
     if (u.__o === orient) Object.keys(u).filter(isX).forEach(k => L[k] = { ...u[k] });
     return L; };
-  const L = () => ED || layOf(D.key, O.orient);
+  /* B28 : chaque champ imprimé (D.auto = [[id, libellé, valeur]]) a son bloc, placé d'office, déplaçable, à cacher pour une impression */
+  const autoAdd = y => { (D.auto || []).forEach(([id], n) => { const k = "x_a_" + id; if (!y[k]) y[k] = { kind: "field", field: "a_" + id, auto: true, x: 60, y: 870 + n * 24, w: 330, h: 22, al: "left" }; }); return y; };
+  const L = () => autoAdd(ED || layOf(D.key, O.orient));
   const today = () => { const m = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"], n = new Date(); return "Agadir, le " + String(n.getDate()).padStart(2, "0") + " " + m[n.getMonth()] + " " + n.getFullYear(); };
   const field = f => f === "date" ? today() : f === "ddoc" ? E(D.date || "") : f === "ref" ? E(D.ref || "") : f === "frs" ? E(D.party || "") : f === "titre" ? E(D.title || "") : f === "ent" ? "SVI" : E((D.fields || {})[f] ?? "");
   /* colonnes visibles, ordre et largeurs (%) — RESTE = la colonne qui prend la place libre */
@@ -172,7 +174,7 @@ const sviMep = (() => {
       if (k === "cancel") { ED = null; SEL = null; draw(); return; }
       if (k === "reset") { ED = JSON.parse(JSON.stringify(layOf("__std__", ED.__o))); SEL = null; draw(); svToast && svToast("MISE EN PAGE STANDARD RÉTABLIE (PENSER À ENREGISTRER).", 2500); return; }
       if (k === "save") { const all = ls.get(LKEY, {}); all[D.key] = ED; ls.set(LKEY, all); ED = null; SEL = null; draw(); svToast && svToast("MISE EN PAGE ENREGISTRÉE POUR CE TYPE DE DOCUMENT.", 2500); return; }
-      if (k === "del") { if (ED && SEL) { if (isX(SEL)) delete ED[SEL]; else ED[SEL].hide = true; SEL = null; draw(); } return; }
+      if (k === "del") { if (ED && SEL) { if (isX(SEL) && !ED[SEL].auto) delete ED[SEL]; else ED[SEL].hide = true; SEL = null; draw(); } return; }
       if (k === "print") { document.body.classList.add("mep-printing"); const st = document.createElement("style"); st.id = "mepPage"; st.textContent = "@page { size: A4 " + ((L().__o || "p") === "l" ? "landscape" : "portrait") + "; margin: 0; }"; document.head.appendChild(st);
         const back = () => { document.body.classList.remove("mep-printing"); st.remove(); fit(); window.removeEventListener("afterprint", back); }; window.addEventListener("afterprint", back);
         ROOT.querySelectorAll(".mep-pg").forEach(p => { p.style.transform = "none"; }); window.print(); setTimeout(back, 1500); return; }

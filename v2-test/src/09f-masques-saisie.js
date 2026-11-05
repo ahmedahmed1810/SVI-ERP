@@ -74,7 +74,7 @@ const sviMaskLab = k => (sviMaskOf(k) || {}).lab || k;
    (administrateur ; ouvert à tous en attendant les droits). Le champ est reconnu par sa clé (data-k / data-f / id) et son libellé. */
 function sviMaskLabOf(i) {
   const t = x => String(x || "").replace(/[*\s]+$/g, "").replace(/\s+/g, " ").trim().toUpperCase();
-  const l = i.closest("label"); if (l) { const s = l.querySelector("span"); if (s && !s.contains(i)) return t(s.textContent); }
+  const l = i.closest("label"); if (l) { const s = l.querySelector("span"); if (s && !s.contains(i)) return t(s.dataset.olab || s.textContent); }
   let p = i.closest(".fld-wrap") || i; p = p.previousElementSibling; if (p && /doc-lab|frs-l/.test(p.className)) return t(p.textContent);
   const td = i.closest("td"), tb = td && td.closest("table"); if (td && tb && tb.tHead) { const th = tb.tHead.rows[0] && tb.tHead.rows[0].cells[td.cellIndex]; if (th) return t(th.textContent); }
   return t(i.placeholder || i.name || i.id || "CHAMP");
@@ -83,12 +83,43 @@ const sviMaskKeyOf = i => i.dataset.mask || ("c:" + (i.dataset.k || i.dataset.f 
 const SVI_MASK_FIELD = "#svConf input, #docPop input";
 const sviMaskable = i => !!(i && i.matches && i.matches(SVI_MASK_FIELD) && (!i.type || ["text", "tel", "search"].includes(i.type)) && !i.readOnly && !i.disabled);
 document.addEventListener("focusin", e => { const i = e.target; if (!sviMaskable(i) || i.dataset.mask) return; const k = sviMaskKeyOf(i); if ((sviMaskOf(k) || {}).m) i.dataset.mask = k; }, true);
+/* série B (B11, B17, B28) : RÉGLAGES D'UN CHAMP, valables partout où il apparaît — INTITULÉ (renommé), EXPLICATION (bulle à l'appui long
+   sur l'intitulé), MASQUE, OBLIGATOIRE (pour tous, ou seulement certains groupes / types de fournisseurs), IMPRIMÉ SUR LA COMMANDE */
+const SVI_FLD_K = "svi_fld_v1";
+const sviFlds = () => { try { const o = JSON.parse(localStorage.getItem(SVI_FLD_K) || "{}"); return o && typeof o === "object" ? o : {}; } catch (e) { return {}; } };
+const sviFldSave = o => { try { localStorage.setItem(SVI_FLD_K, JSON.stringify(o)); } catch (e) {} };
+const sviFldSrc = i => { const m = String(i.className || "").match(/\b([a-z]+)-xs?\b/); return m ? m[1] : ""; };
+const sviFldCtx = i => { const c = i.closest(".svc-card, .frs-card, #docPop") || document, v = s => ((c.querySelector(s) || {}).value || ""); return { g: v('select[data-k="grp"]'), t: v('select[data-k="type"]') }; };
+const sviFldReq = (S, x) => !!S && (S.req === "all" || (S.req === "some" && (((S.reqG || []).includes(x.g)) || ((S.reqT || []).includes(x.t)))));
+const SVI_FLD_SEL = "#svConf input, #svConf select, #svConf textarea, #docPop input, #docPop textarea";
+const sviFldSpan = i => { const l = i.closest("label"); const s = l && l.querySelector("span"); return s && !s.contains(i) ? s : null; };
+/* intitulé renommé, bulle d'explication, astérisque des champs obligatoires */
+function sviFldApply(root) { const F = sviFlds(); if (!Object.keys(F).length) return;
+  root.querySelectorAll(SVI_FLD_SEL).forEach(i => { if (["checkbox", "radio", "file", "hidden"].includes(i.type)) return; const s = sviFldSpan(i); if (!s) return;
+    const k = sviMaskKeyOf(i), S = F[k]; if (!S) return;
+    if (s.dataset.olab === undefined) s.dataset.olab = String(s.textContent || "").replace(/[*\s]+$/g, "").trim();
+    const star = !!s.querySelector("b") || sviFldReq(S, sviFldCtx(i));
+    s.innerHTML = esc(S.lab || s.dataset.olab) + (star ? " <b>*</b>" : ""); if (S.tip) s.dataset.tip = S.tip; else delete s.dataset.tip; });
+}
+/* OBLIGATOIRE : refusé à l'enregistrement ou à la validation de la fenêtre, quel que soit le champ */
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("#svConf [data-save], #svConf [data-valid], #svConf [data-save2]"); if (!b) return; const F = sviFlds(); if (!Object.keys(F).length) return;
+  const card = b.closest("#svConf"); for (const i of card.querySelectorAll(SVI_FLD_SEL)) { if (i.disabled || ["checkbox", "radio", "file", "hidden"].includes(i.type) || i.closest("[hidden]")) continue;
+    const S = F[sviMaskKeyOf(i)]; if (!sviFldReq(S, sviFldCtx(i)) || String(i.value || "").trim()) continue;
+    e.preventDefault(); e.stopImmediatePropagation(); svToast("CHAMP OBLIGATOIRE : " + (S.lab || S.olab || sviMaskLabOf(i)) + ".", 3500, i); try { i.focus(); } catch (x) {} return; } }, true);
 function sviMaskWin(i) {
-  const k = sviMaskKeyOf(i), M = sviMaskOf(k) || { k, lab: sviMaskLabOf(i), m: "", ex: false };
+  const k = sviMaskKeyOf(i), M = sviMaskOf(k) || { k, lab: sviMaskLabOf(i), m: "", ex: false }, S = sviFlds()[k] || {};
   document.getElementById("svMaskPop")?.remove();
   const p = document.createElement("div"); p.id = "svMaskPop";
   const ex = m => m ? sviMaskRun(m, "1A2B3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S").out : "";
-  p.innerHTML = `<div class="mkp-t">MASQUE DE SAISIE — ${esc(M.lab)}</div>
+  const GR = typeof achPrm === "function" ? achPrm().grp.map(g => [g.id, g.nom]) : [], TY = typeof sviPgL === "function" ? sviPgL("ftypes").map(t => [t.lab, t.lab]) : [], src = sviFldSrc(i);
+  const ck = (cls, L, on) => L.map(([v, l]) => `<label class="mkp-c"><input type="checkbox" class="${cls}" value="${esc(v)}"${(on || []).includes(v) ? " checked" : ""}> ${esc(l)}</label>`).join("");
+  p.innerHTML = `<div class="mkp-t">CHAMP — ${esc(S.lab || M.lab)}</div>
+    <label class="mkp-f"><span>INTITULÉ</span><input class="mkp-lab" value="${esc(S.lab || M.lab)}" autocomplete="off"></label>
+    <label class="mkp-f"><span>EXPLICATION (BULLE À L'APPUI LONG SUR L'INTITULÉ)</span><textarea class="mkp-tip" rows="2">${esc(S.tip || "")}</textarea></label>
+    <label class="mkp-f"><span>OBLIGATOIRE</span><select class="mkp-req"><option value="">NON</option><option value="all"${S.req === "all" ? " selected" : ""}>POUR TOUS</option><option value="some"${S.req === "some" ? " selected" : ""}>SEULEMENT POUR…</option></select></label>
+    <div class="mkp-some"${S.req === "some" ? "" : " hidden"}>${GR.length ? `<div class="mkp-n">GROUPES</div>${ck("mkp-rg", GR, S.reqG)}` : ""}${TY.length ? `<div class="mkp-n">TYPES DE FOURNISSEURS</div>${ck("mkp-rt", TY, S.reqT)}` : ""}</div>
+    <label class="mkp-c"><input type="checkbox" class="mkp-prt"${S.prt ? " checked" : ""}> IMPRIMÉ SUR LA COMMANDE</label>
+    <div class="mkp-t mkp-t2">MASQUE DE SAISIE</div>
     <label class="mkp-f"><span>MASQUE</span><input class="mkp-m" value="${esc(M.m)}" autocomplete="off" data-keepcase></label>
     <label class="mkp-c"><input type="checkbox" class="mkp-ex"${M.ex ? " checked" : ""}> LONGUEUR EXACTE</label>
     <div class="mkp-x">EXEMPLE : <b class="mkp-e">${esc(ex(M.m))}</b></div>
@@ -98,15 +129,20 @@ function sviMaskWin(i) {
   const r = i.getBoundingClientRect(); p.style.left = Math.max(8, Math.min(window.innerWidth - p.offsetWidth - 8, r.left)) + "px"; p.style.top = Math.max(8, Math.min(window.innerHeight - p.offsetHeight - 8, r.bottom + 6)) + "px";
   const mi = p.querySelector(".mkp-m"); setTimeout(() => { try { mi.focus(); } catch (e) {} }, 30);
   mi.addEventListener("input", () => { p.querySelector(".mkp-e").textContent = ex(mi.value.toUpperCase()); });
+  p.querySelector(".mkp-req").addEventListener("change", e => { p.querySelector(".mkp-some").hidden = e.target.value !== "some"; });
   p.addEventListener("click", e => {
     if (e.target.closest("[data-mx]")) { p.remove(); return; }
     if (!e.target.closest("[data-ms]")) return;
     const m = String(mi.value || "").toUpperCase().replace(/\s+/g, " ").trim();
     if (m && !sviMaskSlots(m)) { svToast("MASQUE SANS 9 NI A : AUCUNE SAISIE POSSIBLE.", 3500, mi); return; }
-    const L = sviMasks(), x = L.find(y => y.k === k); if (x) { x.m = m; x.ex = p.querySelector(".mkp-ex").checked; } else L.push({ k, lab: M.lab, m, ex: p.querySelector(".mkp-ex").checked });
-    sviMasksSave(L); p.remove();
+    const L = sviMasks(), x = L.find(y => y.k === k); if (x) { x.m = m; x.ex = p.querySelector(".mkp-ex").checked; } else if (m) L.push({ k, lab: M.lab, m, ex: p.querySelector(".mkp-ex").checked });
+    sviMasksSave(L);
+    { const F = sviFlds(), lab = String(p.querySelector(".mkp-lab").value || "").replace(/\s+/g, " ").trim().toUpperCase(), tip = String(p.querySelector(".mkp-tip").value || "").replace(/\s+/g, " ").trim().toUpperCase();
+      const o = { olab: M.lab, src, lab: lab && lab !== M.lab ? lab : "", tip, req: p.querySelector(".mkp-req").value, reqG: [...p.querySelectorAll(".mkp-rg:checked")].map(c => c.value), reqT: [...p.querySelectorAll(".mkp-rt:checked")].map(c => c.value), prt: p.querySelector(".mkp-prt").checked };
+      if (!o.lab && !o.tip && !o.req && !o.prt) delete F[k]; else F[k] = o; sviFldSave(F); }
+    p.remove(); { const r = i.closest("#svConf, #docPop"); if (r) { const s = sviFldSpan(i); if (s && sviFlds()[k] === undefined && s.dataset.olab !== undefined) s.textContent = s.dataset.olab; sviFldApply(r); } }
     if (m) { i.dataset.mask = k; const f = sviMaskFmt(k, i.value); if (f !== i.value) i.value = f; } else if (k.startsWith("c:")) delete i.dataset.mask;
-    svToast(m ? "MASQUE ENREGISTRÉ : " + m : "MASQUE RETIRÉ.", 2500, i);
+    svToast("RÉGLAGES DU CHAMP ENREGISTRÉS" + (m ? " — MASQUE " + m : "") + ".", 2500, i);
   });
 }
 { let tm = 0, x0 = 0, y0 = 0;

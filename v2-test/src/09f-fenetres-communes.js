@@ -142,6 +142,7 @@ function sviUpAll() {
     root.querySelectorAll(".svc-f").forEach(sviFootUp);
     root.querySelectorAll(".doc-grid").forEach(sviGridTop);
     if (root.id === "svConf") root.querySelectorAll(".frs-f > input.ins-in, .frs-f > textarea.ins-in").forEach(sviFldRszUp);
+    if (typeof sviFldApply === "function") sviFldApply(root);   /* B11, B17 : réglages des champs */
   });
 }
 let sviUpRaf = 0;

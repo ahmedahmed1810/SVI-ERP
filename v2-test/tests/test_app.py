@@ -3689,6 +3689,26 @@ def main():
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check('SÉRIE B, B25 B45 B37 : CIRCUIT DE VALIDATION (seuil → grades, hiérarchie du plus bas au plus haut, commande verrouillée, RENVOYER avec remarques puis repart, VALIDER à la fin) ; retours = montant négatif, liés dans les deux sens', b25.get('seu') == '{"mt":1000,"g":["3","1"],"h":true}' and b25.get('btn') and b25.get('locked') and b25.get('next') == '3' and b25.get('renv') == 1 and b25.get('unlocked') and b25.get('next2') == '1' and b25.get('state') == 'valide' and b25.get('rtMt') == -400 and b25.get('link') == 1, b25)
+        b11 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_cmf_v1', 'svi_fld_v1', 'svi_masks_v1'], keep = K.map(k => localStorage.getItem(k));
+  localStorage.removeItem('svi_fld_v1');
+  const L = achFrs(); const f = achFrsNew(L, { nom: 'CHAMP' }); f.ville = ''; f.grp = 'loc'; achFrsSave(L);
+  document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(300); achFrsFiche(f.id); await w(400);
+  const vi = document.querySelector('#svConf input.frs-x[data-k="ville"]'); r.has = !!vi;
+  vi.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })); await w(200);
+  const p = document.getElementById('svMaskPop'); r.win = !!p && /CHAMP —/.test(p.textContent);
+  p.querySelector('.mkp-lab').value = 'localité'; p.querySelector('.mkp-tip').value = 'ville du siège'; const rq = p.querySelector('.mkp-req'); rq.value = 'some'; rq.dispatchEvent(new Event('change')); 
+  const g = p.querySelector('.mkp-rg[value="loc"]'); if (g) g.checked = true; p.querySelector('.mkp-prt').checked = true; p.querySelector('[data-ms]').click(); await w(300);
+  const sp = vi.closest('label').querySelector('span'); r.lab = sp.textContent.trim(); r.tip = sp.dataset.tip || '';
+  const st = JSON.stringify(Object.values(sviFlds())[0]); r.st = st;
+  document.querySelector('#svConf [data-save]').click(); await w(300); r.blocked = !!document.getElementById('svConf') && !achFrs().find(x => x.id === f.id).mod2;
+  vi.value = 'AGADIR'; document.querySelector('#svConf [data-save]').click(); await w(400); r.saved = achFrs().find(x => x.id === f.id).ville;
+  document.querySelectorAll('#svConf').forEach(x => x.remove());
+  const c = achCmfFrom({ frs: f.id, why: 'T', lignes: [{ des: 'A', u: 'U', q: 1, pu: 1 }] }); r.auto = JSON.stringify(achPrtAuto({ ref: c.ref }));
+  sviMep.open({ key: 'T-AUTO', title: 'COMMANDE', ref: 'CMF Y', party: 'F', rows: [], cols: [], auto: [['c_ville', 'LOCALITÉ', 'AGADIR']], fields: { a_c_ville: 'LOCALITÉ : AGADIR' } }); await w(400);
+  r.mep = [...document.querySelectorAll('.mep-b')].some(b => b.textContent.trim() === 'LOCALITÉ : AGADIR'); document.querySelectorAll('.mep-ov, #mepOv, .mep-wrap').forEach(x => x.remove());
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("SÉRIE B, B11 B17 B28 : fiche du champ (appui long) — INTITULÉ renommé partout, EXPLICATION en bulle sur l'intitulé, OBLIGATOIRE pour tous ou certains groupes / types (refusé à l'enregistrement), IMPRIMÉ SUR LA COMMANDE (bloc placé d'office dans la mise en page)", b11.get('win') and b11.get('lab') == 'LOCALITÉ *' and b11.get('tip') == 'VILLE DU SIÈGE' and b11.get('blocked') and b11.get('saved') == 'AGADIR' and 'AGADIR' in b11.get('auto', '') and b11.get('mep'), b11)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

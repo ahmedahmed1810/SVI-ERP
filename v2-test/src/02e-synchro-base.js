@@ -118,7 +118,7 @@ const SVI_LZ = (() => {
   return { MK, enc: s => MK + toUTF16(s), dec: v => typeof v === "string" && v.startsWith(MK) ? fromUTF16(v.slice(MK.length)) : v, is: v => typeof v === "string" && v.startsWith(MK) };
 })();
 /* v749 : + articles et paramètres d'ACHATS (svi_ach_art_v1, svi_ach_prm_v1) */
-const SVI_SHARE_RX = /^svi_(docs|taf|obs|hist)_v1:|^svi_(units|cond_chs|nearskip|sign|driveurls|drivepaths|ach_art|ach_prm|ach_frs|ach_bsn|ach_caf|ach_dvf|ach_cmf|ach_rcp|ach_rtr|ach_faf|ach_avf|ach_paf|ach_nov|colors|pg)_v1$/;
+const SVI_SHARE_RX = /^svi_(docs|taf|obs|hist)_v1:|^svi_(units|cond_chs|nearskip|sign|driveurls|drivepaths|ach_art|ach_prm|ach_frs|ach_bsn|ach_caf|ach_dvf|ach_cmf|ach_rcp|ach_rtr|ach_faf|ach_avf|ach_paf|ach_nov|colors|pg|fld)_v1$/;
 const sviShareVal = (k, v) => {
   if (v === null || v === undefined) return null;
   if (/^svi_docs_v1:/.test(k)) { try { const L = JSON.parse(v); if (Array.isArray(L)) return JSON.stringify(L.map(x => { if (!x || typeof x !== "object") return x; const o = { ...x }; delete o.data; return o; })); } catch (e) {} }

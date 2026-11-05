@@ -2940,6 +2940,11 @@ function achNvPageHTML(p, rec, ctx) {
 /* v783 : APERÇU d'une pièce ou d'une fiche — l'éditeur MISE EN PAGE unique (sviMep) ; corps = LIGNES (sinon le premier bloc lié) */
 /* v819 : mise en page des pièces (étape 6) — montant en lettres et mention à reporter sous les totaux, ICE / IF de la société en champ ;
    o.noPrice : BON SANS PRIX pour le chauffeur ou le magasin (C6.68) — prix, montants et totaux retirés */
+/* B28 : champs cochés IMPRIMÉ SUR LA COMMANDE (réglages du champ), quelle que soit leur origine : fournisseur, commande, devis, besoin */
+const achPrtAuto = P => { const C = achCmf().find(c => c.ref === (P.ref || P.code)); if (!C || typeof sviFlds !== "function") return [];
+  const R = { cmf: C, frs: achFrs().find(f => f.id === C.frs), dvf: achDvf().find(v => v.id === C.dvf), bsn: achBsn().find(b => (C.lignes || []).some(l => l.bsn === b.id)) };
+  return Object.entries(sviFlds()).filter(([, S]) => S.prt).map(([k, S]) => { const f = (String(k).match(/^c:([^|]*)\|/) || [])[1], rec = R[S.src]; const v = f && rec ? rec[f] : "";
+    return [String(k).replace(/[^a-z0-9]/gi, "_"), S.lab || S.olab || f, v === undefined || v === null ? "" : String(v)]; }).filter(x => x[2] !== ""); };
 function achMepOpen(cfg, P, rec, redraw, o) {
   o = o || {};
   const Lg0 = P.links.find(l => /^LIGNES|^DÉTAIL FACTURE FOURNISSEUR/.test(l.t)) || P.links[0] || { t: "", cols: [], rows: [] };
@@ -2953,9 +2958,10 @@ function achMepOpen(cfg, P, rec, redraw, o) {
   const SO = sviSoc(), soc = SVI_SOC_F.filter(([f]) => f !== "rs" && f !== "adr" && pr.ment[f] && SO[f]).map(([f, l]) => l + " : " + SO[f]).join(" — ");
   sviMep.open({ key: "ACH-" + String(cfg.list.k || "X").toUpperCase() + (o.noPrice ? "-SP" : ""), title: cfg.list.one + (o.noPrice ? " (SANS PRIX)" : ""), ref: P.ref || P.code, party: P.party || P.title, date: P.date || "", prelim: P.st === "instance" || P.st === "fige",
     cols: Lg.cols.map((c, i) => ["c" + i, c[0], c[1] || ""]), rows: Lg.rows.map(r => r.cells), tot: o.noPrice ? [] : P.tot || [], note: [lettres, mention, soc].filter(Boolean).join("\n"),
+    auto: K === "cmf" ? achPrtAuto(P) : [],
     annex: K === "cmf" ? (() => { const C = achCmf().find(c => c.ref === (P.ref || P.code)), L = (C && Array.isArray(C.cla) ? C.cla : achClCopy(pr.clP)).filter(x => x.txt || x.t !== "autre");
       return { title: "CLAUSES PARTICULIÈRES", items: L.map(x => [x.t === "autre" ? "" : achCltLab(x.t), x.txt || ""]) }; })() : null,
-    fields: { projet: P.projet || "", ttc: P.ttc && !o.noPrice ? achF2(P.ttc) + " MAD" : "", numFrs: P.numFrs || "", lettres, mention, soc },
+    fields: { ...Object.fromEntries((K === "cmf" ? achPrtAuto(P) : []).map(([id, l, v]) => ["a_" + id, l + " : " + v])), projet: P.projet || "", ttc: P.ttc && !o.noPrice ? achF2(P.ttc) + " MAD" : "", numFrs: P.numFrs || "", lettres, mention, soc },
     name: (P.ref || P.code) + " " + cfg.list.one, save: async (b, n) => { const r = await rec.savePdf(b, n); if (redraw) setTimeout(redraw, 0); return r; } });
 }
 function achNvMod(ctx, cfg) {
