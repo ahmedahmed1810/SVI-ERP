@@ -107,8 +107,6 @@ function sviAchInit() {
         <span class="ach-tvaw"><input class="ins-in ach-pnum number" data-pk="${k}" inputmode="decimal" value="${esc(F2(P[k]))}" autocomplete="off"> ${u}</span></div>`).join("")}
       <div class="ach-pbox"><div class="ach-pt">SOCIÉTÉ : ICE ET IF IMPRIMÉS SUR LES PIÈCES D'ACHAT</div>
         <span class="ach-tvaw"><input class="ins-in ach-ptxt" data-pk="socIce" value="${esc(P.socIce || "")}" placeholder="ICE" inputmode="numeric" autocomplete="off"> <input class="ins-in ach-ptxt" data-pk="socIf" value="${esc(P.socIf || "")}" placeholder="IF" inputmode="numeric" autocomplete="off"></span></div>
-      <div class="ach-pbox"><div class="ach-pt">IMPORTER LES DONNÉES DE NOVAPP (FICHIER novapp-achats.json) — REMPLACE LES DONNÉES DES ACHATS</div>
-        <input type="file" class="ach-novimp" accept=".json,application/json"></div>
       <div class="ach-pbox"><div class="ach-pt">TVA PAR DÉFAUT : ${sviTvaDef() === null ? "VIDE" : esc(F2(sviTvaDef())) + " %"} — RÉGLÉE DANS PARAMÉTRAGE › BUDGET › TVA (COMMUNE AU BUDGET ET AUX ACHATS)</div></div>
       <div class="ach-pbox"><div class="ach-pt">CATÉGORIES ${svCnt ? svCnt(catRows.length, P.cat.length) : ""}</div>
         <div class="ach-scroll"><table id="achCatT" class="bdg-d-table prm-table ach-table" data-ach="cat" style="width:${cw("cat", "cat1") + 44}px"><colgroup><col data-w="ach_cat.cat1" style="width:${cw("cat", "cat1")}px"><col style="width:44px"></colgroup>
@@ -259,7 +257,6 @@ function sviAchInit() {
     /* paramètres */
     if (t.classList.contains("ach-ptol")) { const P = achPrm(), v = achN(t.value); if (v < 0 || v > 100) { svToast("TOLÉRANCE NON VALIDE (0 À 100 %).", 3000, t); draw(); return; } P.tol = v; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-pdirect")) { const P = achPrm(), v = achN(t.value); if (v < 0) { svToast("SEUIL NON VALIDE.", 3000, t); draw(); return; } P.direct = v; achPrmSave(P); draw(); return; }
-    if (t.classList.contains("ach-novimp")) { const f = t.files && t.files[0]; if (f) achNovImport(f, () => draw()); t.value = ""; return; }
     if (t.classList.contains("ach-pnum")) { const P = achPrm(), v = achN(t.value), k = t.dataset.pk; if (v < 0 || ((k === "rasT" || k === "seuilBdg") && v > 100) || (["directJ", "nfrs", "seuilBdg", "exFin"].includes(k) && v < 1) || (k === "exFin" && v > 12)) { svToast("VALEUR NON VALIDE.", 3000, t); draw(); return; } P[k] = v; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-ptxt")) { const P = achPrm(), k = t.dataset.pk, v = achDig(t.value); if (k === "socIce" && v && !achIceOk(v)) { svToast(achIceMsg() + ".", 3500, t); draw(); return; } P[k] = v; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-pnew") || t.classList.contains("ach-pin")) {

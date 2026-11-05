@@ -3117,19 +3117,8 @@ def main():
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v765 : listes des achats au format du budget — sans onglets, titre EN INSTANCE / VALIDÉS avec nombre et bascule, dates, sans H, sans étiquette du budget ; corbeille = ANNULÉ ; ligne → fiche",
               l765[0] == "none" and l765[1].startswith("CONSULTATIONS (VALIDÉS) 1") and l765[2:6] == [1, True, True, False] and l765[6].startswith("CONSULTATIONS (EN INSTANCE) 1") and l765[7] is True and l765[8:] == ["annule", True], l765)
-        # v767 : import des achats de NovApp — fichier JSON, remplacement (copie de sécurité), besoins F26 = SIÈGE, ancienne référence dans H
-        n767 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = Object.values(ACH_K).concat(['svi_ach_nov_v1', 'svi_ach_backup_v1']), keep = K.map(k => localStorage.getItem(k));
-            const D = { src: 'NOVAPP', art: [{ id: 'A1', code: 'ART-0001', des: 'SABLE', u: 'M3', st: 'valide', cree: '2025-12-02T12:00:00', val: '2025-12-02T12:00:00' }], frs: [{ id: 'F1', code: 'FRS-0001', nom: 'AFRA', ribs: [], cree: '2025-12-02T12:00:00' }],
-              bsn: [{ id: 'N1', ref: 'BSN 25-1130/001', prj: 'F26', des: 'TVA', u: 'U', q: 1, state: 'valide', cree: '2025-11-30T12:00:00', datePrevue: '2025-12-02' }, { id: 'N2', ref: 'BSN 25-1130/002', prj: 'ZZZ', des: 'SABLE', u: 'M3', q: 2, state: 'valide', cree: '2025-11-30T12:00:00', datePrevue: '2025-12-02' }],
-              caf: [], dvf: [], cmf: [{ id: 'M1', ref: 'CMF 25-1202/001', frs: 'F1', state: 'valide', cree: '2025-12-02T12:00:00', lignes: [{ id: 'l1', des: 'SABLE', u: 'M3', q: 2, pu: 100, tva: 20, bsn: 'N2' }] }], rcp: [], faf: [], paf: [],
-              nov: { 'CMF 25-1202/001': { o: 'CMF 25-1202/099', h: [['2025-12-02T12:00:00', 'CRÉATION']] } }, prm: { cat: ['SERVICES'] } };
-            const f = new File([JSON.stringify(D)], 'novapp-achats.json', { type: 'application/json' });
-            const p = achNovImport(f, () => 0); await w(200); [...document.querySelectorAll('#svConf button')].find(b => b.textContent.trim() === 'IMPORTER').click(); await p; await w(200);
-            const r = [achArts().length, achCmf()[0].ref, achBsn().find(b => b.id === 'N1').centre, achBsn().find(b => b.id === 'N2').centre, !!localStorage.getItem('svi_ach_backup_v1'),
-              achHistGet('CMF 25-1202/001')[0].d, SVI_SHARE_RX.test('svi_ach_nov_v1')];
-            K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
-        check("v767 : import NovApp — fichier JSON, données remplacées (copie de sécurité), F26 = SIÈGE, besoin sans budget gardé, ancienne référence dans H, partagé par la base",
-              n767 == [1, "CMF 25-1202/001", "SIÈGE", "CHANTIER", True, "CMF 25-1202/099", True], n767)
+        # B15 (série B) : plus d'import NovApp (bouton et procédure retirés)
+        check("SÉRIE B, B15 : bouton et procédure d'import NovApp retirés", pg.evaluate("() => typeof achNovImport === 'undefined' && typeof achHistNov === 'function'"))
         # v786 / v788 → v796 (document unique 6.8) : MASQUER / AFFICHER LES COLONNES dans PARAMÉTRAGE › FORMAT › COLONNES, plus dans les ⋯ ;
         # une fenêtre (cochée = affichée), au moins une colonne ; un seul choix par tableau (EN INSTANCE et VALIDÉS)
         c786 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), keep = localStorage.getItem('svi_colh_v1');
@@ -3490,7 +3479,7 @@ def main():
         check("FORME 04/11, remarques 10 et 11 : interfaces (4 par pièce, 3 pour le budget, ordre du menu) et interface affichée connue ; MASQUER LA COLONNE dans la loupe, AFFICHER LES COLONNES MASQUÉES (compteur) dans le ⋯",
               f1104["ifs"] == "53|bdgl_i,bdgl_v,bdg,caf_li,caf_lv,caf_fi,caf_fv" and f1104["cur"] in ("bdgl_i", "bdgl_v") and f1104["colh"] == "1,true,0,1" and f1104["loupe"], f1104)
         check("FORME 04/11, remarques 12 et 13 : MODIFIER LE FORMAT d'une interface (ÉTAT de l'écran puis les éléments, sans les parties des fenêtres) ; écran d'ACCUEIL et RÉGLAGES COMMUNS (APPLIQUER PARTOUT remplace les réglages par interface)",
-              f1104["byCss"] and f1104["win1"] == "true,10,true" and f1104["saved"] == "#112233" and f1104["win2"] == "true,16,true" and f1104["cleared"] == 0 and f1104["home"], f1104)
+              f1104["byCss"] and f1104["win1"] == "true,11,true" and f1104["saved"] == "#112233" and f1104["win2"] == "true,17,true" and f1104["cleared"] == 0 and f1104["home"], f1104)
         check("FORME 04/11, remarques 14 et 15 : rubrique FORMAT et MASQUES DE SAISIE retirées de PARAMÉTRAGE ; masque posé sur un champ par appui long (clic droit), \"texte\" écrit d'office, autres signes placés d'office",
               f1104["noFmt"] and f1104["tok"] == "+212 6 12 34 56 78|ABC-123|123-AB" and f1104["pop"] and f1104["applied"] == "12345-B-67|99999-A-99", f1104)
         # remarque 16 : gestes sur ordinateur (Ctrl / Cmd + molette = hauteur des lignes, Option + molette = échelle du temps, clic droit = appui long)
@@ -3525,6 +3514,8 @@ def main():
   r.red = Object.keys(JSON.parse(localStorage.getItem('svi_ach_nvh_v1') || '{}')).join(',');
   K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
         check("SÉRIE B, B3 et B4 : blocs liés des fiches — ligne entière à la couleur de l'état ; hauteur commune (lignes par défaut / mode réduit) par le ⋯ du bloc", b34.get("cls") == "nvr-instance|nvr-valide|nvr-instance" and b34.get("menu") == "AGRANDIR|5 LIGNES (PAR DÉFAUT)|MODE RÉDUIT (1 LIGNE)" and b34.get("red") == "commandes", b34)
+        b5 = pg.evaluate("""() => { const E = SVI_FMT_EL.find(x => x.k === 'toptag'); return !!E && E.sel.includes('#sviScreenTag') && /#sviScreenTag[^{]*\{[^}]*font-size:18px/.test(sviFmtCss({ el: { toptag: { fs: 18, bg: '#000000' } } })); }""")
+        check('SÉRIE B, B5 : bandeau du milieu de la barre du haut réglable avec elle (fond, texte, taille)', b5 is True, b5)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

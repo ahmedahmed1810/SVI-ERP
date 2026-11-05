@@ -1,5 +1,5 @@
 /* =========================================================
-   v767 : IMPORT DES ACHATS DE NOVAPP (ACHATS › PARAMÈTRES › IMPORTER LES DONNÉES DE NOVAPP)
+   v767 : (ancien) IMPORT DES ACHATS DE NOVAPP (ACHATS › PARAMÈTRES › IMPORTER LES DONNÉES DE NOVAPP)
    Fichier novapp-achats.json préparé depuis l'export NovApp (articles, fournisseurs, besoins, consultations, devis, commandes,
    réceptions, factures, paiements, historique). Décisions d'Ahmed (01/11/2026) :
    - références RENUMÉROTÉES au format du SVI ERP, DATES D'ORIGINE GARDÉES ; l'ancienne référence NovApp reste dans l'historique (H) ;
@@ -11,43 +11,5 @@ const achNovOf = code => { const M = achJ(ACH_NOV_K, {}) || {}; return M[code] |
 /* historique H : lignes NovApp (ancienne référence, actions d'origine) puis celles du SVI ERP */
 const achHistNov = code => { const x = achNovOf(code); if (!x) return [];
   return [{ t: (x.h[0] || [])[0] || "", a: "ANCIENNE RÉFÉRENCE NOVAPP", d: x.o, u: "IMPORT" }].concat((x.h || []).map(([t, a]) => ({ t, a, d: "NOVAPP — " + x.o, u: "" }))); };
-/* rattachement d'un besoin importé : budget du projet (validé de préférence), charge de même désignation, première tâche */
-function achNovBsnLink(B) {
-  let I = []; try { I = sviInstGet().filter(b => b && !b.parent && !b.rclOf && !b.virtual && !b.arch); } catch (e) {}
-  const BL = achBdgList(), CH = new Map(), st = { siege: 0, ok: 0, bdg: 0, none: 0 };
-  const bdgOf = prj => { const L = I.filter(b => achU(b.project) === prj); return (L.find(b => b.state === "valide") || L[0] || null); };
-  B.forEach(b => {
-    if (b.prj === "F26") { b.centre = "SIÈGE"; b.bdg = ""; b.chg = achKey(b.des, b.u); b.tache = ""; st.siege++; return; }
-    b.centre = "CHANTIER"; const g = bdgOf(b.prj);
-    if (!g) { b.bdg = ""; b.chg = ""; b.tache = ""; b.bdgLab = b.prj; st.none++; return; }
-    if (!CH.has(g.ref)) { let C = []; try { C = achBdgCharges(g.ref); } catch (e) {} CH.set(g.ref, C); }
-    const C = CH.get(g.ref), c = C.find(x => x.key === achKey(b.des, b.u)) || C.find(x => x.des === achU(b.des));
-    b.bdg = g.ref; b.bdgLab = (BL.find(x => x.ref === g.ref) || {}).lab || (b.prj + " " + g.ref);
-    if (c) { b.chg = c.key; b.u = b.u || c.u; b.tache = c.tasks[0] || ""; if (!b.pu) b.pu = Math.round(c.p * 100) / 100; st.ok++; } else { b.chg = ""; b.tache = ""; st.bdg++; }
-  });
-  return st;
-}
-async function achNovImport(file, done) {
-  let D = null; try { D = JSON.parse(await file.text()); } catch (e) {}
-  if (!D || D.src !== "NOVAPP" || !Array.isArray(D.art)) { svToast("FICHIER NON RECONNU : CHOISIR novapp-achats.json.", 4000); return; }
-  const n = k => (D[k] || []).length;
-  if (!(await svConfirm({ title: "IMPORTER LES DONNÉES DE NOVAPP", html: `<div class="svc-sub">${n("art")} ARTICLES · ${n("frs")} FOURNISSEURS · ${n("bsn")} BESOINS · ${n("caf")} CONSULTATIONS · ${n("dvf")} DEVIS · ${n("cmf")} COMMANDES · ${n("rcp")} RÉCEPTIONS · ${n("faf")} FACTURES · ${n("paf")} PAIEMENTS</div>
-      <div class="svc-sub">LES DONNÉES DES ACHATS ACTUELLES SONT REMPLACÉES (COPIE DE SÉCURITÉ GARDÉE SUR CET APPAREIL). RÉFÉRENCES RENUMÉROTÉES, DATES D'ORIGINE GARDÉES, ANCIENNE RÉFÉRENCE DANS H.</div>`, ok: "IMPORTER", tone: "neutral" }))) return;
-  const K = ["art", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "rtr", "faf", "avf", "paf"];
-  /* copie de sécurité compressée (une seule, la précédente est remplacée) */
-  try { localStorage.removeItem("svi_ach_backup_v1"); const bk = {}; K.forEach(k => { bk[k] = SVI_LZ.dec(localStorage.getItem(ACH_K[k])); }); bk[ACH_NOV_K] = SVI_LZ.dec(localStorage.getItem(ACH_NOV_K));
-    localStorage.setItem("svi_ach_backup_v1", SVI_LZ.enc(JSON.stringify({ t: achNow(), bk }))); } catch (e) { try { localStorage.removeItem("svi_ach_backup_v1"); } catch (e2) {} }
-  /* place libérée avant d'écrire : les anciennes listes sont retirées */
-  K.forEach(k => { try { localStorage.removeItem(ACH_K[k]); } catch (e) {} }); try { localStorage.removeItem(ACH_NOV_K); } catch (e) {}
-  const st = achNovBsnLink(D.bsn || []);
-  D.bsn.forEach(b => { delete b.prj; });
-  achArtsSave(D.art); achFrsSave(D.frs); achBsnSave(D.bsn); achCafSave(D.caf); achDvfSave(D.dvf); achCmfSave(D.cmf); achRcpSave(D.rcp); achRtrSave([]); achFafSave(D.faf); achAvfSave([]); achPafSave(D.paf);
-  achW(ACH_NOV_K, D.nov || {});
-  const P = achPrm(); (D.prm && D.prm.cat || []).forEach(c => { if (c && !P.cat.includes(c)) P.cat.push(c); }); achPrmSave(P);
-  const bad = ["art", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "faf", "paf"].filter(k => (SVI_LZ.dec(localStorage.getItem(ACH_K[k]) || "") || "").length !== JSON.stringify(D[k]).length);
-  const ok = !bad.length;
-  const say = (t, x) => { const d = sviWinNew(); d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: t, body: `<div class="svc-sub">${esc(x)}</div>`, foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-x>FERMER</button>` }); sviWinShow(d); d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) d.remove(); }); };
-  if (!ok) { say("IMPORT INCOMPLET", "MÉMOIRE DE L'APPAREIL PLEINE : " + bad.map(k => ({ art: "ARTICLES", frs: "FOURNISSEURS", bsn: "BESOINS", caf: "CONSULTATIONS", dvf: "DEVIS", cmf: "COMMANDES", rcp: "RÉCEPTIONS", faf: "FACTURES", paf: "PAIEMENTS" })[k]).join(", ") + " NON ENREGISTRÉS."); if (done) done(); return; }
-  say("IMPORT TERMINÉ", `BESOINS : ${st.ok} RATTACHÉS À UNE CHARGE ET UNE TÂCHE, ${st.siege} SIÈGE (F26), ${st.bdg} AU BUDGET SANS CHARGE TROUVÉE, ${st.none} SANS BUDGET SUR CET APPAREIL (À COMPLÉTER). LES DONNÉES PARTENT VERS LA BASE (GOOGLE SHEET) DANS QUELQUES SECONDES.`);
-  if (done) done();
-}
+/* B15 (série B, 04/11/2026) : plus de bouton ni de procédure d'import NovApp (un import éventuel se fera autrement) ;
+   seule la lecture de l'historique des pièces déjà importées est gardée (ancienne référence dans H). */
