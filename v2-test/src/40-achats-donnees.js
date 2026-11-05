@@ -18,7 +18,11 @@ const ACH_PRM_DEF = {
 const achU = v => String(v ?? "").replace(/\s+/g, " ").trim().toUpperCase();
 const achN = v => { const n = Number(String(v ?? "").replace(/\s| | /g, "").replace(",", ".")); return isFinite(n) ? n : 0; };
 /* v769 : grandes listes des achats COMPRESSÉES dans la mémoire de l'appareil (SVI_LZ, 02e) — environ 9 fois moins de place */
-const achJ = (k, d) => { try { const v = JSON.parse(SVI_LZ.dec(localStorage.getItem(k)) || "null"); return v === null ? d : v; } catch (e) { return d; } };
+/* B48 (05/11) : ouverture des fiches plus rapide — le texte décompressé de chaque liste est gardé tant que la liste ne change pas
+   (la décompression coûtait à chaque lecture) ; chaque lecture rend toujours une copie neuve (JSON.parse), qu'on peut modifier sans risque */
+const ACH_DEC = new Map();
+const achDec = k => { const raw = localStorage.getItem(k); if (raw === null) return null; const c = ACH_DEC.get(k); if (c && c.raw === raw) return c.txt; const txt = SVI_LZ.dec(raw); ACH_DEC.set(k, { raw, txt }); return txt; };
+const achJ = (k, d) => { try { const v = JSON.parse(achDec(k) || "null"); return v === null ? d : v; } catch (e) { return d; } };
 const achW = (k, v) => { try { const s = JSON.stringify(v); localStorage.setItem(k, /^svi_ach_/.test(k) && s.length > 4000 ? SVI_LZ.enc(s) : s); return true; } catch (e) { return false; } };
 /* ---------- paramètres d'achat ---------- */
 /* v899 : la TVA des achats est la TVA PAR DÉFAUT commune (PARAMÉTRAGE › BUDGET › TVA), vide = 0 dans les calculs */

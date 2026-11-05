@@ -3237,7 +3237,7 @@ def main():
             document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300); document.querySelector('.prm-tab[data-prm="unit"]')?.click(); await w(200);
             const U = () => document.querySelector('.prm-unit table, table[data-svcw="prm_unit"]');
             const u = U(); r.push(u.tHead.querySelectorAll('.cf-btn').length, Math.round(u.tBodies[0].rows[0].getBoundingClientRect().height));
-            const c0 = u.querySelector('col[data-k="n"]'), w0 = parseFloat(c0.style.width); await drag(u.tHead.querySelector('.col-rs[data-col="n"]'), 40, 0);
+            const w0 = Math.round(u.tHead.querySelector('.col-rs[data-col="n"]').closest('th').getBoundingClientRect().width); /* B47 : largeur affichée (toutes les colonnes figées au début du réglage) */ await drag(u.tHead.querySelector('.col-rs[data-col="n"]'), 40, 0);
             document.querySelector('.prm-tab[data-prm="lib"]')?.click(); await w(100); document.querySelector('.prm-tab[data-prm="unit"]')?.click(); await w(200);
             r.push(Math.round(parseFloat(U().querySelector('col[data-k="n"]').style.width) - w0));
             if (keepW === null) localStorage.removeItem('svi_colw_v1'); else localStorage.setItem('svi_colw_v1', keepW);
@@ -3895,6 +3895,24 @@ def main():
   document.querySelector('#cfMenu .cf-x').click(); await w(100);
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check('SÉRIE B, B50 B51 : menu de la loupe — MASQUER LA COLONNE et les deux TRIER de même largeur, gras, alignés à gauche ; nom lié à la couleur de son état (fournisseur validé = noir), souligné, jamais bleu', b50.get('tag', '').startswith('ach-link nvp-party lk-valide|rgb(23, 32, 51)|underline') and b50.get('menu') == 'MASQUER LA COLONNE|TRIER DE A À Z|TRIER DE Z À A' and b50.get('same') == 1, b50)
+        b47 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_dvf_v1', 'svi_ach_cmf_v1', 'svi_ach_rcp_v1', 'svi_cw_v1', 'svi_co_v1'], keep = K.map(k => localStorage.getItem(k));
+  await sviAchLoad(); const F = []; for (let i = 0; i < 60; i++) { const f = achFrsNew(F, { nom: 'F' + i }); f.st = 'valide'; }
+  const D = [], C = []; for (let i = 0; i < 300; i++) { D.push({ id: 'D' + i, ref: 'DVF 26-0101/' + i, frs: F[i % 60].id, state: 'recu', date: '2026-01-01', cree: '2026-01-01', lignes: [{ des: 'ART ' + (i % 80), u: 'U', q: 2, pu: 10 }, { des: 'ART ' + ((i + 7) % 80), u: 'U', q: 1, pu: 5 }] });
+    C.push({ id: 'C' + i, ref: 'CMF 26-0101/' + i, frs: F[i % 60].id, dvf: 'D' + i, state: 'valide', cree: '2026-01-02', valide: '2026-01-02', lignes: [{ id: 'l' + i, des: 'ART ' + (i % 80), u: 'U', q: 2, pu: 10, dvf: 'D' + i }] }); }
+  achFrsSave(F); achDvfSave(D); achCmfSave(C);
+  document.querySelector('#navMenu .nav-btn[data-ach="cmf"]').click(); await w(400); let t = performance.now(); achGo('dvf', 'D10'); r.ms = Math.round(performance.now() - t); r.ref = (document.querySelector('#ach .nvp-ref') || {}).textContent;
+  await w(300); document.querySelectorAll('#svConf').forEach(x => x.remove());
+  const tb = () => document.querySelector('#ach .nvp-blk table'), hs = () => [...tb().tHead.rows[0].cells];
+  const pe = (el, type, x, y) => el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: 1, pointerType: 'mouse', isPrimary: true, button: 0, buttons: type === 'pointerup' ? 0 : 1 }));
+  const resize = async (i, dx) => { const h = tb().querySelectorAll('thead .col-rs')[i], b = h.getBoundingClientRect(), x = b.left + b.width / 2, y = b.top + b.height / 2; pe(h, 'pointerdown', x, y); for (let s = 1; s <= 4; s++) pe(document, 'pointermove', x + dx * s / 4, y); pe(document, 'pointerup', x + dx, y); await w(150); };
+  const w0 = hs().map(c => Math.round(c.getBoundingClientRect().width)); await resize(2, 50); const w1 = hs().map(c => Math.round(c.getBoundingClientRect().width));
+  r.w = w0.join(',') + ' > ' + w1.join(','); r.only = w1[2] - w0[2] >= 45 && w1.every((v, i) => i === 2 || Math.abs(v - w0[i]) <= 1);
+  await resize(4, 40); const w2 = hs().map(c => Math.round(c.getBoundingClientRect().width)); r.other = w2[4] - w1[4] >= 35;
+  const a = hs()[1], b2 = hs()[3], ra = a.getBoundingClientRect(), rb = b2.getBoundingClientRect(), y = ra.top + ra.height / 2;
+  pe(a.querySelector('.cf-lab') || a, 'pointerdown', ra.left + 20, y); for (let s = 1; s <= 8; s++) pe(document, 'pointermove', ra.left + 20 + (rb.left + 20 - ra.left - 20) * s / 8, y); pe(document, 'pointerup', rb.left + 20, y); await w(400);
+  r.order = hs().map(c => c.textContent.trim()).slice(0, 4).join('|'); r.cell = [...tb().tBodies[0].rows[0].cells].slice(0, 4).map(c => c.textContent.trim()).join('|');
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("SÉRIE B, B47 B48 : colonnes des pièces — chaque colonne se règle seule (les autres ne bougent pas), l'ordre se change en glissant un titre (cellules suivent) ; ouverture directe d'une pièce rapide (sans redessiner la liste, texte des listes gardé décompressé)", b47.get('ref') == 'DVF 26-0101/10' and b47.get('ms', 9999) < 400 and b47.get('only') and b47.get('other') and b47.get('order') == 'RÉFÉRENCE|U|QUANTITÉ|DÉSIGNATION' and b47.get('cell') == 'DVF 26-0101/10-001|U|2,00|ART 10', b47)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

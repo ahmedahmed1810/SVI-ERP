@@ -1452,6 +1452,8 @@ html.svi-nuit .prm-table td, html.svi-nuit .bdg-d-table td { border-color: #3341
 html body #cfMenu { padding-top: 38px !important; }
 html body #cfMenu .cf-hide, html body #cfMenu .cf-sort { display: block; width: 100%; margin: 0 !important; box-sizing: border-box; text-align: left; border: 0; background: #f3f5f8; border-radius: 6px; padding: 6px 8px; font: inherit; font-size: 12px; font-weight: 800; color: #172033; cursor: pointer; flex: none; }
 html body #cfMenu .cf-sort.on { background: #dbeafe; color: #1d4ed8; }
+/* B47 (05/11) : largeur des colonnes — la poignée reste DANS son titre (sinon le titre suivant la recouvre et seule une colonne se règle) */
+html body table[data-svcw] thead th .col-rs { right: 0 !important; width: 14px !important; z-index: 8 !important; }
 #home .home-note { padding: 14px 16px; color: #475467; font-size: 12px; font-weight: 700; }
 #blkMenu .dly-sc.on span { font-weight: 800; }
 #blkMenu [data-dly].off { opacity: .45; }

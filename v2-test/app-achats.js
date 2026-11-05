@@ -19,7 +19,11 @@ const ACH_PRM_DEF = {
 const achU = v => String(v ?? "").replace(/\s+/g, " ").trim().toUpperCase();
 const achN = v => { const n = Number(String(v ?? "").replace(/\s| | /g, "").replace(",", ".")); return isFinite(n) ? n : 0; };
 /* v769 : grandes listes des achats COMPRESSÉES dans la mémoire de l'appareil (SVI_LZ, 02e) — environ 9 fois moins de place */
-const achJ = (k, d) => { try { const v = JSON.parse(SVI_LZ.dec(localStorage.getItem(k)) || "null"); return v === null ? d : v; } catch (e) { return d; } };
+/* B48 (05/11) : ouverture des fiches plus rapide — le texte décompressé de chaque liste est gardé tant que la liste ne change pas
+   (la décompression coûtait à chaque lecture) ; chaque lecture rend toujours une copie neuve (JSON.parse), qu'on peut modifier sans risque */
+const ACH_DEC = new Map();
+const achDec = k => { const raw = localStorage.getItem(k); if (raw === null) return null; const c = ACH_DEC.get(k); if (c && c.raw === raw) return c.txt; const txt = SVI_LZ.dec(raw); ACH_DEC.set(k, { raw, txt }); return txt; };
+const achJ = (k, d) => { try { const v = JSON.parse(achDec(k) || "null"); return v === null ? d : v; } catch (e) { return d; } };
 const achW = (k, v) => { try { const s = JSON.stringify(v); localStorage.setItem(k, /^svi_ach_/.test(k) && s.length > 4000 ? SVI_LZ.enc(s) : s); return true; } catch (e) { return false; } };
 /* ---------- paramètres d'achat ---------- */
 /* v899 : la TVA des achats est la TVA PAR DÉFAUT commune (PARAMÉTRAGE › BUDGET › TVA), vide = 0 dans les calculs */
@@ -935,7 +939,7 @@ function sviAchInit() {
   if (h1) h1.addEventListener("click", e => { const M = NV[tab] || (tab === "bsn" ? BSNM : MODS[tab]); if (M && e.target.closest("[data-nvsw]")) M.click(e); });
   /* v750 : entrée du menu ☰ (ACHAT › ARTICLES…) — ouvre l'onglet correspondant */
   view.__achOpen = (t, id) => { const M = NV[t] || MODS[t] || (t === "bsn" ? BSNM : null); if (M && M.open) M.open(id); };   /* v779 : page d'une pièce liée */
-  view.__achTab = t => { Object.values(NV).forEach(M => M.close()); Object.values(MODS).forEach(M => M.close && M.close()); if (BSNM.close) BSNM.close(); if (!["art", "prm", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "rtc", "rtr", "faf", "avf", "paf"].includes(t)) return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} draw(); };
+  view.__achTab = (t, noDraw) => { Object.values(NV).forEach(M => M.close()); Object.values(MODS).forEach(M => M.close && M.close()); if (BSNM.close) BSNM.close(); if (!["art", "prm", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "rtc", "rtr", "faf", "avf", "paf"].includes(t)) return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} if (!noDraw) draw(); };   /* B48 : pas de dessin de la liste quand on ouvre directement une pièce */
   /* ---------- gestes ---------- */
   bar.addEventListener("click", e => {
     const b = e.target.closest(".prm-tab"); if (!b) return;
@@ -1788,7 +1792,7 @@ function achListMod(ctx, o) {
   });
 }
 /* v779 : contenu de la page d'une pièce — LIGNES puis les pièces liées (un toucher ouvre leur page) */
-function achGo(t, id) { const v = document.getElementById("ach"); if (!v || !v.__achTab) return; v.__achTab(t); if (v.__achOpen) v.__achOpen(t, id); }
+function achGo(t, id) { const v = document.getElementById("ach"); if (!v || !v.__achTab) return; v.__achTab(t, !!(id && v.__achOpen)); if (v.__achOpen) v.__achOpen(t, id); }
 function achDocPage(k, x) {
   const fr = id => id ? achFrsNom(id) : "", ref = (L, id) => ((L.find(y => y.id === id) || {}).ref) || "";
   /* v800 (document unique 3.6 – 3.7) : toucher un article ou un fournisseur dans un tableau ouvre sa page */
@@ -2808,8 +2812,10 @@ window.SVI_LIST_EXTRA = (window.SVI_LIST_EXTRA || []).concat([{ when: t => /^PAI
 /* v921 (remarque 3 du 04/11/2026) : même cycle que le budget — EN INSTANCE (rouge) → FIGÉ (vert) → VALIDÉ (noir) ;
    un élément figé reste dans la liste EN INSTANCE (achSt = « instance »), en vert ; achStF dit l'état exact */
 /* B51 (05/11) : un nom lié (fournisseur, article, pièce) prend la couleur de SON état, simplement souligné — jamais de bleu par défaut */
-const ACH_LK_LIST = { frs: () => achFrsRO(), art: () => achArts(), caf: () => achCaf(), dvf: () => achDvf(), cmf: () => achCmf(), rcp: () => achRcp(), faf: () => achFaf(), avf: () => achAvf(), paf: () => achPaf(), bsn: () => achBsn() };
-const achLkSt = (t, id) => { const f = ACH_LK_LIST[t]; if (!f) return ""; let x = null; try { x = (f() || []).find(y => y.id === id); } catch (e) {} if (!x) return "";
+const ACH_LK_LIST = { frs: "frs", art: "art", caf: "caf", dvf: "dvf", cmf: "cmf", rcp: "rcp", faf: "faf", avf: "avf", paf: "paf", bsn: "bsn" };
+/* B48 : lecture seule, mémorisée (index par id) — pas une lecture complète de la liste par nom lié */
+const achLkIdx = t => { const k = ACH_K[ACH_LK_LIST[t]]; return k ? achMemo("lk_" + t, [k], () => new Map((achJ(k, []) || []).map(x => [x.id, x]))) : new Map(); };
+const achLkSt = (t, id) => { if (!ACH_LK_LIST[t]) return ""; let x = null; try { x = achLkIdx(t).get(id); } catch (e) {} if (!x) return "";
   if (x.del || x.state === "annule" || x.state === "rejete") return "annule"; if (t === "frs" || t === "art") return x.bloq || x.arch ? "bloque" : achSt(x);
   return x.state === "instance" || x.state === "ouverte" || x.state === "recu" || x.state === "reclame" ? "instance" : "valide"; };
 function achLkPaint(root) { (root || document).querySelectorAll(".ach-link[data-nvgo]").forEach(b => { const [t, id] = String(b.dataset.nvgo).split("|"), s = achLkSt(t, id);
@@ -2995,7 +3001,8 @@ const achBlkTools = k => `<span class="blk-tools"><button type="button" class="b
    case à cocher à droite (case d'en-tête), pas de ligne « AUCUN » (le compteur 0 suffit), ligne TOTAL dans LIGNES */
 function achNvPageHTML(p, rec, ctx) {
   const blk = L => { const k = achNvhKey(L.t), t = "achp_" + k, n = L.cols.length;
-    const C = L.cols.map((c, j) => ["c" + j, c[0], r => r.cells[j], c[1] || ""]);
+    /* B47 (05/11) : ordre des colonnes gardé (glisser un titre, moteur commun coOrder, comme le budget) */
+    const C = coOrder(t, L.cols.map((c, j) => ["c" + j, c[0], r => r.cells[j], c[1] || ""])), J = C.map(c => +c[0].slice(1));
     const R0 = L.rows.map((r, i) => ({ ...r, __i: i })), R = ctx && ctx.cfApply ? ctx.cfApply(t, C, R0) : R0;
     const head = C.map(c => ctx && ctx.cfHead ? ctx.cfHead(t, c[0], c[1], c[3]) : `<th class="${c[3]}">${esc(c[1])}</th>`).join("");
     /* v793 : largeur des colonnes réglable et gardée (moteur commun sviCwCols / data-svcw) */
@@ -3006,8 +3013,8 @@ function achNvPageHTML(p, rec, ctx) {
     const tot = isL ? R.reduce((s2, r) => s2 + (typeof r.cells[iM] === "number" ? r.cells[iM] : achN(r.cells[iM]) || 0), 0) : 0;
     return `<div class="bdg-d-block nvp-blk" data-nvb="${k}"><div class="bdg-d-block-title blk-head"><span class="ttl">${esc(L.t)} ${svCnt(R.length, L.rows.length)}</span>${achBlkTools(k)}</div>
       <div class="rec-scroll" style="max-height:var(--nvh-${k}, var(--svi-hdef-a, 200px))"><table class="bdg-d-table rec-table" data-colh="${esc(t)}" data-svcw="${esc(t)}" style="${CG.style}">${CG.cg}<thead><tr>${head}<th class="center nvp-cbh"><input type="checkbox" class="nvp-all" aria-label="Tout cocher"></th></tr></thead>
-      <tbody>${R.map(r => `<tr class="${r.cls || ""}${stOf(r) ? " nvr-" + stOf(r) : ""}">${r.cells.map((v, j) => { const g = (r.go || []).find(z => z[0] === j); return `<td class="${L.cols[j][1] || ""}">${j === 0 && r.open ? `<button type="button" class="ach-link" data-nvl="${esc(L.t)}|${r.__i}">${esc(v)}</button>` : g ? `<button type="button" class="ach-link" data-nvgo="${esc(g[1] + "|" + g[2])}">${esc(v)}</button>` : esc(typeof v === "number" ? achF2(v) : v)}</td>`; }).join("")}<td class="center"><input type="checkbox" class="nvp-cb"></td></tr>`).join("")}${L.add ? `<tr class="rec-new" data-nvadd="${k}"><td colspan="${n + 1}">${esc(L.add)}</td></tr>` : ""}</tbody>
-      ${isL ? `<tfoot><tr class="bdg-d-total-row">${L.cols.map((c, j) => j === iM ? `<td class="number">${achF2(tot)}</td>` : j === iM - 1 ? `<td class="number">${R.length < L.rows.length ? "TOTAL PARTIEL" : "TOTAL"}</td>` : "<td></td>").join("")}<td></td></tr></tfoot>` : ""}</table></div>
+      <tbody>${R.map(r => `<tr class="${r.cls || ""}${stOf(r) ? " nvr-" + stOf(r) : ""}">${J.map(j => { const v = r.cells[j], g = (r.go || []).find(z => z[0] === j); return `<td class="${L.cols[j][1] || ""}">${j === 0 && r.open ? `<button type="button" class="ach-link" data-nvl="${esc(L.t)}|${r.__i}">${esc(v)}</button>` : g ? `<button type="button" class="ach-link" data-nvgo="${esc(g[1] + "|" + g[2])}">${esc(v)}</button>` : esc(typeof v === "number" ? achF2(v) : v)}</td>`; }).join("")}<td class="center"><input type="checkbox" class="nvp-cb"></td></tr>`).join("")}${L.add ? `<tr class="rec-new" data-nvadd="${k}"><td colspan="${n + 1}">${esc(L.add)}</td></tr>` : ""}</tbody>
+      ${isL ? `<tfoot><tr class="bdg-d-total-row">${J.map((j, jj) => j === iM ? `<td class="number">${achF2(tot)}</td>` : jj === J.indexOf(iM) - 1 ? `<td class="number">${R.length < L.rows.length ? "TOTAL PARTIEL" : "TOTAL"}</td>` : "<td></td>").join("")}<td></td></tr></tfoot>` : ""}</table></div>
       <div class="blk-rsz nvp-rsz" data-nvh="${k}" title="Glisser pour changer la hauteur"></div></div>`; };
   return `<div class="nvp bdg-d-page ${p.st === "fige" && !p.del ? "bdg-inst-fige" : p.st === "instance" && !p.del ? "bdg-inst-instance" : "nvp-valide"}" style="${achNvhStyle()}">
     <div class="bdg-d-sticky"><div class="novapp-list-titlebar">

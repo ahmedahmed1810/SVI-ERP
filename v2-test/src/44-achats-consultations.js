@@ -40,7 +40,7 @@ function achListMod(ctx, o) {
   });
 }
 /* v779 : contenu de la page d'une pièce — LIGNES puis les pièces liées (un toucher ouvre leur page) */
-function achGo(t, id) { const v = document.getElementById("ach"); if (!v || !v.__achTab) return; v.__achTab(t); if (v.__achOpen) v.__achOpen(t, id); }
+function achGo(t, id) { const v = document.getElementById("ach"); if (!v || !v.__achTab) return; v.__achTab(t, !!(id && v.__achOpen)); if (v.__achOpen) v.__achOpen(t, id); }
 function achDocPage(k, x) {
   const fr = id => id ? achFrsNom(id) : "", ref = (L, id) => ((L.find(y => y.id === id) || {}).ref) || "";
   /* v800 (document unique 3.6 – 3.7) : toucher un article ou un fournisseur dans un tableau ouvre sa page */
