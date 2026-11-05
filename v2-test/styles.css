@@ -3514,3 +3514,14 @@ input.sv-rmcb { width: 18px; height: 18px; cursor: pointer; }
 /* 05/11 : panneau des dates d'une liste des achats — juste la largeur de son contenu, le chiffre vient près de la date */
 .novapp-date-panel.svi-bdgp:not(#bdgDatePanel) { width: max-content; min-width: 120px; max-width: 220px; }
 .svi-bdgp:not(#bdgDatePanel) .novapp-date-item, .svi-bdgp:not(#bdgDatePanel) .novapp-date-filter { gap: 10px; }
+
+/* C2 (série C, document unique 10.4) : champ non AJUSTABLE = pas de poignée ; un champ agrandi pousse ses voisins (la colonne
+   s'élargit pour lui, les lignes descendent), jamais ne les recouvre ; chaque colonne reste alignée à gauche */
+.fld-wrap.fld-fix > .fld-rsz { display: none !important; }
+.frs-card .frs-g { grid-template-columns: repeat(4, minmax(min-content, 1fr)); }
+@media (max-width: 700px) { .frs-card .frs-g { grid-template-columns: repeat(2, minmax(min-content, 1fr)); } }
+#docPop .doc-grid[data-top] { grid-template-columns: repeat(3, minmax(min-content, 1fr)) !important; }
+#docPop .doc-grid.doc-grid-2[data-top] { grid-template-columns: repeat(2, minmax(min-content, 1fr)) !important; }
+@media (max-width: 900px) { #docPop .doc-grid[data-top] { grid-template-columns: repeat(2, minmax(min-content, 1fr)) !important; } }
+@media (max-width: 560px) { #docPop .doc-grid[data-top] { grid-template-columns: minmax(min-content, 1fr) !important; } }
+#svConf .frs-f > .fld-wrap.sized, #docPop .doc-cell > .fld-wrap.sized { justify-self: start; max-width: none; }

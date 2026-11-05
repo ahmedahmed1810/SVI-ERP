@@ -4565,15 +4565,20 @@ const SVI_FLD_K = "svi_fld_v1";
 const sviFlds = () => { try { const o = JSON.parse(localStorage.getItem(SVI_FLD_K) || "{}"); return o && typeof o === "object" ? o : {}; } catch (e) { return {}; } };
 const sviFldSave = o => { try { localStorage.setItem(SVI_FLD_K, JSON.stringify(o)); } catch (e) {} };
 const sviFldSrc = i => { const m = String(i.className || "").match(/\b([a-z]+)-xs?\b/); return m ? m[1] : ""; };
-/* 05/11 : « SEULEMENT POUR… » = LOCAL, ÉTRANGER (d'après le PAYS de la fiche), OCCASIONNEL (fréquence calculée), puis les types */
-const SVI_FLD_ORIG = [["loc", "LOCAL"], ["etr", "ÉTRANGER"], ["occ", "OCCASIONNEL"]];
+/* 05/11 : « SEULEMENT POUR… » = LOCAL, ÉTRANGER (d'après le PAYS de l'adresse), puis les types ;
+   C1 (série C) : plus d'OCCASIONNEL — ce n'est plus un groupe, c'est une fréquence calculée (B42) */
+const SVI_FLD_ORIG = [["loc", "LOCAL"], ["etr", "ÉTRANGER"]];
 const sviFldCtx = i => { const c = i.closest(".svc-card, .frs-card, #docPop") || document, v = s => ((c.querySelector(s) || {}).value || ""), p = String(v('input[data-k="pays"]')).trim().toUpperCase();
   const card = i.closest(".frs-card"), g0 = card && card.dataset.grp; return { g: p ? (p === "MAROC" || p === "MA" ? "loc" : "etr") : (g0 === "etr" ? "etr" : "loc"), occ: !!card && (card.dataset.freq === "occasionnel" || g0 === "occ"), t: v('select[data-k="type"]') }; };
-const sviFldReq = (S, x) => !!S && (S.req === "all" || (S.req === "some" && (((S.reqG || []).includes(x.g)) || (x.occ && (S.reqG || []).includes("occ")) || ((S.reqT || []).includes(x.t)))));
+const sviFldReq = (S, x) => !!S && (S.req === "all" || (S.req === "some" && (((S.reqG || []).includes(x.g)) || ((S.reqT || []).includes(x.t)))));
 const SVI_FLD_SEL = "#svConf input, #svConf select, #svConf textarea, #docPop input, #docPop textarea";
 const sviFldSpan = i => { const l = i.closest("label"); const s = l && l.querySelector("span"); return s && !s.contains(i) ? s : null; };
 /* intitulé renommé, bulle d'explication, astérisque des champs obligatoires */
-function sviFldApply(root) { const F = sviFlds(); if (!Object.keys(F).length) return;
+/* C2 (série C, document unique 10.4) : AJUSTABLE — décoché = pas de poignée, taille fixe (la taille gardée est oubliée à l'affichage) */
+function sviFldAdjUp(root, F) { root.querySelectorAll(".fld-wrap").forEach(w => { const i = w.querySelector("input, textarea, select"); if (!i) return;
+  const fix = (F[sviMaskKeyOf(i)] || {}).adj === false; w.classList.toggle("fld-fix", fix);
+  if (fix && w.classList.contains("sized")) { w.style.width = ""; w.classList.remove("sized"); [...w.querySelectorAll("input, textarea, .dt-show")].forEach(x => { x.style.height = ""; x.style.paddingBottom = ""; }); } }); }
+function sviFldApply(root) { const F = sviFlds(); sviFldAdjUp(root, F); if (!Object.keys(F).length) return;
   root.querySelectorAll(SVI_FLD_SEL).forEach(i => { if (["checkbox", "radio", "file", "hidden"].includes(i.type)) return; const s = sviFldSpan(i); if (!s) return;
     const k = sviMaskKeyOf(i), S = F[k]; if (!S) return;
     if (s.dataset.olab === undefined) s.dataset.olab = String(s.textContent || "").replace(/[*\s]+$/g, "").trim();
@@ -4596,8 +4601,9 @@ function sviMaskWin(i) {
     <label class="mkp-f"><span>INTITULÉ</span><input class="mkp-lab" value="${esc(S.lab || M.lab)}" autocomplete="off"></label>
     <label class="mkp-f"><span>EXPLICATION (BULLE À L'APPUI LONG SUR L'INTITULÉ)</span><textarea class="mkp-tip" rows="2">${esc(S.tip || "")}</textarea></label>
     <label class="mkp-f"><span>OBLIGATOIRE</span><select class="mkp-req"><option value="">NON</option><option value="all"${S.req === "all" ? " selected" : ""}>POUR TOUS</option><option value="some"${S.req === "some" ? " selected" : ""}>SEULEMENT POUR…</option></select></label>
-    <div class="mkp-some"${S.req === "some" ? "" : " hidden"}><div class="mkp-n">LOCAL, ÉTRANGER, OCCASIONNEL</div>${ck("mkp-rg", GR, S.reqG)}${TY.length ? `<div class="mkp-n">TYPES DE FOURNISSEURS</div>${ck("mkp-rt", TY, S.reqT)}` : ""}</div>
+    <div class="mkp-some"${S.req === "some" ? "" : " hidden"}><div class="mkp-n">LOCAL, ÉTRANGER (D'APRÈS LE PAYS DE L'ADRESSE)</div>${ck("mkp-rg", GR, S.reqG)}${TY.length ? `<div class="mkp-n">TYPES DE FOURNISSEURS</div>${ck("mkp-rt", TY, S.reqT)}` : ""}</div>
     <label class="mkp-c"><input type="checkbox" class="mkp-prt"${S.prt ? " checked" : ""}> IMPRIMÉ SUR LA COMMANDE</label>
+    <label class="mkp-c"><input type="checkbox" class="mkp-adj"${S.adj === false ? "" : " checked"}> AJUSTABLE (POIGNÉE POUR AGRANDIR LE CHAMP)</label>
     <div class="mkp-t mkp-t2">MASQUE DE SAISIE</div>
     <label class="mkp-f"><span>MASQUE</span><input class="mkp-m" value="${esc(M.m)}" autocomplete="off" data-keepcase></label>
     <label class="mkp-c"><input type="checkbox" class="mkp-ex"${M.ex ? " checked" : ""}> LONGUEUR EXACTE</label>
@@ -4617,8 +4623,9 @@ function sviMaskWin(i) {
     const L = sviMasks(), x = L.find(y => y.k === k); if (x) { x.m = m; x.ex = p.querySelector(".mkp-ex").checked; } else if (m) L.push({ k, lab: M.lab, m, ex: p.querySelector(".mkp-ex").checked });
     sviMasksSave(L);
     { const F = sviFlds(), lab = String(p.querySelector(".mkp-lab").value || "").replace(/\s+/g, " ").trim().toUpperCase(), tip = String(p.querySelector(".mkp-tip").value || "").replace(/\s+/g, " ").trim().toUpperCase();
-      const o = { olab: M.lab, src, lab: lab && lab !== M.lab ? lab : "", tip, req: p.querySelector(".mkp-req").value, reqG: [...p.querySelectorAll(".mkp-rg:checked")].map(c => c.value), reqT: [...p.querySelectorAll(".mkp-rt:checked")].map(c => c.value), prt: p.querySelector(".mkp-prt").checked };
-      if (!o.lab && !o.tip && !o.req && !o.prt) delete F[k]; else F[k] = o; sviFldSave(F); }
+      const o = { olab: M.lab, src, lab: lab && lab !== M.lab ? lab : "", tip, req: p.querySelector(".mkp-req").value, reqG: [...p.querySelectorAll(".mkp-rg:checked")].map(c => c.value).filter(v => v !== "occ"), reqT: [...p.querySelectorAll(".mkp-rt:checked")].map(c => c.value), prt: p.querySelector(".mkp-prt").checked };
+      if (!p.querySelector(".mkp-adj").checked) o.adj = false;
+      if (!o.lab && !o.tip && !o.req && !o.prt && o.adj !== false) delete F[k]; else F[k] = o; sviFldSave(F); }
     p.remove(); { const r = i.closest("#svConf, #docPop"); if (r) { const s = sviFldSpan(i); if (s && sviFlds()[k] === undefined && s.dataset.olab !== undefined) s.textContent = s.dataset.olab; sviFldApply(r); } }
     if (m) { i.dataset.mask = k; const f = sviMaskFmt(k, i.value); if (f !== i.value) i.value = f; } else if (k.startsWith("c:")) delete i.dataset.mask;
     svToast("RÉGLAGES DU CHAMP ENREGISTRÉS" + (m ? " — MASQUE " + m : "") + ".", 2500, i);

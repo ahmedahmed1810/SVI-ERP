@@ -3758,7 +3758,7 @@ def main():
   document.querySelectorAll('#svConf').forEach(x => x.remove());
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
-        check("05/11 : plus de groupes de fournisseurs — LOCAL / ÉTRANGER d'après le PAYS (préfixe FRS / FRE), ancien OCCASIONNEL gardé ; OBLIGATOIRE « seulement pour » LOCAL, ÉTRANGER, OCCASIONNEL ou un type", c2.get('ids') == 'loc,etr,etr,occ' and c2.get('pfx') == 'FRS,FRE' and c2.get('miss') == 1 and c2.get('occ') == 0 and c2.get('noGrp') and c2.get('opts') == 'loc,etr,occ' and c2.get('etrFree') and c2.get('locBlocked'), c2)
+        check("05/11 : plus de groupes de fournisseurs — LOCAL / ÉTRANGER d'après le PAYS (préfixe FRS / FRE), ancien OCCASIONNEL gardé ; OBLIGATOIRE « seulement pour » LOCAL, ÉTRANGER ou un type (C1 : plus d'OCCASIONNEL)", c2.get('ids') == 'loc,etr,etr,occ' and c2.get('pfx') == 'FRS,FRE' and c2.get('miss') == 1 and c2.get('occ') == 0 and c2.get('noGrp') and c2.get('opts') == 'loc,etr' and c2.get('etrFree') and c2.get('locBlocked'), c2)
         c9 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_ach_prm_v1');
   r.noNav = !document.querySelector('#navMenu .nav-btn[data-ach="prm"]');
   document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300); const c = document.getElementById('chs');
@@ -3939,6 +3939,21 @@ def main():
   const css = document.getElementById('sviFmtStyle').textContent; r.vars = /--ttl-c:#0000a5/.test(css); r.chs = /#chs > \.section-head[^{]*\{[^}]*#0000a9/.test(css);
   keep === null ? localStorage.removeItem('svi_format_v1') : localStorage.setItem('svi_format_v1', keep); sviFmtApply(); return r; }""")
         check("FORMAT (règle 1.8) : l'en-tête DÉTAIL suit EN-TÊTE DE BLOC (gras décoché), l'onglet actif de SUIVI / RÉVISIONS suit ONGLET ACTIF, les lignes de titre (délais…) suivent LIGNES DE TITRE, la barre du haut du PARAMÉTRAGE suit BARRE DU HAUT", fmtu.get('det') == '400' and fmtu.get('reca') == 'rgb(0, 0, 163)' and fmtu.get('vars') and fmtu.get('chs'), fmtu)
+        c12 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_fld_v1'], keep = K.map(k => localStorage.getItem(k));
+  await sviAchLoad(); const L = achFrs(); const f = achFrsNew(L, { nom: 'CHAMP' }); achFrsSave(L);
+  document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(300); achFrsFiche(f.id); await w(500);
+  const ws = () => [...document.querySelectorAll('#svConf .frs-g .frs-f > .fld-wrap')].filter(x => x.offsetWidth);
+  const w0 = ws()[0], i0 = w0.querySelector('input, textarea'); const k = sviMaskKeyOf(i0);
+  sviMaskWin(i0); await w(100); const pop = document.getElementById('svMaskPop'); r.occ = /OCCASIONNEL/.test(pop.textContent); r.adj = !!pop.querySelector('.mkp-adj:checked');
+  pop.querySelector('.mkp-adj').checked = false; pop.querySelector('[data-ms]').click(); await w(200);
+  r.fix = w0.classList.contains('fld-fix'); r.hd = getComputedStyle(w0.querySelector('.fld-rsz')).display; r.saved = (sviFlds()[k] || {}).adj;
+  document.querySelectorAll('#svConf').forEach(x => x.remove()); achFrsFiche(f.id); await w(500);
+  const w1 = ws()[1]; w1.style.width = '520px'; w1.classList.add('sized'); await w(100);
+  const a = w1.closest('.frs-f').getBoundingClientRect(), row = [...document.querySelectorAll('#svConf .frs-g .frs-f')].filter(x => x.offsetWidth && x !== w1.closest('.frs-f'));
+  r.over = row.filter(x => { const b = x.getBoundingClientRect(); return b.left < a.right - 1 && b.right > a.left + 1 && b.top < a.bottom - 1 && b.bottom > a.top + 1; }).length;
+  document.querySelectorAll('#svConf, #svMaskPop').forEach(x => x.remove());
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check('SÉRIE C, C1 C2 (document unique 10.4) : fiche du champ sans OCCASIONNEL ; AJUSTABLE coché par défaut, décoché = pas de poignée ; un champ agrandi pousse ses voisins sans les recouvrir', c12.get('occ') is False and c12.get('adj') and c12.get('fix') and c12.get('hd') == 'none' and c12.get('saved') is False and c12.get('over') == 0, c12)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
