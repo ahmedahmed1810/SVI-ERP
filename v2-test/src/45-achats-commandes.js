@@ -141,9 +141,9 @@ function achCmfFiche(id, done) {
           ${ro ? "" : `<button type="button" class="ach-b" data-addl>+ LIGNE</button> <button type="button" class="ach-b" data-adddir>+ BESOINS EN ACHAT DIRECT</button>`}
           <div class="bsn-note">ARRÊTÉE À LA SOMME DE : ${esc(frMoney(t.ttc))} TTC.${PV ? " PRESTATIONS : LA RÉCEPTION SE FAIT PAR PROCÈS-VERBAL DE SERVICE FAIT." : ""}</div></div>
         <div class="frs-sec"><div class="frs-st">CLAUSES PARTICULIÈRES ${svCnt(C.cla.length)}</div>
-          <table class="prm-table frs-sub cmf-cla"><thead><tr><th class="center">N°</th><th>TYPE</th><th>ARTICLE</th><th></th></tr></thead><tbody>
+          <table class="prm-table frs-sub cmf-cla"><thead><tr><th class="center">N°</th><th>TYPE</th><th>DÉSIGNATION</th><th>VALEUR</th><th>UNITÉ</th><th></th></tr></thead><tbody>
           ${C.cla.map((x, i) => `<tr data-ci="${i}"><td class="center">${i + 1}</td><td><select class="ins-in cmf-cl" data-c="t"${dis}>${ACH_CLT.map(([k, l]) => `<option value="${k}"${k === x.t ? " selected" : ""}>${l}</option>`).join("")}</select></td>
-            <td><input class="ins-in cmf-cl" data-c="txt" value="${esc(x.txt || "")}"${dis} autocomplete="off"></td><td class="center">${ro ? "" : `<button type="button" class="ach-x" data-rmcl="${i}">✕</button>`}</td></tr>`).join("") || `<tr><td colspan="4" class="empty">AUCUN ARTICLE</td></tr>`}</tbody></table>
+            <td><input class="ins-in cmf-cl" data-c="txt" value="${esc(x.txt || "")}"${dis} autocomplete="off"></td><td><input class="ins-in cmf-cl" data-c="v" value="${esc(x.v ?? "")}"${dis} autocomplete="off"></td><td><input class="ins-in cmf-cl" data-c="u" value="${esc(x.u ?? achCltU(x.t))}"${dis} autocomplete="off"></td><td class="center">${ro ? "" : `<button type="button" class="ach-x" data-rmcl="${i}">✕</button>`}</td></tr>`).join("") || `<tr><td colspan="6" class="empty">AUCUN ARTICLE</td></tr>`}</tbody></table>
           ${ro ? "" : `<button type="button" class="ach-b" data-addcl>+ ARTICLE</button>`}</div>
         ${(C.avH || []).length ? `<div class="frs-sec"><div class="frs-st">AVENANTS</div>${C.avH.map(a => `<div class="bsn-note">AVENANT ${a.n} — ${esc(achDFr(a.t))} — ${esc(a.motif)} (AVANT : ${esc(achF2(a.ht))} HT)</div>`).join("")}</div>` : ""}
       </div>`,
@@ -161,7 +161,7 @@ function achCmfFiche(id, done) {
   };
   const pull = () => { d.querySelectorAll(".cmf-x").forEach(i => { if (i.disabled) return; const k = i.dataset.k; C[k] = ["frais", "rem", "avV"].includes(k) ? achN(i.value) : ["dProm", "dConf", "frs", "nat", "transp", "avT"].includes(k) ? i.value : achU(i.value); });
     d.querySelectorAll(".cmf-xc").forEach(i => { if (!i.disabled) C[i.dataset.k] = i.checked; });
-    d.querySelectorAll("tr[data-ci]").forEach(tr => { const x = C.cla[+tr.dataset.ci]; if (!x) return; [...tr.querySelectorAll(".cmf-cl")].sort((a, b) => (a.dataset.c === "t") - (b.dataset.c === "t")).forEach(i => { if (i.disabled) return; const c = i.dataset.c, ov = x.t; x[c] = c === "t" ? i.value : achU(i.value); if (c === "t" && ov !== x.t && (!x.txt || x.txt === achCltDef(ov))) x.txt = achCltDef(x.t); }); });
+    d.querySelectorAll("tr[data-ci]").forEach(tr => { const x = C.cla[+tr.dataset.ci]; if (!x) return; [...tr.querySelectorAll(".cmf-cl")].sort((a, b) => (a.dataset.c === "t") - (b.dataset.c === "t")).forEach(i => { if (i.disabled) return; const c = i.dataset.c, ov = x.t; x[c] = c === "t" ? i.value : achU(i.value); if (c === "t" && ov !== x.t) { if (!x.txt || x.txt === achCltDef(ov)) x.txt = achCltDef(x.t); if (!x.u || x.u === achCltU(ov)) x.u = achCltU(x.t); } }); });
     d.querySelectorAll("tr[data-i]").forEach(tr => { const l = C.lignes[+tr.dataset.i]; if (!l) return; tr.querySelectorAll(".cmf-l").forEach(i => { if (i.disabled) return; const c = i.dataset.c; l[c] = ["q", "pu", "tva"].includes(c) ? achN(i.value) : achU(i.value); }); }); };
   const store = act => { const L = achCmf(), c = L.find(x => x.id === C.id); if (!c) return null; Object.assign(c, JSON.parse(JSON.stringify(C)), { mod: achNow() }); achCmfSave(L); achHist(c.ref, act, (c.frs ? achFrsNom(c.frs) : "") + " — " + achF2(achCmfTot(c).ht) + " HT"); return c; };
   const check = () => {
@@ -177,7 +177,7 @@ function achCmfFiche(id, done) {
     if (e.target === d || e.target.closest("[data-x]")) { d.remove(); if (done) done(); return; }
     if (e.target.closest("[data-addl]")) { pull(); C.lignes.push({ id: achLid(), des: "", u: "", q: "", pu: "", tva: achPrm().tva, bsn: "", dvf: "" }); draw(); return; }
     const rl = e.target.closest("[data-rml]"); if (rl) { pull(); C.lignes.splice(+rl.dataset.rml, 1); draw(); return; }
-    if (e.target.closest("[data-addcl]")) { pull(); C.cla.push({ t: "autre", txt: "" }); draw(); return; }
+    if (e.target.closest("[data-addcl]")) { pull(); C.cla.push({ t: "autre", txt: "", v: "", u: "" }); draw(); return; }
     const rc = e.target.closest("[data-rmcl]"); if (rc) { pull(); C.cla.splice(+rc.dataset.rmcl, 1); draw(); return; }
     if (e.target.closest("[data-adddir]")) {
       pull(); const used = new Set(achCmf().flatMap(c => (c.lignes || []).map(l => l.bsn)).filter(Boolean)), B = achBsn().filter(b => b.direct && !used.has(b.id) && b.state === "valide");

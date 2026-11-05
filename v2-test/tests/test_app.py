@@ -3573,7 +3573,7 @@ def main():
   r.anx = (document.querySelector('.mep-annex') || {}).textContent || '';
   document.querySelectorAll('.mep-ov, #mepOv, .mep-wrap').forEach(x => x.remove());
   achCmfSave(achCmf().filter(x => x.id !== c.id)); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
-        check('SÉRIE B, B29 B30 : CLAUSES générales (chaque nouveau fournisseur) et particulières (chaque nouvelle commande, modifiables sur la commande, le type reprend sa valeur par défaut, imprimées en page ANNEXE)', b29.get('sec') and b29.get('n2') == b29.get('n', 0) + 1 and b29.get('txt', '').startswith('60 JOURS') and 'ANNEXE — CLAUSES PARTICULIÈRES' in b29.get('anx', '') and 'ARTICLE 2 : GARANTIE' in b29.get('anx', ''), b29)
+        check('SÉRIE B, B29 B30 : CLAUSES générales (chaque nouveau fournisseur) et particulières (chaque nouvelle commande, modifiables sur la commande, le type reprend sa valeur par défaut, imprimées en page ANNEXE)', b29.get('sec') and b29.get('n2') == b29.get('n', 0) + 1 and b29.get('txt', '').startswith('DÉLAI DE PAIEMENT') and 'ANNEXE — CLAUSES PARTICULIÈRES' in b29.get('anx', '') and 'ARTICLE 2 : GARANTIE' in b29.get('anx', ''), b29)
         b41 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, kf = localStorage.getItem('svi_ach_frs_v1'), kp = localStorage.getItem('svi_pg_v1');
   r.grp = achPrm().grp.map(g => g.id).join(',');
   const L = achFrs(); const a = achFrsNew(L, { nom: 'ANCIEN STR' }); a.grp = 'str'; const b = achFrsNew(L, { nom: 'NOUVEAU' }); b.grp = 'loc'; b.type = 'ORGANISME FINANCIER'; achFrsSave(L);
@@ -3800,6 +3800,21 @@ def main():
   const D = achDocPage('dvf', achDvf().find(x => x.id === 'VL')), Lg = D.links.find(l => /^LIGNES/.test(l.t)); r.lref = Lg ? Lg.rows.map(x => x.cells[0]).join(',') : ''; r.c0 = Lg ? Lg.cols[0][0] : '';
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); return r; }""")
         check('05/11 : plus de FIGER dans les achats (EN INSTANCE → VALIDER ; ancienne fiche figée = en instance) ; référence de chaque ligne = référence de la pièce + -001, -002…', c18.get('cyc') == 'VALIDER' and c18.get('cycOld') == 'VALIDER' and c18.get('stF') == 'instance' and c18.get('lref') == 'DVF 26-0101/007-001,DVF 26-0101/007-002' and c18.get('c0') == 'RÉFÉRENCE', c18)
+        c4 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_prm_v1'], keep = K.map(k => localStorage.getItem(k));
+  localStorage.removeItem('svi_ach_prm_v1');
+  const L = achFrs(); const f = achFrsNew(L, { nom: 'CONTRAT' }); f.cond = '30 JOURS'; achFrsSave(L);
+  document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(300); achFrsFiche(f.id, 'cla'); await w(400);
+  const tb = document.querySelector('#svConf table[data-sub="cla"]'); r.heads = [...tb.tHead.rows[0].cells].map(c => c.textContent.trim()).filter(Boolean).join('|');
+  r.v0 = tb.querySelector('tr[data-i="0"] input[data-c="v"]').value;
+  const vi = tb.querySelector('tr[data-i="0"] input[data-c="v"]'); vi.value = '45 JOURS'; document.querySelector('#svConf [data-claok]').click(); await w(300);
+  r.fld = (document.querySelector('#svConf input.frs-x[data-k="cond"]') || {}).value; r.inst0 = !!document.querySelector('#svConf .cla-inst');
+  document.querySelector('#svConf [data-save]').click(); await w(400); r.open = document.querySelectorAll('#svConf').length; r.toast = [...document.querySelectorAll('body > div')].map(x => x.textContent).filter(t => /[A-Z]{4}/.test(t) && t.length < 200).slice(-2).join(' || '); document.querySelectorAll('#svConf').forEach(x => x.remove());
+  const f1 = achFrs().find(x => x.id === f.id); r.saved = f1.cond + '|' + !!f1.claOk;
+  achFrsFiche(f.id, 'cond'); await w(400); const c = document.querySelector('#svConf input.frs-x[data-k="cond"]'); c.value = '90 JOURS'; document.querySelector('#svConf [data-save]').click(); await w(400); document.querySelectorAll('#svConf').forEach(x => x.remove());
+  const f2 = achFrs().find(x => x.id === f.id); r.ver = (f2.claHist || []).length + '|' + !!f2.claOk + '|' + f2.cla[0].v;
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("05/11 : CLAUSES — colonnes TYPE, DÉSIGNATION, VALEUR, UNITÉ ; article lié à un champ de la fiche (changer l'un change l'autre) ; VALIDER LE CONTRAT ; contrat validé puis modifié = nouvelle version en instance ; hauteur minimale des blocs à la poignée", c4.get('heads') == 'TYPE|DÉSIGNATION|VALEUR|UNITÉ' and c4.get('v0') == '30 JOURS' and c4.get('fld') == '45 JOURS' and c4.get('saved') == '45 JOURS|true' and c4.get('ver') == '1|false|90 JOURS', c4)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

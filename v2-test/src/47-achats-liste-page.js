@@ -161,7 +161,11 @@ const achNvhStyle = () => { let H = {}; try { H = JSON.parse(localStorage.getIte
 function achNvhDrag(e, h) {
   e.preventDefault(); const pg = h.closest(".nvp"), k = h.dataset.nvh, sc = h.parentNode.querySelector(".rec-scroll"); if (!pg || !sc) return;
   const y0 = e.clientY, b0 = sc.getBoundingClientRect().height; let v = b0; h.classList.add("on");
-  const mv = ev => { ev.preventDefault(); v = Math.max(60, Math.round(b0 + ev.clientY - y0)); pg.style.setProperty("--nvh-" + k, v + "px"); };
+  /* 05/11 : hauteur d'un bloc — il grandit avec ses lignes jusqu'à 5 (vide : titres seuls) ; la poignée le règle ; jamais moins d'une ligne,
+     deux s'il a sa ligne CRÉER … ICI (la ligne CRÉER et une ligne de données) */
+  const th = sc.querySelector("thead"), rows = [...sc.querySelectorAll("tbody tr")], nr = rows.find(r => r.matches(".rec-new, .bdg-newrow, .ach-new, [data-nvnew]")), r1 = rows.find(r => r !== nr);
+  const minH = Math.ceil((th ? th.getBoundingClientRect().height : 22) + (r1 ? r1.getBoundingClientRect().height : 21) + (nr ? nr.getBoundingClientRect().height : 0)) + 2;
+  const mv = ev => { ev.preventDefault(); v = Math.max(minH, Math.round(b0 + ev.clientY - y0)); pg.style.setProperty("--nvh-" + k, v + "px"); };
   const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up); h.classList.remove("on");
     try { const H = JSON.parse(localStorage.getItem(ACH_NVH_K) || "{}") || {}; H[k] = v; localStorage.setItem(ACH_NVH_K, JSON.stringify(H)); } catch (err) {} };
   document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
@@ -223,8 +227,8 @@ function achMepOpen(cfg, P, rec, redraw, o) {
   sviMep.open({ key: "ACH-" + String(cfg.list.k || "X").toUpperCase() + (o.noPrice ? "-SP" : ""), title: cfg.list.one + (o.noPrice ? " (SANS PRIX)" : ""), ref: P.ref || P.code, party: P.party || P.title, date: P.date || "", prelim: P.st === "instance" || P.st === "fige",
     cols: Lg.cols.map((c, i) => ["c" + i, c[0], c[1] || ""]), rows: Lg.rows.map(r => r.cells), tot: o.noPrice ? [] : P.tot || [], note: [lettres, mention, soc].filter(Boolean).join("\n"),
     auto: K === "cmf" ? achPrtAuto(P) : [],
-    annex: K === "cmf" ? (() => { const C = achCmf().find(c => c.ref === (P.ref || P.code)), L = (C && Array.isArray(C.cla) ? C.cla : achClCopy(pr.clP)).filter(x => x.txt || x.t !== "autre");
-      return { title: "CLAUSES PARTICULIÈRES", items: L.map(x => [x.t === "autre" ? "" : achCltLab(x.t), x.txt || ""]) }; })() : null,
+    annex: K === "cmf" ? (() => { const C = achCmf().find(c => c.ref === (P.ref || P.code)), L = (C && Array.isArray(C.cla) ? C.cla : achClCopy(pr.clP)).filter(x => x.txt || x.v || x.t !== "autre");
+      return { title: "CLAUSES PARTICULIÈRES", items: L.map(x => { const [a, b] = achClTxt(x).length === 2 ? achClTxt(x) : x.t === "autre" ? ["", achClTxt(x)[0] || ""] : [achClTxt(x)[0], ""]; return [a, b]; }) }; })() : null,
     fields: { ...Object.fromEntries((K === "cmf" ? achPrtAuto(P) : []).map(([id, l, v]) => ["a_" + id, l + " : " + v])), projet: P.projet || "", ttc: P.ttc && !o.noPrice ? achF2(P.ttc) + " MAD" : "", numFrs: P.numFrs || "", lettres, mention, soc },
     name: (P.ref || P.code) + " " + cfg.list.one, save: async (b, n) => { const r = await rec.savePdf(b, n); if (redraw) setTimeout(redraw, 0); return r; } });
 }

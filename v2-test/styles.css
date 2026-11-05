@@ -1422,6 +1422,8 @@ détail technique en petit */
 .prm-tbar { display: flex; justify-content: flex-end; margin: 0 0 4px; }
 .prm-tbar .prm-more { border: 1px solid var(--line, #d5dbe3); background: #fff; border-radius: 6px; width: 32px; height: 26px; cursor: pointer; font-weight: 800; }
 .prm-foot[hidden] { display: none !important; }
+/* 05/11 : contrat du fournisseur en instance (nouvelle version à valider) */
+.frs-st.cla-inst { color: var(--svi-col-instance, #dc2626); }
 #home .home-note { padding: 14px 16px; color: #475467; font-size: 12px; font-weight: 700; }
 #blkMenu .dly-sc.on span { font-weight: 800; }
 #blkMenu [data-dly].off { opacity: .45; }

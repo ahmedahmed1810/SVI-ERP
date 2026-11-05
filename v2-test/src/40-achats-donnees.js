@@ -44,13 +44,23 @@ const achRefFill = (m, d, n) => { const p2 = x => String(x).padStart(2, "0");
 const achRefRx = m => new RegExp("^" + m.split(/(\{AAAA\}|\{AA\}|\{MM\}|\{JJ\}|\{N+\})/).map(s => s === "{AAAA}" ? "\\d{4}" : /^\{(AA|MM|JJ)\}$/.test(s) ? "\\d{2}" : /^\{N+\}$/.test(s) ? "(\\d+)" : s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("") + "$");
 /* série B (B29, B30) : CLAUSES — chaque article a un TYPE qui reprend sa valeur par défaut ; GÉNÉRALES = contrat type repris sur chaque nouveau
    fournisseur ; PARTICULIÈRES = reprises sur chaque nouvelle commande (imprimées en page annexe) ; modifiées sur la fiche ou la commande seulement */
-const ACH_CLT = [["pay", "DÉLAI DE PAIEMENT", "60 JOURS APRÈS LA DATE DE LA FACTURE (DÉLAI LÉGAL MAXIMUM)"], ["liv", "DÉLAI DE LIVRAISON", ""], ["pen", "PÉNALITÉS DE RETARD", ""],
-  ["val", "VALIDITÉ DU DEVIS", "30 JOURS"], ["av", "AVANCE SUR COMMANDE", ""], ["cond", "CONDITIONS DE PAIEMENT", ""], ["autre", "AUTRE", ""]];
-const achCltDef = t => (ACH_CLT.find(x => x[0] === t) || ["", "", ""])[2];
-const achCltLab = t => (ACH_CLT.find(x => x[0] === t) || ["", ""])[1];
-const achClG = p => Array.isArray(p.clG) ? p.clG : ACH_CLT.filter(x => x[0] !== "autre").map((x, i) => ({ id: "g" + (i + 1), t: x[0], txt: x[2] }));
+/* 05/11 : chaque TYPE d'article de contrat peut être un champ de la fiche fournisseur : la VALEUR de l'article et le champ sont liés
+   (changer l'un change l'autre) ; [clé, intitulé, désignation par défaut, champ de la fiche, unité, valeur par défaut] */
+const ACH_CLT = [["pay", "DÉLAI DE PAIEMENT", "DÉLAI DE PAIEMENT APRÈS LA DATE DE LA FACTURE (60 JOURS AU PLUS)", "cond", "", "60 JOURS"], ["liv", "DÉLAI DE LIVRAISON", "", "delai", "JOURS", ""],
+  ["mode", "MODE DE RÈGLEMENT", "", "modeReg", "", ""], ["plafT", "PLAFOND DE TRANSACTIONS (MONTANT)", "", "plafT", "DH HT", ""], ["plafP", "PLAFOND DE TRANSACTIONS (PART)", "", "plafP", "%", ""],
+  ["esc", "ESCOMPTE", "", "escTaux", "%", ""], ["escJ", "ESCOMPTE — PAYÉ SOUS", "", "escJours", "JOURS", ""], ["ret", "RETENUE DE GARANTIE", "", "retTaux", "%", ""],
+  ["min", "MINIMUM DE COMMANDE", "", "minCmd", "DH", ""], ["franco", "FRANCO DE PORT À PARTIR DE", "", "franco", "DH", ""], ["rem", "REMISE HABITUELLE", "", "remise", "%", ""],
+  ["pen", "PÉNALITÉS DE RETARD", "", "", "", ""], ["val", "VALIDITÉ DU DEVIS", "", "", "JOURS", "30"], ["av", "AVANCE SUR COMMANDE", "", "", "%", ""], ["cond", "CONDITIONS DE PAIEMENT", "", "", "", ""], ["autre", "AUTRE", "", "", "", ""]];
+const achCltOf = t => ACH_CLT.find(x => x[0] === t) || ["", "", "", "", "", ""];
+const achCltDef = t => achCltOf(t)[2];
+const achCltLab = t => achCltOf(t)[1];
+const achCltFld = t => achCltOf(t)[3];
+const achCltU = t => achCltOf(t)[4];
+const ACH_CLT_NUM = ["delai", "plafT", "plafP", "escTaux", "escJours", "retTaux", "minCmd", "franco", "remise"];
+const achClTxt = x => [x.t === "autre" ? "" : achCltLab(x.t), [x.txt, [x.v, x.u].filter(s => s !== "" && s !== undefined && s !== null).join(" ")].filter(Boolean).join(" : ")].filter(Boolean);
+const achClG = p => Array.isArray(p.clG) ? p.clG : [["pay"], ["val"]].map(([t], i) => ({ id: "g" + (i + 1), t, txt: achCltDef(t), v: achCltOf(t)[5], u: achCltU(t) }));
 const achClP = p => Array.isArray(p.clP) ? p.clP : [{ id: "p1", t: "liv", txt: "" }, { id: "p2", t: "pen", txt: "" }];
-const achClCopy = L => (L || []).map(x => ({ t: x.t, txt: x.txt || "" }));
+const achClCopy = L => (L || []).map(x => ({ t: x.t, txt: x.txt || "", v: x.v ?? "", u: x.u ?? achCltU(x.t) }));
 const achPrm0 = p => ({ tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: achEspJour(p), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: achAlrJ(p, "av", p.avj === undefined ? 90 : achN(p.avj)), chqj: achAlrJ(p, "chq", p.chqj === undefined ? 30 : achN(p.chqj)), dorm: p.dorm === undefined ? 12 : achN(p.dorm), directJ: p.directJ === undefined ? 30 : Math.max(1, Math.round(achN(p.directJ)) || 1), nfrs: p.nfrs === undefined ? 3 : Math.max(1, Math.round(achN(p.nfrs)) || 1), avMax: p.avMax === undefined ? 30 : achN(p.avMax), delaiLeg: p.delaiLeg === undefined ? 60 : Math.max(1, achN(p.delaiLeg) || 60), seuilBdg: p.seuilBdg === undefined ? 90 : Math.min(100, Math.max(1, achN(p.seuilBdg) || 90)), exFin: p.exFin === undefined ? 12 : Math.min(12, Math.max(1, Math.round(achN(p.exFin)) || 12)), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), socIce: p.socIce || "", socIf: p.socIf || "", banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })), grp: ACH_ORIG.map(g => ({ ...g, req: g.req.slice() })), alr: achAlr(p), espL: achEspL(p), ment: p.ment && typeof p.ment === "object" ? p.ment : { ice: true, if: true }, seuV: Array.isArray(p.seuV) ? p.seuV : [],
   freqA: p.freqA === undefined ? 3 : achN(p.freqA), freqB: p.freqB === undefined ? 6 : achN(p.freqB), plafT: p.plafU === "%" || p.plafT === undefined ? "" : p.plafT, plafP: p.plafP !== undefined ? p.plafP : p.plafU === "%" && p.plafT !== undefined ? p.plafT : "", plafU: "DH", nrep: p.nrep === undefined ? 3 : Math.max(1, Math.round(achN(p.nrep)) || 1), mrep: p.mrep === undefined ? 10 : achN(p.mrep), refs: achRefs(p), clG: achClG(p), clP: achClP(p) });
 const achPrmSave = p => achW(ACH_K.prm, p);
