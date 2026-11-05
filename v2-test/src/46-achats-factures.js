@@ -22,7 +22,7 @@ function achAvfMod(ctx) {
     ok: (a, k) => k === "tout" ? true : k === "annule" ? a.state === "annule" : a.state !== "annule" && achAvfReste(a) > 0.005, why: () => [],
     w: { ref: 150, num: 130, frs: 220, fa: 150, date: 110, ttc: 130, reste: 130, motif: 220 },
     cols: () => [["ref", "RÉFÉRENCE", a => a.ref, ""], ["num", "N° AVOIR", a => a.num || "", ""], ["frs", "FOURNISSEUR", a => a.frs ? achFrsNom(a.frs) : "", ""], ["fa", "FACTURE", a => ((achFaf().find(f => f.id === a.fa) || {}).ref) || "", ""],
-      ["date", "DATE", a => achDFr(a.date), ""], ["ttc", "MONTANT TTC", a => achN(a.ttc), "number"], ["reste", "RESTE À DÉDUIRE", a => a.state === "annule" ? "" : achAvfReste(a), "number"], ["motif", "MOTIF", a => a.motif || "", ""]] });
+      ["date", "DATE", a => achDFr(a.date), ""], ["ttc", "MONTANT TTC", a => -achN(a.ttc), "number"],   /* B37 : avoir = facture de montant négatif */ ["reste", "RESTE À DÉDUIRE", a => a.state === "annule" ? "" : achAvfReste(a), "number"], ["motif", "MOTIF", a => a.motif || "", ""]] });
 }
 function achPafMod(ctx) {
   return achListMod(ctx, { k: "paf", t: "ach_paf", id: "achPafT", list: achPaf, name: "PAIEMENTS", save: achPafSave, inst: p => p.state === "instance", etatKey: "svi_ach_paf_etat_v1", newLab: "NOUVEAU PAIEMENT", newRow: "CRÉER UN PAIEMENT ICI… (OU DEPUIS LA FACTURE : PAYER)", open: (id, done) => achPafFiche(id, null, done),

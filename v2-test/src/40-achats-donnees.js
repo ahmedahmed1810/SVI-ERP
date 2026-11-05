@@ -271,6 +271,14 @@ const achFrsPlafNo = (f, add) => { if (!f || f.plafT === "" || f.plafT === undef
   const B = achBuyGrp(), g = achFrsRoot(f.id), mine = (B.M.get(g) || 0) + achN(add);
   if (f.plafU === "%") { const pct = B.t + achN(add) > 0 ? mine / (B.t + achN(add)) * 100 : 0; return pct > L ? "PLAFOND DE TRANSACTIONS ATTEINT : " + Math.round(pct) + " % DES ACHATS SUR 12 MOIS (PLAFOND " + L + " %)" : ""; }
   return mine > L ? "PLAFOND DE TRANSACTIONS ATTEINT : " + achF2(mine) + " HT SUR 12 MOIS (PLAFOND " + achF2(L) + " HT)" : ""; };
+/* B25, B45 (série B) : CIRCUIT DE VALIDATION des commandes — le seuil le plus haut dépassé (montant HT) donne les grades qui valident ;
+   RESPECTER LA HIÉRARCHIE = dans l'ordre, du plus bas au plus haut (grade 3 avant grade 1) ; sinon chaque grade peut valider seul.
+   La commande envoyée est verrouillée ; un valideur l'accepte ou la renvoie avec ses remarques ; corrigée, elle repart dans le circuit. */
+const achCmfSeu = c => { const ht = achCmfTot(c).ht, S = achPrm().seuV.filter(x => achN(x.mt) > 0 && ht > achN(x.mt) && (x.g || []).length).sort((a, b) => b.mt - a.mt)[0];
+  return S ? { mt: achN(S.mt), g: [...new Set(S.g.map(String))].sort((a, b) => +b - +a), h: !!S.h } : null; };
+const achCircNext = c => { const K = c.circ; if (!K) return []; const done = new Set((K.ok || []).map(x => String(x.g))), rest = K.g.filter(g => !done.has(g)); return K.h ? rest.slice(0, 1) : rest; };
+const achCircDone = c => !!c.circ && achCircNext(c).length === 0;
+const achGradeLab = g => { const x = sviPgL("grades").find(y => String(y.n) === String(g)); return "GRADE " + g + (x && x.lab ? " (" + x.lab + ")" : ""); };
 /* B44 : ARCHIVÉ — dormant depuis plus de 12 mois (ou le délai « dormant » s'il est plus long), au mois de clôture de l'exercice, soldé, sans pièce
    en cours ou en attente ; liste des empêchements (vide = archivage possible) */
 const achFrsArchWhy = f => { const w = [], P = achPrm(), n = Math.max(12, P.dorm), d = achFrsLast(f.id) || String(f.cree || "").slice(0, 10), lim = new Date(); lim.setMonth(lim.getMonth() - n);

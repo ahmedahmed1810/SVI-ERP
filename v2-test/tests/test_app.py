@@ -3668,6 +3668,27 @@ def main():
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("SÉRIE B, B21 B18 : fiche fournisseur BANQUE › AGENCE › RIB contrôlé (code banque, code ville de l'agence), compte comptable choisi dans COMPTABILITÉ ; minimum de devis non bloquant = « ! » devant le prix retenu", b21.get('ok') == '' and b21.get('badAg', '').startswith('RIB : CODE VILLE') and b21.get('badBq', '').startswith('RIB 007') and b21.get('bqDef') == 'BQ1' and b21.get('agN') == 3 and b21.get('cpt') and b21.get('refused') and b21.get('bang'), b21)
+        b25 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_cmf_v1', 'svi_ach_prm_v1', 'svi_ach_rtr_v1'], keep = K.map(k => localStorage.getItem(k));
+  const P = achPrm(); P.seuV = [{ id: 's1', mt: 1000, g: ['3', '1'], h: true }]; achPrmSave(P);
+  const L = achFrs(); const f = achFrsNew(L, { nom: 'CIRC' }); f.st = 'valide'; achFrsSave(L);
+  const c = achCmfFrom({ frs: f.id, why: 'T', lignes: [{ des: 'BRIQUE', u: 'U', q: 10, pu: 200 }] }); const Lc = achCmf(); Lc.find(x => x.id === c.id).motifSans = 'URGENCE'; achCmfSave(Lc);
+  r.seu = JSON.stringify(achCmfSeu(achCmf().find(x => x.id === c.id)));
+  document.querySelector('#navMenu .nav-btn[data-ach="cmf"]').click(); await w(300); achCmfFiche(c.id); await w(300);
+  r.btn = !!document.querySelector('[data-circ]') && !document.querySelector('[data-valid]');
+  document.querySelector('[data-circ]').click(); await w(300); const ok = [...document.querySelectorAll('button')].filter(b => b.textContent.trim() === 'ENVOYER').pop(); if (ok) ok.click(); await w(400);
+  r.locked = !!document.querySelector('.cmf-card input.cmf-x[data-k="lieu"][disabled]'); r.next = [...document.querySelectorAll('[data-cacc]')].map(b => b.dataset.cacc).join(',');
+  document.querySelector('[data-cret="3"]').click(); await w(300); document.querySelector('.ask-v').value = 'PRIX À REVOIR'; [...document.querySelectorAll('[data-ok]')].pop().click(); await w(400);
+  r.renv = (achCmf().find(x => x.id === c.id).renv || []).length; r.unlocked = !document.querySelector('.cmf-card input.cmf-x[data-k="lieu"][disabled]') && !!document.querySelector('.cmf-card .frs-why');
+  document.querySelector('[data-circ]').click(); await w(300); [...document.querySelectorAll('button')].filter(b => b.textContent.trim() === 'ENVOYER').pop().click(); await w(400);
+  document.querySelector('[data-cacc="3"]').click(); await w(300); r.next2 = [...document.querySelectorAll('[data-cacc]')].map(b => b.dataset.cacc).join(',');
+  document.querySelector('[data-cacc="1"]').click(); await w(500); const vb = [...document.querySelectorAll('button')].filter(b => b.textContent.trim() === 'VALIDER' && b.closest('#svConf') && !b.closest('.cmf-card')).pop(); if (vb) vb.click(); await w(500);
+  r.state = achCmf().find(x => x.id === c.id).state;
+  document.querySelectorAll('#svConf').forEach(x => x.remove());
+  const rt = achRtrAdd({ kind: 'cmd', cmf: c.id, frs: f.id, lignes: [{ cl: achCmf().find(x => x.id === c.id).lignes[0].id, des: 'BRIQUE', u: 'U', q: 2 }], motif: 'T' }); r.rtMt = achRtrMt(rt);
+  const D = achDocPage('cmf', achCmf().find(x => x.id === c.id)); r.link = (D.links.find(l => l.t === 'RETOURS DE COMMANDE') || { rows: [] }).rows.length;
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check('SÉRIE B, B25 B45 B37 : CIRCUIT DE VALIDATION (seuil → grades, hiérarchie du plus bas au plus haut, commande verrouillée, RENVOYER avec remarques puis repart, VALIDER à la fin) ; retours = montant négatif, liés dans les deux sens', b25.get('seu') == '{"mt":1000,"g":["3","1"],"h":true}' and b25.get('btn') and b25.get('locked') and b25.get('next') == '3' and b25.get('renv') == 1 and b25.get('unlocked') and b25.get('next2') == '1' and b25.get('state') == 'valide' and b25.get('rtMt') == -400 and b25.get('link') == 1, b25)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

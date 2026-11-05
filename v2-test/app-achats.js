@@ -272,6 +272,14 @@ const achFrsPlafNo = (f, add) => { if (!f || f.plafT === "" || f.plafT === undef
   const B = achBuyGrp(), g = achFrsRoot(f.id), mine = (B.M.get(g) || 0) + achN(add);
   if (f.plafU === "%") { const pct = B.t + achN(add) > 0 ? mine / (B.t + achN(add)) * 100 : 0; return pct > L ? "PLAFOND DE TRANSACTIONS ATTEINT : " + Math.round(pct) + " % DES ACHATS SUR 12 MOIS (PLAFOND " + L + " %)" : ""; }
   return mine > L ? "PLAFOND DE TRANSACTIONS ATTEINT : " + achF2(mine) + " HT SUR 12 MOIS (PLAFOND " + achF2(L) + " HT)" : ""; };
+/* B25, B45 (série B) : CIRCUIT DE VALIDATION des commandes — le seuil le plus haut dépassé (montant HT) donne les grades qui valident ;
+   RESPECTER LA HIÉRARCHIE = dans l'ordre, du plus bas au plus haut (grade 3 avant grade 1) ; sinon chaque grade peut valider seul.
+   La commande envoyée est verrouillée ; un valideur l'accepte ou la renvoie avec ses remarques ; corrigée, elle repart dans le circuit. */
+const achCmfSeu = c => { const ht = achCmfTot(c).ht, S = achPrm().seuV.filter(x => achN(x.mt) > 0 && ht > achN(x.mt) && (x.g || []).length).sort((a, b) => b.mt - a.mt)[0];
+  return S ? { mt: achN(S.mt), g: [...new Set(S.g.map(String))].sort((a, b) => +b - +a), h: !!S.h } : null; };
+const achCircNext = c => { const K = c.circ; if (!K) return []; const done = new Set((K.ok || []).map(x => String(x.g))), rest = K.g.filter(g => !done.has(g)); return K.h ? rest.slice(0, 1) : rest; };
+const achCircDone = c => !!c.circ && achCircNext(c).length === 0;
+const achGradeLab = g => { const x = sviPgL("grades").find(y => String(y.n) === String(g)); return "GRADE " + g + (x && x.lab ? " (" + x.lab + ")" : ""); };
 /* B44 : ARCHIVÉ — dormant depuis plus de 12 mois (ou le délai « dormant » s'il est plus long), au mois de clôture de l'exercice, soldé, sans pièce
    en cours ou en attente ; liste des empêchements (vide = archivage possible) */
 const achFrsArchWhy = f => { const w = [], P = achPrm(), n = Math.max(12, P.dorm), d = achFrsLast(f.id) || String(f.cree || "").slice(0, 10), lim = new Date(); lim.setMonth(lim.getMonth() - n);
@@ -1742,7 +1750,9 @@ function achDocPage(k, x) {
   const RC = (t, L) => docs(t, L, [["RÉFÉRENCE"], ["N° BL"], ["REÇU LE"], ["LIGNES", "center"]], r => [r.ref, r.pv ? "PV DE SERVICE FAIT" : r.nbl || "", svDT(r.date || ""), String((r.lignes || []).length)], "rcp");
   const FA = (t, L) => docs(t, L, [["RÉFÉRENCE"], ["N° FACTURE"], ["MONTANT TTC", "number"], ["RESTE À PAYER", "number"], ["ÉTAT", "center"]], f => [f.ref, f.num || "", achFafTot(f).ttc, f.state === "annule" ? "" : achFafReste(f), achFafEtat(f)], "faf");
   const PA = (t, L) => docs(t, L, [["RÉFÉRENCE"], ["MODE"], ["DATE"], ["MONTANT", "number"], ["ÉTAT", "center"]], p => [p.ref, p.mode || "", achDFr(p.date), achN(p.mt), ACH_PAF_ST[p.state] || ""], "paf");
-  const AV = (t, L) => docs(t, L, [["RÉFÉRENCE"], ["N° AVOIR"], ["MONTANT TTC", "number"], ["RESTE À DÉDUIRE", "number"]], a => [a.ref, a.num || "", achN(a.ttc), a.state === "annule" ? "" : achAvfReste(a)], "avf");
+  const AV = (t, L) => docs(t, L, [["RÉFÉRENCE"], ["N° AVOIR"], ["MONTANT TTC", "number"], ["RESTE À DÉDUIRE", "number"]], a => [a.ref, a.num || "", -achN(a.ttc), a.state === "annule" ? "" : achAvfReste(a)], "avf");
+  /* B37 : retours liés dans les deux sens — la pièce d'origine affiche en bas ses retours (montant négatif) */
+  const RT = (t, L, kk) => docs(t, L, [["RÉFÉRENCE"], ["MOTIF"], ["DATE"], ["MONTANT HT", "number"]], r => [r.ref, r.motif || "", svDT(r.date || ""), achRtrMt(r)], kk);
   const CA = (t, L) => docs(t, L, [["RÉFÉRENCE"], ["OBJET"], ["ÉTAT", "center"]], c => [c.ref, c.objet || "", { ouverte: "OUVERTE", close: "CLOSE", annule: "ANNULÉE" }[c.state] || ""], "caf");
   const has = (L, id) => (L || []).includes(id);
   if (k === "caf") { const R = x.rep || {};
@@ -1759,9 +1769,9 @@ function achDocPage(k, x) {
   const TOT = t => [["MONTANT HT", t.ht], ["MONTANT TVA", t.ttc - t.ht], ["MONTANT TTC", t.ttc]];
   if (k === "dvf") return { title: fr(x.frs), tot: TOT(achDvfTot(x)), ttc: achDvfTot(x).ttc, links: [lig("LIGNES", true), CA("CONSULTATION", achCaf().filter(c => c.id === x.caf)), CM("COMMANDES", achCmf().filter(c => c.dvf === x.id || (c.lignes || []).some(l => l.dvf === x.id)))] };
   if (k === "cmf") return { title: fr(x.frs), tot: TOT(achCmfTot(x)), ttc: achCmfTot(x).ttc, links: [lig("LIGNES", true), DV("DEVIS", achDvf().filter(v => v.id === x.dvf || (x.lignes || []).some(l => l.dvf === v.id))), { ...RC("RÉCEPTIONS", achRcp().filter(r => r.cmf === x.id)), add: "CRÉER UNE RÉCEPTION ICI…", addAny: x.state === "valide" },
-    { ...FA("FACTURES", achFaf().filter(f => f.cmf === x.id || has(f.cmfs, x.id))), add: "CRÉER UNE FACTURE ICI…", addAny: x.state === "valide" }, { ...PA("PAIEMENTS", achPaf().filter(p => p.cmf === x.id)), add: "CRÉER UN PAIEMENT (AVANCE) ICI…", addAny: x.state === "valide" }] };
-  if (k === "rcp") return { title: fr(x.frs), links: [lig("LIGNES", false, true), CM("COMMANDE", achCmf().filter(c => c.id === x.cmf)), FA("FACTURES", achFaf().filter(f => has(f.rcps, x.id)))] };
-  if (k === "rtrcmd" || k === "rtrrcp") return { title: fr(x.frs), links: [lig("LIGNES"), CM("COMMANDE", achCmf().filter(c => c.id === x.cmf)), RC("RÉCEPTION", achRcp().filter(r => r.id === x.rcp))] };
+    { ...FA("FACTURES", achFaf().filter(f => f.cmf === x.id || has(f.cmfs, x.id))), add: "CRÉER UNE FACTURE ICI…", addAny: x.state === "valide" }, { ...PA("PAIEMENTS", achPaf().filter(p => p.cmf === x.id)), add: "CRÉER UN PAIEMENT (AVANCE) ICI…", addAny: x.state === "valide" }, RT("RETOURS DE COMMANDE", achRtr().filter(r => r.kind === "cmd" && r.cmf === x.id), "rtrcmd")] };
+  if (k === "rcp") return { title: fr(x.frs), links: [lig("LIGNES", false, true), CM("COMMANDE", achCmf().filter(c => c.id === x.cmf)), FA("FACTURES", achFaf().filter(f => has(f.rcps, x.id))), RT("RETOURS DE RÉCEPTION", achRtr().filter(r => r.kind === "rcp" && r.rcp === x.id), "rtrrcp")] };
+  if (k === "rtrcmd" || k === "rtrrcp") return { title: fr(x.frs), tot: [["MONTANT HT", achRtrMt(x)]], ttc: achRtrMt(x), links: [lig("LIGNES"), CM("COMMANDE", achCmf().filter(c => c.id === x.cmf)), RC("RÉCEPTION", achRcp().filter(r => r.id === x.rcp))] };
   /* v817 : page de la facture (C8.90 – C8.93) — DÉTAIL FACTURE STANDARD (depuis les réceptions), DÉTAIL FACTURE FOURNISSEUR (saisi), puis besoins, devis, commandes, réceptions, paiements, avoirs */
   if (k === "faf") { const cids = [x.cmf].concat(x.cmfs || []).filter(Boolean), CL = achCmf().filter(c => cids.includes(c.id)), RL = achRcp().filter(r => r.state !== "annule" && (has(x.rcps, r.id) || (!(x.rcps || []).length && cids.includes(r.cmf))));
     const BS = achBsn(), lineOf = (r, l) => { const c = CL.find(y => y.id === r.cmf); return c ? (c.lignes || []).find(y => y.id === l.cl) : null; };
@@ -2048,9 +2058,9 @@ function achRtrMod(ctx, kind) {
     newLab: kind === "cmd" ? "RETOUR DE COMMANDE (DEPUIS LA COMMANDE)" : "RETOUR DE RÉCEPTION (DEPUIS LA RÉCEPTION)", newRow: kind === "cmd" ? "UN RETOUR DE COMMANDE SE CRÉE DEPUIS LA COMMANDE (RETOUR DE COMMANDE, SOLDER)" : "UN RETOUR DE RÉCEPTION SE CRÉE DEPUIS LA RÉCEPTION (REFUS, RETOURNER)",
     open: (id, done) => { if (id) achRtrWin(id); else svToast(kind === "cmd" ? "OUVRIR LA COMMANDE PUIS « RETOUR DE COMMANDE » OU « SOLDER »." : "OUVRIR LA RÉCEPTION PUIS « RETOURNER » (OU REFUSER DES LIGNES).", 3500); },
     etats: [["tout", "TOUS"]], ok: () => true, why: () => [],
-    w: { ref: 150, src: 150, frs: 220, date: 150, lig: 260, motif: 260 },
+    w: { ref: 150, src: 150, frs: 220, date: 150, lig: 260, mt: 130, motif: 260 },
     cols: () => [["ref", "RÉFÉRENCE", x => x.ref, ""], ["src", kind === "cmd" ? "COMMANDE" : "RÉCEPTION", x => kind === "cmd" ? ((achCmf().find(c => c.id === x.cmf) || {}).ref || "") : ((achRcp().find(r => r.id === x.rcp) || {}).ref || ""), ""],
-      ["frs", "FOURNISSEUR", x => x.frs ? achFrsNom(x.frs) : "", ""], ["date", "DATE", x => svDT(x.date || ""), ""], ["lig", "LIGNES", x => (x.lignes || []).map(l => l.des + " " + achF2(l.q) + " " + l.u).join(" · "), ""], ["motif", "MOTIF", x => x.motif || "", ""]] });
+      ["frs", "FOURNISSEUR", x => x.frs ? achFrsNom(x.frs) : "", ""], ["date", "DATE", x => svDT(x.date || ""), ""], ["lig", "LIGNES", x => (x.lignes || []).map(l => l.des + " " + achF2(l.q) + " " + l.u).join(" · "), ""], ["mt", "MONTANT HT", x => achRtrMt(x), "number"], ["motif", "MOTIF", x => x.motif || "", ""]] });
 }
 function achRtrWin(id) {
   const x = achRtr().find(y => y.id === id); if (!x) return;
@@ -2063,6 +2073,9 @@ function achRtrWin(id) {
   d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) d.remove(); });
 }
 /* retour (de commande ou de réception) : enregistré et noté dans H */
+/* B37 (série B) : un retour est une pièce de montant NÉGATIF (prix des lignes de la commande d'origine) */
+const achRtrMt = x => { const c = achCmf().find(y => y.id === x.cmf), CL = (c && c.lignes) || [];
+  return -(x.lignes || []).reduce((t, l) => { const o = CL.find(y => y.id === l.cl) || CL.find(y => achKey(y.des, y.u) === achKey(l.des, l.u)) || {}; return t + achN(l.q) * achN(o.pu) * (1 - achN(c && c.rem) / 100); }, 0); };
 const achRtrAdd = o => { const L = achRtr(); const x = { id: "T" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), ref: achNextRef(o.kind === "cmd" ? "RTC" : "RTR", L.filter(y => y.kind === o.kind)), date: achNow(), ...o }; L.push(x); achRtrSave(L);
   achHist(x.ref, "CRÉATION", (x.motif || "") + " — " + (x.lignes || []).map(l => l.des + " " + achF2(l.q)).join(" · ")); return x; };
 /* fenêtre de quantités par ligne (retour, avenant…) : rend [{ cl, des, u, q }] (q > 0) et le motif, ou null */
@@ -2108,12 +2121,16 @@ function achCmfFiche(id, done) {
   if (!Array.isArray(C.cla)) C.cla = achClCopy(achPrm().clP);   /* B29 : commande d'avant les clauses = clauses particulières du modèle */
   let edAv = false;   /* avenant en cours : la commande validée redevient modifiable */
   const draw = () => {
-    const ro = !(C.state === "instance" || edAv), dis = ro ? " disabled" : "", t = achCmfTot(C), why = achCmfWhy(C), R = achRcp(), T = achRtr();
+    const circ = C.state === "instance" && !!C.circ && !achCircDone(C), SEU = C.state === "instance" ? achCmfSeu(C) : null;
+    const ro = !(C.state === "instance" || edAv) || circ, dis = ro ? " disabled" : "", t = achCmfTot(C), why = achCmfWhy(C), R = achRcp(), T = achRtr();
     const BL = achBsn(), DV = achDvf(), PV = C.nat === "PRESTATIONS ET HONORAIRES";
     const opt = (L, v) => L.map(x => `<option value="${esc(x[0])}"${x[0] === v ? " selected" : ""}>${esc(x[1])}</option>`).join("");
     const FR = achLive(achFrs()).filter(f => achFrsOk(f) || f.id === C.frs);
     d.innerHTML = sviWinCard({ cls: "frs-card cmf-card", close: "data-x", title: "COMMANDE — " + esc(C.ref) + (C.av ? " · AVENANT " + C.av : "") + " · " + (ACH_CMF_ST[C.state] || "") + (edAv ? " (AVENANT EN COURS)" : ""),
-      body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
+      body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}${(C.renv || []).length && C.state === "instance" && !C.circ ? `<div class="frs-why">↩ RENVOYÉE PAR ${esc(achGradeLab(C.renv[C.renv.length - 1].g))}${C.renv[C.renv.length - 1].u ? " — " + esc(C.renv[C.renv.length - 1].u) : ""} : ${esc(C.renv[C.renv.length - 1].why)}</div>` : ""}<div class="frs-scroll">
+        ${C.circ && C.state === "instance" ? `<div class="frs-sec cmf-circ"><div class="frs-st">CIRCUIT DE VALIDATION — AU-DELÀ DE ${esc(achF2(C.circ.mt))} HT${C.circ.h ? " (HIÉRARCHIE RESPECTÉE)" : ""}</div>
+          <table class="prm-table frs-sub"><thead><tr><th>GRADE</th><th>ÉTAT</th><th>PAR</th><th>LE</th></tr></thead><tbody>${C.circ.g.map(g => { const o = (C.circ.ok || []).find(x => String(x.g) === g), nx = achCircNext(C).includes(g);
+            return `<tr class="${o ? "nvr-valide" : nx ? "nvr-instance" : ""}"><td>${esc(achGradeLab(g))}</td><td>${o ? "ACCEPTÉE" : nx ? "À VALIDER" : "EN ATTENTE"}</td><td>${esc(o ? o.u || "" : "")}</td><td>${esc(o ? achDFr(o.t) : "")}</td></tr>`; }).join("")}</tbody></table></div>` : ""}
         <div class="frs-sec"><div class="frs-g">
           <label class="frs-f"><span>NATURE</span><select class="ins-in cmf-x" data-k="nat"${dis}>${opt(ACH_NAT.map(x => [x, x]), C.nat)}</select></label>
           <label class="frs-f frs-w"><span>FOURNISSEUR <b>*</b></span><select class="ins-in cmf-x" data-k="frs"${dis || (C.caf ? " disabled" : "")}><option value=""></option>${opt(FR.map(f => [f.id, f.code + " — " + f.nom]), C.frs)}</select></label>
@@ -2165,7 +2182,8 @@ function achCmfFiche(id, done) {
         ${C.state === "valide" && !edAv ? `<button type="button" class="svc-b svc-ok svc-neutral" data-save2>ENREGISTRER</button>` : ""}
         ${(C.state === "valide" || C.state === "instance") && !edAv && C.avT && achCmfTot(C).av - achAvVerse(C.id) > 0.005 ? `<button type="button" class="svc-b" data-avpay>VERSER L'AVANCE</button>` : ""}
         ${(C.state === "valide" || C.state === "solde") && !edAv ? `<button type="button" class="svc-b" data-fac>FACTURER</button>` : ""}
-        ${!ro ? `<button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER${edAv ? " L'AVENANT" : ""}</button>` : ""}${C.state === "instance" ? `<button type="button" class="svc-b svc-ok" data-valid>VALIDER</button>` : ""}` });
+        ${!ro ? `<button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER${edAv ? " L'AVENANT" : ""}</button>` : ""}${C.state === "instance" ? (circ ? achCircNext(C).map(g => `<button type="button" class="svc-b" data-cret="${g}">RENVOYER (${esc("GRADE " + g)})</button><button type="button" class="svc-b svc-ok" data-cacc="${g}">ACCEPTER (${esc("GRADE " + g)})</button>`).join("")
+          : SEU && !achCircDone(C) ? `<button type="button" class="svc-b svc-ok" data-circ>ENVOYER EN VALIDATION</button>` : `<button type="button" class="svc-b svc-ok" data-valid>VALIDER</button>`) : ""}` });
     if (!d.isConnected) sviWinShow(d);
   };
   const pull = () => { d.querySelectorAll(".cmf-x").forEach(i => { if (i.disabled) return; const k = i.dataset.k; C[k] = ["frais", "rem", "avV"].includes(k) ? achN(i.value) : ["dProm", "dConf", "frs", "nat", "transp", "avT"].includes(k) ? i.value : achU(i.value); });
@@ -2213,7 +2231,18 @@ function achCmfFiche(id, done) {
       if (edAv) { const R = achRcp(), T = achRtr(); if (C.lignes.some(l => achN(l.q) + 1e-9 < achRecQ(C.id, l.id, R, T) + achCanQ(C.id, l.id, T))) { svToast("UNE QUANTITÉ NE PEUT PAS DESCENDRE SOUS LE DÉJÀ REÇU.", 3500); return; }
         C.av = (C.av || 0) + 1; C.avH = (C.avH || []).concat({ n: C.av, t: achNow(), motif: C.__avM, ht: C.__avHt }); delete C.__avM; delete C.__avHt; edAv = false; store("AVENANT " + C.av); draw(); return; }
       store("MODIFICATION"); draw(); return; }
+    /* B25, B45 : circuit de validation */
+    if (e.target.closest("[data-circ]")) { pull(); if (!check()) return; const S = achCmfSeu(C); if (!S) { draw(); return; }
+      { const no = achDirCmfCheck(C) || achCmfValNo(C); if (no) { svToast(no + ".", 5500); return; } }
+      if (!(await svConfirm({ title: "ENVOYER EN VALIDATION", text: C.ref + " : " + achF2(achCmfTot(C).ht) + " HT, AU-DELÀ DE " + achF2(S.mt) + " HT — VALIDATION PAR " + S.g.map(achGradeLab).join(S.h ? " PUIS " : " OU ") + ". LA COMMANDE EST VERROUILLÉE PENDANT LE CIRCUIT.", ok: "ENVOYER", tone: "neutral" }))) return;
+      C.circ = { ...S, ok: [], t: achNow() }; store("ENVOYÉE EN VALIDATION"); draw(); return; }
+    const ca = e.target.closest("[data-cacc]"), cr = e.target.closest("[data-cret]");
+    if (ca || cr) { const g = (ca || cr).dataset.cacc || (ca || cr).dataset.cret; if (!achCircNext(C).includes(g)) { svToast("CE GRADE NE PEUT PAS VALIDER MAINTENANT (HIÉRARCHIE).", 3500); return; }
+      if (cr) { const m = await achAsk("RENVOYER " + C.ref + " AU GRADE INFÉRIEUR", "REMARQUES (" + achGradeLab(g) + ")"); if (!m) return; C.renv = (C.renv || []).concat([{ g, u: sviUser(), t: achNow(), why: m }]); C.circ = null; store("RENVOYÉE PAR GRADE " + g + " : " + m); draw(); return; }
+      C.circ.ok = (C.circ.ok || []).concat([{ g, u: sviUser(), t: achNow() }]); store("ACCEPTÉE PAR GRADE " + g); draw();
+      if (achCircDone(C)) setTimeout(() => { const v = d.querySelector("[data-valid]"); if (v) v.click(); }, 0); return; }
     if (e.target.closest("[data-valid]")) { pull(); if (!check()) return;
+      if (achCmfSeu(C) && !achCircDone(C)) { svToast("AU-DELÀ DU SEUIL DE VALIDATION : ENVOYER EN VALIDATION.", 3500); return; }
       { const no = achDirCmfCheck(C) || achCmfValNo(C); if (no) { svToast(no + ".", 5500); return; } }
       if (await achFrsStop(achFrs().find(f => f.id === C.frs), "VALIDER LA COMMANDE " + C.ref)) return;
       if (!(await svConfirm({ title: "VALIDER LA COMMANDE", text: C.ref + " : " + achF2(achCmfTot(C).ttc) + " TTC (" + frMoney(achCmfTot(C).ttc) + "). LE MONTANT EST ENGAGÉ SUR LE BUDGET DES BESOINS.", ok: "VALIDER", tone: "neutral" }))) return;
@@ -2364,7 +2393,7 @@ function achAvfMod(ctx) {
     ok: (a, k) => k === "tout" ? true : k === "annule" ? a.state === "annule" : a.state !== "annule" && achAvfReste(a) > 0.005, why: () => [],
     w: { ref: 150, num: 130, frs: 220, fa: 150, date: 110, ttc: 130, reste: 130, motif: 220 },
     cols: () => [["ref", "RÉFÉRENCE", a => a.ref, ""], ["num", "N° AVOIR", a => a.num || "", ""], ["frs", "FOURNISSEUR", a => a.frs ? achFrsNom(a.frs) : "", ""], ["fa", "FACTURE", a => ((achFaf().find(f => f.id === a.fa) || {}).ref) || "", ""],
-      ["date", "DATE", a => achDFr(a.date), ""], ["ttc", "MONTANT TTC", a => achN(a.ttc), "number"], ["reste", "RESTE À DÉDUIRE", a => a.state === "annule" ? "" : achAvfReste(a), "number"], ["motif", "MOTIF", a => a.motif || "", ""]] });
+      ["date", "DATE", a => achDFr(a.date), ""], ["ttc", "MONTANT TTC", a => -achN(a.ttc), "number"],   /* B37 : avoir = facture de montant négatif */ ["reste", "RESTE À DÉDUIRE", a => a.state === "annule" ? "" : achAvfReste(a), "number"], ["motif", "MOTIF", a => a.motif || "", ""]] });
 }
 function achPafMod(ctx) {
   return achListMod(ctx, { k: "paf", t: "ach_paf", id: "achPafT", list: achPaf, name: "PAIEMENTS", save: achPafSave, inst: p => p.state === "instance", etatKey: "svi_ach_paf_etat_v1", newLab: "NOUVEAU PAIEMENT", newRow: "CRÉER UN PAIEMENT ICI… (OU DEPUIS LA FACTURE : PAYER)", open: (id, done) => achPafFiche(id, null, done),
