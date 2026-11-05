@@ -3603,6 +3603,22 @@ def main():
   if (kf === null) localStorage.removeItem('svi_ach_frs_v1'); else localStorage.setItem('svi_ach_frs_v1', kf);
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("SÉRIE B, B39 : e-mails de commande et de facturation retirés de l'IDENTITÉ (repris en contacts) ; CONTACTS avec la colonne REÇOIT (pièces reçues par e-mail, explication à l'appui long)", b39.get('noMail') and b39.get('rows') == 2 and b39.get('th') and b39.get('recv') == 'fac@x.ma|cmd@x.ma|fac@x.ma' and b39.get('cleared'), b39)
+        b42 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_cmf_v1', 'svi_ach_prm_v1'], keep = K.map(k => localStorage.getItem(k));
+  const L = achFrs(); const a = achFrsNew(L, { nom: 'FREQ A' }), b = achFrsNew(L, { nom: 'FREQ B' }), c = achFrsNew(L, { nom: 'VIEUX' }); c.cree = '2020-01-01T00:00:00Z'; achFrsSave(L);
+  const d = n => { const x = new Date(); x.setDate(x.getDate() - n); return x.toISOString(); };
+  const C = achCmf(); [[a.id, 10], [a.id, 40], [a.id, 70], [b.id, 20], [b.id, 140], [b.id, 260]].forEach(([f, n], i) => C.push({ id: 'Q' + i, ref: 'CMF Q' + i, frs: f, state: 'solde', cree: d(n), valide: d(n), lignes: [] })); achCmfSave(C);
+  r.fa = achFrsFreq(a).lab; r.fb = achFrsFreq(b).lab; r.fc = achFrsFreq(c).lab; r.none = achFrsFreq(achFrsNew([], { nom: 'X' })).lab;
+  const P = achPrm(); P.exFin = new Date().getMonth() + 1; achPrmSave(P);
+  r.archA = achFrsArchWhy(a).length > 0; r.archC = achFrsArchWhy(c).join('|');
+  const L2 = achFrs(); L2.find(x => x.id === b.id).bloq = { why: 'TEST' }; achFrsSave(L2);
+  const p = achFrsStop(achFrs().find(x => x.id === b.id), 'VALIDER LA COMMANDE'); await w(300); r.ask = !!document.querySelector('.ask-v');
+  document.querySelector('.ask-v').value = 'DG — URGENCE'; [...document.querySelectorAll('[data-ok]')].pop().click(); r.stop = await p;
+  const L3 = achFrs(); L3.find(x => x.id === c.id).arch = '2025-01-01'; achFrsSave(L3); r.stopArch = await achFrsStop(achFrs().find(x => x.id === c.id), 'X');
+  document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(400);
+  r.col = [...document.querySelectorAll('#ach thead th')].some(t => /FRÉQUENCE/.test(t.textContent));
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("SÉRIE B, B42 B44 : FRÉQUENCE calculée (fréquent, normal, occasionnel, dormant ; colonne et états de la liste ; case ACTIF retirée) ; ARCHIVER seulement dormant depuis 12 mois, soldé, sans pièce en cours ; BLOQUÉ = tout s'arrête sauf autorisation exceptionnelle notée ; archivé = rien", b42.get('fa') == 'FRÉQUENT' and b42.get('fb') == 'NORMAL' and b42.get('fc') == 'DORMANT' and b42.get('none') == '' and b42.get('archA') and b42.get('archC') == '' and b42.get('ask') and b42.get('stop') is False and b42.get('stopArch') is True and b42.get('col'), b42)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

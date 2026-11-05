@@ -153,8 +153,9 @@ function achFafFiche(id, o, done) {
     if (e.target.closest("[data-unbap]")) { P.state = "instance"; await store("BON À PAYER RETIRÉ"); draw(); return; }
     if (e.target.closest("[data-ecok]")) { pull(); const m = await achAsk("ACCEPTER L'ÉCART", "MOTIF"); if (!m) return; P.ecOk = { t: achNow(), motif: m }; if (P.state === "reclame") P.state = "instance"; if (check()) await store("ÉCART ACCEPTÉ — " + m); draw(); return; }
     if (e.target.closest("[data-recl]")) { pull(); if (!check()) return; P.state = "reclame"; await store("ÉCART RÉCLAMÉ AU FOURNISSEUR"); draw(); return; }
-    if (e.target.closest("[data-save]")) { pull(); if (!check()) return; await store(f0 || achFaf().some(x => x.id === P.id) ? "MODIFICATION" : "CRÉATION"); draw(); return; }
-    if (e.target.closest("[data-bap]")) { pull(); if (!check()) return;
+    if (e.target.closest("[data-save]")) { pull(); if (!check()) return; const isNew = !(f0 || achFaf().some(x => x.id === P.id));
+      if (isNew && await achFrsStop(achFrs().find(f => f.id === P.frs), "ENREGISTRER UNE FACTURE")) return; await store(isNew ? "CRÉATION" : "MODIFICATION"); draw(); return; }
+    if (e.target.closest("[data-bap]")) { pull(); if (!check()) return; if (await achFrsStop(achFrs().find(f => f.id === P.frs), "BON À PAYER")) return;
       const stop = achFafStop(P); if (stop.length) { svToast("BON À PAYER IMPOSSIBLE : " + stop.join(" · "), 5000); return; }
       if (!(await svConfirm({ title: "BON À PAYER", text: (P.ref || "LA FACTURE") + " : NET À PAYER " + achF2(achFafTot(P).net) + " (ÉCHÉANCE " + achDFr(achFafEch(P)) + ").", ok: "BON À PAYER", tone: "neutral" }))) return;
       P.state = "bap"; P.bap = achNow(); await store("BON À PAYER"); draw(); return; }
@@ -294,7 +295,7 @@ function achPafFiche(id, o, done) {
     if (e.target.closest("[data-save]")) { pull(); if (!check()) return; store(p0 || achPaf().some(x => x.id === P.id) ? "MODIFICATION" : "CRÉATION"); draw(); return; }
     if (e.target.closest("[data-valid]")) { pull(); if (!check()) return;
       const fr = achFrs().find(f => f.id === P.frs);
-      if (fr && (fr.bloq || fr.arch)) { svToast("FOURNISSEUR " + (fr.bloq ? "BLOQUÉ : " + (fr.bloq.why || "") : "ARCHIVÉ") + " — PAIEMENT REFUSÉ.", 4000); return; }
+      if (await achFrsStop(fr, "VALIDER LE PAIEMENT")) return;
       if (fr && achFrsAttExp(fr) && !P.deb) { svToast("ATTESTATION DE RÉGULARITÉ FISCALE EXPIRÉE : PAIEMENT BLOQUÉ (DÉBLOQUER AVEC UN MOTIF).", 5000); draw(); return; }
       if ((P.mode === "VIREMENT" || P.mode === "PRÉLÈVEMENT") && fr && fr.ribChg) { svToast("RIB DU FOURNISSEUR MODIFIÉ : À VÉRIFIER (FICHE FOURNISSEUR, RIB VÉRIFIÉ) AVANT TOUT PAIEMENT.", 5000); return; }
       if ((P.mode === "VIREMENT" || P.mode === "PRÉLÈVEMENT") && fr && !achFrsRibP(fr)) { svToast("AUCUN RIB POUR CE FOURNISSEUR.", 3500); return; }

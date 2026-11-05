@@ -208,10 +208,37 @@ const achFrsAttExp = f => { const A = ((f && f.docf) || []).filter(d => d.type =
 /* v809 : fournisseur utilisable dans une nouvelle pièce = ni supprimé, ni inactif, ni bloqué, ni archivé */
 const achFrsOk = f => !!f && !f.del && f.actif !== false && !f.bloq && !f.arch;
 /* C1.45 : dernier achat (commande ou facture) ; dormant = sans achat depuis PARAMÈTRES › dorm mois ; archivage proposé au mois de clôture de l'exercice */
-const achFrsLast = id => { let d = ""; achCmf().filter(c => c.frs === id && c.state !== "annule").forEach(c => { const x = String(c.valide || c.cree || "").slice(0, 10); if (x > d) d = x; });
-  achFaf().filter(x => x.frs === id && x.state !== "annule").forEach(x => { const y = String(x.dFac || x.cree || "").slice(0, 10); if (y > d) d = y; }); return d; };
+/* série B (B42) : dates des commandes et dernier achat de chaque fournisseur, calculés une fois (mémorisés) */
+const achFrsDates = () => achMemo("frsd", [ACH_K.cmf, ACH_K.faf], () => { const M = new Map(), of = id => { if (!M.has(id)) M.set(id, { cmd: [], last: "" }); return M.get(id); };
+  achCmf().filter(c => c.frs && c.state !== "annule").forEach(c => { const x = String(c.valide || c.cree || "").slice(0, 10), o = of(c.frs); if (x) { o.cmd.push(x); if (x > o.last) o.last = x; } });
+  achFaf().filter(x => x.frs && x.state !== "annule").forEach(x => { const y = String(x.dFac || x.cree || "").slice(0, 10), o = of(x.frs); if (y > o.last) o.last = y; });
+  M.forEach(o => o.cmd.sort()); return M; });
+const achFrsLast = id => (achFrsDates().get(id) || {}).last || "";
 const achFrsDormant = f => { const d = achFrsLast(f.id) || String(f.cree || "").slice(0, 10), lim = new Date(); lim.setMonth(lim.getMonth() - achPrm().dorm); return !!d && d < lim.toISOString().slice(0, 10); };
 const achExFinMois = () => new Date().getMonth() + 1 === achPrm().exFin;
+/* B42 : FRÉQUENCE calculée — écart moyen entre deux commandes : FRÉQUENT jusqu'à freqA mois, NORMAL jusqu'à freqB, OCCASIONNEL au-delà ;
+   DORMANT sans achat depuis « fournisseur dormant » ; moins de deux commandes = pas encore de fréquence */
+const ACH_FREQ = [["frequent", "FRÉQUENT"], ["normal", "NORMAL"], ["occasionnel", "OCCASIONNEL"], ["dormant", "DORMANT"]];
+const achFrsFreq = f => { if (!f) return { k: "", lab: "" }; if (achFrsDormant(f)) return { k: "dormant", lab: "DORMANT" };
+  const C = (achFrsDates().get(f.id) || {}).cmd || []; if (C.length < 2) return { k: "", lab: "" };
+  const P = achPrm(), m = (new Date(C[C.length - 1]) - new Date(C[0])) / 864e5 / (C.length - 1) / 30.44;
+  const k = m <= P.freqA ? "frequent" : m <= P.freqB ? "normal" : "occasionnel"; return { k, lab: ACH_FREQ.find(x => x[0] === k)[1], m }; };
+/* B44 : ARCHIVÉ — dormant depuis plus de 12 mois (ou le délai « dormant » s'il est plus long), au mois de clôture de l'exercice, soldé, sans pièce
+   en cours ou en attente ; liste des empêchements (vide = archivage possible) */
+const achFrsArchWhy = f => { const w = [], P = achPrm(), n = Math.max(12, P.dorm), d = achFrsLast(f.id) || String(f.cree || "").slice(0, 10), lim = new Date(); lim.setMonth(lim.getMonth() - n);
+  if (!d || d >= lim.toISOString().slice(0, 10)) w.push("DERNIER ACHAT IL Y A MOINS DE " + n + " MOIS");
+  if (!achExFinMois()) w.push("ARCHIVAGE AU MOIS DE CLÔTURE DE L'EXERCICE (MOIS " + P.exFin + ")");
+  achCmf().filter(c => c.frs === f.id && (c.state === "instance" || c.state === "valide")).forEach(c => w.push("COMMANDE EN COURS : " + c.ref));
+  const PA = achPaf(); achFaf().filter(x => x.frs === f.id && x.state !== "annule" && achFafReste(x, PA) > 0.005).forEach(x => w.push("FACTURE NON SOLDÉE : " + x.ref));
+  PA.filter(p => p.frs === f.id && (p.state === "instance" || p.state === "emis")).forEach(p => w.push("PAIEMENT EN COURS : " + p.ref));
+  achDvf().filter(v => v.frs === f.id && v.state === "recu" && (!v.validite || v.validite >= new Date().toISOString().slice(0, 10))).forEach(v => w.push("DEVIS EN ATTENTE : " + v.ref));
+  return w; };
+/* B44 : BLOQUÉ (à la main) — plus de commande, réception, facture ni paiement, sauf AUTORISATION EXCEPTIONNELLE d'un supérieur (nom et motif, notée dans H) ;
+   ARCHIVÉ — rien du tout. Renvoie true si l'opération est arrêtée. */
+async function achFrsStop(fr, what) { if (!fr || !(fr.bloq || fr.arch || fr.actif === false)) return false;
+  if (fr.arch) { svToast("FOURNISSEUR ARCHIVÉ : " + what + " IMPOSSIBLE (LE DÉSARCHIVER D'ABORD).", 4500); return true; }
+  const m = await achAsk("FOURNISSEUR BLOQUÉ — " + fr.nom, (fr.bloq ? "BLOQUÉ : " + (fr.bloq.why || "") + ". " : "") + "AUTORISATION EXCEPTIONNELLE D'UN SUPÉRIEUR POUR : " + what + " (NOM ET MOTIF)");
+  if (!m) return true; achHist(fr.code, "AUTORISATION EXCEPTIONNELLE", what + " — " + m); return false; }
 /* grp absent (fiches d'avant v810) : déduit des anciennes cases ; grp vide = fournisseur créé sans groupe choisi */
 /* B10, B41 (série B) : SOUS-TRAITANT et ORGANISME FINANCIER ne sont plus des groupes mais des TYPES (PARAMÉTRAGE GÉNÉRAL › TYPES DE FOURNISSEURS) :
    un fournisseur de l'ancien groupe est LOCAL, avec ce type ; le préfixe de référence et les documents exigés viennent du type */
