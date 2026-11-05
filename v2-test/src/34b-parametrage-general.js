@@ -70,6 +70,7 @@ function sviPgTree(pane, c) {
   const rows = [], walk = (p, lv) => { kids(p).forEach(x => { const n = kids(x.id).length, lf = c.levels[lv];
       rows.push(`<tr data-id="${esc(x.id)}" data-lv="${lv}" class="pg-lv${lv}">${lf.cols.map((f, j) => j === 0
         ? `<td><span class="pg-ind" style="width:${lv * 20}px"></span>${lv < c.levels.length - 1 ? `<button type="button" class="pg-fold" data-fold="${esc(x.id)}">${fold[x.id] ? "›" : "⌄"}</button>` : `<span class="pg-fold-sp"></span>`}<input class="prm-in pg-tin" data-f="${f[0]}" value="${esc(x[f[0]] ?? "")}" autocomplete="off">${lv < c.levels.length - 1 ? svCnt(n) : ""}</td>`
+        : f[3] === "skip" ? `<td></td>` : f[3] === "btn" ? `<td><button type="button" class="ach-link pg-btn" data-f="${f[0]}">${esc(f[4](x))}</button></td>`
         : f[3] === "sel" ? `<td><select class="pg-tin" data-f="${f[0]}"><option value=""></option>${f[4]().map(o => `<option value="${esc(o[0])}"${String(x[f[0]] || "") === String(o[0]) ? " selected" : ""}>${esc(o[1])}</option>`).join("")}</select></td>`
         : `<td class="${f[3] === "num" ? "center" : ""}"><input class="prm-in pg-tin${f[3] === "num" ? " center" : ""}" data-f="${f[0]}" value="${esc(x[f[0]] ?? "")}" autocomplete="off"></td>`).join("")}${"<td></td>".repeat(Math.max(0, c.ncol - (lf.cols.length - 1)))}<td class="center"><input type="checkbox" class="pg-cb"></td></tr>`);
       if (lv < c.levels.length - 1 && !fold[x.id]) { walk(x.id, lv + 1); rows.push(`<tr class="prm-new pg-tnew" data-p="${esc(x.id)}" data-lv="${lv + 1}"><td><span class="pg-ind" style="width:${(lv + 1) * 20 + 22}px"></span><input class="prm-in pg-tin" data-f="${c.levels[lv + 1].cols[0][0]}" placeholder="${esc(c.levels[lv + 1].newLab)}" autocomplete="off"></td>${"<td></td>".repeat(c.ncol + 1)}</tr>`); } }); };
@@ -79,7 +80,8 @@ function sviPgTree(pane, c) {
     <thead><tr>${c.heads.map(h => `<th>${esc(h[0])}</th>`).join("")}<th class="center"><input type="checkbox" class="pg-all" aria-label="Tout cocher"></th></tr></thead><tbody>${rows.join("")}</tbody></table>
     <div class="prm-foot"><button type="button" class="prm-del pg-del" disabled>SUPPRIMER LES LIGNES COCHÉES <span class="svi-cnt">0</span></button></div>`;
   if (pane.__pgt) return; pane.__pgt = true;
-  pane.addEventListener("click", e => { const C = pane.__pgc; const fb = e.target.closest(".pg-fold"); if (fb) { let F = {}; try { F = JSON.parse(sessionStorage.getItem("svi_pgfold_" + C.k) || "{}"); } catch (er) {} F[fb.dataset.fold] = !F[fb.dataset.fold]; try { sessionStorage.setItem("svi_pgfold_" + C.k, JSON.stringify(F)); } catch (er) {} sviPgTree(pane, C); return; }
+  pane.addEventListener("click", e => { const C = pane.__pgc; const pb = e.target.closest(".pg-btn"); if (pb) { const tr = pb.closest("tr"), x = sviPgL(C.k).find(y => y.id === tr.dataset.id), f = (C.levels[+tr.dataset.lv].cols.find(c => c[0] === pb.dataset.f) || []); if (x && f[5]) f[5](x, pb); return; }
+    const fb = e.target.closest(".pg-fold"); if (fb) { let F = {}; try { F = JSON.parse(sessionStorage.getItem("svi_pgfold_" + C.k) || "{}"); } catch (er) {} F[fb.dataset.fold] = !F[fb.dataset.fold]; try { sessionStorage.setItem("svi_pgfold_" + C.k, JSON.stringify(F)); } catch (er) {} sviPgTree(pane, C); return; }
     const b = e.target.closest(".pg-del"); if (!b || b.disabled) return; const ids = [...pane.querySelectorAll(".pg-cb:checked")].map(x => x.closest("tr").dataset.id), L2 = sviPgL(C.k), all = new Set(ids);
     let more = true; while (more) { more = false; L2.forEach(x => { if (x.p && all.has(x.p) && !all.has(x.id)) { all.add(x.id); more = true; } }); }
     svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES", text: all.size + " LIGNE(S) SUPPRIMÉE(S), AVEC CE QU'ELLES CONTIENNENT.", ok: "SUPPRIMER" }).then(go => { if (!go) return; sviPgLSave(C.k, L2.filter(x => !all.has(x.id))); sviPgTree(pane, C); }); });
@@ -150,9 +152,12 @@ function sviPgDraw(k, pane) {
   if (k === "lieux") { pane.__pgc = { k: "lieux", ncol: 0, heads: [["PAYS › RÉGION › VILLE", 360]], levels: [{ newLab: "CRÉER UN PAYS ICI…", cols: [["lab", "PAYS"]] }, { newLab: "CRÉER UNE RÉGION ICI…", cols: [["lab", "RÉGION"]] }, { newLab: "CRÉER UNE VILLE ICI…", cols: [["lab", "VILLE"]] }] };
     sviPgTree(pane, pane.__pgc); return; }
   if (k === "banq") { const V = () => sviPgVilles().map(x => [x.id, x.lab]);
-    pane.__pgc = { k: "banques", ncol: 3, heads: [["BANQUE › AGENCE", 360], ["ABRÉVIATION", 130], ["CODE (BANQUE : 3 CHIFFRES DU RIB)", 220], ["VILLE (AGENCE)", 200]],
+    /* 05/11 : banque › agence › MODES DE PAIEMENT de l'agence (chèque, effet, virement…, chacun avec son modèle d'impression) › CARNETS (du n° au n°, feuilles suivies) */
+    pane.__pgc = { k: "banques", ncol: 3, heads: [["BANQUE › AGENCE › MODE DE PAIEMENT › CARNET", 360], ["ABRÉVIATION · DU N°", 150], ["CODE · AU N°", 200], ["VILLE · DÉTAIL", 220]],
       levels: [{ newLab: "CRÉER UNE BANQUE ICI…", cols: [["lab", "BANQUE"], ["abr", "ABRÉVIATION"], ["code", "CODE BANQUE", 0, "num", null, 3]] },
-        { newLab: "CRÉER UNE AGENCE ICI…", cols: [["lab", "AGENCE"], ["abr", "ABRÉVIATION"], ["code", "CODE AGENCE", 0, "num"], ["ville", "VILLE", 0, "sel", V]] }] };
+        { newLab: "CRÉER UNE AGENCE ICI…", cols: [["lab", "AGENCE"], ["abr", "ABRÉVIATION"], ["code", "CODE AGENCE", 0, "num"], ["ville", "VILLE", 0, "sel", V]] },
+        { newLab: "AJOUTER UN MODE DE PAIEMENT ICI… (CHÈQUE, EFFET, VIREMENT…)", cols: [["lab", "MODE DE PAIEMENT"], ["_1", "", 0, "skip"], ["_2", "", 0, "skip"], ["mdl", "MODÈLE D'IMPRESSION", 0, "btn", () => "MODÈLE D'IMPRESSION", (x, b) => sviMdpModel(x)]] },
+        { newLab: "AJOUTER UN CARNET ICI… (N° DU CARNET)", cols: [["lab", "CARNET"], ["de", "DU N°", 0, "num"], ["a", "AU N°", 0, "num"], ["fl", "FEUILLES", 0, "btn", x => "FEUILLES (" + sviCarnetUsed(x).length + " UTILISÉES)", (x, b) => sviCarnetWin(x)]] }] };
     sviPgTree(pane, pane.__pgc); return; }
 }
 /* B38 : changement du calendrier de la société — impact sur chaque projet en cours ; tous cochés, décocher un par un ;
@@ -182,4 +187,26 @@ function sviPgCalImpact() {
       if (on.has(b.ref)) { if (D.cal) { const off = new Set(D.cal.off || []); added.forEach(x => off.add(x)); removed.forEach(x => off.delete(x)); D.cal.off = [...off].sort(); } }
       else if (!D.cal) D.cal = { we: SVI_CAL_DEF.we.slice(), off: before.slice(), on: [] }; });
     sviInstSet(L); try { sviInstFlush(); } catch (er) {} d.remove(); svToast("CALENDRIER APPLIQUÉ À " + on.size + " PROJET(S).", 3000); });
+}
+
+/* 05/11 : MODES DE PAIEMENT et CARNETS — modèle d'impression (aperçu MISE EN PAGE : montant en chiffres et en lettres, bénéficiaire, date, à placer
+   et ajuster jusqu'à ce que l'impression tombe juste), carnets du n° au n° et suivi de chaque feuille (utilisée et pour quel paiement, abîmée, erronée) */
+const sviCarnetNums = x => { const a = parseInt(x.de, 10), b = parseInt(x.a, 10); if (!(a >= 0) || !(b >= a)) return []; const L = []; for (let n = a; n <= b && L.length < 500; n++) L.push(n); return L; };
+const sviCarnetUsed = x => { if (typeof achPaf !== "function") return []; const N = new Set(sviCarnetNums(x).map(String));
+  return achPaf().filter(p => p.state !== "annule" && N.has(String(parseInt(String(p.num || "").replace(/\D/g, ""), 10)))); };
+const sviCarnetOf = num => { const n = parseInt(String(num || "").replace(/\D/g, ""), 10); if (!(n >= 0)) return null; return sviPgL("banques").find(x => x.de !== undefined && sviCarnetNums(x).includes(n)) || null; };
+function sviMdpModel(x, P) { P = P || {}; const ag = sviPgL("banques").find(y => y.id === x.p) || {}, bq = sviPgL("banques").find(y => y.id === ag.p) || {};
+  sviMep.open({ key: "MDP-" + x.id, title: P.title || x.lab, ref: P.ref || "", party: P.party || "BÉNÉFICIAIRE", date: P.date || new Date().toLocaleDateString("fr-FR"), rows: [], cols: [], prelim: false,
+    fields: { ttc: P.ttc || "1 234,56", lettres: P.lettres || "MILLE DEUX CENT TRENTE-QUATRE DIRHAMS ET CINQUANTE-SIX CENTIMES", projet: (bq.lab || "") + " — " + (ag.lab || "") },
+    name: (P.ref || x.lab) + " " + (bq.abr || bq.lab || ""), save: async () => "" }); }
+function sviCarnetWin(x) { const used = new Map(sviCarnetUsed(x).map(p => [String(parseInt(String(p.num).replace(/\D/g, ""), 10)), p])), d = sviWinNew(), ST = [["", "LIBRE"], ["abime", "ABÎMÉE"], ["errone", "ERRONÉE"]];
+  const draw = () => { const fl = x.fl || {};
+    d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: "CARNET " + esc(x.lab || "") + " — FEUILLES " + esc(x.de || "") + " À " + esc(x.a || ""),
+      body: `<div class="frs-scroll"><table class="prm-table frs-sub"><thead><tr><th class="center">N°</th><th>ÉTAT</th><th>PAIEMENT</th></tr></thead><tbody>${sviCarnetNums(x).map(n => { const p = used.get(String(n));
+        return `<tr><td class="center">${n}</td><td>${p ? "UTILISÉE" : `<select class="pg-fl" data-n="${n}">${ST.map(([k, l]) => `<option value="${k}"${(fl[n] || "") === k ? " selected" : ""}>${l}</option>`).join("")}</select>`}</td><td>${p ? esc((p.ref || "") + " · " + (typeof achFrsNom === "function" ? achFrsNom(p.frs) : "")) : ""}</td></tr>`; }).join("") || `<tr><td colspan="3" class="empty">DONNER LE PREMIER ET LE DERNIER N°</td></tr>`}</tbody></table></div>`,
+      foot: `<button type="button" class="svc-b" data-x>FERMER</button>` });
+    if (!d.isConnected) sviWinShow(d); };
+  draw();
+  d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) d.remove(); });
+  d.addEventListener("change", e => { const s = e.target.closest(".pg-fl"); if (!s) return; const L = sviPgL("banques"), y = L.find(z => z.id === x.id); if (!y) return; y.fl = { ...(y.fl || {}) }; if (s.value) y.fl[s.dataset.n] = s.value; else delete y.fl[s.dataset.n]; sviPgLSave("banques", L); x.fl = y.fl; });
 }

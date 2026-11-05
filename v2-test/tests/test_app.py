@@ -3815,6 +3815,22 @@ def main():
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("05/11 : CLAUSES — colonnes TYPE, DÉSIGNATION, VALEUR, UNITÉ ; article lié à un champ de la fiche (changer l'un change l'autre) ; VALIDER LE CONTRAT ; contrat validé puis modifié = nouvelle version en instance ; hauteur minimale des blocs à la poignée", c4.get('heads') == 'TYPE|DÉSIGNATION|VALEUR|UNITÉ' and c4.get('v0') == '30 JOURS' and c4.get('fld') == '45 JOURS' and c4.get('saved') == '45 JOURS|true' and c4.get('ver') == '1|false|90 JOURS', c4)
+        c13 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_pg_v1', 'svi_ach_paf_v1', 'svi_ach_frs_v1'], keep = K.map(k => localStorage.getItem(k));
+  const o = sviPg(); o.banques = [{ id: 'B1', p: '', lab: 'BANQUE UN', code: '230' }, { id: 'A1', p: 'B1', lab: 'AGENCE AGADIR', code: '010' }]; sviPgSave(o);
+  document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300); document.querySelector('#chs .prm-tab[data-prm="banq"]').click(); await w(300);
+  const nm = document.querySelector('#chs .pg-tree tr.pg-tnew[data-lv="2"] input'); nm.value = 'chèque'; nm.dispatchEvent(new Event('change', { bubbles: true })); await w(200);
+  const nc = document.querySelector('#chs .pg-tree tr.pg-tnew[data-lv="3"] input'); nc.value = 'C1'; nc.dispatchEvent(new Event('change', { bubbles: true })); await w(200);
+  const row = document.querySelector('#chs .pg-tree tr.pg-lv3'); const de = row.querySelector('input[data-f="de"]'); de.value = '1000'; de.dispatchEvent(new Event('change', { bubbles: true })); await w(150);
+  const a = document.querySelector('#chs .pg-tree tr.pg-lv3 input[data-f="a"]'); a.value = '1024'; a.dispatchEvent(new Event('change', { bubbles: true })); await w(150);
+  r.tree = sviPgL('banques').map(x => x.lab + (x.de ? ':' + x.de + '-' + x.a : '')).join(','); r.btn = !!document.querySelector('#chs .pg-lv2 .pg-btn') && !!document.querySelector('#chs .pg-lv3 .pg-btn');
+  await sviAchLoad(); const F = achFrs(); const f = achFrsNew(F, { nom: 'BENEF' }); achFrsSave(F); achPafSave([{ id: 'PX', ref: 'PAF X', frs: f.id, mode: 'CHÈQUE', num: '1005', mt: 1500, state: 'emis', date: '2026-11-05' }]);
+  r.used = sviCarnetUsed(sviPgL('banques').find(x => x.lab === 'C1')).length; r.of = (sviCarnetOf('0001005') || {}).lab;
+  document.querySelector('#chs .pg-lv3 .pg-btn').click(); await w(300); r.win = document.querySelectorAll('#svConf tbody tr').length; const s = document.querySelector('#svConf .pg-fl[data-n="1001"]'); s.value = 'abime'; s.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
+  r.fl = JSON.stringify(sviPgL('banques').find(x => x.lab === 'C1').fl); document.querySelectorAll('#svConf').forEach(x => x.remove());
+  document.querySelector('#chs .pg-lv2 .pg-btn').click(); await w(500); r.mep = !!document.querySelector('.mep-pg'); document.querySelectorAll('.mep-ov, #mepOv, .mep-wrap').forEach(x => x.remove()); document.body.classList.remove('mep-open');
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("05/11 : BANQUES › agence › MODES DE PAIEMENT (modèle d'impression par mode, dans la MISE EN PAGE) › CARNETS du n° au n°, feuilles suivies (utilisée par quel paiement, abîmée, erronée) ; paiement : IMPRIMER LE CHÈQUE avec le modèle de son carnet", c13.get('tree') == 'BANQUE UN,AGENCE AGADIR,CHÈQUE,C1:1000-1024' and c13.get('btn') and c13.get('used') == 1 and c13.get('of') == 'C1' and c13.get('win') == 25 and c13.get('fl') == '{"1001":"abime"}' and c13.get('mep'), c13)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

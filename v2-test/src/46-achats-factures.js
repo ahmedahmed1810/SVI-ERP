@@ -262,6 +262,7 @@ function achPafFiche(id, o, done) {
         <div class="bsn-note">${esc(frMoney(P.mt))}.${P.motif ? " MOTIF : " + esc(P.motif) + "." : ""}</div></div>`,
       foot: `<button type="button" class="svc-b" data-x>FERMER</button>
         ${P.state === "instance" || P.state === "emis" ? `<button type="button" class="svc-b" data-cancel>ANNULER LE PAIEMENT</button>` : ""}
+        ${(P.mode === "CHÈQUE" || P.mode === "LCN") && P.num ? `<button type="button" class="svc-b" data-prtchq>IMPRIMER ${P.mode === "LCN" ? "L'EFFET" : "LE CHÈQUE"}</button>` : ""}
         ${P.state === "emis" && (P.mode === "CHÈQUE" || P.mode === "LCN") ? `<button type="button" class="svc-b" data-rej>REJETÉ</button><button type="button" class="svc-b svc-ok" data-enc>ENCAISSÉ</button>` : ""}
         ${!ro ? `<button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER</button><button type="button" class="svc-b svc-ok" data-valid>VALIDER LE PAIEMENT</button>` : ""}` });
     if (!d.isConnected) sviWinShow(d);
@@ -291,6 +292,9 @@ function achPafFiche(id, o, done) {
     if (k === "cmf") { const C = achCmf().find(c => c.id === P.cmf); P.mt = C ? Math.max(0, Math.round((achCmfTot(C).av - achAvVerse(C.id)) * 100) / 100) : 0; }
     draw(); });
   d.addEventListener("click", async e => {
+    if (e.target.closest("[data-prtchq]")) { const c = typeof sviCarnetOf === "function" ? sviCarnetOf(P.num) : null, m = c && sviPgL("banques").find(y => y.id === c.p);   /* 05/11 */
+      if (!m) { svToast("AUCUN CARNET NE CONTIENT LE N° " + P.num + " (PARAMÉTRAGE › BANQUES).", 3500); return; }
+      sviMdpModel(m, { title: m.lab, ref: P.ref, party: P.frs ? achFrsNom(P.frs) : "", date: achDFr(P.date), ttc: achF2(P.mt), lettres: frMoney(achN(P.mt)) }); return; }
     if (e.target === d || e.target.closest("[data-x]")) { d.remove(); if (done) done(); return; }
     if (e.target.closest("[data-save]")) { pull(); if (!check()) return; store(p0 || achPaf().some(x => x.id === P.id) ? "MODIFICATION" : "CRÉATION"); draw(); return; }
     if (e.target.closest("[data-valid]")) { pull(); if (!check()) return;
