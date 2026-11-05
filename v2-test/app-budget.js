@@ -2280,6 +2280,8 @@ function renderBudgetList() {
       groups.get(ref);
 
     if (!budget) return;
+    /* 05/11 : PLUS DE FIGER — un ancien budget « figé » revient en instance (il se valide directement) */
+    if (budget.inst && budget.inst.state === "fige") { budget.inst.state = "instance"; try { sviInstSet(sviInstGet().map(x => x.ref === ref ? { ...x, state: "instance" } : x)); } catch (e) {} }
     /* v789 : nouvelle ouverture = nouveau numéro ; les écouteurs posés une seule fois sur le conteneur sont reposés pour CE budget */
     window.__sviBdgShell = shell; window.__sviBdgGen = (window.__sviBdgGen || 0) + 1;
     ["__aprBound", "__avoBound", "__chkBound", "__condBound", "__dimBound", "__dlyBound", "__dlyFillBound", "__dlyGSelB", "__dlyKbBound", "__dlyLiftBound", "__dlyPinchBound",
@@ -2681,7 +2683,7 @@ function renderBudgetList() {
               + hb("instPrev", "inst-nav", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`, HNAV ? "Écran précédent" : "Précédent", navWhy)
               + hb("instNext", "inst-nav", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`, HNAV ? "Écran suivant" : "Suivant", navWhy)
               + hb("instTodo", "inst-act inst-todo", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5 2.8 19.5h18.4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.1" fill="currentColor"/></svg><b></b>`, bi.virtual ? "Contradictions entre étapes" : "À compléter", todoWhy)
-              + (st === "fige" && !bi.virtual ? hb("instLock", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 7.5-1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`, "Revenir en édition", "")
+              + (!bi.rclOf && !bi.virtual && st !== "fige" ? hb("instValid", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`, "Valider le budget", RO || "") : st === "fige" && !bi.virtual ? hb("instLock", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 7.5-1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`, "Revenir en édition", "")
                 : hb("instLock", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>`, bi.rclOf ? "Enregistrer le recalage" : "Figer (lecture seule)", RO))
               + (st === "fige" && !bi.virtual ? hb("instValid", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`, "Valider le budget", "")
                 : hb("instDel", "inst-act", `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`, bi.rclOf ? "Supprimer ce recalage" : bi.parent ? "Supprimer cet avenant" : "Supprimer ce budget", delWhy))
@@ -3108,7 +3110,11 @@ function renderBudgetList() {
         });
       });
       /* ✓ : le budget figé passe dans BUDGETS (VALIDÉS), en noir, lecture seule */
-      $("instValid")?.addEventListener("click", () => {
+      $("instValid")?.addEventListener("click", async () => {
+        /* 05/11 : VALIDER directement depuis EN INSTANCE — mêmes contrôles qu'avant FIGER (causes, liaison en cours), recettes gardées */
+        if (shell.__lkGuard && !(await shell.__lkGuard())) return;
+        if (INS && shell.__figeBlocks && shell.__figeBlocks().length) { shell.__figeWhy(); return; }
+        try { shell.__libLearn && shell.__libLearn(); } catch (e) {}
         svConfirm({ title: "VALIDER LE BUDGET", text: fullRef + " PASSERA DANS BUDGETS (VALIDÉS), EN LECTURE SEULE.", ok: "✓ VALIDER", tone: "neutral" }).then(go => {
         if (!go) return;
         /* validation : les données gardées sous les lignes titre sont effacées */
@@ -17576,10 +17582,10 @@ function sviBdgACompleter(C) {
       el.classList.toggle("ins-unl", !u[k].has(el.dataset.iid));
     });
     /* FIGER grisé tant que l'onglet LIGNES NON LIÉES n'est pas à 0 */
-    const lk = $("instLock");
+    const lk = $("instLock") || $("instValid");
     const td = $("instTodo");
     if (td && !(budget.inst && budget.inst.virtual && !budget.inst.vname)) { const n = insTodo().reduce((t, b) => t + (+b.n || 1), 0); td.querySelector("b").textContent = n || ""; td.classList.toggle("ok", !n); let nf = 0; try { nf = insFiltActs().length; } catch (e) {} td.classList.toggle("flt", !!nf); td.title = n ? n + " ÉLÉMENT(S) À COMPLÉTER" : "TOUT EST COMPLET"; }
-    if (lk && INS_EDIT && !window.__sviRO) { const B = insFigeBlocks(); lk.disabled = false; lk.classList.toggle("off", B.length > 0); lk.title = B.length ? "FIGER IMPOSSIBLE : TOUCHER POUR VOIR POURQUOI" : "Figer (lecture seule)";
+    if (lk && INS_EDIT && !window.__sviRO) { const B = insFigeBlocks(); lk.disabled = false; lk.classList.toggle("off", B.length > 0); lk.title = B.length ? "VALIDATION IMPOSSIBLE : TOUCHER POUR VOIR POURQUOI" : lk.id === "instValid" ? "Valider le budget" : "Figer (lecture seule)";
       if (budget.inst && budget.inst.rclOf) { lk.classList.remove("off"); lk.title = "Enregistrer le recalage"; } }   /* v693 */
     const tb = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="unl"]`);
     /* LIGNES NON LIÉES : visible seulement s'il reste des lignes */

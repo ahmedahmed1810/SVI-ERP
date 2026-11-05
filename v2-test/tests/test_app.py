@@ -2763,7 +2763,7 @@ def main():
             r.push([...document.querySelectorAll('.bdg-d-hright > *')].filter(b => b.offsetParent).map(b => b.id).join(','));
             document.getElementById('bdgMore').click(); await w(200);
             const M = [...document.querySelectorAll('#blkMenu > *')].map(x => x.classList.contains('blk-sep') ? '-' : x.textContent.trim()); document.getElementById('blkMenu')?.remove();
-            r.push(M[1] === '-' && /^(FIGER|REVENIR|ENREGISTRER)/.test(M[0]) && M[2] === 'COMPARER / CUMULER' && M.slice(-3).join('|').startsWith('-|SUPPRIMER') && M.slice(-1)[0] === 'FERMER' && M[M.indexOf('DISPOSITION PAR DÉFAUT') - 1] === '-');
+            r.push(M[1] === '-' && /^(FIGER|REVENIR|ENREGISTRER|VALIDER)/.test(M[0]) && M[2] === 'COMPARER / CUMULER' && M.slice(-3).join('|').startsWith('-|SUPPRIMER') && M.slice(-1)[0] === 'FERMER' && M[M.indexOf('DISPOSITION PAR DÉFAUT') - 1] === '-');
             document.querySelector('#bdgClientTitle .blk-more').click(); await w(200);
             const C = [...document.querySelectorAll('#blkMenu > *')].map(x => x.classList.contains('blk-sep') ? '-' : x.textContent.trim().replace(/\\d+$/, '')); document.getElementById('blkMenu')?.remove();
             r.push(C.join('|'));
@@ -3528,7 +3528,7 @@ def main():
   document.querySelector('.prm-tab[data-prm="cpt"]').click(); await w(150); const c = document.querySelector('#chs .pg-new input[data-f="code"]'); c.value = '4411'; c.dispatchEvent(new Event('change', { bubbles: true })); await w(100); r.cpt = sviPgL('cpt').map(x => x.code).join(',');
   document.querySelector('.prm-tab[data-prm="cal"]').click(); await w(150); const o = sviPg(); o.cal = [{ id: 'c1', a: '2030-01-01', b: '2030-01-02', m: 'FÉRIÉ' }]; sviPgSave(o); r.cal = sviCalOf({}).off.join(',') + '|' + sviCalOf({ cal: { off: [] } }).off.length;
   if (keep === null) localStorage.removeItem('svi_pg_v1'); else localStorage.setItem('svi_pg_v1', keep); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
-        check("SÉRIE B, B6 B2 B7 B8 B9 B20 B22 B24 B31 B38 B41 : PARAMÉTRAGE GÉNÉRAL — une rangée d'onglets (GÉNÉRAL en premier), TVA et transport dans GÉNÉRAL, BANQUES pliables (agences, code banque 3 chiffres), COMPTABILITÉ, CALENDRIER de la société repris par les budgets sans calendrier propre", b6.get("tabs", "").startswith("GÉNÉRAL|SOCIÉTÉ|UNITÉS") and b6.get("gen") and b6.get("banq") == "BANQUE POPULAIRE,>AGENCE CENTRE|1" and b6.get("code") and b6.get("cpt") == "4411" and b6.get("cal") == "2030-01-01,2030-01-02|0", b6)
+        check("SÉRIE B, B6 B2 B7 B8 B9 B20 B22 B24 B31 B38 B41 : PARAMÉTRAGE GÉNÉRAL — une rangée d'onglets (GÉNÉRAL en premier), TVA et transport dans GÉNÉRAL, BANQUES pliables (agences, code banque 3 chiffres), COMPTABILITÉ, CALENDRIER de la société repris par les budgets sans calendrier propre", b6.get("tabs", "").startswith("GÉNÉRAL|UNITÉS|BIBLIOTHÈQUE") and b6.get("gen") and b6.get("banq") == "BANQUE POPULAIRE,>AGENCE CENTRE|1" and b6.get("code") and b6.get("cpt") == "4411" and b6.get("cal") == "2030-01-01,2030-01-02|0", b6)
         b10 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_ach_prm_v1'), kt = localStorage.getItem('svi_achprm_tab_v1');
   const pgo = async k => { document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(200); document.querySelector('#chs .prm-tab[data-prm="' + k + '"]').click(); await w(1200); }; await pgo('aalr'); const v = document.getElementById('chs');
   r.tabs = [...v.querySelectorAll('.pg-tabs .prm-tab:not([hidden])')].map(b => b.textContent.trim()).join('|');
@@ -3855,6 +3855,18 @@ def main():
   const s = document.querySelector('#chs .lib-src'); s.value = 'TEST-1'; s.dispatchEvent(new Event('change', { bubbles: true })); await w(200); r.flt = document.querySelectorAll('#chs .lib-ch .lib-pt').length;
   sviLibSet(keep); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check('05/11 : BIBLIOTHÈQUE DE PRIX — nuage de points par charge, moyenne pondérée au prorata des quantités produites, tableau MOYENNE, toucher un point = sa recette, « i » = son budget, filtre par budget', c10.get('pts') == 2 and c10.get('mean') == '0,3750' and c10.get('rec') and c10.get('flt') == 1, c10)
+        f1 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1'], keep = K.map(k => localStorage.getItem(k));
+  document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300); const c = document.getElementById('chs');
+  c.querySelector('[data-pgg="gen"]').click(); await w(200); r.gen = [...c.querySelectorAll('.pg-tabs .prm-tab:not([hidden])')].map(b => b.textContent.trim()).join('|');
+  c.querySelector('.prm-tab[data-prm="gen"]').click(); await w(200); r.soc = !!c.querySelector('.prm-pg .pg-soc-in') && !!c.querySelector('.prm-pg .pg-gen');
+  c.querySelector('[data-pgg="art"]').click(); await w(200); r.art = [...c.querySelectorAll('.pg-tabs .prm-tab:not([hidden])')].map(b => b.textContent.trim()).join('|');
+  await sviAchLoad(); const L = achFrs(); const f = achFrsNew(L, { nom: 'COND LIBRE' }); achFrsSave(L);
+  document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(300); achFrsFiche(f.id, 'cond'); await w(400);
+  const i = document.querySelector('#svConf input.frs-x[data-k="cond"]'); i.value = '75 JOURS FIN DE MOIS'; i.dispatchEvent(new Event('change', { bubbles: true })); await w(100); document.querySelector('#svConf [data-save]').click(); await w(400);
+  r.cond = achFrs().find(x => x.id === f.id).cond; document.querySelectorAll('#svConf').forEach(x => x.remove());
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300);
+  if (window.__sviAvOpen) { window.__sviAvOpen('TEST-1'); await w(2500); r.valid = !!document.getElementById('instValid') && !document.getElementById('instLock'); document.getElementById('budgetBackBtn')?.click(); await w(300); } return r; }""")
+        check("05/11 (réponses) : plus de FIGER dans le budget (EN INSTANCE → ✓ VALIDER, mêmes contrôles) ; SOCIÉTÉ dans l'onglet GÉNÉRAL ; BIBLIOTHÈQUE DE PRIX dans ARTICLES ; délai de paiement en valeur libre", f1.get('gen') == 'GÉNÉRAL|CALENDRIER|LIEUX|BANQUES|COMPTABILITÉ|DEVISES|RÉFÉRENCES' and f1.get('soc') and f1.get('art', '').startswith('UNITÉS|BIBLIOTHÈQUE DE PRIX') and f1.get('cond') == '75 JOURS FIN DE MOIS' and f1.get('valid'), f1)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

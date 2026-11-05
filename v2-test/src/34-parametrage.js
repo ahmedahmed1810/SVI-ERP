@@ -258,7 +258,7 @@ function sviParamTabs() {
   const apane = document.createElement("div"); apane.className = "prm-ach"; apane.hidden = true; gpane.after(apane);   /* 05/11 : onglets dessinés par le module ACHATS */
   gpane.addEventListener("change", e => {
     const i = e.target; if (i.matches(".pg-soc-in")) { const o = sviPg(); o.soc = { ...sviSoc(), [i.dataset.f]: i.dataset.f === "mail" ? i.value.trim() : sviPgU(i.value) }; sviPgSave(o); return; }
-    if (i.matches(".pg-logo-in")) { const f = i.files && i.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { const o = sviPg(); o.soc = { ...sviSoc(), logo: rd.result }; sviPgSave(o); sviPgDraw("soc", gpane); }; rd.readAsDataURL(f); return; }
+    if (i.matches(".pg-logo-in")) { const f = i.files && i.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { const o = sviPg(); o.soc = { ...sviSoc(), logo: rd.result }; sviPgSave(o); sviPgDraw("gen", gpane); }; rd.readAsDataURL(f); return; }
     if (!i.matches(".pg-gv")) return; const g = i.dataset.g, s = String(i.value).trim();
     if (g === "tz") { const o = sviPg(); o.gen = { ...(o.gen || {}), tz: s }; sviPgSave(o); return; }
     if (s === "") { if (g === "tva") sviTvaSave(null); else sviTrKmSave(null); sviPgDraw("gen", gpane); return; }

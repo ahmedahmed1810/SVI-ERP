@@ -161,7 +161,11 @@
         });
       });
       /* ✓ : le budget figé passe dans BUDGETS (VALIDÉS), en noir, lecture seule */
-      $("instValid")?.addEventListener("click", () => {
+      $("instValid")?.addEventListener("click", async () => {
+        /* 05/11 : VALIDER directement depuis EN INSTANCE — mêmes contrôles qu'avant FIGER (causes, liaison en cours), recettes gardées */
+        if (shell.__lkGuard && !(await shell.__lkGuard())) return;
+        if (INS && shell.__figeBlocks && shell.__figeBlocks().length) { shell.__figeWhy(); return; }
+        try { shell.__libLearn && shell.__libLearn(); } catch (e) {}
         svConfirm({ title: "VALIDER LE BUDGET", text: fullRef + " PASSERA DANS BUDGETS (VALIDÉS), EN LECTURE SEULE.", ok: "✓ VALIDER", tone: "neutral" }).then(go => {
         if (!go) return;
         /* validation : les données gardées sous les lignes titre sont effacées */

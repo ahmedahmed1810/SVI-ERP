@@ -154,10 +154,10 @@ function sviBdgACompleter(C) {
       el.classList.toggle("ins-unl", !u[k].has(el.dataset.iid));
     });
     /* FIGER grisé tant que l'onglet LIGNES NON LIÉES n'est pas à 0 */
-    const lk = $("instLock");
+    const lk = $("instLock") || $("instValid");
     const td = $("instTodo");
     if (td && !(budget.inst && budget.inst.virtual && !budget.inst.vname)) { const n = insTodo().reduce((t, b) => t + (+b.n || 1), 0); td.querySelector("b").textContent = n || ""; td.classList.toggle("ok", !n); let nf = 0; try { nf = insFiltActs().length; } catch (e) {} td.classList.toggle("flt", !!nf); td.title = n ? n + " ÉLÉMENT(S) À COMPLÉTER" : "TOUT EST COMPLET"; }
-    if (lk && INS_EDIT && !window.__sviRO) { const B = insFigeBlocks(); lk.disabled = false; lk.classList.toggle("off", B.length > 0); lk.title = B.length ? "FIGER IMPOSSIBLE : TOUCHER POUR VOIR POURQUOI" : "Figer (lecture seule)";
+    if (lk && INS_EDIT && !window.__sviRO) { const B = insFigeBlocks(); lk.disabled = false; lk.classList.toggle("off", B.length > 0); lk.title = B.length ? "VALIDATION IMPOSSIBLE : TOUCHER POUR VOIR POURQUOI" : lk.id === "instValid" ? "Valider le budget" : "Figer (lecture seule)";
       if (budget.inst && budget.inst.rclOf) { lk.classList.remove("off"); lk.title = "Enregistrer le recalage"; } }   /* v693 */
     const tb = document.querySelector(`#bdgTabs .bdg-d-tab[data-tab="unl"]`);
     /* LIGNES NON LIÉES : visible seulement s'il reste des lignes */

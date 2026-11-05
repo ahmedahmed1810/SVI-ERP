@@ -97,7 +97,6 @@ function achFrsMod(ctx) {
     if (k === "ice" && v && !achIceOk(v)) { svToast(achIceMsg() + ".", 3500, t); draw(); return true; }
     if (k === "ice" && v) { const d = achFrsDupIce(L, v, f.id); if (d) { svToast("ICE DÉJÀ UTILISÉ PAR " + d.code + " — " + d.nom + ".", 4000, t); draw(); return true; } }
     if (k === "forme" && v && !ACH_FORMES.includes(v)) { svToast("FORME JURIDIQUE : CHOISIR DANS LA LISTE (" + ACH_FORMES.join(", ") + ").", 4500, t); draw(); return true; }
-    if (k === "cond" && v && !ACH_CONDS.includes(v)) { svToast("CONDITIONS DE PAIEMENT : CHOISIR DANS LA LISTE.", 3500, t); draw(); return true; }
     if (k === "nom") { const d = achFrsDupNom(L, v, f.id); if (d) svToast("UN FOURNISSEUR DU MÊME NOM EXISTE : " + d.code + ".", 3500, t); }
     const old = f[k];
     if (String(old ?? "") === String(v)) { draw(); return true; }
@@ -279,7 +278,6 @@ function achFrsFiche(id, sec, done) {
       if (k === "nom" && !v) return "NOM OBLIGATOIRE.";
       if (k === "ice" && sviMaskRaw(raw)) { const c = sviMaskRaw(raw); if (!achIceOk(c)) return achIceMsg() + "."; const x = achFrsDupIce(achFrs(), c, id); if (x) return "ICE DÉJÀ UTILISÉ PAR " + x.code + " — " + x.nom + "."; }
       if (k === "forme" && v && !ACH_FORMES.includes(v)) return "FORME JURIDIQUE : CHOISIR DANS LA LISTE.";
-      if (k === "cond" && v && !ACH_CONDS.includes(v)) return "CONDITIONS DE PAIEMENT : CHOISIR DANS LA LISTE.";
       if ((k === "mailCmd" || k === "mailFac") && raw && !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(raw)) return "E-MAIL NON VALIDE.";
       if (["escTaux", "retTaux", "remise"].includes(k) && achN(raw) > 100) return "UN TAUX NE PEUT PAS DÉPASSER 100 %.";
       if (k === "gps" && raw && !/^-?\d{1,2}(\.\d+)?\s*,\s*-?\d{1,3}(\.\d+)?$/.test(raw)) return "POSITION GPS : LATITUDE, LONGITUDE (EX. 33.5731, -7.5898).";
@@ -365,7 +363,6 @@ function achFrsFiche(id, sec, done) {
     if (F.forme !== "AUTO-ENTREPRENEUR") { F.aeNo = ""; F.aeCin = ""; }
     if (F.lie && !F.lieT) { svToast("FOURNISSEUR LIÉ : CHOISIR LE LIEN.", 3000); return; }
     if (!F.lie) F.lieT = "";
-    if (F.cond && !ACH_CONDS.includes(F.cond)) { svToast("CONDITIONS DE PAIEMENT : CHOISIR DANS LA LISTE.", 3500); return; }
     F.ribs = F.ribs.filter(r => achDig(r.rib));
     if (F.ribs.some(r => !achRibOk(r.rib))) { svToast("RIB NON VALIDE : 24 CHIFFRES ET CLÉ (LE RIB DOIT ÊTRE DIVISIBLE PAR 97).", 4000); draw(); return; }
     if (new Set(F.ribs.map(r => achDig(r.rib))).size < F.ribs.length) { svToast("LE MÊME RIB EST SAISI DEUX FOIS.", 3500); draw(); return; }
