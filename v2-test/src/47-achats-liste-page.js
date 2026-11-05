@@ -157,6 +157,18 @@ const achStTxt = v => { const u = String(v || "").toUpperCase(); if (!u) return 
   if (/PARTIEL/.test(u)) return "partiel"; if (/FIG/.test(u)) return "fige"; if (/ÉMIS|REMIS/.test(u)) return "remis"; if (/INSTANCE|OUVERTE|RÉCLAM|ATTENTE/.test(u)) return "instance"; return "valide"; };
 const achNvhKey = t => String(t).toLowerCase().replace(/[^a-z]+/g, "");
 const ACH_NVH_K = "svi_ach_nvh_v1";
+/* 05/11 (document unique 4.3) : pendant la saisie, la DERNIÈRE ligne écrite se voit — après une création par la ligne CRÉER … ICI d'un bloc,
+   son tableau descend jusqu'en bas dès qu'il est redessiné avec une ligne de plus (au repos, il montre la première) */
+{ let pend = null;
+  const keyOf = el => { const b = el.closest(".nvp-blk, .bdg-d-block"); const h = b && b.querySelector("[data-nvh]"); return h ? h.dataset.nvh : b && b.querySelector(".rec-scroll") ? "rec" : ""; };
+  const rows = sc => sc.querySelectorAll("tbody tr:not(.rec-new):not(.bdg-newrow):not(.ach-new):not([data-nvnew]):not([data-nvradd])").length;
+  document.addEventListener("click", e => { const r = e.target.closest && e.target.closest("tr.rec-new, tr.bdg-newrow, tr[data-nvnew], tr[data-nvradd], tr.ach-new"); if (!r || !r.closest(".nvp")) return;
+    const k = keyOf(r), sc = r.closest(".rec-scroll"); if (!k || !sc) return; pend = { k, n: rows(sc), t: Date.now() }; }, true);
+  new MutationObserver(() => { if (!pend) return; if (Date.now() - pend.t > 120000) { pend = null; return; }
+    const pg = document.querySelector("#ach .nvp"); if (!pg) return; const h = pg.querySelector(`[data-nvh="${pend.k}"]`), b = h && h.closest(".nvp-blk, .bdg-d-block"), sc = b && b.querySelector(".rec-scroll");
+    if (!sc || rows(sc) <= pend.n) return; if (!pend.ok) { pend.ok = Date.now(); const me = pend; setTimeout(() => { if (pend === me) pend = null; }, 1500); }
+    const go = () => { if (sc.isConnected) sc.scrollTop = sc.scrollHeight; }; go(); requestAnimationFrame(go); setTimeout(go, 120); }).observe(document.documentElement, { childList: true, subtree: true });
+}
 const achNvhStyle = () => { let H = {}; try { H = JSON.parse(localStorage.getItem(ACH_NVH_K) || "{}") || {}; } catch (e) {} return Object.keys(H).map(k => "--nvh-" + k + ":" + H[k] + "px").join(";"); };
 function achNvhDrag(e, h) {
   e.preventDefault(); const pg = h.closest(".nvp"), k = h.dataset.nvh, sc = h.parentNode.querySelector(".rec-scroll"); if (!pg || !sc) return;

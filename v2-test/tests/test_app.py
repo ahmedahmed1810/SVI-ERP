@@ -3867,6 +3867,14 @@ def main():
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300);
   if (window.__sviAvOpen) { window.__sviAvOpen('TEST-1'); await w(2500); r.valid = !!document.getElementById('instValid') && !document.getElementById('instLock'); document.getElementById('budgetBackBtn')?.click(); await w(300); } return r; }""")
         check("05/11 (réponses) : plus de FIGER dans le budget (EN INSTANCE → ✓ VALIDER, mêmes contrôles) ; SOCIÉTÉ dans l'onglet GÉNÉRAL ; BIBLIOTHÈQUE DE PRIX dans ARTICLES ; délai de paiement en valeur libre", f1.get('gen') == 'GÉNÉRAL|CALENDRIER|LIEUX|BANQUES|COMPTABILITÉ|DEVISES|RÉFÉRENCES' and f1.get('soc') and f1.get('art', '').startswith('UNITÉS|BIBLIOTHÈQUE DE PRIX') and f1.get('cond') == '75 JOURS FIN DE MOIS' and f1.get('valid'), f1)
+        f2 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_nvh_v1'], keep = K.map(k => localStorage.getItem(k));
+  const L = achFrs(); const f = achFrsNew(L, { nom: 'SCROLL' }); achFrsSave(L); localStorage.setItem('svi_ach_nvh_v1', JSON.stringify({ rec: 70 }));
+  document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(300); achGo('frs', f.id); await w(600);
+  const add = async t => { const row = document.querySelector('#ach .nvp [data-nvradd]'); row.click(); await w(300); const d = document.querySelector('#svConf'); d.querySelector('.nr-t').value = t; d.querySelector('[data-ok]').click(); await w(500); };
+  for (const t of ['UN', 'DEUX', 'TROIS', 'QUATRE']) await add(t);
+  const sc = document.querySelector('#ach .nvp [data-nvradd]').closest('.rec-scroll');  r.rows = sc.querySelectorAll('tbody tr').length; r.scrolled = sc.scrollTop > 0; r.max = sc.scrollHeight > sc.clientHeight;
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("05/11 (4.3) : bloc réduit — après une création par la ligne CRÉER … ICI, le tableau descend jusqu'à la dernière ligne écrite", f2.get('rows') == 5 and f2.get('scrolled') and f2.get('max'), f2)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
