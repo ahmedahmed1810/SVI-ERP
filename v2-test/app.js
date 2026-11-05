@@ -4680,6 +4680,15 @@ document.addEventListener("change", e => {
   i.value = i.dataset.prev ?? "";
   if (typeof svToast === "function") svToast(R[2](i), 3500, i);
 }, true);
+/* C4 (série C, document unique 8.8) : TOUCHER UN CHAMP — 1er toucher = tout le contenu sélectionné (ce qu'on tape remplace l'ancien),
+   2e toucher (champ déjà actif) = le curseur se place là où on a touché. Tous les champs de saisie hors tableaux (les cases gardent la 8.2) */
+const SVI_SELALL_T = ["", "text", "tel", "search", "number", "email", "url"];
+const sviSelAllOk = i => !!(i && i.matches && i.matches("input, textarea") && (i.tagName === "TEXTAREA" || SVI_SELALL_T.includes(String(i.getAttribute("type") || "").toLowerCase()))
+  && !i.readOnly && !i.disabled && !i.closest("table") && !i.closest(".pg-cell, [data-cell]"));
+{ let pend = null;
+  document.addEventListener("pointerdown", e => { const i = e.target; pend = sviSelAllOk(i) && document.activeElement !== i ? i : null; }, true);
+  document.addEventListener("click", e => { const i = e.target; if (!pend || i !== pend) { pend = null; return; } pend = null;
+    if (document.activeElement !== i || !String(i.value || "")) return; try { i.select(); i.setSelectionRange(0, String(i.value).length); } catch (x) { try { i.select(); } catch (y) {} } }, true); }
 /* ⟪ src/32-demarrage.js ⟫ */
 /* =========================================================
    DEMARRAGE

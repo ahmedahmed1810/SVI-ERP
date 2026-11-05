@@ -3954,6 +3954,15 @@ def main():
   document.querySelectorAll('#svConf, #svMaskPop').forEach(x => x.remove());
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check('SÉRIE C, C1 C2 (document unique 10.4) : fiche du champ sans OCCASIONNEL ; AJUSTABLE coché par défaut, décoché = pas de poignée ; un champ agrandi pousse ses voisins sans les recouvrir', c12.get('occ') is False and c12.get('adj') and c12.get('fix') and c12.get('hd') == 'none' and c12.get('saved') is False and c12.get('over') == 0, c12)
+        pg.evaluate("""async () => { await sviAchLoad(); window.__c4k = localStorage.getItem('svi_ach_frs_v1'); const L = achFrs(); const f = achFrsNew(L, { nom: 'SELECTION' }); achFrsSave(L); document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await new Promise(z => setTimeout(z, 300)); achFrsFiche(f.id); }""")
+        pg.wait_for_timeout(700)
+        c4bb = pg.locator('#svConf input[data-k="nom"]').first.bounding_box(); c4y = c4bb['y'] + c4bb['height'] / 2
+        pg.mouse.click(c4bb['x'] + c4bb['width'] - 10, c4y); pg.wait_for_timeout(100)
+        c4a = pg.evaluate("() => { const i = document.activeElement; return [i.selectionStart, i.selectionEnd, i.value.length]; }")
+        pg.mouse.click(c4bb['x'] + 40, c4y); pg.wait_for_timeout(100)
+        c4b = pg.evaluate("() => { const i = document.activeElement; return [i.selectionStart, i.selectionEnd]; }")
+        pg.evaluate("() => { document.querySelectorAll('#svConf').forEach(x => x.remove()); const k = window.__c4k; k === null ? localStorage.removeItem('svi_ach_frs_v1') : localStorage.setItem('svi_ach_frs_v1', k); document.querySelector('#navMenu .nav-btn[data-view=\"bdg\"]').click(); }"); pg.wait_for_timeout(300)
+        check("SÉRIE C, C4 (document unique 8.8) : 1er toucher sur un champ = tout le contenu sélectionné ; 2e toucher = curseur là où on touche", c4a[0] == 0 and c4a[1] == c4a[2] > 0 and c4b[0] == c4b[1] and 0 < c4b[0] < c4a[2], [c4a, c4b])
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
