@@ -192,7 +192,10 @@ function sviAchInit() {
     const PM = NV[tab] || MODS[tab] || (tab === "bsn" ? BSNM : null);
     if (PM && PM.isPage) { const M = PM; body.innerHTML = M.html(); if (h1) h1.innerHTML = M.isPage() ? M.h1() : "";
       /* v776 : page = étiquette de l'écran en haut au centre (comme « BUDGET »), en-tête de l'écran caché */
-      if (M.isPage()) { const t = document.createElement("div"); t.id = "sviScreenTag"; t.innerHTML = M.h1(); view.appendChild(t);   /* v787 : dans l'écran des achats — disparaît avec lui (jamais sur un budget) */ document.body.classList.add("bdg-screen"); } if (sub) sub.textContent = ""; view.classList.toggle("ach-page", M.isPage()); view.classList.toggle("ach-bdgl", !M.isPage()); achBdglSync(body); return; }
+      if (M.isPage()) { const t = document.createElement("div"); t.id = "sviScreenTag"; t.innerHTML = M.h1(); view.appendChild(t);
+        /* 05/11 : le bandeau du centre est du texte sur la barre — fond, couleur, police et taille de la référence (suivent MODIFIER LE FORMAT) */
+        requestAnimationFrame(() => { const r = view.querySelector(".nvp-ref"), bar = r && r.closest(".novapp-list-titlebar"); if (!r || !t.isConnected) return; const cs = getComputedStyle(r), bs = getComputedStyle(bar);
+          Object.assign(t.style, { fontFamily: cs.fontFamily, fontSize: cs.fontSize, fontWeight: cs.fontWeight, color: cs.color, background: bs.backgroundColor === "rgba(0, 0, 0, 0)" ? "transparent" : bs.backgroundColor, top: (r.getBoundingClientRect().top + window.scrollY) + "px", lineHeight: cs.lineHeight }); });   /* v787 : dans l'écran des achats — disparaît avec lui (jamais sur un budget) */ document.body.classList.add("bdg-screen"); } if (sub) sub.textContent = ""; view.classList.toggle("ach-page", M.isPage()); view.classList.toggle("ach-bdgl", !M.isPage()); achBdglSync(body); return; }
     view.classList.remove("ach-page");
     const LM = tab === "bsn" ? BSNM : MODS[tab];
     if (LM && LM.h1) { body.innerHTML = LM.html(); if (sub) sub.textContent = ""; view.classList.add("ach-bdgl"); achBdglSync(body); return; }

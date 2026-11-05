@@ -3479,7 +3479,7 @@ def main():
         check("FORME 04/11, remarques 10 et 11 : interfaces (4 par pièce, 3 pour le budget, ordre du menu) et interface affichée connue ; MASQUER LA COLONNE dans la loupe, AFFICHER LES COLONNES MASQUÉES (compteur) dans le ⋯",
               f1104["ifs"] == "53|bdgl_i,bdgl_v,bdg,caf_li,caf_lv,caf_fi,caf_fv" and f1104["cur"] in ("bdgl_i", "bdgl_v") and f1104["colh"] == "1,true,0,1" and f1104["loupe"], f1104)
         check("FORME 04/11, remarques 12 et 13 : MODIFIER LE FORMAT d'une interface (ÉTAT de l'écran puis les éléments, sans les parties des fenêtres) ; écran d'ACCUEIL et RÉGLAGES COMMUNS (APPLIQUER PARTOUT remplace les réglages par interface)",
-              f1104["byCss"] and f1104["win1"] == "true,11,true" and f1104["saved"] == "#112233" and f1104["win2"] == "true,17,true" and f1104["cleared"] == 0 and f1104["home"], f1104)
+              f1104["byCss"] and f1104["win1"] == "true,10,true" and f1104["saved"] == "#112233" and f1104["win2"] == "true,16,true" and f1104["cleared"] == 0 and f1104["home"], f1104)
         check("FORME 04/11, remarques 14 et 15 : rubrique FORMAT et MASQUES DE SAISIE retirées de PARAMÉTRAGE ; masque posé sur un champ par appui long (clic droit), \"texte\" écrit d'office, autres signes placés d'office",
               f1104["noFmt"] and f1104["tok"] == "+212 6 12 34 56 78|ABC-123|123-AB" and f1104["pop"] and f1104["applied"] == "12345-B-67|99999-A-99", f1104)
         # remarque 16 : gestes sur ordinateur (Ctrl / Cmd + molette = hauteur des lignes, Option + molette = échelle du temps, clic droit = appui long)
@@ -3514,8 +3514,8 @@ def main():
   r.red = Object.keys(JSON.parse(localStorage.getItem('svi_ach_nvh_v1') || '{}')).join(',');
   K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
         check("SÉRIE B, B3 et B4 : blocs liés des fiches — ligne entière à la couleur de l'état ; hauteur commune (lignes par défaut / mode réduit) par le ⋯ du bloc", b34.get("cls") == "nvr-instance|nvr-valide|nvr-instance" and b34.get("menu") == "AGRANDIR|5 LIGNES (PAR DÉFAUT)|MODE RÉDUIT (1 LIGNE)" and b34.get("red") == "commandes", b34)
-        b5 = pg.evaluate("""() => { const E = SVI_FMT_EL.find(x => x.k === 'toptag'); return !!E && E.sel.includes('#sviScreenTag') && /#sviScreenTag[^{]*\{[^}]*font-size:18px/.test(sviFmtCss({ el: { toptag: { fs: 18, bg: '#000000' } } })); }""")
-        check('SÉRIE B, B5 : bandeau du milieu de la barre du haut réglable avec elle (fond, texte, taille)', b5 is True, b5)
+        b5 = pg.evaluate("""() => !SVI_FMT_EL.some(x => x.k === 'toptag')""")
+        check('SÉRIE B, B5 (05/11) : bandeau du milieu de la barre du haut = texte de la barre, plus d’élément à part', b5 is True, b5)
         b6 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_pg_v1'); { const o0 = sviPg(); o0.banques = []; sviPgSave(o0); }
   document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300);
   r.tabs = [...document.querySelectorAll('#chs .pg-tabs .prm-tab')].map(b => b.textContent.trim()).join('|'); r.first = (document.querySelector('#chs .prm-tab.on') || {}).dataset?.prm;
@@ -3731,6 +3731,18 @@ def main():
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check('SÉRIE B, B8 B44 : pays et ville de la fiche fournisseur proposés depuis LIEUX ; ARTICLE BLOQUÉ = commande arrêtée sauf autorisation exceptionnelle', b8.get('villes') == 'AGADIR' and b8.get('pays') == 'MAROC' and b8.get('ask') and b8.get('stop') is True and b8.get('free') is False, b8)
+        c7 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_dvf_v1'], keep = K.map(k => localStorage.getItem(k));
+  const L = achFrs(); const f = achFrsNew(L, { nom: 'BARRE' }); achFrsSave(L);
+  const V = achDvf(); V.push({ id: 'VB', ref: 'DVF 26-0101/001', frs: f.id, state: 'recu', date: '2026-01-01', lignes: [{ des: 'X', u: 'U', q: 1, pu: 1 }] }); achDvfSave(V);
+  document.querySelector('#navMenu .nav-btn[data-ach="dvf"]').click(); await w(300); achGo('dvf', 'VB'); await w(600);
+  const t = document.getElementById('sviScreenTag'), h = document.querySelector('#ach .nvp-ref');
+  r.noParty = !document.querySelector('#ach .novapp-list-titlebar .nvp-party'); r.tag = t ? t.textContent.trim() : ''; r.link = !!(t && t.querySelector('[data-nvgo]'));
+  r.font = !!(t && h && getComputedStyle(t).fontSize === getComputedStyle(h).fontSize); r.round = t ? getComputedStyle(t).borderRadius : '';
+  document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300); const c = document.querySelector('.prm-tab[data-prm="cal"]'); if (c) c.click(); await w(200);
+  r.cal = (document.querySelector('#chs .pg-ttl') || {}).textContent || ''; const g = document.querySelector('.prm-tab[data-prm="gen"]'); if (g) g.click(); await w(200); r.tz = /FUSEAU HORAIRE/.test(document.querySelector('#chs').textContent);
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check('05/11 : barre du haut — plus de nom du tiers à côté de la référence ; bandeau du centre en texte de la barre (même police et taille que la référence), nom cliquable ; FUSEAU HORAIRE ; titre JOURS NON TRAVAILLÉS du calendrier', c7.get('noParty') and c7.get('tag') == 'DEVIS — BARRE' and c7.get('link') and c7.get('font') and c7.get('round') == '0px' and c7.get('cal') == 'JOURS NON TRAVAILLÉS DE LA SOCIÉTÉ' and c7.get('tz'), c7)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

@@ -194,7 +194,6 @@ function achNvPageHTML(p, rec, ctx) {
       <h1 class="bdg-d-h1 nvp-ref${p.del ? " nv-strike" : ""}">${esc(p.ref || p.code)}</h1>
       <span class="bdg-d-badge bdg-d-inf" data-nvp="info" role="button" title="Informations">i</span>
       <span class="bdg-d-badge ach-h" data-h="${esc(p.code)}" role="button" title="Historique">H</span>
-      ${p.partyGo ? `<button type="button" class="ach-link nvp-party" data-nvgo="${esc(p.partyGo)}">${esc(p.party)}</button>` : ""}
       ${sviHdrBar({ attr: "nvp", n: p.why.length, why: { undo: "RIEN À ANNULER SUR CETTE FICHE.", redo: "RIEN À RÉTABLIR SUR CETTE FICHE.", todo: p.why.length ? "" : "AUCUNE ALERTE." } })}
     </div></div>
     ${p.links.map(blk).join("")}
@@ -239,7 +238,7 @@ function achNvMod(ctx, cfg) {
     if (!rec || rec.__c !== P.code) { rec = achRecBlock(P.code); rec.__c = P.code; }
     return achNvPageHTML(P, rec, ctx);
   };
-  const h1 = () => pid && P ? esc(cfg.list.one) + " — " + esc(P.title) : LST.h1();
+  const h1 = () => pid && P ? esc(cfg.list.one) + " — " + (P.partyGo && P.party === P.title ? `<button type="button" class="ach-link nvp-party" data-nvgo="${esc(P.partyGo)}">${esc(P.title)}</button>` : esc(P.title)) : LST.h1();
   const click = async e => {
     if (!pid) return LST.click(e);
     if (await rec.click(e, () => ctx.draw())) return true;

@@ -1412,6 +1412,10 @@ détail technique en petit */
 #svMaskPop .mkp-some { display: flex; flex-wrap: wrap; gap: 4px 10px; }
 #svMaskPop .mkp-some[hidden] { display: none; }
 #svMaskPop .mkp-some .mkp-n { flex: 1 1 100%; }
+/* 05/11 : bandeau du centre de la barre du haut = texte simple (plus de pastille), cliquable pour le nom du tiers */
+#ach #sviScreenTag, body #sviScreenTag { border-radius: 0; padding: 0 12px; pointer-events: auto; letter-spacing: 0; }
+#sviScreenTag .nvp-party { font: inherit; color: inherit; }
+.pg-ttl { font-weight: 800; margin: 0 0 8px; }
 #home .home-note { padding: 14px 16px; color: #475467; font-size: 12px; font-weight: 700; }
 #blkMenu .dly-sc.on span { font-weight: 800; }
 #blkMenu [data-dly].off { opacity: .45; }

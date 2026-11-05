@@ -879,7 +879,10 @@ function sviAchInit() {
     const PM = NV[tab] || MODS[tab] || (tab === "bsn" ? BSNM : null);
     if (PM && PM.isPage) { const M = PM; body.innerHTML = M.html(); if (h1) h1.innerHTML = M.isPage() ? M.h1() : "";
       /* v776 : page = étiquette de l'écran en haut au centre (comme « BUDGET »), en-tête de l'écran caché */
-      if (M.isPage()) { const t = document.createElement("div"); t.id = "sviScreenTag"; t.innerHTML = M.h1(); view.appendChild(t);   /* v787 : dans l'écran des achats — disparaît avec lui (jamais sur un budget) */ document.body.classList.add("bdg-screen"); } if (sub) sub.textContent = ""; view.classList.toggle("ach-page", M.isPage()); view.classList.toggle("ach-bdgl", !M.isPage()); achBdglSync(body); return; }
+      if (M.isPage()) { const t = document.createElement("div"); t.id = "sviScreenTag"; t.innerHTML = M.h1(); view.appendChild(t);
+        /* 05/11 : le bandeau du centre est du texte sur la barre — fond, couleur, police et taille de la référence (suivent MODIFIER LE FORMAT) */
+        requestAnimationFrame(() => { const r = view.querySelector(".nvp-ref"), bar = r && r.closest(".novapp-list-titlebar"); if (!r || !t.isConnected) return; const cs = getComputedStyle(r), bs = getComputedStyle(bar);
+          Object.assign(t.style, { fontFamily: cs.fontFamily, fontSize: cs.fontSize, fontWeight: cs.fontWeight, color: cs.color, background: bs.backgroundColor === "rgba(0, 0, 0, 0)" ? "transparent" : bs.backgroundColor, top: (r.getBoundingClientRect().top + window.scrollY) + "px", lineHeight: cs.lineHeight }); });   /* v787 : dans l'écran des achats — disparaît avec lui (jamais sur un budget) */ document.body.classList.add("bdg-screen"); } if (sub) sub.textContent = ""; view.classList.toggle("ach-page", M.isPage()); view.classList.toggle("ach-bdgl", !M.isPage()); achBdglSync(body); return; }
     view.classList.remove("ach-page");
     const LM = tab === "bsn" ? BSNM : MODS[tab];
     if (LM && LM.h1) { body.innerHTML = LM.html(); if (sub) sub.textContent = ""; view.classList.add("ach-bdgl"); achBdglSync(body); return; }
@@ -2934,7 +2937,6 @@ function achNvPageHTML(p, rec, ctx) {
       <h1 class="bdg-d-h1 nvp-ref${p.del ? " nv-strike" : ""}">${esc(p.ref || p.code)}</h1>
       <span class="bdg-d-badge bdg-d-inf" data-nvp="info" role="button" title="Informations">i</span>
       <span class="bdg-d-badge ach-h" data-h="${esc(p.code)}" role="button" title="Historique">H</span>
-      ${p.partyGo ? `<button type="button" class="ach-link nvp-party" data-nvgo="${esc(p.partyGo)}">${esc(p.party)}</button>` : ""}
       ${sviHdrBar({ attr: "nvp", n: p.why.length, why: { undo: "RIEN À ANNULER SUR CETTE FICHE.", redo: "RIEN À RÉTABLIR SUR CETTE FICHE.", todo: p.why.length ? "" : "AUCUNE ALERTE." } })}
     </div></div>
     ${p.links.map(blk).join("")}
@@ -2979,7 +2981,7 @@ function achNvMod(ctx, cfg) {
     if (!rec || rec.__c !== P.code) { rec = achRecBlock(P.code); rec.__c = P.code; }
     return achNvPageHTML(P, rec, ctx);
   };
-  const h1 = () => pid && P ? esc(cfg.list.one) + " — " + esc(P.title) : LST.h1();
+  const h1 = () => pid && P ? esc(cfg.list.one) + " — " + (P.partyGo && P.party === P.title ? `<button type="button" class="ach-link nvp-party" data-nvgo="${esc(P.partyGo)}">${esc(P.title)}</button>` : esc(P.title)) : LST.h1();
   const click = async e => {
     if (!pid) return LST.click(e);
     if (await rec.click(e, () => ctx.draw())) return true;
