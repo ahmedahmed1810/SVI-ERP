@@ -122,7 +122,7 @@ function achCmfFiche(id, done) {
           <label class="frs-f"><span>MARCHÉ CLIENT ET LOT</span><input class="ins-in cmf-x" data-k="marche" value="${esc(C.marche || "")}"${dis} autocomplete="off"></label>
           <label class="frs-f"><span>ÉCHÉANCE PRÉVUE DU PAIEMENT</span><input class="ins-in" value="${esc(achDFr(achCmfEch(C)) || "—")}" readonly></label>
           ${(() => { const X = achCmfDist(C); /* v913 (C1.51) : distance au chantier et transport estimé */
-            return `<label class="frs-f"><span>DISTANCE AU CHANTIER (VOL D'OISEAU)</span><input class="ins-in" value="${esc(X.km === undefined ? X.why : achF2(X.km) + " KM")}" readonly></label>
+            return `<label class="frs-f"><span data-tip="À VOL D'OISEAU, ENTRE LE DÉPÔT DU FOURNISSEUR ET LE CHANTIER">DISTANCE AU CHANTIER</span><input class="ins-in" value="${esc(X.km === undefined ? X.why : achF2(X.km) + " KM")}" readonly></label>
           <label class="frs-f"><span>TRANSPORT ESTIMÉ</span><input class="ins-in" value="${esc(X.km === undefined ? "—" : X.cost === null ? "PRIX AU KM À RÉGLER (PARAMÉTRAGE › BUDGET › TRANSPORT)" : achF2(X.cost) + " DH")}" readonly></label>`; })()}
           ${!(C.lignes || []).some(l => l.bsn || l.dvf) ? `<label class="frs-f frs-w"><span>MOTIF D'UNE COMMANDE SANS BESOIN NI DEVIS (SIÈGE, URGENCE) <b>*</b></span><input class="ins-in cmf-x${!C.motifSans && !ro ? " ins-need" : ""}" data-k="motifSans" value="${esc(C.motifSans || "")}"${dis} autocomplete="off"></label>` : ""}
           ${(C.lignes || []).some(l => l.dvf) ? (() => { /* v911 (principe du 03/11/2026) : prix différent du devis = motif obligatoire, signalé tout de suite (et non plus à VALIDER) */
@@ -282,7 +282,7 @@ function achRcpFiche(id, cmfId, done) {
             ${C || ro ? "" : `<td class="center"><button type="button" class="ach-x" data-rml="${i}">✕</button></td>`}</tr>`).join("") || `<tr><td colspan="10" class="empty">AUCUNE LIGNE (TOUT EST REÇU)</td></tr>`}</tbody></table>
           ${C || ro ? "" : `<button type="button" class="ach-b" data-addl>+ LIGNE</button>`}
           ${P.resLev ? `<div class="bsn-deb">RÉSERVES LEVÉES LE ${esc(svDT(P.resLev))}.</div>` : ""}</div>
-        <div class="bsn-note">LES DEMANDEURS DES BESOINS SONT AVERTIS (NOTÉ SUR LEUR BESOIN). CONVERSION D'UNITÉ À LA RÉCEPTION : AVEC LE VOLET UNITÉS DES ARTICLES (À VENIR).</div></div>`,
+</div>`,
       foot: `<button type="button" class="svc-b" data-x>${ro ? "FERMER" : "ANNULER"}</button>
         ${ro && P.state !== "annule" && P.lignes.some(l => l.st === "res" || l.st === "att") && !P.resLev ? `<button type="button" class="svc-b svc-ok svc-neutral" data-lev>LEVER LES RÉSERVES / ESSAI CONFORME</button>` : ""}
         ${ro && P.state !== "annule" && !achRcpFacturee(P) ? `<button type="button" class="svc-b" data-rcpann>ANNULER LA RÉCEPTION</button>` : ""}

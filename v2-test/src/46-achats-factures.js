@@ -337,10 +337,10 @@ function achPafProp(done) {
     d.innerHTML = sviWinCard({ cls: "frs-card paf-prop", close: "data-x", title: "PROPOSITION DE PAIEMENT",
       body: `<div class="frs-scroll"><div class="rec-tabs">${[["semaine", "SEMAINE"], ["mois", "MOIS"], ["tout", "TOUT"]].map(([k, l]) => `<button type="button" class="rec-tab${hz === k ? " active on" : ""}" data-hz="${k}">${l}</button>`).join("")}</div>
         <div class="bsn-note">À DÉCAISSER CETTE SEMAINE : <b>${esc(achF2(sum(A.filter(r => r.ok && r.ech <= wk))))}</b> · CE MOIS : <b>${esc(achF2(sum(A.filter(r => r.ok && r.ech <= mo))))}</b> · COCHÉ : <b>${esc(achF2(tot))}</b></div>
-        <table class="prm-table frs-sub"><thead><tr><th>ÉCHÉANCE</th><th>PRIORITÉ</th><th>FOURNISSEUR</th><th>FACTURE</th><th>N°</th><th class="number">RESTE À PAYER</th><th class="center"></th></tr></thead><tbody>
+        <table class="prm-table frs-sub"><thead><tr><th data-tip="SEULES LES FACTURES BON À PAYER SONT PROPOSÉES (PAS CELLES EN INSTANCE NI RÉCLAMÉES)">ÉCHÉANCE</th><th>PRIORITÉ</th><th>FOURNISSEUR</th><th>FACTURE</th><th>N°</th><th class="number">RESTE À PAYER</th><th class="center"></th></tr></thead><tbody>
         ${R.map(r => `<tr${r.prio === "ÉCHUE" ? ' class="nv-alert"' : ""}><td>${esc(achDFr(r.ech))}</td><td>${esc(r.ok ? r.prio : "FOURNISSEUR BLOQUÉ")}</td><td>${esc(r.fr ? r.fr.nom : "?")}</td><td>${esc(r.f.ref)}</td><td>${esc(r.f.num || "")}</td><td class="number">${esc(achF2(r.reste))}</td>
           <td class="center"><input type="checkbox" class="pp-cb" data-fa="${esc(r.f.id)}"${sel.has(r.f.id) ? " checked" : ""}${r.ok ? "" : " disabled"}></td></tr>`).join("") || `<tr><td colspan="7" class="empty">AUCUNE FACTURE À PAYER SUR CETTE PÉRIODE</td></tr>`}</tbody></table>
-        <div class="bsn-note">LES FACTURES EN INSTANCE OU RÉCLAMÉES (LITIGE) N'Y SONT PAS : SEULES LES FACTURES BON À PAYER SONT PROPOSÉES.</div></div>`,
+</div>`,
       foot: `<button type="button" class="svc-b" data-x>FERMER</button><button type="button" class="svc-b" data-all>TOUT COCHER</button><button type="button" class="svc-b svc-ok svc-neutral" data-mk${sel.size ? "" : " disabled"}>CRÉER LES PAIEMENTS (${sel.size})</button>` });
     if (!d.isConnected) sviWinShow(d); };
   draw();

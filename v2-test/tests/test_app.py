@@ -3709,6 +3709,16 @@ def main():
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("SÉRIE B, B11 B17 B28 : fiche du champ (appui long) — INTITULÉ renommé partout, EXPLICATION en bulle sur l'intitulé, OBLIGATOIRE pour tous ou certains groupes / types (refusé à l'enregistrement), IMPRIMÉ SUR LA COMMANDE (bloc placé d'office dans la mise en page)", b11.get('win') and b11.get('lab') == 'LOCALITÉ *' and b11.get('tip') == 'VILLE DU SIÈGE' and b11.get('blocked') and b11.get('saved') == 'AGADIR' and 'AGADIR' in b11.get('auto', '') and b11.get('mep'), b11)
+        b16 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {};
+  document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300); const g = document.querySelector('.prm-tab[data-prm="gen"]'); if (g) g.click(); await w(200);
+  r.pgTip = !!document.querySelector('#chs .pg-gen td[data-tip]') && !document.querySelector('#chs .pg-gv[title]');
+  document.querySelector('#navMenu .nav-btn[data-ach="prm"]').click(); await w(400); const v = document.getElementById('ach'); const t0 = v.querySelector('[data-ptab="gen"]'); if (t0) t0.click(); await w(200);
+  const td = v.querySelector('.ach-pgen td[data-tip]'); r.achTip = !!td;
+  td.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })); await w(200);
+  r.bubble = [...document.querySelectorAll('body > div')].some(d => d.textContent.includes(td.dataset.tip) && !d.contains(td));
+  const g2 = v.querySelector('[data-ptab="grp"]'); g2.click(); await w(200); r.noNote = !v.querySelector('.ach-note') && !!v.querySelector('.ach-pt[data-tip]');
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("SÉRIE B, B16 : plus de phrase d'explication sous les champs — l'explication passe dans la bulle (appui long ou clic droit sur l'intitulé) : PARAMÉTRAGE GÉNÉRAL, ACHATS › PARAMÈTRES, fiches", b16.get('pgTip') and b16.get('achTip') and b16.get('bubble') and b16.get('noNote'), b16)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

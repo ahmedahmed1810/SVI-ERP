@@ -812,14 +812,14 @@ function sviAchInit() {
         <div class="prm-foot"><button type="button" class="prm-del ach-pdel" data-pdel="cat" disabled>SUPPRIMER LES LIGNES COCHÉES <span class="svi-cnt">0</span></button></div></div>
       </div>`;
     if (T === "grp") return `<div class="ach-prm">${tabs}
-      <div class="ach-pbox"><div class="ach-pt">GROUPES DE FOURNISSEURS ${svCnt ? svCnt(P.grp.length) : ""}</div>
+      <div class="ach-pbox"><div class="ach-pt" data-tip="LE PRÉFIXE DONNE LA RÉFÉRENCE DU FOURNISSEUR (EX. FRE 26-1102/001), AVEC UNE SUITE PROPRE À CHAQUE PRÉFIXE ; LES CHAMPS OBLIGATOIRES SONT EXIGÉS À LA VALIDATION DU FOURNISSEUR">GROUPES DE FOURNISSEURS ${svCnt ? svCnt(P.grp.length) : ""}</div>
         <div class="ach-scroll"><table id="achGrpT" class="bdg-d-table prm-table ach-table" data-ach="grp" style="width:774px"><colgroup><col style="width:220px"><col style="width:90px"><col style="width:420px"><col style="width:44px"></colgroup>
           <thead><tr><th>GROUPE</th><th class="center">PRÉFIXE</th><th>CHAMPS OBLIGATOIRES</th><th class="center"><input type="checkbox" class="ach-pall" aria-label="Tout cocher"></th></tr></thead>
           <tbody>${P.grp.map(g => `<tr data-gid="${esc(g.id)}"><td><input class="ins-in ach-gin" data-f="nom" value="${esc(g.nom)}" autocomplete="off"></td><td class="center"><input class="ins-in ach-gin center" data-f="pre" value="${esc(g.pre || "")}" autocomplete="off"></td>
             <td><button type="button" class="ach-link ach-greq" data-greq="${esc(g.id)}">${esc((g.req || []).map(k => (ACH_GRP_CH.find(c => c[0] === k) || [k, k])[1]).join(", ") || "—")}</button></td><td class="center"><input type="checkbox" class="ach-pcb" data-xgrp="${esc(g.id)}" aria-label="Cocher"></td></tr>`).join("")}
           <tr class="ach-new"><td colspan="3"><input class="ins-in ach-gnew" placeholder="CRÉER UN GROUPE ICI…" autocomplete="off"></td><td></td></tr></tbody></table></div>
         <div class="prm-foot"><button type="button" class="prm-del ach-pdel" data-pdel="grp" disabled>SUPPRIMER LES LIGNES COCHÉES <span class="svi-cnt">0</span></button></div>
-        <div class="ach-note">LE PRÉFIXE DONNE LA RÉFÉRENCE DU FOURNISSEUR (EX. FRE 26-1102/001), AVEC UNE SUITE PROPRE À CHAQUE PRÉFIXE ; LES CHAMPS OBLIGATOIRES SONT EXIGÉS À LA VALIDATION DU FOURNISSEUR.</div></div>
+</div>
       </div>`;
     const R = [["direct", "SEUIL DE L'ACHAT DIRECT (SANS CONSULTATION), MONTANT HT", "DH", "ach-pdirect"], ["directJ", "ACHAT DIRECT — PÉRIODE DE CUMUL (J)", "JOURS"], ["tol", "TOLÉRANCE DE QUANTITÉ À LA RÉCEPTION", "%", "ach-ptol"],
       ["ecart", "ÉCART TOLÉRÉ ENTRE LA FACTURE ET LE CALCUL, TTC", "DH"], ["rasT", "RETENUE À LA SOURCE SUR LA TVA, TAUX PAR DÉFAUT", "% DE LA TVA"], ["avMax", "AVANCE SUR COMMANDE : ALERTE AU-DELÀ DE", "%"],
@@ -829,7 +829,7 @@ function sviAchInit() {
     const G = sviPgL("grades"), gl = s => String(s || "").split(/[,;\s]+/).filter(Boolean);
     return `<div class="ach-prm">${tabs}
       <div class="ach-pbox"><div class="ach-pt">RÈGLES INTERNES</div><table class="bdg-d-table prm-table ach-pgen"><colgroup><col style="width:520px"><col style="width:140px"><col style="width:220px"></colgroup>
-        <thead><tr><th>RÉGLAGE</th><th class="center">VALEUR</th><th>UNITÉ</th></tr></thead><tbody>${R.map(([k, l, u, cls]) => `<tr><td title="${esc(tip[k] || "")}">${l}</td>
+        <thead><tr><th>RÉGLAGE</th><th class="center">VALEUR</th><th>UNITÉ</th></tr></thead><tbody>${R.map(([k, l, u, cls]) => `<tr><td${tip[k] ? ` data-tip="${esc(tip[k])}"` : ""}>${l}</td>
           <td class="center"><input class="ins-in ${cls || "ach-pnum"} number" data-pk="${k}" inputmode="decimal" value="${P[k] === "" || P[k] === undefined ? "" : esc(F2(P[k]))}" title="${esc(tip[k] || "")}" autocomplete="off"></td>
           <td>${k === "plafT" ? `<select class="ach-pplu"><option${P.plafU === "DH" ? " selected" : ""}>DH</option><option${P.plafU === "%" ? " selected" : ""}>%</option></select>` : u}</td></tr>`).join("")}</tbody></table></div>
       <div class="ach-pbox"><div class="ach-pt">ALERTES DE RETARD</div><table class="bdg-d-table prm-table ach-palr"><colgroup><col style="width:520px"><col style="width:140px"><col style="width:220px"></colgroup>
@@ -1617,7 +1617,7 @@ function achBsnFiche(id, done) {
             : `<label class="frs-f frs-w"><span>JUSTIFICATION <b>*</b></span><input class="ins-in bsn-just" value="${esc(B.just || "")}" autocomplete="off"></label><button type="button" class="ach-b" data-deb>DÉBLOQUER</button><span class="bsn-note">DÉBLOCAGE SELON LES DROITS : POUR L'INSTANT, TOUT UTILISATEUR (NOTÉ DANS H).</span>`}</div>` : ""}
         ${b0 && B.state !== "instance" ? `<div class="bsn-deb">AVANCEMENT : ${esc(achBsnAvLab(B))}${B.refus ? " — " + esc(B.refus.why || "") + " (" + esc(B.refus.u || "") + ")" : ""}${B.qInit ? " — RESTE ANNULÉ : " + esc(nf(achN(B.qInit) - achN(B.q))) + " " + esc(B.u) : ""}</div>` : ""}
         ${B.couvert ? `<div class="bsn-deb">COUVERT PAR LA CONSULTATION ${esc(((achCaf().find(c => c.id === B.couvert) || {}).ref) || "")}.</div>` : B.direct ? `<div class="bsn-deb">ACHAT DIRECT (SANS CONSULTATION) — ${esc(dFr2(B.direct))}.</div>` : ""}
-        <div class="bsn-note">STOCK DISPONIBLE : VÉRIFIÉ QUAND LE MODULE STOCK EXISTERA. PHOTO DU CHANTIER : PAR LES DOCUMENTS DE LA FICHE (À VENIR).</div>
+
       </div>`,
       foot: `<button type="button" class="svc-b" data-x>${ro || b0 ? "FERMER" : "ANNULER"}</button>
         ${b0 && B.state !== "annule" ? `<button type="button" class="svc-b" data-cancel>ANNULER LE BESOIN</button>` : ""}
@@ -2149,7 +2149,7 @@ function achCmfFiche(id, done) {
           <label class="frs-f"><span>MARCHÉ CLIENT ET LOT</span><input class="ins-in cmf-x" data-k="marche" value="${esc(C.marche || "")}"${dis} autocomplete="off"></label>
           <label class="frs-f"><span>ÉCHÉANCE PRÉVUE DU PAIEMENT</span><input class="ins-in" value="${esc(achDFr(achCmfEch(C)) || "—")}" readonly></label>
           ${(() => { const X = achCmfDist(C); /* v913 (C1.51) : distance au chantier et transport estimé */
-            return `<label class="frs-f"><span>DISTANCE AU CHANTIER (VOL D'OISEAU)</span><input class="ins-in" value="${esc(X.km === undefined ? X.why : achF2(X.km) + " KM")}" readonly></label>
+            return `<label class="frs-f"><span data-tip="À VOL D'OISEAU, ENTRE LE DÉPÔT DU FOURNISSEUR ET LE CHANTIER">DISTANCE AU CHANTIER</span><input class="ins-in" value="${esc(X.km === undefined ? X.why : achF2(X.km) + " KM")}" readonly></label>
           <label class="frs-f"><span>TRANSPORT ESTIMÉ</span><input class="ins-in" value="${esc(X.km === undefined ? "—" : X.cost === null ? "PRIX AU KM À RÉGLER (PARAMÉTRAGE › BUDGET › TRANSPORT)" : achF2(X.cost) + " DH")}" readonly></label>`; })()}
           ${!(C.lignes || []).some(l => l.bsn || l.dvf) ? `<label class="frs-f frs-w"><span>MOTIF D'UNE COMMANDE SANS BESOIN NI DEVIS (SIÈGE, URGENCE) <b>*</b></span><input class="ins-in cmf-x${!C.motifSans && !ro ? " ins-need" : ""}" data-k="motifSans" value="${esc(C.motifSans || "")}"${dis} autocomplete="off"></label>` : ""}
           ${(C.lignes || []).some(l => l.dvf) ? (() => { /* v911 (principe du 03/11/2026) : prix différent du devis = motif obligatoire, signalé tout de suite (et non plus à VALIDER) */
@@ -2309,7 +2309,7 @@ function achRcpFiche(id, cmfId, done) {
             ${C || ro ? "" : `<td class="center"><button type="button" class="ach-x" data-rml="${i}">✕</button></td>`}</tr>`).join("") || `<tr><td colspan="10" class="empty">AUCUNE LIGNE (TOUT EST REÇU)</td></tr>`}</tbody></table>
           ${C || ro ? "" : `<button type="button" class="ach-b" data-addl>+ LIGNE</button>`}
           ${P.resLev ? `<div class="bsn-deb">RÉSERVES LEVÉES LE ${esc(svDT(P.resLev))}.</div>` : ""}</div>
-        <div class="bsn-note">LES DEMANDEURS DES BESOINS SONT AVERTIS (NOTÉ SUR LEUR BESOIN). CONVERSION D'UNITÉ À LA RÉCEPTION : AVEC LE VOLET UNITÉS DES ARTICLES (À VENIR).</div></div>`,
+</div>`,
       foot: `<button type="button" class="svc-b" data-x>${ro ? "FERMER" : "ANNULER"}</button>
         ${ro && P.state !== "annule" && P.lignes.some(l => l.st === "res" || l.st === "att") && !P.resLev ? `<button type="button" class="svc-b svc-ok svc-neutral" data-lev>LEVER LES RÉSERVES / ESSAI CONFORME</button>` : ""}
         ${ro && P.state !== "annule" && !achRcpFacturee(P) ? `<button type="button" class="svc-b" data-rcpann>ANNULER LA RÉCEPTION</button>` : ""}
@@ -2708,10 +2708,10 @@ function achPafProp(done) {
     d.innerHTML = sviWinCard({ cls: "frs-card paf-prop", close: "data-x", title: "PROPOSITION DE PAIEMENT",
       body: `<div class="frs-scroll"><div class="rec-tabs">${[["semaine", "SEMAINE"], ["mois", "MOIS"], ["tout", "TOUT"]].map(([k, l]) => `<button type="button" class="rec-tab${hz === k ? " active on" : ""}" data-hz="${k}">${l}</button>`).join("")}</div>
         <div class="bsn-note">À DÉCAISSER CETTE SEMAINE : <b>${esc(achF2(sum(A.filter(r => r.ok && r.ech <= wk))))}</b> · CE MOIS : <b>${esc(achF2(sum(A.filter(r => r.ok && r.ech <= mo))))}</b> · COCHÉ : <b>${esc(achF2(tot))}</b></div>
-        <table class="prm-table frs-sub"><thead><tr><th>ÉCHÉANCE</th><th>PRIORITÉ</th><th>FOURNISSEUR</th><th>FACTURE</th><th>N°</th><th class="number">RESTE À PAYER</th><th class="center"></th></tr></thead><tbody>
+        <table class="prm-table frs-sub"><thead><tr><th data-tip="SEULES LES FACTURES BON À PAYER SONT PROPOSÉES (PAS CELLES EN INSTANCE NI RÉCLAMÉES)">ÉCHÉANCE</th><th>PRIORITÉ</th><th>FOURNISSEUR</th><th>FACTURE</th><th>N°</th><th class="number">RESTE À PAYER</th><th class="center"></th></tr></thead><tbody>
         ${R.map(r => `<tr${r.prio === "ÉCHUE" ? ' class="nv-alert"' : ""}><td>${esc(achDFr(r.ech))}</td><td>${esc(r.ok ? r.prio : "FOURNISSEUR BLOQUÉ")}</td><td>${esc(r.fr ? r.fr.nom : "?")}</td><td>${esc(r.f.ref)}</td><td>${esc(r.f.num || "")}</td><td class="number">${esc(achF2(r.reste))}</td>
           <td class="center"><input type="checkbox" class="pp-cb" data-fa="${esc(r.f.id)}"${sel.has(r.f.id) ? " checked" : ""}${r.ok ? "" : " disabled"}></td></tr>`).join("") || `<tr><td colspan="7" class="empty">AUCUNE FACTURE À PAYER SUR CETTE PÉRIODE</td></tr>`}</tbody></table>
-        <div class="bsn-note">LES FACTURES EN INSTANCE OU RÉCLAMÉES (LITIGE) N'Y SONT PAS : SEULES LES FACTURES BON À PAYER SONT PROPOSÉES.</div></div>`,
+</div>`,
       foot: `<button type="button" class="svc-b" data-x>FERMER</button><button type="button" class="svc-b" data-all>TOUT COCHER</button><button type="button" class="svc-b svc-ok svc-neutral" data-mk${sel.size ? "" : " disabled"}>CRÉER LES PAIEMENTS (${sel.size})</button>` });
     if (!d.isConnected) sviWinShow(d); };
   draw();

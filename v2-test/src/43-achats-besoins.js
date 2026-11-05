@@ -64,7 +64,7 @@ function achBsnFiche(id, done) {
             : `<label class="frs-f frs-w"><span>JUSTIFICATION <b>*</b></span><input class="ins-in bsn-just" value="${esc(B.just || "")}" autocomplete="off"></label><button type="button" class="ach-b" data-deb>DÉBLOQUER</button><span class="bsn-note">DÉBLOCAGE SELON LES DROITS : POUR L'INSTANT, TOUT UTILISATEUR (NOTÉ DANS H).</span>`}</div>` : ""}
         ${b0 && B.state !== "instance" ? `<div class="bsn-deb">AVANCEMENT : ${esc(achBsnAvLab(B))}${B.refus ? " — " + esc(B.refus.why || "") + " (" + esc(B.refus.u || "") + ")" : ""}${B.qInit ? " — RESTE ANNULÉ : " + esc(nf(achN(B.qInit) - achN(B.q))) + " " + esc(B.u) : ""}</div>` : ""}
         ${B.couvert ? `<div class="bsn-deb">COUVERT PAR LA CONSULTATION ${esc(((achCaf().find(c => c.id === B.couvert) || {}).ref) || "")}.</div>` : B.direct ? `<div class="bsn-deb">ACHAT DIRECT (SANS CONSULTATION) — ${esc(dFr2(B.direct))}.</div>` : ""}
-        <div class="bsn-note">STOCK DISPONIBLE : VÉRIFIÉ QUAND LE MODULE STOCK EXISTERA. PHOTO DU CHANTIER : PAR LES DOCUMENTS DE LA FICHE (À VENIR).</div>
+
       </div>`,
       foot: `<button type="button" class="svc-b" data-x>${ro || b0 ? "FERMER" : "ANNULER"}</button>
         ${b0 && B.state !== "annule" ? `<button type="button" class="svc-b" data-cancel>ANNULER LE BESOIN</button>` : ""}
