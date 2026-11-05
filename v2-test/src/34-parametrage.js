@@ -205,6 +205,19 @@ document.addEventListener("focusout", e => {
   }
   delete i.__numFmt;
 });
+/* 05/11 : les actions sur les lignes cochées passent dans le ⋯ en haut à droite du tableau (plus de bouton sous le tableau) :
+   SUPPRIMER LES LIGNES COCHÉES (le bouton caché fait le travail), COPIER, COLLER */
+function sviPrmMoreUp(root) {
+  if (!root) return;
+  root.querySelectorAll(".prm-foot").forEach(f => { const del = f.querySelector(".prm-del"); if (!del || f.__more) return; f.__more = true; f.hidden = true;
+    let tb = f.previousElementSibling; while (tb && !tb.matches("table, .ach-scroll, .pg-tree, .prm-table") && !tb.querySelector("table")) tb = tb.previousElementSibling;
+    const host = tb || f; const b = document.createElement("div"); b.className = "prm-tbar"; b.innerHTML = `<button type="button" class="prm-more" aria-label="Actions">⋯</button>`; host.before(b);
+    b.querySelector(".prm-more").addEventListener("click", ev => { ev.stopPropagation(); const n = +((del.querySelector(".svi-cnt") || {}).textContent || 0) || 0, X = window.__sviCells;
+      sviHdrMenu(ev.currentTarget, [[{ k: "del", lab: "SUPPRIMER LES LIGNES COCHÉES (" + n + ")", del: true }], [{ k: "copy", lab: "COPIER" }, { k: "paste", lab: "COLLER" }]], a => {
+        if (a === "del") { if (!n || del.disabled) { svToast("AUCUNE LIGNE COCHÉE.", 2500, ev.target); return; } del.click(); return; }
+        if (!X || !X.count()) { svToast("SÉLECTIONNER D'ABORD DES CASES DU TABLEAU.", 2500, ev.target); return; } if (a === "copy") X.copy(); else X.paste(); }); }); });
+}
+new MutationObserver(() => { const c = document.getElementById("chs"); if (c && !c.hidden) sviPrmMoreUp(c); }).observe(document.documentElement, { childList: true, subtree: true });
 function sviParamTabs() {
   const view = document.getElementById("chs");
   if (!view || view.querySelector(".prm-tabs")) return;
@@ -213,7 +226,12 @@ function sviParamTabs() {
   bar.className = "prm-tabs pg-tabs bdg-d-tabs";
   /* B6 (série B, 04/11/2026) : PARAMÉTRAGE GÉNÉRAL — une seule rangée d'onglets pour toute l'application (forme des onglets du budget,
      même largeur, glissables pour changer l'ordre) ; plus de rubriques BUDGET / FORMAT ; GÉNÉRAL en premier ; TVA et TRANSPORT dans GÉNÉRAL (B2) */
-  const tabsHTML = () => sviPgTabs().map(T => `<button type="button" class="prm-tab bdg-d-tab tab-eq" data-prm="${T.k}">${esc(T.lab)}</button>`).join("");
+  let grp = "gen";
+  const tabsHTML = () => sviPgTabs().map(T => `<button type="button" class="prm-tab bdg-d-tab tab-eq" data-prm="${T.k}"${T.g === grp ? "" : " hidden"}>${esc(T.lab)}</button>`).join("");
+  const gbar = document.createElement("div"); gbar.className = "prm-tabs pg-grps bdg-d-tabs";
+  const gbarHTML = () => SVI_PG_GRP.map(([k, l]) => `<button type="button" class="prm-grp bdg-d-tab tab-eq${k === grp ? " on active" : ""}" data-pgg="${k}">${l}</button>`).join("");
+  gbar.innerHTML = gbarHTML();
+  gbar.addEventListener("click", e => { const b = e.target.closest("[data-pgg]"); if (!b) return; const T = sviPgTabs().find(x => x.g === b.dataset.pgg); if (T) show(T.k); });
   bar.innerHTML = tabsHTML();
   /* glisser un onglet (appui long puis glisser) = changer l'ordre, gardé */
   { let lp = 0, drag = null;
@@ -221,11 +239,11 @@ function sviParamTabs() {
     document.addEventListener("pointermove", e => { if (!drag) return; e.preventDefault(); const o = document.elementFromPoint(e.clientX, e.clientY), t2 = o && o.closest && o.closest(".pg-tabs .prm-tab");
       bar.querySelectorAll(".pg-over").forEach(x => x.classList.remove("pg-over")); if (t2 && t2 !== drag) t2.classList.add("pg-over"); }, { passive: false });
     const up = e => { clearTimeout(lp); if (!drag) return; const o = document.elementFromPoint(e.clientX, e.clientY), t2 = o && o.closest && o.closest(".pg-tabs .prm-tab");
-      const ks = [...bar.querySelectorAll(".prm-tab")].map(x => x.dataset.prm), a = drag.dataset.prm; drag.classList.remove("pg-drag"); drag = null; bar.querySelectorAll(".pg-over").forEach(x => x.classList.remove("pg-over"));
+      const ks = [...bar.querySelectorAll(".prm-tab:not([hidden])")].map(x => x.dataset.prm), a = drag.dataset.prm; drag.classList.remove("pg-drag"); drag = null; bar.querySelectorAll(".pg-over").forEach(x => x.classList.remove("pg-over"));
       if (!t2 || t2.dataset.prm === a) return; ks.splice(ks.indexOf(a), 1); ks.splice(ks.indexOf(t2.dataset.prm), 0, a);
       try { localStorage.setItem(SVI_PG_ORD, JSON.stringify(ks)); } catch (er) {} const cur = (bar.querySelector(".prm-tab.on") || {}).dataset?.prm; bar.innerHTML = tabsHTML(); show(cur || ks[0]); bar.__moved = Date.now(); };
     document.addEventListener("pointerup", up); document.addEventListener("pointercancel", () => { clearTimeout(lp); if (drag) { drag.classList.remove("pg-drag"); drag = null; } }); }
-  head.after(bar);
+  head.after(gbar); gbar.after(bar);
   const pane = document.createElement("div");
   pane.className = "prm-unit";
   pane.hidden = true;
@@ -237,6 +255,7 @@ function sviParamTabs() {
   pane.after(lpane);
   /* B2 (série B) : réglages ponctuels dans GÉNÉRAL ; autres onglets du paramétrage général (34b-parametrage-general.js) */
   const gpane = document.createElement("div"); gpane.className = "prm-pg"; gpane.hidden = true; lpane.after(gpane);
+  const apane = document.createElement("div"); apane.className = "prm-ach"; apane.hidden = true; gpane.after(apane);   /* 05/11 : onglets dessinés par le module ACHATS */
   gpane.addEventListener("change", e => {
     const i = e.target; if (i.matches(".pg-soc-in")) { const o = sviPg(); o.soc = { ...sviSoc(), [i.dataset.f]: i.dataset.f === "mail" ? i.value.trim() : sviPgU(i.value) }; sviPgSave(o); return; }
     if (i.matches(".pg-logo-in")) { const f = i.files && i.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { const o = sviPg(); o.soc = { ...sviSoc(), logo: rd.result }; sviPgSave(o); sviPgDraw("soc", gpane); }; rd.readAsDataURL(f); return; }
@@ -247,14 +266,17 @@ function sviParamTabs() {
     if (g === "tva") sviTvaSave(v); else sviTrKmSave(v); sviPgDraw("gen", gpane); });
   const show = which => {
     if (!SVI_PG_TABS.some(T => T.k === which)) which = which === "tva" || which === "trk" ? "gen" : "gen";   /* anciens onglets (TVA, TRANSPORT, FORMAT) */
-    bar.querySelectorAll(".prm-tab").forEach(b => { b.classList.toggle("on", b.dataset.prm === which); b.classList.toggle("active", b.dataset.prm === which); });
-    pane.hidden = which !== "unit"; lpane.hidden = which !== "lib"; gpane.hidden = which === "unit" || which === "lib";
     const T = SVI_PG_TABS.find(x => x.k === which), h1 = head.querySelector("h1"), sub = head.querySelector("p");
-    if (h1) h1.textContent = "PARAMÉTRAGE GÉNÉRAL — " + T.lab;
+    if (T.g !== grp) { grp = T.g; gbar.innerHTML = gbarHTML(); }
+    bar.querySelectorAll(".prm-tab").forEach(b => { const t = SVI_PG_TABS.find(x => x.k === b.dataset.prm); b.hidden = !t || t.g !== grp; b.classList.toggle("on", b.dataset.prm === which); b.classList.toggle("active", b.dataset.prm === which); });
+    pane.hidden = which !== "unit"; lpane.hidden = which !== "lib"; apane.hidden = !T.ach; gpane.hidden = which === "unit" || which === "lib" || !!T.ach;
+    if (T.ach) { apane.innerHTML = apane.innerHTML || ""; (window.sviAchLoad ? sviAchLoad() : Promise.resolve()).then(() => { const v = document.getElementById("ach"); if (v && v.__prmMount && !apane.hidden) v.__prmMount(apane, T.ach); }).catch(() => svToast("ACHATS : CHARGEMENT IMPOSSIBLE.", 3000)); }
+    if (h1) h1.textContent = "PARAMÉTRAGE — " + (SVI_PG_GRP.find(g => g[0] === grp) || ["", ""])[1] + " — " + T.lab;
     if (sub) sub.textContent = which === "lib" ? "RECETTES PAR ACTIVITÉ SECONDAIRE : CHARGES, UNITÉ, PRIX ET QUANTITÉ POUR UNE UNITÉ DE PRODUIT" : T.sub || "";
     if (which === "unit") draw();
     if (which === "lib") libDraw();
     if (!gpane.hidden) sviPgDraw(which, gpane);
+    if (typeof sviPrmMoreUp === "function") setTimeout(() => sviPrmMoreUp(document.getElementById("chs")), 0);
     try { localStorage.setItem("svi_prm_v1", which); } catch (e) {}
   };
   /* v793 : UNITÉS au format commun des tableaux — loupe de tri / filtre sur chaque colonne, largeur des colonnes réglable et gardée */
@@ -368,6 +390,7 @@ function sviParamTabs() {
   });
   /* B6 : le paramétrage général s'ouvre sur le premier onglet (GÉNÉRAL par défaut) */
   show(sviPgTabs()[0].k);
+  view.__prmShow = show;   /* 05/11 : aller à un onglet du paramétrage depuis ailleurs */
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", sviParamTabs); else sviParamTabs();
 /* PARAMÉTRAGE › CALENDRIER : fenêtre CALENDRIER DU BUDGET (FORMAT 101) — un mois à la fois ;

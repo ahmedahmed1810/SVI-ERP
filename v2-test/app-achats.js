@@ -788,12 +788,16 @@ function sviAchInit() {
      GÉNÉRAL = règles internes (B30) alignées en colonnes régulières, puis ALERTES DE RETARD (B13), PLAFONDS EN ESPÈCES (B12),
      MENTIONS IMPRIMÉES (B14) et SEUILS DE VALIDATION (B25). Banques : PARAMÉTRAGE GÉNÉRAL (B9) ; TVA et transport : PARAMÉTRAGE GÉNÉRAL › GÉNÉRAL (B2) ;
      l'alerte du prévu du budget ira au module PRODUCTIVITÉ (B19). Les explications passent dans la bulle des champs (B16, B17). */
-  const PTABS = [["gen", "GÉNÉRAL"], ["cat", "CATÉGORIES"], ["ref", "RÉFÉRENCES"], ["cla", "CLAUSES"]];   /* 05/11 : plus de groupes */
-  const prmTab = () => { let k = "gen"; try { k = localStorage.getItem("svi_achprm_tab_v1") || "gen"; } catch (e) {} return PTABS.some(x => x[0] === k) ? k : "gen"; };
+  /* 05/11 : plus d'onglets ici — chaque partie est un onglet de PARAMÉTRAGE (ACHATS : RÈGLES INTERNES, ALERTES DE RETARD, MENTIONS IMPRIMÉES, CLAUSES ;
+     GÉNÉRAL : RÉFÉRENCES ; ARTICLES : CATÉGORIES) ; le corps de l'écran des achats y est posé le temps de l'onglet (view.__prmMount) */
+  const PTABS = [];
+  let prmSub = "regl"; const prmTab = () => prmSub;
+  const bodyHome = document.createComment("ach-body"); body.before(bodyHome);
+  view.__prmMount = (host, s) => { prmSub = s; if (body.parentNode !== host) { host.innerHTML = ""; host.appendChild(body); } tab = "prm"; draw(); };
   const prmHTML = () => {
     const P = achPrm(), T = prmTab();
     const catRows = cfApply("ach_cat", [["cat1", "CATÉGORIE (FAMILLE D'ARTICLES)", x => x, ""]], P.cat);
-    const tabs = `<div class="bdg-d-tabs ach-ptabs">${PTABS.map(([k, l]) => `<button type="button" class="bdg-d-tab tab-eq${k === T ? " active" : ""}" data-ptab="${k}">${l}</button>`).join("")}</div>`;
+    const tabs = "";
     /* B27 : RÉFÉRENCES — modèle et remise à zéro du compteur par type de pièce */
     if (T === "ref") return `<div class="ach-prm">${tabs}
       <div class="ach-pbox"><div class="ach-pt">RÉFÉRENCES DES PIÈCES</div><table class="bdg-d-table prm-table ach-pref"><colgroup><col style="width:300px"><col style="width:280px"><col style="width:220px"><col style="width:220px"></colgroup>
@@ -834,7 +838,8 @@ function sviAchInit() {
       ["plafT", "PLAFOND DE TRANSACTIONS PAR FOURNISSEUR (PAR DÉFAUT)", P.plafU], ["nfrs", "NOMBRE MINIMUM DE DEVIS PAR CONSULTATION", "DEVIS"], ["nrep", "RÉPARTITION : NOMBRE DE FOURNISSEURS PAR ARTICLE", "FOURNISSEURS"], ["mrep", "RÉPARTITION : MARGE AUTOUR DE LA PART CIBLE", "± POINTS DE %"], ["exFin", "MOIS DE CLÔTURE DE L'EXERCICE (ARCHIVAGE JAMAIS AVANT 12 MOIS)", "MOIS (1 À 12)"]];
     const tip = { directJ: "LE JOUR EST TOUJOURS CUMULÉ ; PAR ARTICLE ET PAR FOURNISSEUR", tol: "AU-DESSUS DU RESTE À RECEVOIR", ecart: "ARRONDIS", nfrs: "NON BLOQUANT : MOINS DE DEVIS = ! DEVANT LE PRIX RETENU", plafT: "REPRIS À LA CRÉATION DE CHAQUE FOURNISSEUR, MODIFIABLE SUR SA FICHE ; ATTEINT = FOURNISSEUR BLOQUÉ" };
     const G = sviPgL("grades"), gl = s => String(s || "").split(/[,;\s]+/).filter(Boolean);
-    return `<div class="ach-prm">${tabs}
+    const keep = { regl: ["ach-pgen", "ach-pesp", "ach-pseu"], alr: ["ach-palr"], ment: ["ach-pment"] }[T] || ["ach-pgen", "ach-pesp", "ach-pseu"];
+    const tpl = document.createElement("template"); tpl.innerHTML = `<div class="ach-prm">
       <div class="ach-pbox"><div class="ach-pt">RÈGLES INTERNES</div><table class="bdg-d-table prm-table ach-pgen"><colgroup><col style="width:520px"><col style="width:140px"><col style="width:220px"></colgroup>
         <thead><tr><th>RÉGLAGE</th><th class="center">VALEUR</th><th>UNITÉ</th></tr></thead><tbody>${R.map(([k, l, u, cls]) => `<tr><td${tip[k] ? ` data-tip="${esc(tip[k])}"` : ""}>${l}</td>
           <td class="center"><input class="ins-in ${cls || "ach-pnum"} number" data-pk="${k}" inputmode="decimal" value="${P[k] === "" || P[k] === undefined ? "" : esc(F2(P[k]))}" title="${esc(tip[k] || "")}" autocomplete="off"></td>
@@ -858,6 +863,8 @@ function sviAchInit() {
           <tr class="ach-new"><td colspan="3"><input class="ins-in ach-seunew number" inputmode="decimal" placeholder="CRÉER UN SEUIL ICI… (MONTANT)" autocomplete="off"></td><td></td></tr></tbody></table>
         <div class="prm-foot"><button type="button" class="prm-del ach-pdel" data-pdel="seu" disabled>SUPPRIMER LES LIGNES COCHÉES <span class="svi-cnt">0</span></button></div></div>
       </div>`;
+    tpl.content.querySelectorAll(".ach-pbox").forEach(b => { if (!keep.some(c => b.querySelector("table." + c))) b.remove(); });
+    return tpl.innerHTML;
   };
   /* ---------- dessin ---------- */
   /* redessin sans bouger l'écran ; la case active (ou celle visée par Entrée / Tab) est retrouvée après */
@@ -875,6 +882,8 @@ function sviAchInit() {
       if (lg && lg.k && performance.now() - lg.t < 600 && (!a2 || a2 === document.body || !view.contains(a2)) && window.sviCellFind) { const el = window.sviCellFind(lg.k); if (el && el.isConnected && view.contains(el)) { el.focus(); try { el.select(); } catch (e) {} } } }, 0);
   };
   const draw = () => keepPos(() => {
+    if (tab === "prm" && body.parentNode === bodyHome.parentNode) tab = "art";   /* 05/11 : ACHATS › PARAMÈTRES est dans PARAMÉTRAGE */
+    if (tab !== "prm" && body.parentNode !== bodyHome.parentNode) bodyHome.after(body);
     bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.ach === tab));
     /* v765 : plus de rangée d'onglets : on passe d'une liste à l'autre par le menu ☰ (comme les budgets) ; pas d'étiquette du budget ici */
     bar.style.display = "none"; document.getElementById("sviScreenTag")?.remove(); document.body.classList.remove("bdg-screen");

@@ -94,20 +94,27 @@ function sviPgTree(pane, c) {
     sviPgLSave(C.k, L2); sviPgTree(pane, C); });
 }
 /* ---------- onglets ---------- */
+/* 05/11 : un seul écran PARAMÉTRAGE, avec une rangée de GROUPES (GÉNÉRAL, ACHATS, ARTICLES, PERSONNEL…) puis les onglets du groupe ;
+   les onglets marqués « ach » sont dessinés par le module ACHATS (41 : view.__prmMount) */
+const SVI_PG_GRP = [["gen", "GÉNÉRAL"], ["ach", "ACHATS"], ["art", "ARTICLES"], ["pers", "PERSONNEL"]];
 const SVI_PG_TABS = [
   { k: "gen", lab: "GÉNÉRAL", sub: "RÉGLAGES PONCTUELS DE TOUTE L'APPLICATION" },
   { k: "soc", lab: "SOCIÉTÉ", sub: "IDENTITÉ DE LA SOCIÉTÉ (IMPRIMÉE SUR LES PIÈCES SELON LES MENTIONS CHOISIES)" },
-  { k: "unit", lab: "UNITÉS", sub: "" }, { k: "lib", lab: "BIBLIOTHÈQUE DE PRIX", sub: "" },
+  { k: "unit", g: "art", lab: "UNITÉS", sub: "" }, { k: "lib", lab: "BIBLIOTHÈQUE DE PRIX", sub: "" },
   { k: "cal", lab: "CALENDRIER", sub: "JOURS NON TRAVAILLÉS DE TOUTE LA SOCIÉTÉ (FÉRIÉS, GRÈVE, DEUIL NATIONAL, ÉVÉNEMENT…)" },
   { k: "lieux", lab: "LIEUX", sub: "PAYS › RÉGION › VILLE (ADRESSES, TRANSPORT, AGENCES BANCAIRES)" },
   { k: "banq", lab: "BANQUES", sub: "BANQUES ET AGENCES, COMMUNES À TOUTE L'APPLICATION" },
   { k: "cpt", lab: "COMPTABILITÉ", sub: "COMPTES (CODE, INTITULÉ), UTILISÉS PAR TOUTE L'APPLICATION" },
-  { k: "grades", lab: "GRADES", sub: "GRADE 1 = DIRECTEUR GÉNÉRAL (MODULE PERSONNEL PLUS TARD)" },
-  { k: "ftypes", lab: "TYPES DE FOURNISSEURS", sub: "MÉTIER DU FOURNISSEUR, CHOISI SUR SA FICHE" },
-  { k: "gprod", lab: "GROUPES DE PRODUCTIVITÉ", sub: "GROUPES DES ARTICLES (MODULE PRODUCTIVITÉ PLUS TARD)" },
-  { k: "gexp", lab: "GROUPES D'EXPLOITATION", sub: "GROUPES DES ARTICLES (MODULE EXPLOITATION PLUS TARD)" },
-  { k: "dev", lab: "DEVISES", sub: "LE DIRHAM PAR DÉFAUT ; LES AUTRES POUR L'IMPORT" }
-];
+  { k: "grades", g: "pers", lab: "GRADES", sub: "GRADE 1 = DIRECTEUR GÉNÉRAL (MODULE PERSONNEL PLUS TARD)" },
+  { k: "gprod", g: "art", lab: "GROUPES DE PRODUCTIVITÉ", sub: "GROUPES DES ARTICLES (MODULE PRODUCTIVITÉ PLUS TARD)" },
+  { k: "gexp", g: "art", lab: "GROUPES D'EXPLOITATION", sub: "GROUPES DES ARTICLES (MODULE EXPLOITATION PLUS TARD)" },
+  { k: "dev", lab: "DEVISES", sub: "LE DIRHAM PAR DÉFAUT ; LES AUTRES POUR L'IMPORT" },
+  { k: "ref", ach: "ref", lab: "RÉFÉRENCES", sub: "FORMAT DES RÉFÉRENCES DES PIÈCES" },
+  { k: "cat", g: "art", ach: "cat", lab: "CATÉGORIES", sub: "FAMILLES D'ARTICLES" },
+  { k: "aregl", g: "ach", ach: "regl", lab: "RÈGLES INTERNES", sub: "" }, { k: "aalr", g: "ach", ach: "alr", lab: "ALERTES DE RETARD", sub: "" },
+  { k: "ament", g: "ach", ach: "ment", lab: "MENTIONS IMPRIMÉES", sub: "" }, { k: "acla", g: "ach", ach: "cla", lab: "CLAUSES", sub: "" },
+  { k: "ftypes", g: "ach", lab: "TYPES DE FOURNISSEURS", sub: "MÉTIER DU FOURNISSEUR, CHOISI SUR SA FICHE" }
+].map(T => ({ g: "gen", ...T }));
 const SVI_PG_ORD = "svi_pgord_v1";
 const sviPgTabs = () => { let o = []; try { o = JSON.parse(localStorage.getItem(SVI_PG_ORD) || "[]") || []; } catch (e) {} const ks = SVI_PG_TABS.map(t => t.k);
   return o.filter(k => ks.includes(k)).concat(ks.filter(k => !o.includes(k))).map(k => SVI_PG_TABS.find(t => t.k === k)); };

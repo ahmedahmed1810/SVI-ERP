@@ -2833,7 +2833,7 @@ def main():
             const r = [top.join(','), sub.join(','), open, still, stay, document.getElementById('ach').classList.contains('active-view'), (document.querySelector('#ach .novapp-list-titlebar h1') || document.querySelector('#ach .section-head h1')).textContent.trim().replace(/ \(.*$/, '')];
             M.querySelector('.nav-grp').click(); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); M.classList.add('hidden'); await w(600); return r; }""")
         check("v751 / v752 : menu ☰ — ordre BDG, ACHAT, BESOIN, PARAMÉTRAGE ; ACHAT dépliable (CONSULTATIONS, DEVIS, COMMANDES, RÉCEPTIONS, FACTURES, PAIEMENTS, FOURNISSEURS, ARTICLES, ACC), BESOIN dessous ; entrées à venir grisées ; ARTICLES ouvre les achats",
-              m751 == ["ACCUEIL,BDG,ACHAT,BESOIN,PARAMÉTRAGE GÉNÉRAL,DONNÉES SOURCE", "TABLEAU DE BORD,CONSULTATIONS,DEVIS,COMMANDES,RETOURS DE COMMANDE,RÉCEPTIONS,RETOURS DE RÉCEPTION,FACTURES,AVOIRS,PAIEMENTS,FOURNISSEURS,ARTICLES,PARAMÈTRES ACHATS,ACC", True, True, True, True, "ARTICLES"], m751)
+              m751 == ["ACCUEIL,BDG,ACHAT,BESOIN,PARAMÉTRAGE,DONNÉES SOURCE", "TABLEAU DE BORD,CONSULTATIONS,DEVIS,COMMANDES,RETOURS DE COMMANDE,RÉCEPTIONS,RETOURS DE RÉCEPTION,FACTURES,AVOIRS,PAIEMENTS,FOURNISSEURS,ARTICLES,ACC", True, True, True, True, "ARTICLES"], m751)
         # v752 : icône devant chaque entrée du menu ; liste des budgets en gras ; lignes du dessous décalées ; corbeille de la couleur de sa ligne
         k752 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const M = document.getElementById('navMenu');
             const ic = [...M.querySelectorAll('.nav-btn, .nav-grp, .nav-off, .nav-src')].every(b => !!b.querySelector('svg.nav-ic'));
@@ -3530,20 +3530,19 @@ def main():
   if (keep === null) localStorage.removeItem('svi_pg_v1'); else localStorage.setItem('svi_pg_v1', keep); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("SÉRIE B, B6 B2 B7 B8 B9 B20 B22 B24 B31 B38 B41 : PARAMÉTRAGE GÉNÉRAL — une rangée d'onglets (GÉNÉRAL en premier), TVA et transport dans GÉNÉRAL, BANQUES pliables (agences, code banque 3 chiffres), COMPTABILITÉ, CALENDRIER de la société repris par les budgets sans calendrier propre", b6.get("tabs", "").startswith("GÉNÉRAL|SOCIÉTÉ|UNITÉS") and b6.get("gen") and b6.get("banq") == "BANQUE POPULAIRE,>AGENCE CENTRE|1" and b6.get("code") and b6.get("cpt") == "4411" and b6.get("cal") == "2030-01-01,2030-01-02|0", b6)
         b10 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_ach_prm_v1'), kt = localStorage.getItem('svi_achprm_tab_v1');
-  localStorage.removeItem('svi_achprm_tab_v1'); document.querySelector('#navMenu .nav-btn[data-ach="prm"]').click(); await w(400); const v = document.getElementById('ach');
-  r.tabs = [...v.querySelectorAll('[data-ptab]')].map(b => b.textContent.trim()).join('|'); r.boxes = [...v.querySelectorAll('.ach-pt')].map(b => b.textContent.trim()).join('|');
+  const pgo = async k => { document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(200); document.querySelector('#chs .prm-tab[data-prm="' + k + '"]').click(); await w(1200); }; await pgo('aalr'); const v = document.getElementById('chs');
+  r.tabs = [...v.querySelectorAll('.pg-tabs .prm-tab:not([hidden])')].map(b => b.textContent.trim()).join('|');
   const a = v.querySelector('.ach-alr[data-k="cmd"]'); a.value = '15'; a.dispatchEvent(new Event('change', { bubbles: true })); await w(100); r.alr = achPrm().alr.cmd;
-  v.querySelector('.ach-espnew').click(); await w(150); r.esp = achPrm().espL.length;
+  await pgo('aregl'); v.querySelector('.ach-espnew').click(); await w(150); r.esp = achPrm().espL.length;
   const s = v.querySelector('.ach-seunew'); s.value = '5000'; s.dispatchEvent(new Event('change', { bubbles: true })); await w(150);
   const g = v.querySelector('.ach-seu[data-f="g"]'); g.value = '3, 1'; g.dispatchEvent(new Event('change', { bubbles: true })); await w(150); r.seu = JSON.stringify(achPrm().seuV.map(x => [x.mt, x.g, x.h]));
-  r.noBq = !/BANQUES/.test(v.textContent) && !/NOVAPP/.test(v.textContent) && !/PRÉVU DU BUDGET/.test(v.textContent);
-  v.querySelector('[data-ptab="cat"]').click(); await w(200); r.cat = !!v.querySelector('#achCatT');
+  { const t = v.querySelector('.prm-ach').textContent; r.noBq = !/BANQUES/.test(t) && !/NOVAPP/.test(t) && !/PRÉVU DU BUDGET/.test(t); }
+  await pgo('cat'); r.cat = !!v.querySelector('#achCatT');
   if (keep === null) localStorage.removeItem('svi_ach_prm_v1'); else localStorage.setItem('svi_ach_prm_v1', keep); if (kt === null) localStorage.removeItem('svi_achprm_tab_v1'); else localStorage.setItem('svi_achprm_tab_v1', kt);
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
-        check('SÉRIE B, B10 B12a B36 B30 B12 B13 B14 B15 B19 : ACHATS › PARAMÈTRES en onglets (GÉNÉRAL, CATÉGORIES, GROUPES), tableaux alignés — règles internes, alertes de retard, plafonds en espèces par période, mentions imprimées, seuils de validation ; banques, import NovApp et alerte 90 % du budget retirés', b10.get('tabs','').startswith('GÉNÉRAL|CATÉGORIES|RÉFÉRENCES') and b10.get('alr') == 15 and b10.get('esp', 0) >= 2 and b10.get('seu') == '[[5000,["3","1"],true]]' and b10.get('noBq') and b10.get('cat'), b10)
+        check('SÉRIE B, B10 B12a B36 B30 B12 B13 B14 B15 B19 : ACHATS › PARAMÈTRES en onglets (GÉNÉRAL, CATÉGORIES, GROUPES), tableaux alignés — règles internes, alertes de retard, plafonds en espèces par période, mentions imprimées, seuils de validation ; banques, import NovApp et alerte 90 % du budget retirés', b10.get('tabs','') == 'RÈGLES INTERNES|ALERTES DE RETARD|MENTIONS IMPRIMÉES|CLAUSES|TYPES DE FOURNISSEURS' and b10.get('alr') == 15 and b10.get('esp', 0) >= 2 and b10.get('seu') == '[[5000,["3","1"],true]]' and b10.get('noBq') and b10.get('cat'), b10)
         b27 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_ach_prm_v1'), kt = localStorage.getItem('svi_achprm_tab_v1');
-  document.querySelector('#navMenu .nav-btn[data-ach="prm"]').click(); await w(400); const v = document.getElementById('ach');
-  v.querySelector('[data-ptab="ref"]').click(); await w(200);
+  const pgo = async k => { document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(200); document.querySelector('#chs .prm-tab[data-prm="' + k + '"]').click(); await w(1200); }; await pgo('ref'); const v = document.getElementById('chs');
   r.rows = v.querySelectorAll('.ach-pref tbody tr').length; r.tip = !!v.querySelector('.ach-pref th[data-tip]');
   const m = v.querySelector('.ach-ref[data-k="DVF"][data-f="m"]'); m.value = 'DV {AAAA}/{NNNN}'; m.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
   const z = v.querySelector('.ach-ref[data-k="DVF"][data-f="rz"]'); z.value = 'annee'; z.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
@@ -3551,7 +3550,7 @@ def main():
   r.n1 = achNextRef('DVF', [{ ref: 'DV ' + y + '/0007', cree: d0.toISOString() }, { ref: 'DV ' + (y - 1) + '/0040', cree: new Date(y - 1, 5, 1).toISOString() }]) === 'DV ' + y + '/0008';
   r.bad = (() => { const m2 = v.querySelector('.ach-ref[data-k="CMF"][data-f="m"]'); m2.value = 'CMF {AA}'; m2.dispatchEvent(new Event('change', { bubbles: true })); return achPrm().refs.CMF.m; })();
   r.def = achNextRef('CMF', [{ ref: achRefFill('CMF {AA}-{MM}{JJ}/{NNN}', d0, 3), cree: d0.toISOString() }, { ref: 'CMF 20-0101/009', cree: '2020-01-01T10:00:00Z' }]) === achRefFill('CMF {AA}-{MM}{JJ}/{NNN}', d0, 4);
-  await w(100); v.querySelector('[data-ptab="cla"]').click(); await w(200);
+  await w(100); await pgo('acla');
   r.fold = v.querySelectorAll('details.ach-pfold').length; r.g = achPrm().clG.length;
   const nw = v.querySelectorAll('.ach-clnew')[1]; nw.value = 'garantie un an'; nw.dispatchEvent(new Event('change', { bubbles: true })); await w(150);
   const tsel = v.querySelectorAll('details.ach-pfold')[1].querySelector('tr[data-clid] select.ach-cl'); tsel.value = 'val'; tsel.dispatchEvent(new Event('change', { bubbles: true })); await w(150);
@@ -3712,7 +3711,7 @@ def main():
         b16 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {};
   document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300); const g = document.querySelector('.prm-tab[data-prm="gen"]'); if (g) g.click(); await w(200);
   r.pgTip = !!document.querySelector('#chs .pg-gen td[data-tip]') && !document.querySelector('#chs .pg-gv[title]');
-  document.querySelector('#navMenu .nav-btn[data-ach="prm"]').click(); await w(400); const v = document.getElementById('ach'); const t0 = v.querySelector('[data-ptab="gen"]'); if (t0) t0.click(); await w(200);
+  const pgo = async k => { document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(200); document.querySelector('#chs .prm-tab[data-prm="' + k + '"]').click(); await w(1200); }; await pgo('aregl'); const v = document.getElementById('chs');
   const td = v.querySelector('.ach-pgen td[data-tip]'); r.achTip = !!td;
   td.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })); await w(200);
   r.bubble = [...document.querySelectorAll('body > div')].some(d => d.textContent.includes(td.dataset.tip) && !d.contains(td));
@@ -3760,6 +3759,24 @@ def main():
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("05/11 : plus de groupes de fournisseurs — LOCAL / ÉTRANGER d'après le PAYS (préfixe FRS / FRE), ancien OCCASIONNEL gardé ; OBLIGATOIRE « seulement pour » LOCAL, ÉTRANGER, OCCASIONNEL ou un type", c2.get('ids') == 'loc,etr,etr,occ' and c2.get('pfx') == 'FRS,FRE' and c2.get('miss') == 1 and c2.get('occ') == 0 and c2.get('noGrp') and c2.get('opts') == 'loc,etr,occ' and c2.get('etrFree') and c2.get('locBlocked'), c2)
+        c9 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_ach_prm_v1');
+  r.noNav = !document.querySelector('#navMenu .nav-btn[data-ach="prm"]');
+  document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300); const c = document.getElementById('chs');
+  r.grps = [...c.querySelectorAll('.pg-grps [data-pgg]')].map(b => b.textContent.trim()).join('|');
+  r.gen = [...c.querySelectorAll('.pg-tabs .prm-tab:not([hidden])')].map(b => b.textContent.trim()).join('|');
+  c.querySelector('[data-pgg="ach"]').click(); await w(1500);
+  r.ach = [...c.querySelectorAll('.pg-tabs .prm-tab:not([hidden])')].map(b => b.textContent.trim()).join('|'); r.h1 = c.querySelector('.section-head h1').textContent.trim();
+  r.regl = !!c.querySelector('.prm-ach .ach-pgen') && !!c.querySelector('.prm-ach .ach-pesp') && !!c.querySelector('.prm-ach .ach-pseu') && !c.querySelector('.prm-ach .ach-palr');
+  const a = c.querySelector('.prm-ach .ach-pgen input[data-pk="tol"]'); a.value = '7'; a.dispatchEvent(new Event('change', { bubbles: true })); await w(200); r.tol = achPrm().tol;
+  c.querySelector('.prm-tab[data-prm="aalr"]').click(); await w(400); r.alr = !!c.querySelector('.prm-ach .ach-palr') && !c.querySelector('.prm-ach .ach-pgen');
+  r.more = c.querySelectorAll('.prm-ach .prm-tbar .prm-more').length; c.querySelector('.prm-tab[data-prm="aregl"]').click(); await w(400); r.more2 = c.querySelectorAll('.prm-ach .prm-tbar .prm-more').length; r.foot = [...c.querySelectorAll('.prm-ach .prm-foot')].every(f => f.hidden);
+  c.querySelector('[data-pgg="art"]').click(); await w(300); r.art = [...c.querySelectorAll('.pg-tabs .prm-tab:not([hidden])')].map(b => b.textContent.trim()).join('|');
+  c.querySelector('.prm-tab[data-prm="cat"]').click(); await w(500); r.cat = !!c.querySelector('.prm-ach #achCatT');
+  c.querySelector('[data-pgg="pers"]').click(); await w(300); r.pers = [...c.querySelectorAll('.pg-tabs .prm-tab:not([hidden])')].map(b => b.textContent.trim()).join('|');
+  document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(500); r.back = !!document.querySelector('#ach .ach-body') && !!document.querySelector('#ach .ach-body').children.length;
+  if (keep === null) localStorage.removeItem('svi_ach_prm_v1'); else localStorage.setItem('svi_ach_prm_v1', keep);
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("05/11 : un seul PARAMÉTRAGE — groupes GÉNÉRAL, ACHATS, ARTICLES, PERSONNEL et leurs onglets (ACHATS : RÈGLES INTERNES, ALERTES DE RETARD, MENTIONS IMPRIMÉES, CLAUSES, TYPES ; GÉNÉRAL : RÉFÉRENCES ; ARTICLES : UNITÉS, CATÉGORIES…) ; plus d'ACHATS › PARAMÈTRES ; SUPPRIMER LES LIGNES COCHÉES dans le ⋯ du tableau", c9.get('noNav') and c9.get('grps') == 'GÉNÉRAL|ACHATS|ARTICLES|PERSONNEL' and c9.get('ach') == 'RÈGLES INTERNES|ALERTES DE RETARD|MENTIONS IMPRIMÉES|CLAUSES|TYPES DE FOURNISSEURS' and c9.get('regl') and c9.get('tol') == 7 and c9.get('alr') and c9.get('more2', 0) >= 2 and c9.get('foot') and 'CATÉGORIES' in c9.get('art', '') and c9.get('cat') and c9.get('pers') == 'GRADES' and c9.get('back'), c9)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
