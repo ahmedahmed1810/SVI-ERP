@@ -1447,6 +1447,11 @@ html.svi-nuit .prm-table td, html.svi-nuit .bdg-d-table td { border-color: #3341
 #svConf .svc-alert { position: absolute; top: 10px; right: 46px; height: 30px; min-width: 30px; border: 1px solid #fecaca; border-radius: 8px; background: #fef2f2; color: #b91c1c; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; padding: 0 6px; }
 #svConf .svc-alert b { font-size: 11px; }
 #svConf .frs-why[hidden] { display: none !important; }
+/* B50 (05/11) : menu de la loupe — MASQUER LA COLONNE, TRIER DE A À Z, TRIER DE Z À A : même largeur (toute la largeur), même police grasse, alignés à gauche ;
+   le ✕ a sa propre ligne en haut */
+html body #cfMenu { padding-top: 38px !important; }
+html body #cfMenu .cf-hide, html body #cfMenu .cf-sort { display: block; width: 100%; margin: 0 !important; box-sizing: border-box; text-align: left; border: 0; background: #f3f5f8; border-radius: 6px; padding: 6px 8px; font: inherit; font-size: 12px; font-weight: 800; color: #172033; cursor: pointer; flex: none; }
+html body #cfMenu .cf-sort.on { background: #dbeafe; color: #1d4ed8; }
 #home .home-note { padding: 14px 16px; color: #475467; font-size: 12px; font-weight: 700; }
 #blkMenu .dly-sc.on span { font-weight: 800; }
 #blkMenu [data-dly].off { opacity: .45; }
@@ -3044,7 +3049,12 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 .blk-etp .etp-pane[hidden] .scn-cmp-bar { display: none; }
 
 /* ===== v759 : ACHATS — FOURNISSEURS ===== */
-#ach .ach-link { background: none; border: 0; padding: 0; font: inherit; font-weight: 800; color: #1d4ed8; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+#ach .ach-link, #svConf .ach-link, #sviScreenTag .ach-link { background: none; border: 0; padding: 0; font: inherit; font-weight: 800; color: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+/* B51 (05/11) : nom lié = couleur de son propre état (palette), souligné */
+html body .ach-link[data-nvgo].lk-instance { color: var(--st-instance, #b91c1c) !important; }
+html body .ach-link[data-nvgo].lk-valide { color: var(--st-valide, #172033) !important; }
+html body .ach-link[data-nvgo].lk-bloque { color: var(--st-bloque, #6b7280) !important; }
+html body .ach-link[data-nvgo].lk-annule { color: #94a3b8 !important; text-decoration: line-through underline; }
 .svc-card.frs-card { width: min(980px, 96vw) !important; max-width: 96vw; }
 .frs-card .frs-scroll { max-height: 64vh; overflow: auto; padding-right: 4px; }
 .frs-card .frs-why { margin: 6px 0 8px; padding: 8px 10px; border-radius: 8px; background: #fff7ed; color: #9a3412; font-size: 12px; font-weight: 800; }

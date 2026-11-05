@@ -3884,6 +3884,17 @@ def main():
   const D = achDocPage('dvf', achDvf()[0]); r.blk = D.links.map(l => l.t).join('|'); r.cmCols = D.links.find(l => l.t === 'COMMANDES').cols.map(c => c[0]).join(',');
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check('SÉRIE B, B46 B49 B52 : alertes des fenêtres dans le triangle ⚠ à côté de la croix (plus de bandeau) ; devis : bloc DÉTAIL, plus de colonne FOURNISSEUR dans COMMANDES', b46.get('tri') and b46.get('noBan') and b46.get('blk') == 'DÉTAIL|CONSULTATION|COMMANDES' and b46.get('cmCols') == 'RÉFÉRENCE,MONTANT TTC,ÉTAT', b46)
+        b50 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_dvf_v1', 'svi_ach_cmf_v1'], keep = K.map(k => localStorage.getItem(k));
+  await sviAchLoad(); const L = achFrs(); const f = achFrsNew(L, { nom: 'LIEN' }); f.st = 'valide'; const g = achFrsNew(L, { nom: 'LIEN2' }); g.st = 'instance'; achFrsSave(L);
+  achDvfSave([{ id: 'VK', ref: 'DVF 26-0101/001', frs: f.id, state: 'recu', date: '2026-01-01', lignes: [{ des: 'X', u: 'U', q: 1, pu: 1 }] }]);
+  achCmfSave([{ id: 'MK', ref: 'CMF 26-0101/001', frs: g.id, dvf: 'VK', state: 'valide', cree: '2026-01-02', lignes: [{ des: 'X', u: 'U', q: 1, pu: 1, dvf: 'VK' }] }]);
+  document.querySelector('#navMenu .nav-btn[data-ach="dvf"]').click(); await w(300); achGo('dvf', 'VK'); await w(700);
+  const tl = document.querySelector('#sviScreenTag .ach-link'); r.tag = tl ? tl.className + '|' + getComputedStyle(tl).color + '|' + getComputedStyle(tl).textDecorationLine : '';
+  const th = document.querySelector('#ach .nvp-blk thead .cf-btn'); th.click(); await w(200); const m = document.getElementById('cfMenu');
+  const bs = [...m.querySelectorAll('.cf-hide, .cf-sort')]; r.menu = bs.map(b => b.textContent.trim()).join('|'); r.same = new Set(bs.map(b => Math.round(b.getBoundingClientRect().width) + ':' + Math.round(b.getBoundingClientRect().left) + ':' + getComputedStyle(b).fontWeight + ':' + getComputedStyle(b).textAlign)).size;
+  document.querySelector('#cfMenu .cf-x').click(); await w(100);
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check('SÉRIE B, B50 B51 : menu de la loupe — MASQUER LA COLONNE et les deux TRIER de même largeur, gras, alignés à gauche ; nom lié à la couleur de son état (fournisseur validé = noir), souligné, jamais bleu', b50.get('tag', '').startswith('ach-link nvp-party lk-valide|rgb(23, 32, 51)|underline') and b50.get('menu') == 'MASQUER LA COLONNE|TRIER DE A À Z|TRIER DE Z À A' and b50.get('same') == 1, b50)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

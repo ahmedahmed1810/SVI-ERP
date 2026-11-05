@@ -2807,6 +2807,15 @@ window.SVI_LIST_EXTRA = (window.SVI_LIST_EXTRA || []).concat([{ when: t => /^PAI
    ========================================================= */
 /* v921 (remarque 3 du 04/11/2026) : même cycle que le budget — EN INSTANCE (rouge) → FIGÉ (vert) → VALIDÉ (noir) ;
    un élément figé reste dans la liste EN INSTANCE (achSt = « instance »), en vert ; achStF dit l'état exact */
+/* B51 (05/11) : un nom lié (fournisseur, article, pièce) prend la couleur de SON état, simplement souligné — jamais de bleu par défaut */
+const ACH_LK_LIST = { frs: () => achFrsRO(), art: () => achArts(), caf: () => achCaf(), dvf: () => achDvf(), cmf: () => achCmf(), rcp: () => achRcp(), faf: () => achFaf(), avf: () => achAvf(), paf: () => achPaf(), bsn: () => achBsn() };
+const achLkSt = (t, id) => { const f = ACH_LK_LIST[t]; if (!f) return ""; let x = null; try { x = (f() || []).find(y => y.id === id); } catch (e) {} if (!x) return "";
+  if (x.del || x.state === "annule" || x.state === "rejete") return "annule"; if (t === "frs" || t === "art") return x.bloq || x.arch ? "bloque" : achSt(x);
+  return x.state === "instance" || x.state === "ouverte" || x.state === "recu" || x.state === "reclame" ? "instance" : "valide"; };
+function achLkPaint(root) { (root || document).querySelectorAll(".ach-link[data-nvgo]").forEach(b => { const [t, id] = String(b.dataset.nvgo).split("|"), s = achLkSt(t, id);
+  if (b.dataset.lk === s) return; ["instance", "valide", "annule", "bloque"].forEach(k => b.classList.toggle("lk-" + k, k === s)); b.dataset.lk = s; }); }
+{ let raf = 0; new MutationObserver(() => { if (raf) return; raf = requestAnimationFrame(() => { raf = 0; const v = document.getElementById("ach"); if (v) achLkPaint(v); const c = document.getElementById("svConf"); if (c) achLkPaint(c); }); })
+    .observe(document.documentElement, { childList: true, subtree: true }); }
 const achSt = x => x && (x.st === "instance" || x.st === "fige") ? "instance" : "valide";
 const achStF = x => achSt(x);
 const achDay = v => String(v || "").slice(0, 10);
