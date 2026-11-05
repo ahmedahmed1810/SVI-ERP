@@ -3575,6 +3575,34 @@ def main():
   document.querySelectorAll('.mep-ov, #mepOv, .mep-wrap').forEach(x => x.remove());
   achCmfSave(achCmf().filter(x => x.id !== c.id)); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check('SÉRIE B, B29 B30 : CLAUSES générales (chaque nouveau fournisseur) et particulières (chaque nouvelle commande, modifiables sur la commande, le type reprend sa valeur par défaut, imprimées en page ANNEXE)', b29.get('sec') and b29.get('n2') == b29.get('n', 0) + 1 and b29.get('txt', '').startswith('60 JOURS') and 'ANNEXE — CLAUSES PARTICULIÈRES' in b29.get('anx', '') and 'ARTICLE 2 : GARANTIE' in b29.get('anx', ''), b29)
+        b41 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, kf = localStorage.getItem('svi_ach_frs_v1'), kp = localStorage.getItem('svi_pg_v1');
+  r.grp = achPrm().grp.map(g => g.id).join(',');
+  const L = achFrs(); const a = achFrsNew(L, { nom: 'ANCIEN STR' }); a.grp = 'str'; const b = achFrsNew(L, { nom: 'NOUVEAU' }); b.grp = 'loc'; b.type = 'ORGANISME FINANCIER'; achFrsSave(L);
+  r.pa = achFrsPfx(a); r.pb = achFrsPfx(b); r.ga = achFrsGrpId(a); r.miss = achFrsTypeMissing(a).join(',');
+  document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(400);
+  achFrsFiche(a.id); await w(400);
+  const ts = document.querySelector('select[data-k="type"]'); r.topt = ts ? [...ts.options].map(o => o.value).filter(Boolean).length : -1; r.tsel = ts && ts.value;
+  const ls = document.querySelector('select[data-k="lang"]'); r.lastOpt = ls ? ls.options[ls.options.length - 1].textContent : '';
+  ls.value = '__add'; ls.dispatchEvent(new Event('change', { bubbles: true })); await w(300);
+  const ni = document.getElementById('frsLangNew'); ni.value = 'amazigh'; ni.dispatchEvent(new Event('input', { bubbles: true })); await w(50);
+  const okb = [...document.querySelectorAll('button')].filter(x => x.textContent.trim() === 'AJOUTER').pop(); okb.click(); await w(400);
+  r.lang = (document.querySelector('select[data-k="lang"]') || {}).value; r.langs = sviLangues().includes('AMAZIGH');
+  document.querySelector('[data-x]').click(); await w(200);
+  if (kf === null) localStorage.removeItem('svi_ach_frs_v1'); else localStorage.setItem('svi_ach_frs_v1', kf); if (kp === null) localStorage.removeItem('svi_pg_v1'); else localStorage.setItem('svi_pg_v1', kp);
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("SÉRIE B, B10 B41 : groupes LOCAL / ÉTRANGER (sous-traitant et organisme financier deviennent des types : préfixe STR / FIN et documents exigés du type) ; LANGUE en liste avec « AJOUTER… », la langue ajoutée l'est partout", b41.get('grp') == 'loc,etr,occ' and b41.get('pa') == 'STR' and b41.get('pb') == 'FIN' and b41.get('ga') == 'loc' and b41.get('miss') == 'CNSS,ATTESTATION FISCALE,ASSURANCE RC' and b41.get('tsel') == 'SOUS-TRAITANT' and b41.get('lastOpt') == 'AJOUTER…' and b41.get('lang') == 'AMAZIGH' and b41.get('langs'), b41)
+        b39 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, kf = localStorage.getItem('svi_ach_frs_v1');
+  const L = achFrs(); const a = achFrsNew(L, { nom: 'MAILS' }); a.mailCmd = 'cmd@x.ma'; a.mailFac = 'fac@x.ma'; a.cte = [{ nom: 'ALI', email: 'fac@x.ma' }]; achFrsSave(L);
+  document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(400); achFrsFiche(a.id, 'cte'); await w(400);
+  r.noMail = !document.querySelector('[data-k="mailCmd"]') && !document.querySelector('[data-k="mailFac"]');
+  r.rows = document.querySelectorAll('.frs-sub[data-sub="cte"] tr[data-i]').length; r.th = !!document.querySelector('.frs-sub[data-sub="cte"] th [data-tip]');
+  const cb = document.querySelector('.frs-sub[data-sub="cte"] tr[data-i="0"] .frs-rcb[value="dvf"]'); cb.checked = true;
+  const sv = document.querySelector('[data-save]'); sv.click(); await w(500); [...document.querySelectorAll('.svc-ok, button')].filter(b => /^(ENREGISTRER|OK|CONFIRMER)$/.test(b.textContent.trim()) && b.closest('#svConf') && !b.hasAttribute('data-save')).forEach(b => b.click()); await w(300);
+  const f = achFrs().find(x => x.id === a.id); r.recv = achFrsRecv(f, 'faf').join(',') + '|' + achFrsRecv(f, 'cmf').join(',') + '|' + achFrsRecv(f, 'dvf').join(','); r.cleared = !f.mailCmd && !f.mailFac;
+  document.querySelectorAll('#svConf').forEach(x => x.remove());
+  if (kf === null) localStorage.removeItem('svi_ach_frs_v1'); else localStorage.setItem('svi_ach_frs_v1', kf);
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("SÉRIE B, B39 : e-mails de commande et de facturation retirés de l'IDENTITÉ (repris en contacts) ; CONTACTS avec la colonne REÇOIT (pièces reçues par e-mail, explication à l'appui long)", b39.get('noMail') and b39.get('rows') == 2 and b39.get('th') and b39.get('recv') == 'fac@x.ma|cmd@x.ma|fac@x.ma' and b39.get('cleared'), b39)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

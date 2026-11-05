@@ -134,9 +134,12 @@ function achFrsEvalWin(id, done) {
 function achFrsFiche(id, sec, done) {
   const L0 = achFrs(), f0 = L0.find(x => x.id === id); if (!f0) return;
   const F = JSON.parse(JSON.stringify(f0)), ro = !!f0.del || f0.st === "fige", P = achPrm();   /* v922 : figé (vert) = lecture seule, comme le budget (REVENIR EN INSTANCE pour modifier) */
-  F.grp = achFrsGrpId(F);
+  F.type = achFrsTypeLab(F); F.grp = achFrsGrpId(F);   /* B41 : un ancien groupe (sous-traitant, organisme financier) devient le type ; le groupe devient LOCAL */
   ["ribs", "docf", "cte", "evl", "cgf", "fam", "cau", "jours", "tar", "fermJ", "refs"].forEach(k => { if (!Array.isArray(F[k])) F[k] = []; });
-  if (!Array.isArray(F.cla)) F.cla = achClCopy(P.clG);   /* B29 : fournisseur d'avant les clauses = clauses générales du modèle */
+  if (!Array.isArray(F.cla)) F.cla = achClCopy(P.clG);
+  /* B39 : les anciens E-MAIL DE COMMANDE / DE FACTURATION deviennent des contacts qui reçoivent ces pièces */
+  [["mailCmd", "cmf"], ["mailFac", "faf"]].forEach(([k, p]) => { const m = String(F[k] || "").trim().toLowerCase(); if (!m) return; let c = F.cte.find(x => String(x.email || "").toLowerCase() === m);
+    if (!c) { c = { nom: "", fonction: "", role: "", tel: "", email: m, rec: [] }; F.cte.push(c); } c.rec = [...new Set([...(c.rec || []), p])]; F[k] = ""; });   /* B29 : fournisseur d'avant les clauses = clauses générales du modèle */
   const d = sviWinNew();
   const inp = (k, lab, o = {}) => `<label class="frs-f${o.w ? " frs-w" : ""}"><span>${lab}${o.req ? " <b>*</b>" : ""}</span><input class="ins-in frs-x" data-k="${k}"${o.mask ? ` data-mask="${o.mask}"` : ""} value="${esc(o.mask ? sviMaskFmt(o.mask, F[k] ?? "") : F[k] ?? "")}"${o.num ? ' inputmode="numeric"' : ""}${o.date ? ' type="date"' : ""}${o.keep ? " data-keepcase" : ""}${o.list ? ` list="frsL-${k}"` : ""}${ro ? " readonly" : ""} autocomplete="off">${o.list ? `<datalist id="frsL-${k}">${o.list.map(x => `<option value="${esc(x)}">`).join("")}</datalist>` : ""}</label>`;
   const sel = (k, lab, opts, o = {}) => `<label class="frs-f${o.w ? " frs-w" : ""}"><span>${lab}</span><select class="ins-in frs-xs" data-k="${k}"${ro || o.dis ? " disabled" : ""}><option value="">—</option>${opts.map(x => { const v = Array.isArray(x) ? x[0] : x, t = Array.isArray(x) ? x[1] : x; return `<option value="${esc(v)}"${String(F[k] ?? "") === String(v) ? " selected" : ""}>${esc(t)}</option>`; }).join("")}</select></label>`;
@@ -156,9 +159,11 @@ function achFrsFiche(id, sec, done) {
         <div class="frs-scroll">
         <div class="frs-sec" data-s="id"><div class="frs-st">IDENTITÉ</div><div class="frs-g">
           ${inp("nom", "NOM", { req: 1, w: 1 })}${sel("grp", "GROUPE <b>*</b>", achPrm().grp.map(g => [g.id, g.nom + " (" + g.pre + ")"]), { dis: achSt(f0) !== "instance" })}${inp("denom", "DÉNOMINATION SOCIALE", { w: 1 })}${inp("forme", "FORME JURIDIQUE", { list: ACH_FORMES })}${inp("ville", "VILLE")}
-          ${sel("type", "TYPE DE FOURNISSEUR", ACH_FTYPES)}${inp("pays", "PAYS")}${sel("lang", "LANGUE", ACH_LANGS)}
+          ${(() => { const T = sviPgL("ftypes").map(t => [t.lab, t.lab + (t.pre ? " (" + t.pre + ")" : "")]); if (F.type && !T.some(t => t[0] === F.type)) T.push([F.type, F.type]);
+            return sel("type", "TYPE DE FOURNISSEUR", T, { dis: achSt(f0) !== "instance" && !!(achFrsType(f0) || {}).pre }); })()}${inp("pays", "PAYS")}${(() => { const L = sviLangues().slice(); if (F.lang && !L.includes(F.lang)) L.push(F.lang);
+            return sel("lang", "LANGUE", [...L, ["__add", "AJOUTER…"]]); })()}
           ${inp("adresse", "ADRESSE", { w: 1 })}${inp("site", "SITE WEB", { keep: 1 })}${inp("resp", "RESPONSABLE INTERNE")}
-          ${inp("mailCmd", "E-MAIL DE COMMANDE", { keep: 1 })}${inp("mailFac", "E-MAIL DE FACTURATION", { keep: 1 })}${inp("origine", "ORIGINE (TROUVÉ COMMENT, RECOMMANDÉ PAR QUI)", { w: 1 })}
+          ${inp("origine", "ORIGINE (TROUVÉ COMMENT, RECOMMANDÉ PAR QUI)", { w: 1 })}
           ${sel("lie", "FOURNISSEUR LIÉ", achFrs().filter(x => !x.del && x.id !== id).map(x => [x.id, x.nom]))}${sel("lieT", "LIEN", ACH_FLIENS)}
           <div class="frs-f frs-w frs-logo"><span>LOGO</span><div>${F.logo ? `<img src="${esc(F.logo)}" alt="">` : ""}${ro ? "" : `<input type="file" accept="image/*" class="frs-logo-in">${F.logo ? ` <button type="button" class="ach-b" data-logorm>RETIRER LE LOGO</button>` : ""}`}</div></div>
           <div class="frs-cs">${chk("actif", "ACTIF")}</div></div></div>
@@ -203,7 +208,8 @@ function achFrsFiche(id, sec, done) {
         <div class="frs-sec" data-s="docf"><div class="frs-st">DOCUMENTS FISCAUX ${svCnt(F.docf.length)}</div>
           ${sub("docf", [["type", "DOCUMENT", (r, i) => `<select class="ins-in frs-s" data-c="type"${ro ? " disabled" : ""}>${ACH_DOCF.map(x => `<option${x === r.type ? " selected" : ""}>${esc(x)}</option>`).join("")}</select>`], ["no", "N°"], ["exp", "EXPIRE LE", (r) => `<input type="date" class="ins-in frs-s" data-c="exp" value="${esc(r.exp || "")}"${ro ? " readonly" : ""}>`]], "AJOUTER UN DOCUMENT")}</div>
         <div class="frs-sec" data-s="cte"><div class="frs-st">CONTACTS ${svCnt(F.cte.length)}</div>
-          ${sub("cte", [["nom", "NOM"], ["fonction", "FONCTION"], ["role", "RÔLE", (r) => `<select class="ins-in frs-s" data-c="role"${ro ? " disabled" : ""}><option value="">—</option>${ACH_CROLES.map(x => `<option${x === r.role ? " selected" : ""}>${esc(x)}</option>`).join("")}</select>`], ["tel", "TÉLÉPHONE", null, ' inputmode="tel" data-mask="tel"'], ["email", "E-MAIL", (r) => `<input class="ins-in frs-s" data-c="email" data-keepcase value="${esc(r.email || "")}" inputmode="email"${ro ? " readonly" : ""} autocomplete="off">`]], "AJOUTER UN CONTACT")}</div>
+          ${sub("cte", [["nom", "NOM"], ["fonction", "FONCTION"], ["role", "RÔLE", (r) => `<select class="ins-in frs-s" data-c="role"${ro ? " disabled" : ""}><option value="">—</option>${ACH_CROLES.map(x => `<option${x === r.role ? " selected" : ""}>${esc(x)}</option>`).join("")}</select>`], ["tel", "TÉLÉPHONE", null, ' inputmode="tel" data-mask="tel"'], ["email", "E-MAIL", (r) => `<input class="ins-in frs-s" data-c="email" data-keepcase value="${esc(r.email || "")}" inputmode="email"${ro ? " readonly" : ""} autocomplete="off">`],
+            ["rec", `<span data-tip="PIÈCES QUE CE CONTACT REÇOIT PAR E-MAIL : ${ACH_RECV.map(x => x[1] + " = " + x[2]).join(", ")} ; REPRIS PAR DÉFAUT SUR CHAQUE PIÈCE, MODIFIABLES POUR UNE PIÈCE PRÉCISE">REÇOIT</span>`, (r) => `<span class="frs-rcs">${ACH_RECV.map(([k, a, l]) => `<label class="frs-rc" title="${l}"><input type="checkbox" class="frs-rcb" value="${k}"${(r.rec || []).includes(k) ? " checked" : ""}${ro ? " disabled" : ""}>${a}</label>`).join("")}</span>`]], "AJOUTER UN CONTACT")}</div>
         <div class="frs-sec" data-s="rsq"><div class="frs-st">RISQUE</div><div class="frs-g">${sel("solva", "SOLVABILITÉ", ACH_SOLVA)}${sel("strat", "PLACE DU FOURNISSEUR", ACH_STRAT)}</div></div>
         <div class="frs-sec" data-s="moy"><div class="frs-st">MOYENS</div><div class="frs-g">${inp("camions", "NOMBRE DE CAMIONS", { num: 1 })}${inp("capJour", "LIVRAISON PAR JOUR (EX. 200 M3)")}${inp("materiel", "MATÉRIEL", { w: 1 })}</div></div>
         <div class="frs-sec" data-s="refs"><div class="frs-st">RÉFÉRENCES (CHANTIERS DÉJÀ LIVRÉS) ${svCnt(F.refs.length)}</div>
@@ -232,6 +238,7 @@ function achFrsFiche(id, sec, done) {
     F.fam = [...d.querySelectorAll(".frs-fc:checked")].map(i => i.value);
     F.jours = [...d.querySelectorAll(".frs-jr:checked")].map(i => i.value);
     F.fermJ = [...d.querySelectorAll(".frs-fj:checked")].map(i => i.value);
+    d.querySelectorAll('.frs-sub[data-sub="cte"] tr[data-i]').forEach(tr => { const r = F.cte[+tr.dataset.i]; if (r && !ro) r.rec = [...tr.querySelectorAll(".frs-rcb:checked")].map(i => i.value); });
     d.querySelectorAll(".frs-sub[data-sub]").forEach(t => { const k = t.dataset.sub; t.querySelectorAll("tr[data-i]").forEach(tr => { const r = F[k][+tr.dataset.i]; if (!r) return;
       tr.querySelectorAll(".frs-s").forEach(i => { const c = i.dataset.c; r[c] = c === "rib" ? achDig(i.value) : c === "email" ? String(i.value || "").trim().toLowerCase() : c === "mt" || c === "pu" ? achN(i.value) : c === "exp" || c === "ech" || c === "valid" || c === "debut" || c === "fin" || c === "type" || c === "role" || c === "t" ? i.value : achU(i.value); }); }); });
     const rp = d.querySelector(".frs-rp:checked"); F.ribs.forEach((r, i) => { r.p = !!rp && +rp.dataset.i === i; });
@@ -263,6 +270,12 @@ function achFrsFiche(id, sec, done) {
   /* B29 : changer le TYPE d'un article reprend sa valeur par défaut (si l'article était vide ou gardait celle de l'ancien type) */
   d.addEventListener("change", e => { const s = e.target.closest && e.target.closest('table[data-sub="cla"] select[data-c="t"]'); if (!s) return; const tr = s.closest("tr[data-i]"), x = F.cla[+tr.dataset.i]; if (!x) return;
     const inp = tr.querySelector('input[data-c="txt"]'), cur = inp ? achU(inp.value) : x.txt; if (!cur || cur === achCltDef(x.t)) { if (inp) inp.value = achCltDef(s.value); } x.t = s.value; x.txt = inp ? achU(inp.value) : x.txt; });
+  /* B41 : LANGUE — « AJOUTER… » en bas de la liste ; la langue ajoutée l'est partout (PARAMÉTRAGE GÉNÉRAL) */
+  d.addEventListener("change", async e => { const s = e.target.closest && e.target.closest('select[data-k="lang"]'); if (!s || s.value !== "__add") return; e.stopImmediatePropagation();
+    let v = ""; const h = ev => { if (ev.target && ev.target.id === "frsLangNew") v = ev.target.value; }; document.addEventListener("input", h, true);
+    const ok = await svConfirm({ title: "AJOUTER UNE LANGUE", html: `<input class="ins-in" id="frsLangNew" autocomplete="off" style="width:100%">`, ok: "AJOUTER", tone: "neutral" });
+    document.removeEventListener("input", h, true); v = sviPgU(v);
+    if (ok && v) { sviLangueAdd(v); pull(); F.lang = v; } else s.value = F.lang || ""; draw(); }, true);
   d.addEventListener("focusin", e => { const i = e.target.closest && e.target.closest(".frs-x, .frs-xs, .frs-s"); if (i) i.dataset.prev = i.value; });
   d.addEventListener("change", e => {
     const i = e.target.closest && e.target.closest(".frs-x, .frs-xs, .frs-s"); if (!i || ro) return;
@@ -314,7 +327,8 @@ function achFrsFiche(id, sec, done) {
     if (F.tar.some(x => !(achN(x.pu) > 0))) { svToast("TARIFS : PRIX OBLIGATOIRE.", 3000); return; }
     if (!F.grp || !achPrm().grp.some(g => g.id === F.grp)) { svToast("GROUPE OBLIGATOIRE.", 3000); return; }
     if (achSt(f0) !== "instance" && achFrsGrpId(f0) !== F.grp) { svToast("LE GROUPE NE SE CHANGE PLUS APRÈS LA VALIDATION (LA RÉFÉRENCE CHANGERAIT).", 4000); return; }
-    F.occ = F.grp === "occ"; F.orgFin = F.grp === "fin";
+    if (achSt(f0) !== "instance" && achFrsPfx(f0) !== achFrsPfx(F)) { svToast("LE TYPE NE SE CHANGE PLUS APRÈS LA VALIDATION (LE PRÉFIXE DE LA RÉFÉRENCE CHANGERAIT).", 4000); return; }
+    F.occ = F.grp === "occ"; F.orgFin = F.type === ACH_GRP_OLD.fin;
     if (F.cga && !F.cgaDate) { svToast("CONDITIONS GÉNÉRALES SIGNÉES : DONNER LA DATE.", 3000); return; }
     if (F.forme !== "AUTO-ENTREPRENEUR") { F.aeNo = ""; F.aeCin = ""; }
     if (F.lie && !F.lieT) { svToast("FOURNISSEUR LIÉ : CHOISIR LE LIEN.", 3000); return; }

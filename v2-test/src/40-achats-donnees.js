@@ -51,7 +51,7 @@ const achCltLab = t => (ACH_CLT.find(x => x[0] === t) || ["", ""])[1];
 const achClG = p => Array.isArray(p.clG) ? p.clG : ACH_CLT.filter(x => x[0] !== "autre").map((x, i) => ({ id: "g" + (i + 1), t: x[0], txt: x[2] }));
 const achClP = p => Array.isArray(p.clP) ? p.clP : [{ id: "p1", t: "liv", txt: "" }, { id: "p2", t: "pen", txt: "" }];
 const achClCopy = L => (L || []).map(x => ({ t: x.t, txt: x.txt || "" }));
-const achPrm0 = p => ({ tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: achEspJour(p), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: achAlrJ(p, "av", p.avj === undefined ? 90 : achN(p.avj)), chqj: achAlrJ(p, "chq", p.chqj === undefined ? 30 : achN(p.chqj)), dorm: p.dorm === undefined ? 12 : achN(p.dorm), directJ: p.directJ === undefined ? 30 : Math.max(1, Math.round(achN(p.directJ)) || 1), nfrs: p.nfrs === undefined ? 3 : Math.max(1, Math.round(achN(p.nfrs)) || 1), avMax: p.avMax === undefined ? 30 : achN(p.avMax), delaiLeg: p.delaiLeg === undefined ? 60 : Math.max(1, achN(p.delaiLeg) || 60), seuilBdg: p.seuilBdg === undefined ? 90 : Math.min(100, Math.max(1, achN(p.seuilBdg) || 90)), exFin: p.exFin === undefined ? 12 : Math.min(12, Math.max(1, Math.round(achN(p.exFin)) || 12)), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), socIce: p.socIce || "", socIf: p.socIf || "", banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })), grp: Array.isArray(p.grp) && p.grp.length ? p.grp : ACH_GRP_DEF.map(g => ({ ...g, req: g.req.slice() })), alr: achAlr(p), espL: achEspL(p), ment: p.ment && typeof p.ment === "object" ? p.ment : { ice: true, if: true }, seuV: Array.isArray(p.seuV) ? p.seuV : [],
+const achPrm0 = p => ({ tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: achEspJour(p), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: achAlrJ(p, "av", p.avj === undefined ? 90 : achN(p.avj)), chqj: achAlrJ(p, "chq", p.chqj === undefined ? 30 : achN(p.chqj)), dorm: p.dorm === undefined ? 12 : achN(p.dorm), directJ: p.directJ === undefined ? 30 : Math.max(1, Math.round(achN(p.directJ)) || 1), nfrs: p.nfrs === undefined ? 3 : Math.max(1, Math.round(achN(p.nfrs)) || 1), avMax: p.avMax === undefined ? 30 : achN(p.avMax), delaiLeg: p.delaiLeg === undefined ? 60 : Math.max(1, achN(p.delaiLeg) || 60), seuilBdg: p.seuilBdg === undefined ? 90 : Math.min(100, Math.max(1, achN(p.seuilBdg) || 90)), exFin: p.exFin === undefined ? 12 : Math.min(12, Math.max(1, Math.round(achN(p.exFin)) || 12)), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), socIce: p.socIce || "", socIf: p.socIf || "", banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })), grp: (Array.isArray(p.grp) && p.grp.length ? p.grp : ACH_GRP_DEF.map(g => ({ ...g, req: g.req.slice() }))).filter(g => !ACH_GRP_OLD[g.id]), alr: achAlr(p), espL: achEspL(p), ment: p.ment && typeof p.ment === "object" ? p.ment : { ice: true, if: true }, seuV: Array.isArray(p.seuV) ? p.seuV : [],
   freqA: p.freqA === undefined ? 3 : achN(p.freqA), freqB: p.freqB === undefined ? 6 : achN(p.freqB), plafT: p.plafT === undefined ? "" : p.plafT, plafU: p.plafU === "%" ? "%" : "DH", refs: achRefs(p), clG: achClG(p), clP: achClP(p) });
 const achPrmSave = p => achW(ACH_K.prm, p);
 /* v811 : lectures mémorisées. Une donnée dérivée n'est recalculée que si le texte gardé dans l'appareil a changé :
@@ -213,9 +213,18 @@ const achFrsLast = id => { let d = ""; achCmf().filter(c => c.frs === id && c.st
 const achFrsDormant = f => { const d = achFrsLast(f.id) || String(f.cree || "").slice(0, 10), lim = new Date(); lim.setMonth(lim.getMonth() - achPrm().dorm); return !!d && d < lim.toISOString().slice(0, 10); };
 const achExFinMois = () => new Date().getMonth() + 1 === achPrm().exFin;
 /* grp absent (fiches d'avant v810) : déduit des anciennes cases ; grp vide = fournisseur créé sans groupe choisi */
-const achFrsGrpId = f => f && typeof f.grp === "string" ? f.grp : (f && f.orgFin ? "fin" : f && f.occ ? "occ" : "loc");
+/* B10, B41 (série B) : SOUS-TRAITANT et ORGANISME FINANCIER ne sont plus des groupes mais des TYPES (PARAMÉTRAGE GÉNÉRAL › TYPES DE FOURNISSEURS) :
+   un fournisseur de l'ancien groupe est LOCAL, avec ce type ; le préfixe de référence et les documents exigés viennent du type */
+/* B39 (série B) : pièces qu'un contact reçoit par e-mail (colonne REÇOIT des CONTACTS) ; destinataires repris par défaut sur chaque pièce */
+const ACH_RECV = [["dvf", "DEV", "DEMANDES DE DEVIS"], ["cmf", "CMD", "COMMANDES"], ["rcp", "RCP", "RÉCEPTIONS"], ["faf", "FAC", "FACTURES"], ["paf", "PAI", "PAIEMENTS"]];
+const achFrsRecv = (f, k) => ((f && f.cte) || []).filter(c => c.email && (c.rec || []).includes(k)).map(c => c.email);
+const ACH_GRP_OLD = { str: "SOUS-TRAITANT", fin: "ORGANISME FINANCIER" };
+const achFrsGrpId = f => { const g = f && typeof f.grp === "string" ? f.grp : (f && f.orgFin ? "fin" : f && f.occ ? "occ" : "loc"); return ACH_GRP_OLD[g] ? "loc" : g; };
+const achFrsTypeLab = f => (f && f.type) || (f && ACH_GRP_OLD[f.grp]) || (f && f.orgFin && typeof f.grp !== "string" ? ACH_GRP_OLD.fin : "") || "";
+const achFrsType = f => { const l = achFrsTypeLab(f); return l ? sviPgL("ftypes").find(t => t.lab === l) || null : null; };
+const achFrsTypeDocs = f => String((achFrsType(f) || {}).docs || "").split(";").map(s => achU(s)).filter(Boolean);
 const achFrsGrp = f => { const G = achMemo("grp", [ACH_K.prm], () => achPrm().grp), id = achFrsGrpId(f); return G.find(g => g.id === id) || G[0] || ACH_GRP_DEF[0]; };
-const achFrsPfx = f => achFrsGrp(f).pre || "FRS";
+const achFrsPfx = f => ((achFrsType(f) || {}).pre || "").trim() || achFrsGrp(f).pre || "FRS";
 /* v811 : toutes les références calculées en une fois (même règle que achRefSvi, par préfixe) */
 const achFrsRefMap = () => achMemo("ref", [ACH_K.frs, ACH_K.prm], () => {
   const out = new Map(), byP = new Map();
@@ -236,11 +245,15 @@ const achFrsRef = f => { const e = achFrsRefMap().get(f.id);
 const achFrsHas = (f, k) => k === "rib" ? (f.ribs || []).some(r => achDig(r.rib)) : k === "cte" ? (f.cte || []).some(c => c.nom || c.tel || c.email)
   : k === "attf" ? (f.docf || []).some(d => d.type === "ATTESTATION DE RÉGULARITÉ FISCALE") : k === "assRc" ? !!f.assRc : !!String(f[k] ?? "").trim();
 const achFrsMissing = f => (achFrsGrp(f).req || []).filter(k => !achFrsHas(f, k)).map(k => (ACH_GRP_CH.find(c => c[0] === k) || [k, k])[1]);
+/* B41 : documents exigés par le type — un nom de champ connu (CNSS, ATTESTATION FISCALE, ASSURANCE RC…) ou un document de la fiche du même nom */
+const achFrsTypeMissing = f => achFrsTypeDocs(f).filter(n => { const c = ACH_GRP_CH.find(x => x[1] === n); if (c) return !achFrsHas(f, c[0]);
+  return !(f.docf || []).some(d => achU(d.type) === n || (achU(d.type) === "AUTRE" && achU(d.no) === n)); });
 const achFrsWhy = (f, L) => {
   const w = [], today = new Date().toISOString().slice(0, 10), soon = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10);
   if (!achU(f.nom)) w.push("NOM MANQUANT");
   if (f.grp === "") w.push("GROUPE MANQUANT");
   else { const m = achFrsMissing(f); if (m.length) w.push("GROUPE " + achFrsGrp(f).nom + " : " + m.join(", ") + " MANQUANT" + (m.length > 1 ? "S" : "")); }
+  { const m = achFrsTypeMissing(f); if (m.length) w.push("TYPE " + achFrsTypeLab(f) + " : " + m.join(", ") + " MANQUANT" + (m.length > 1 ? "S" : "")); }
   if (achDig(f.ice) && !achIceOk(f.ice)) w.push(achIceMsg());
   if (L && achDig(f.ice) && achFrsDupIce(L, f.ice, f.id)) w.push("ICE EN DOUBLE AVEC " + achFrsDupIce(L, f.ice, f.id).code);
   if ((f.ribs || []).some(r => !achRibOk(r.rib))) w.push("RIB NON VALIDE (24 CHIFFRES ET CLÉ)");

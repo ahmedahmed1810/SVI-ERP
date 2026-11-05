@@ -1398,6 +1398,9 @@ détail technique en petit */
 [data-tip] { cursor: help; }
 .mep-annex .mep-ax-t { font-weight: 700; font-size: 1.15em; margin-bottom: 14px; text-align: center; }
 .mep-annex .mep-ax-i { margin: 0 0 8px; line-height: 1.4; }
+/* B39 : colonne REÇOIT des contacts */
+.frs-rcs { display: flex; gap: 6px; flex-wrap: wrap; }
+.frs-rc { display: inline-flex; align-items: center; gap: 2px; font-size: 11px; white-space: nowrap; }
 #home .home-note { padding: 14px 16px; color: #475467; font-size: 12px; font-weight: 700; }
 #blkMenu .dly-sc.on span { font-weight: 800; }
 #blkMenu [data-dly].off { opacity: .45; }

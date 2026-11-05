@@ -5606,7 +5606,7 @@ function sviBdgDatesWin() {
 const SVI_PG_K = "svi_pg_v1";
 const SVI_PG_DEF = {
   grades: [{ id: "g1", n: "1", lab: "DIRECTEUR GÉNÉRAL" }, { id: "g2", n: "2", lab: "" }, { id: "g3", n: "3", lab: "" }],
-  ftypes: [["FABRICANT", ""], ["DISTRIBUTEUR", ""], ["REVENDEUR", ""], ["LOUEUR", ""], ["SOUS-TRAITANT", "STR"], ["ORGANISME FINANCIER", "FIN"]].map(([lab, pre], i) => ({ id: "t" + (i + 1), lab, pre, docs: "" })),
+  ftypes: [["FABRICANT", ""], ["DISTRIBUTEUR", ""], ["REVENDEUR", ""], ["LOUEUR", ""], ["SOUS-TRAITANT", "STR", "CNSS; ATTESTATION FISCALE; ASSURANCE RC"], ["ORGANISME FINANCIER", "FIN"]].map(([lab, pre, docs], i) => ({ id: "t" + (i + 1), lab, pre, docs: docs || "" })),
   devises: [{ id: "d1", code: "MAD", lab: "DIRHAM MAROCAIN", def: true }, { id: "d2", code: "EUR", lab: "EURO", def: false }, { id: "d3", code: "USD", lab: "DOLLAR AMÉRICAIN", def: false }],
   lieux: [{ id: "p1", p: "", lab: "MAROC" }],
   banques: [["ATTIJARIWAFA BANK", "AWB", "007"], ["BANQUE POPULAIRE", "BP", "101-199"], ["BANK OF AFRICA", "BOA", "011"], ["BMCI", "BMCI", "013"], ["CIH BANK", "CIH", "230"],
