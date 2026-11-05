@@ -3777,6 +3777,22 @@ def main():
   if (keep === null) localStorage.removeItem('svi_ach_prm_v1'); else localStorage.setItem('svi_ach_prm_v1', keep);
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("05/11 : un seul PARAMÉTRAGE — groupes GÉNÉRAL, ACHATS, ARTICLES, PERSONNEL et leurs onglets (ACHATS : RÈGLES INTERNES, ALERTES DE RETARD, MENTIONS IMPRIMÉES, CLAUSES, TYPES ; GÉNÉRAL : RÉFÉRENCES ; ARTICLES : UNITÉS, CATÉGORIES…) ; plus d'ACHATS › PARAMÈTRES ; SUPPRIMER LES LIGNES COCHÉES dans le ⋯ du tableau", c9.get('noNav') and c9.get('grps') == 'GÉNÉRAL|ACHATS|ARTICLES|PERSONNEL' and c9.get('ach') == 'RÈGLES INTERNES|ALERTES DE RETARD|MENTIONS IMPRIMÉES|CLAUSES|TYPES DE FOURNISSEURS' and c9.get('regl') and c9.get('tol') == 7 and c9.get('alr') and c9.get('more2', 0) >= 2 and c9.get('foot') and 'CATÉGORIES' in c9.get('art', '') and c9.get('cat') and c9.get('pers') == 'GRADES' and c9.get('back'), c9)
+        c14 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_pg_v1', 'svi_ach_frs_v1', 'svi_ach_cmf_v1', 'svi_ach_art_v1'], keep = K.map(k => localStorage.getItem(k));
+  const o = sviPg(); o.cpt = [{ id: 'k2', code: '4411', lab: 'FOURNISSEURS' }, { id: 'k1', code: '441', lab: 'FOURNISSEURS ET COMPTES RATTACHÉS' }]; sviPgSave(o);
+  document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300); document.querySelector('#chs .prm-tab[data-prm="cpt"]').click(); await w(300);
+  const t = document.querySelector('#chs table.pg-t'); r.heads = [...t.tHead.rows[0].cells].map(c => c.textContent.trim()).filter(Boolean).join('|');
+  const nat = t.querySelector('tr[data-i="0"] select[data-f="nat"]'); nat.value = 'FOURNISSEUR'; nat.dispatchEvent(new Event('change', { bubbles: true })); await w(200);
+  const L = sviPgL('cpt'); r.sorted = L.map(x => x.code).join(','); r.cls = document.querySelector('#chs table.pg-t tr[data-i="0"] td:nth-child(3)').textContent.trim(); r.nat = L.find(x => x.code === '4411') ? L.find(x => x.code === '4411').nat || '' : '';
+  const F = achFrs(); const a = achFrsNew(F, { nom: 'PLAF A' }), b = achFrsNew(F, { nom: 'PLAF B' }); a.plafT = 10000; a.plafP = 30; b.plafU = '%'; b.plafT = 50; delete b.plafP; achFrsSave(F);
+  r.old = JSON.stringify(achFrsPlafs(b));
+  const d = n => { const x = new Date(); x.setDate(x.getDate() - n); return x.toISOString(); };
+  const C = achCmf(); C.push({ id: 'P1', ref: 'CMF P1', frs: a.id, state: 'solde', cree: d(5), valide: d(5), lignes: [{ des: 'GRAVIER', u: 'M3', q: 1, pu: 2000 }] }, { id: 'P2', ref: 'CMF P2', frs: b.id, state: 'solde', cree: d(5), valide: d(5), lignes: [{ des: 'GRAVIER', u: 'M3', q: 1, pu: 2000 }] }); achCmfSave(C);
+  r.pct = achFrsPlafNo(achFrs().find(x => x.id === a.id), 1000).slice(0, 34); r.dh = achFrsPlafNo(achFrs().find(x => x.id === a.id), 9000).slice(0, 34);
+  const A = achArts(); A.push({ id: 'AP', code: 'ART-9200', des: 'GRAVIER', u: 'M3', cat: 'GROS ŒUVRE', partMax: 40 }); achArtsSave(A);
+  r.part = achArtPartNo({ lignes: [{ des: 'GRAVIER', u: 'M3', q: 1, pu: 1000 }] }, achFrs().find(x => x.id === b.id)).slice(0, 34);
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("05/11 : COMPTABILITÉ (classe, compte parent, nature, LETTRABLE, rangés par code) ; plafonds du fournisseur en DH ET en % (l'un dépassé = refusé ; ancien plafond en % repris) ; part maximum d'un fournisseur sur la fiche ARTICLE", c14.get('heads') == 'CODE|INTITULÉ|CLASSE|COMPTE PARENT|NATURE|LETTRABLE' and c14.get('sorted') == '441,4411' and c14.get('cls') == '4' and c14.get('nat') == 'FOURNISSEUR' and c14.get('old') == '{"dh":"","pct":50}' and c14.get('pct', '').startswith('PLAFOND') and c14.get('dh', '').startswith('PLAFOND') and c14.get('part', '').startswith('PART MAXIMUM'), c14)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

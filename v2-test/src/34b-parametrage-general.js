@@ -35,9 +35,12 @@ const sviLangues = () => { const v = sviPg().langues; return Array.isArray(v) ? 
 function sviLangueAdd(l) { l = sviPgU(l); if (!l) return; const L = sviLangues(); if (!L.includes(l)) { L.push(l); const o = sviPg(); o.langues = L; sviPgSave(o); } }
 
 /* ---------- tableau commun d'une liste ---------- */
+const SVI_CPT_NAT = ["FOURNISSEUR", "CLIENT", "BANQUE", "TVA", "CHARGE", "PRODUIT", "AUTRE"];
+const SVI_CPT_CLS = code => { const d = String(code || "").charAt(0); return /[1-8]/.test(d) ? d : ""; };
 function sviPgTable(pane, c) {
   const L = sviPgL(c.k);
   const cell = (x, f, i) => { const [k, , , t, opts] = f, v = x ? x[k] : "";
+    if (t === "ro") return `<td class="center">${x ? esc(opts(x)) : ""}</td>`;   /* 05/11 : colonne calculée */
     if (t === "check") return `<td class="center"><input type="checkbox" class="pg-in" data-f="${k}"${v ? " checked" : ""}${x ? "" : " disabled"}></td>`;
     if (t === "sel") return `<td><select class="pg-in" data-f="${k}"><option value=""></option>${(opts() || []).map(o => `<option value="${esc(o[0])}"${String(v) === String(o[0]) ? " selected" : ""}>${esc(o[1])}</option>`).join("")}</select></td>`;
     return `<td${t === "num" || t === "date" ? ' class="center"' : ""}><input class="prm-in pg-in${t === "num" ? " center" : ""}" data-f="${k}"${t === "date" ? ' type="date"' : ""} value="${esc(v ?? "")}"${!x && i === 0 ? ` placeholder="${esc(c.newLab)}"` : ""} autocomplete="off"></td>`; };
@@ -134,7 +137,12 @@ function sviPgDraw(k, pane) {
       <div class="frs-f frs-w"><span>LOGO</span><div class="pg-logo">${S.logo ? `<img src="${esc(S.logo)}" alt="">` : ""}<input type="file" accept="image/*" class="pg-logo-in"></div></div></div>`; return; }
   if (k === "cal") { sviPgCalPrev = sviPgOffDays(); pane.__pgc = { k: "cal", newLab: "AJOUTER UN JOUR ICI… (DATE)", cols: [["a", "DU", 160, "date"], ["b", "AU (FACULTATIF)", 160, "date"], ["m", "MOTIF", 200, "sel", () => SVI_PG_CAL_M], ["lab", "INTITULÉ", 320, ""]],
       after: () => sviPgCalImpact() }; sviPgTable(pane, pane.__pgc); pane.insertAdjacentHTML("afterbegin", `<div class="pg-ttl">JOURS NON TRAVAILLÉS DE LA SOCIÉTÉ</div>`);   /* 05/11 : titre du tableau */ return; }
-  if (k === "cpt") { pane.__pgc = { k: "cpt", uniq: "code", newLab: "CRÉER UN COMPTE ICI… (CODE)", cols: [["code", "CODE", 160, "num"], ["lab", "INTITULÉ", 460, ""]] }; sviPgTable(pane, pane.__pgc); return; }
+  /* 05/11 : COMPTABILITÉ — classe (1er chiffre du code, plan comptable marocain), compte parent, nature, LETTRABLE ; rangés par code (à détailler plus tard) */
+  if (k === "cpt") { const P = () => sviPgL("cpt").map(c => [String(c.code), c.code + " — " + (c.lab || "")]);
+    pane.__pgc = { k: "cpt", uniq: "code", newLab: "CRÉER UN COMPTE ICI… (CODE)", cols: [["code", "CODE", 140, "num"], ["lab", "INTITULÉ", 380, ""], ["cls", "CLASSE", 90, "ro", x => SVI_CPT_CLS(x.code)],
+      ["p", "COMPTE PARENT", 260, "sel", P], ["nat", "NATURE", 180, "sel", () => SVI_CPT_NAT.map(n => [n, n])], ["lett", "LETTRABLE", 100, "check"]],
+      after: () => { const L = sviPgL("cpt").slice().sort((a, b) => String(a.code).localeCompare(String(b.code))); sviPgLSave("cpt", L); } };
+    sviPgTable(pane, pane.__pgc); return; }
   if (k === "grades") { pane.__pgc = { k: "grades", uniq: "n", newLab: "CRÉER UN GRADE ICI… (N°)", cols: [["n", "GRADE", 120, "num"], ["lab", "INTITULÉ", 460, ""]] }; sviPgTable(pane, pane.__pgc); return; }
   if (k === "ftypes") { pane.__pgc = { k: "ftypes", uniq: "lab", newLab: "CRÉER UN TYPE ICI…", cols: [["lab", "TYPE", 260, ""], ["pre", "PRÉFIXE DE RÉFÉRENCE", 170, ""], ["docs", "DOCUMENTS EXIGÉS (SÉPARÉS PAR ;)", 420, ""]] }; sviPgTable(pane, pane.__pgc); return; }
   if (k === "gprod" || k === "gexp") { pane.__pgc = { k, uniq: "lab", newLab: "CRÉER UN GROUPE ICI…", cols: [["lab", "GROUPE", 360, ""]] }; sviPgTable(pane, pane.__pgc); return; }
