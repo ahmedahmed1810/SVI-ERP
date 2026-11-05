@@ -3797,7 +3797,7 @@ def main():
   const L = achFrs(); const f = achFrsNew(L, { nom: 'SANS FIGER' }); f.st = 'instance'; f.ice = '001234567000089'; f.ribs = [{ rib: '011780000123456789012386', p: true }]; const g = achFrsNew(L, { nom: 'ANCIEN FIGE' }); g.st = 'fige'; achFrsSave(L);
   r.cyc = achNvCycle(f).map(x => x.lab).join('|'); r.cycOld = achNvCycle(g).map(x => x.lab).join('|'); r.stF = achStF(g);
   const V = achDvf(); V.push({ id: 'VL', ref: 'DVF 26-0101/007', frs: f.id, state: 'recu', date: '2026-01-01', lignes: [{ des: 'A', u: 'U', q: 1, pu: 1 }, { des: 'B', u: 'U', q: 2, pu: 1 }] }); achDvfSave(V);
-  const D = achDocPage('dvf', achDvf().find(x => x.id === 'VL')), Lg = D.links.find(l => /^LIGNES/.test(l.t)); r.lref = Lg ? Lg.rows.map(x => x.cells[0]).join(',') : ''; r.c0 = Lg ? Lg.cols[0][0] : '';
+  const D = achDocPage('dvf', achDvf().find(x => x.id === 'VL')), Lg = D.links.find(l => /^LIGNES|^DÉTAIL$/.test(l.t)); r.lref = Lg ? Lg.rows.map(x => x.cells[0]).join(',') : ''; r.c0 = Lg ? Lg.cols[0][0] : '';
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); return r; }""")
         check('05/11 : plus de FIGER dans les achats (EN INSTANCE → VALIDER ; ancienne fiche figée = en instance) ; référence de chaque ligne = référence de la pièce + -001, -002…', c18.get('cyc') == 'VALIDER' and c18.get('cycOld') == 'VALIDER' and c18.get('stF') == 'instance' and c18.get('lref') == 'DVF 26-0101/007-001,DVF 26-0101/007-002' and c18.get('c0') == 'RÉFÉRENCE', c18)
         c4 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_prm_v1'], keep = K.map(k => localStorage.getItem(k));
@@ -3875,6 +3875,15 @@ def main():
   const sc = document.querySelector('#ach .nvp [data-nvradd]').closest('.rec-scroll');  r.rows = sc.querySelectorAll('tbody tr').length; r.scrolled = sc.scrollTop > 0; r.max = sc.scrollHeight > sc.clientHeight;
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("05/11 (4.3) : bloc réduit — après une création par la ligne CRÉER … ICI, le tableau descend jusqu'à la dernière ligne écrite", f2.get('rows') == 5 and f2.get('scrolled') and f2.get('max'), f2)
+        b46 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_dvf_v1', 'svi_ach_cmf_v1'], keep = K.map(k => localStorage.getItem(k));
+  const L = achFrs(); const f = achFrsNew(L, { nom: 'ALERTE' }); achFrsSave(L);
+  document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(300); achFrsFiche(f.id); await w(500);
+  const b = document.querySelector('#svConf .svc-alert'); r.tri = !!b && +b.querySelector('b').textContent > 0; r.noBan = [...document.querySelectorAll('#svConf .frs-why')].every(x => x.hidden || x.querySelector('button'));
+  document.querySelectorAll('#svConf').forEach(x => x.remove());
+  achDvfSave([{ id: 'VZ', ref: 'DVF Z', frs: f.id, state: 'recu', lignes: [{ des: 'A', u: 'U', q: 1, pu: 1 }] }]); achCmfSave([{ id: 'MZ', ref: 'CMF Z', frs: f.id, dvf: 'VZ', state: 'instance', lignes: [{ des: 'A', u: 'U', q: 1, pu: 1, dvf: 'VZ' }] }]);
+  const D = achDocPage('dvf', achDvf()[0]); r.blk = D.links.map(l => l.t).join('|'); r.cmCols = D.links.find(l => l.t === 'COMMANDES').cols.map(c => c[0]).join(',');
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check('SÉRIE B, B46 B49 B52 : alertes des fenêtres dans le triangle ⚠ à côté de la croix (plus de bandeau) ; devis : bloc DÉTAIL, plus de colonne FOURNISSEUR dans COMMANDES', b46.get('tri') and b46.get('noBan') and b46.get('blk') == 'DÉTAIL|CONSULTATION|COMMANDES' and b46.get('cmCols') == 'RÉFÉRENCE,MONTANT TTC,ÉTAT', b46)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

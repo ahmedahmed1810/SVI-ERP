@@ -133,6 +133,16 @@ function sviFldRszUp(i) {
     dragXY(e, (dx, dy) => { w = Math.max(60, Math.round(r.width + dx)); h = Math.max(28, Math.round(r.height + dy)); wrap.style.width = w + "px"; wrap.classList.add("sized"); i.style.height = h + "px"; }, () => psSet(k, { w, h })); });
   hd.addEventListener("dblclick", () => { wrap.style.width = ""; wrap.classList.remove("sized"); i.style.height = ""; psSet(k, null); });
 }
+/* B46 (série B, 05/11) : les messages d'alerte d'une fenêtre ne sont plus en bandeau — ils passent dans le TRIANGLE ⚠ à côté de la croix
+   (pastille = nombre ; toucher = la liste) ; un bandeau qui porte un bouton d'action (RIB VÉRIFIÉ, DÉBLOQUER…) reste en place */
+function sviWhyUp(card) {
+  if (!card) return; const W = [...card.querySelectorAll(".frs-why")].filter(w => !w.querySelector("button, a, input"));
+  let b = card.querySelector(":scope > .svc-alert"); const msgs = W.flatMap(w => { w.hidden = true; return String(w.textContent || "").replace(/^\s*[⚠↩]\s*/, "").split(" · ").map(s => s.trim()).filter(Boolean); });
+  if (!msgs.length) { if (b) b.remove(); return; }
+  if (!b) { b = document.createElement("button"); b.type = "button"; b.className = "svc-alert"; b.setAttribute("aria-label", "Alertes"); card.appendChild(b);
+    b.addEventListener("click", e => { e.stopPropagation(); svToast("⚠ " + (b.__msgs || []).join(" · "), 6000, b); }); }
+  b.__msgs = msgs; b.innerHTML = `⚠<b>${msgs.length}</b>`;
+}
 function sviUpAll() {
   document.querySelectorAll(SVI_UP_SC).forEach(root => {
     root.querySelectorAll("select").forEach(sviSelUp);
@@ -142,7 +152,8 @@ function sviUpAll() {
     root.querySelectorAll(".svc-f").forEach(sviFootUp);
     root.querySelectorAll(".doc-grid").forEach(sviGridTop);
     if (root.id === "svConf") root.querySelectorAll(".frs-f > input.ins-in, .frs-f > textarea.ins-in").forEach(sviFldRszUp);
-    if (typeof sviFldApply === "function") sviFldApply(root);   /* B11, B17 : réglages des champs */
+    if (typeof sviFldApply === "function") sviFldApply(root);
+    if (root.id === "svConf") root.querySelectorAll(".svc-card").forEach(sviWhyUp);   /* B11, B17 : réglages des champs */
   });
 }
 let sviUpRaf = 0;

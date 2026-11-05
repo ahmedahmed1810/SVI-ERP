@@ -1443,6 +1443,10 @@ html.svi-nuit .prm-table td, html.svi-nuit .bdg-d-table td { border-color: #3341
 .lib-ch .lib-pt { fill: #2563eb; opacity: .75; cursor: pointer; }
 .lib-ch .lib-pt.on { fill: #ea580c; opacity: 1; }
 .lib-moy .lib-i { cursor: pointer; }
+/* B46 : triangle d'alerte des fenêtres, à côté de la croix */
+#svConf .svc-alert { position: absolute; top: 10px; right: 46px; height: 30px; min-width: 30px; border: 1px solid #fecaca; border-radius: 8px; background: #fef2f2; color: #b91c1c; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; padding: 0 6px; }
+#svConf .svc-alert b { font-size: 11px; }
+#svConf .frs-why[hidden] { display: none !important; }
 #home .home-note { padding: 14px 16px; color: #475467; font-size: 12px; font-weight: 700; }
 #blkMenu .dly-sc.on span { font-weight: 800; }
 #blkMenu [data-dly].off { opacity: .45; }
