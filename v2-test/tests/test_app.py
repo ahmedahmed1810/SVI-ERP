@@ -3634,6 +3634,21 @@ def main():
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("SÉRIE B, B33 B43 (et B40) : fiche fournisseur — onglets FOURNISSEURS SIMILAIRES (spécialité d'après les catégories des articles vendus) et STATISTIQUES (fréquence, achats sur 12 mois, part par article) ; fournisseurs liés comptés comme un seul", b43.get('root') and b43.get('spec') == 'GROS ŒUVRE' and b43.get('sim') == 'SIM B:1|SIM C FILIALE:1' and b43.get('pct') == 60 and b43.get('mt') == 600 and b43.get('n') == 2 and b43.get('pctB') == 40 and b43.get('tabs') == 'FOURNISSEURS SIMILAIRES|STATISTIQUES' and b43.get('statVis'), b43)
+        b34 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_cmf_v1', 'svi_ach_art_v1', 'svi_ach_dvf_v1'], keep = K.map(k => localStorage.getItem(k));
+  const L = achFrs(); const a = achFrsNew(L, { nom: 'REP A' }), b = achFrsNew(L, { nom: 'REP B' }), c = achFrsNew(L, { nom: 'REP C' }); a.plafT = 1000; a.plafU = 'DH'; c.lie = b.id; achFrsSave(L);
+  const AR = achArts(); AR.push({ id: 'AZ2', code: 'ART-9002', des: 'SABLE FIN', u: 'M3', cat: 'GROS ŒUVRE' }); achArtsSave(AR);
+  const d = n => { const x = new Date(); x.setDate(x.getDate() - n); return x.toISOString(); };
+  const C = achCmf(); [[a.id, 10, 800], [b.id, 20, 100], [c.id, 30, 100]].forEach(([f, n, pu], i) => C.push({ id: 'R' + i, ref: 'CMF R' + i, frs: f, state: 'solde', cree: d(n), valide: d(n), lignes: [{ des: 'SABLE FIN', u: 'M3', q: 1, pu }] })); achCmfSave(C);
+  const R = achRep(achKey('SABLE FIN', 'M3')); r.n = R.n; r.cible = Math.round(R.cible);
+  const nc = { frs: a.id, state: 'instance', lignes: [{ des: 'SABLE FIN', u: 'M3', q: 1, pu: 300 }] }; r.why = achRepWhy(nc.lignes, a.id).join('|');
+  r.plaf = achCmfValNo(nc); r.plafOk = achCmfValNo({ ...nc, frs: b.id });
+  const V = achDvf(); V.push({ id: 'VX', ref: 'DVF X', frs: b.id, state: 'recu', date: d(1).slice(0, 10), validite: d(1).slice(0, 10), lignes: [{ des: 'SABLE FIN', u: 'M3', q: 1, pu: 90 }] }); achDvfSave(V); r.nExp = achRep(achKey('SABLE FIN', 'M3')).n;
+  document.querySelector('#navMenu .nav-btn[data-ach="art"]').click(); await w(400); achArtFiche('AZ2'); await w(300);
+  document.querySelector('[data-atab="frs"]').click(); await w(100); r.frsRows = document.querySelectorAll('.art-frst tbody tr').length; r.bang = !!document.querySelector('.art-bang');
+  document.querySelector('[data-x]').click(); await w(100);
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("SÉRIE B, B34 B35 B32 B40 : RÉPARTITION par article (part cible = 100 % ÷ fournisseurs actifs ± marge, liés = un seul, devis expiré = sorti, alerte tant qu'il en manque) ; fiche article onglet FOURNISSEURS (part sur 12 mois, ! sous 3) ; PLAFOND DE TRANSACTIONS atteint = commande refusée", b34.get('n') == 2 and b34.get('cible') == 50 and b34.get('why') == 'RÉPARTITION SABLE FIN : 2 FOURNISSEURS ACTIFS SUR 3 PRÉVUS|PART DU FOURNISSEUR SUR SABLE FIN : 80 % (CIBLE 50 % ± 10)' and b34.get('plaf', '').startswith('PLAFOND DE TRANSACTIONS ATTEINT') and not b34.get('plafOk', '').startswith('PLAFOND') and b34.get('nExp') == 1 and b34.get('frsRows') == 1 and b34.get('bang'), b34)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

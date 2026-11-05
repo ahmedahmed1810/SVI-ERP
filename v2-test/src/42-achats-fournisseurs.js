@@ -184,7 +184,7 @@ function achFrsFiche(id, sec, done) {
           ${sub("ribs", [["rib", "RIB (24 CHIFFRES)", null, ' inputmode="numeric"'], ["bq", "BANQUE", r => esc((achBankOfRib(r.rib) || {}).n || (achDig(r.rib).length >= 3 ? "CODE " + achDig(r.rib).slice(0, 3) + " INCONNU" : "—"))],
             ["p", "PRINCIPAL", (r, i) => `<input type="radio" name="frsRibP" class="frs-rp" data-i="${i}"${r.p ? " checked" : ""}${ro ? " disabled" : ""}>`]], "AJOUTER UN RIB")}</div>
         <div class="frs-sec" data-s="enc"><div class="frs-st">ENCOURS ET ENCAISSEMENT</div><div class="frs-g">
-          ${inp("plafEnc", "PLAFOND D'ENCOURS (MAD)", { num: 1 })}<label class="frs-f"><span>ENCOURS ACTUEL</span><input class="ins-in" value="${esc(achF2(achFrsEnc(id)))}" readonly></label>
+          ${inp("plafEnc", "PLAFOND D'ENCOURS (MAD)", { num: 1 })}${inp("plafT", "PLAFOND DE TRANSACTIONS (12 MOIS)", { num: 1 })}${sel("plafU", "UNITÉ DU PLAFOND", [["DH", "DH HT"], ["%", "% DES ACHATS"]])}<label class="frs-f"><span>ENCOURS ACTUEL</span><input class="ins-in" value="${esc(achF2(achFrsEnc(id)))}" readonly></label>
           ${inp("encNom", "PERSONNE AUTORISÉE À RETIRER LES CHÈQUES", { w: 1 })}
           <div class="frs-f frs-w"><span>JOURS DE PAIEMENT HABITUELS</span><div class="frs-cs">${ACH_JOURS.map(j => `<label class="frs-c"><input type="checkbox" class="frs-jr" value="${j}"${F.jours.includes(j) ? " checked" : ""}${ro ? " disabled" : ""}> ${j}</label>`).join("")}</div></div></div></div>
         <div class="frs-sec" data-s="cau"><div class="frs-st">CAUTIONS ET GARANTIES BANCAIRES REÇUES ${svCnt(F.cau.length)}</div>
@@ -243,7 +243,7 @@ function achFrsFiche(id, sec, done) {
   if (sec) setTimeout(() => d.querySelector(`.frs-sec[data-s="${sec}"]`)?.scrollIntoView({ block: "start" }), 50);
   /* lecture des cases dans le brouillon (avant chaque redessin) */
   const pull = () => {
-    d.querySelectorAll(".frs-x").forEach(i => { const k = i.dataset.k; F[k] = ["ice", "ifisc", "rc", "cnss"].includes(k) ? sviMaskRaw(i.value) : ["patente", "codeCpt", "aeNo"].includes(k) ? achDig(i.value) : ["capital", "effectif", "plafEnc", "escTaux", "escJours", "retTaux", "delai", "minCmd", "franco", "remise", "garMois", "camions"].includes(k) ? (String(i.value || "").trim() === "" ? "" : achN(i.value)) : ["dateCrea", "cgaDate", "revue"].includes(k) ? i.value : ["site", "mailCmd", "mailFac"].includes(k) ? String(i.value || "").trim().toLowerCase() : k === "gps" ? String(i.value || "").trim() : achU(i.value); });
+    d.querySelectorAll(".frs-x").forEach(i => { const k = i.dataset.k; F[k] = ["ice", "ifisc", "rc", "cnss"].includes(k) ? sviMaskRaw(i.value) : ["patente", "codeCpt", "aeNo"].includes(k) ? achDig(i.value) : ["capital", "effectif", "plafEnc", "plafT", "escTaux", "escJours", "retTaux", "delai", "minCmd", "franco", "remise", "garMois", "camions"].includes(k) ? (String(i.value || "").trim() === "" ? "" : achN(i.value)) : ["dateCrea", "cgaDate", "revue"].includes(k) ? i.value : ["site", "mailCmd", "mailFac"].includes(k) ? String(i.value || "").trim().toLowerCase() : k === "gps" ? String(i.value || "").trim() : achU(i.value); });
     d.querySelectorAll(".frs-xs").forEach(i => { F[i.dataset.k] = i.value; });
     d.querySelectorAll(".frs-xc").forEach(i => { F[i.dataset.k] = i.checked; });
     F.fam = [...d.querySelectorAll(".frs-fc:checked")].map(i => i.value);

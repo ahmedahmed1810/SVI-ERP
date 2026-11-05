@@ -52,7 +52,7 @@ const achClG = p => Array.isArray(p.clG) ? p.clG : ACH_CLT.filter(x => x[0] !== 
 const achClP = p => Array.isArray(p.clP) ? p.clP : [{ id: "p1", t: "liv", txt: "" }, { id: "p2", t: "pen", txt: "" }];
 const achClCopy = L => (L || []).map(x => ({ t: x.t, txt: x.txt || "" }));
 const achPrm0 = p => ({ tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: achEspJour(p), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: achAlrJ(p, "av", p.avj === undefined ? 90 : achN(p.avj)), chqj: achAlrJ(p, "chq", p.chqj === undefined ? 30 : achN(p.chqj)), dorm: p.dorm === undefined ? 12 : achN(p.dorm), directJ: p.directJ === undefined ? 30 : Math.max(1, Math.round(achN(p.directJ)) || 1), nfrs: p.nfrs === undefined ? 3 : Math.max(1, Math.round(achN(p.nfrs)) || 1), avMax: p.avMax === undefined ? 30 : achN(p.avMax), delaiLeg: p.delaiLeg === undefined ? 60 : Math.max(1, achN(p.delaiLeg) || 60), seuilBdg: p.seuilBdg === undefined ? 90 : Math.min(100, Math.max(1, achN(p.seuilBdg) || 90)), exFin: p.exFin === undefined ? 12 : Math.min(12, Math.max(1, Math.round(achN(p.exFin)) || 12)), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), socIce: p.socIce || "", socIf: p.socIf || "", banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })), grp: (Array.isArray(p.grp) && p.grp.length ? p.grp : ACH_GRP_DEF.map(g => ({ ...g, req: g.req.slice() }))).filter(g => !ACH_GRP_OLD[g.id]), alr: achAlr(p), espL: achEspL(p), ment: p.ment && typeof p.ment === "object" ? p.ment : { ice: true, if: true }, seuV: Array.isArray(p.seuV) ? p.seuV : [],
-  freqA: p.freqA === undefined ? 3 : achN(p.freqA), freqB: p.freqB === undefined ? 6 : achN(p.freqB), plafT: p.plafT === undefined ? "" : p.plafT, plafU: p.plafU === "%" ? "%" : "DH", refs: achRefs(p), clG: achClG(p), clP: achClP(p) });
+  freqA: p.freqA === undefined ? 3 : achN(p.freqA), freqB: p.freqB === undefined ? 6 : achN(p.freqB), plafT: p.plafT === undefined ? "" : p.plafT, plafU: p.plafU === "%" ? "%" : "DH", nrep: p.nrep === undefined ? 3 : Math.max(1, Math.round(achN(p.nrep)) || 1), mrep: p.mrep === undefined ? 10 : achN(p.mrep), refs: achRefs(p), clG: achClG(p), clP: achClP(p) });
 const achPrmSave = p => achW(ACH_K.prm, p);
 /* v811 : lectures mémorisées. Une donnée dérivée n'est recalculée que si le texte gardé dans l'appareil a changé :
    rien à remettre à zéro, quel que soit celui qui écrit. Le résultat se lit seulement, il ne se modifie jamais. */
@@ -195,7 +195,7 @@ const achFrsNew = (L, o) => {
   const now = new Date().toISOString();
   const f = { id: "F" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), code: achFrsNextCode(L), nom: achU(o.nom), denom: "", forme: "", ville: "", adresse: "", site: "", resp: "",
     ice: "", ifisc: "", rc: "", villeRc: "", patente: "", capital: 0, codeCpt: "", intCpt: "", ribs: [], cond: "", fam: [], occ: !!o.occ, orgFin: false, actif: true,
-    docf: [], cte: [], evl: [], cgf: [], cla: achClCopy(achPrm().clG), ribChg: "", cree: now, mod: now, del: "" };
+    docf: [], cte: [], evl: [], cgf: [], cla: achClCopy(achPrm().clG), plafT: achPrm().plafT, plafU: achPrm().plafU, ribChg: "", cree: now, mod: now, del: "" };
   L.push(f);
   return f;
 };
@@ -246,6 +246,26 @@ const achFrsSim = f => { const A = achFrsArts().get(f.id) || new Set(), C = new 
 const achFrsStats = f => { const g = achFrsRoot(f.id), B = achBuy12(), parts = []; let mt = 0;
   B.forEach((m, k) => { const v = m.get(g) || 0; if (!(v > 0)) return; const tot = [...m.values()].reduce((s, x) => s + x, 0); mt += v; const [des, u] = k.split("|"); parts.push({ k, des, u, mt: v, tot, pct: tot ? v / tot * 100 : 0, n: m.size }); });
   parts.sort((a, b) => b.mt - a.mt); const D = achFrsDates().get(f.id) || { cmd: [] }; return { freq: achFrsFreq(f), n: D.cmd.length, mt, parts }; };
+/* B34 : RÉPARTITION article par article — fournisseurs actifs (commande sur 12 mois, liés = un seul, sortis si leur dernier devis de l'article
+   est expiré) ; part cible = 100 % ÷ nombre de fournisseurs actifs, avec la marge ± (ACHATS › PARAMÈTRES) ; alerte tant qu'il en manque */
+const achDvfLastExp = () => achMemo("dvfexp", [ACH_K.dvf, ACH_K.frs], () => { const today = new Date().toISOString().slice(0, 10), M = new Map();
+  achDvf().filter(v => v.frs && v.state !== "annule" && v.state !== "rejete").forEach(v => { const g = achFrsRoot(v.frs), d = String(v.date || v.cree || "").slice(0, 10);
+    (v.lignes || []).forEach(l => { const k = achKey(l.des, l.u) + "#" + g, o = M.get(k); if (!o || d >= o.d) M.set(k, { d, exp: !!(v.validite && v.validite < today) }); }); });
+  return M; });
+const achRep = k => { const B = achBuy12().get(k) || new Map(), X = achDvfLastExp(), P = achPrm(), A = [...B.entries()].filter(([g]) => !(X.get(k + "#" + g) || {}).exp);
+  const tot = A.reduce((s, [, v]) => s + v, 0), n = A.length, cible = n ? 100 / n : 0;
+  return { n, need: P.nrep, cible, marge: P.mrep, tot, rows: A.map(([g, mt]) => ({ g, mt, pct: tot ? mt / tot * 100 : 0 })).sort((a, b) => b.mt - a.mt) }; };
+const achRepWhy = (lignes, frs) => { const w = [], seen = new Set(), g = frs ? achFrsRoot(frs) : "", cat = new Set(achArts().filter(a => !a.del).map(a => achKey(a.des, a.u)));
+  (lignes || []).forEach(l => { const k = achKey(l.des, l.u); if (seen.has(k) || !cat.has(k)) return; seen.add(k); const R = achRep(k);
+    if (R.n < R.need) w.push("RÉPARTITION " + achU(l.des) + " : " + R.n + " FOURNISSEUR" + (R.n > 1 ? "S" : "") + " ACTIF" + (R.n > 1 ? "S" : "") + " SUR " + R.need + " PRÉVUS");
+    const me = R.rows.find(r => r.g === g); if (me && R.n > 1 && me.pct > R.cible + R.marge) w.push("PART DU FOURNISSEUR SUR " + achU(l.des) + " : " + Math.round(me.pct) + " % (CIBLE " + Math.round(R.cible) + " % ± " + R.marge + ")"); });
+  return w; };
+/* B32 : PLAFOND DE TRANSACTIONS par fournisseur (montant HT sur 12 mois, ou part en % de tous les achats) ; atteint = commande refusée */
+const achBuyGrp = () => achMemo("buyg", [ACH_K.cmf, ACH_K.frs], () => { const M = new Map(); let t = 0; achBuy12().forEach(m => m.forEach((v, g) => { M.set(g, (M.get(g) || 0) + v); t += v; })); return { M, t }; });
+const achFrsPlafNo = (f, add) => { if (!f || f.plafT === "" || f.plafT === undefined || f.plafT === null) return ""; const L = achN(f.plafT); if (!(L > 0)) return "";
+  const B = achBuyGrp(), g = achFrsRoot(f.id), mine = (B.M.get(g) || 0) + achN(add);
+  if (f.plafU === "%") { const pct = B.t + achN(add) > 0 ? mine / (B.t + achN(add)) * 100 : 0; return pct > L ? "PLAFOND DE TRANSACTIONS ATTEINT : " + Math.round(pct) + " % DES ACHATS SUR 12 MOIS (PLAFOND " + L + " %)" : ""; }
+  return mine > L ? "PLAFOND DE TRANSACTIONS ATTEINT : " + achF2(mine) + " HT SUR 12 MOIS (PLAFOND " + achF2(L) + " HT)" : ""; };
 /* B44 : ARCHIVÉ — dormant depuis plus de 12 mois (ou le délai « dormant » s'il est plus long), au mois de clôture de l'exercice, soldé, sans pièce
    en cours ou en attente ; liste des empêchements (vide = archivage possible) */
 const achFrsArchWhy = f => { const w = [], P = achPrm(), n = Math.max(12, P.dorm), d = achFrsLast(f.id) || String(f.cree || "").slice(0, 10), lim = new Date(); lim.setMonth(lim.getMonth() - n);
@@ -441,7 +461,7 @@ const achBsnOpen = (B, C) => { B = B || achBsn(); C = C || achCaf();
 const achDvfPuNet = (v, l) => achN(l.pu) * (1 - achN(l.rem) / 100) * (1 - achN(v.remG) / 100);
 const achDvfTot = v => { let ht = 0, ttc = 0, brut = 0; (v.lignes || []).forEach(l => { const b = achN(l.q) * achN(l.pu), m = achN(l.q) * achDvfPuNet(v, l); brut += b; ht += m; ttc += m * (1 + (l.tva === "" || l.tva === undefined ? achPrm().tva : achN(l.tva)) / 100); });
   const tr = achN(v.transp); ht += tr; ttc += tr * (1 + achPrm().tva / 100); return { ht, ttc, brut, transp: tr }; };
-const achDvfWhy = v => { const w = [], today = new Date().toISOString().slice(0, 10);
+const achDvfWhy = v => { const w = achRepWhy(v.state === "recu" ? v.lignes : [], v.frs), today = new Date().toISOString().slice(0, 10);
   if (v.state === "rejete" || v.state === "annule") return w;
   if (!(v.lignes || []).some(l => achN(l.pu) > 0)) w.push("PRIX MANQUANTS");
   if (!v.refFrs) w.push("N° DU DEVIS FOURNISSEUR MANQUANT");
@@ -504,6 +524,7 @@ const achCmfWhy = (c, R, T) => { const w = [], today = new Date().toISOString().
   if (!(c.lignes || []).length) w.push("AUCUNE LIGNE");
   if ((c.lignes || []).some(l => !(achN(l.pu) > 0))) w.push("PRIX MANQUANTS");
   if (c.urg) w.push("COMMANDE URGENTE À RÉGULARISER");
+  achRepWhy(c.lignes, c.frs).forEach(x => w.push(x));
   const d = c.dConf || c.dProm, rest = (c.lignes || []).some(l => achResteQ(c, l, R, T) > 1e-9);
   if (c.state === "valide" && d && d < today && rest) w.push("LIVRAISON EN RETARD (PRÉVUE LE " + d.split("-").reverse().join("/") + ")");
   if (c.state === "valide" && !rest) w.push("TOUT EST REÇU : À SOLDER");
@@ -526,6 +547,7 @@ const achCmfEch = c => { const d = c.dConf || c.dProm; if (!d) return ""; const 
 /* v815 : contrôles bloquants de la validation (C6.44, 6.48, 6.50, 6.53) ; rend le motif du refus ou "" */
 const achCmfValNo = c => { const today = new Date().toISOString().slice(0, 10), DV = achDvf(), f = achFrs().find(x => x.id === c.frs);
   if (f && (f.docf || []).some(x => x.exp && x.exp < today)) return "DOCUMENT FISCAL DU FOURNISSEUR EXPIRÉ : LE METTRE À JOUR (FICHE FOURNISSEUR)";
+  { const no = achFrsPlafNo(f, (c.lignes || []).reduce((t, l) => t + achN(l.q) * achN(l.pu), 0) * (1 - achN(c.rem) / 100)); if (no) return no; }
   for (const l of c.lignes || []) { const v = l.dvf && DV.find(x => x.id === l.dvf); if (!v) continue;
     if (v.state === "rejete" || v.state === "annule") return "DEVIS " + v.ref + " NON RETENU OU ANNULÉ : COMMANDE REFUSÉE";
     if (v.validite && v.validite < today) return "DEVIS " + v.ref + " EXPIRÉ : COMMANDE REFUSÉE";

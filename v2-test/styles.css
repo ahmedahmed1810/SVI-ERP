@@ -1401,6 +1401,11 @@ détail technique en petit */
 /* B39 : colonne REÇOIT des contacts */
 .frs-rcs { display: flex; gap: 6px; flex-wrap: wrap; }
 .frs-rc { display: inline-flex; align-items: center; gap: 2px; font-size: 11px; white-space: nowrap; }
+/* B35 : fiche article, onglets INFORMATIONS / FOURNISSEURS */
+.art-scroll[data-at="inf"] .art-frs { display: none; }
+.art-scroll[data-at="frs"] .frs-g > :not(.art-frs) { display: none; }
+.art-scroll .art-frs { grid-column: 1 / -1; }
+.art-bang { color: #dc2626; font-size: 1.2em; }
 #home .home-note { padding: 14px 16px; color: #475467; font-size: 12px; font-weight: 700; }
 #blkMenu .dly-sc.on span { font-weight: 800; }
 #blkMenu [data-dly].off { opacity: .45; }
