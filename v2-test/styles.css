@@ -1390,6 +1390,14 @@ détail technique en petit */
 #ach .ach-prm > .ach-ptabs > .bdg-d-tab { flex: 1 1 0; }
 #ach .ach-prm .ach-pgen td, #ach .ach-prm .ach-palr td, #ach .ach-prm .ach-pment td { height: 30px; }
 #ach .ach-prm .ach-pgen input.number, #ach .ach-prm .ach-palr input.number { width: 120px; text-align: right; }
+/* série B (B27, B29) : clauses pliables, page annexe de la commande */
+#ach .ach-pfold > summary.ach-pt { cursor: pointer; list-style: none; }
+#ach .ach-pfold > summary.ach-pt::before { content: "▾ "; }
+#ach .ach-pfold:not([open]) > summary.ach-pt::before { content: "▸ "; }
+#ach .ach-pref input.ins-in, #ach .ach-pcl input.ins-in { width: 100%; box-sizing: border-box; }
+[data-tip] { cursor: help; }
+.mep-annex .mep-ax-t { font-weight: 700; font-size: 1.15em; margin-bottom: 14px; text-align: center; }
+.mep-annex .mep-ax-i { margin: 0 0 8px; line-height: 1.4; }
 #home .home-note { padding: 14px 16px; color: #475467; font-size: 12px; font-weight: 700; }
 #blkMenu .dly-sc.on span { font-weight: 800; }
 #blkMenu [data-dly].off { opacity: .45; }

@@ -31,8 +31,28 @@ const achAlrJ = (p, k, d) => { const v = achAlr(p)[k]; return v === "" || v === 
 const ACH_ESP_PER = [["jour", "JOUR", 1], ["semaine", "SEMAINE", 7], ["15j", "QUINZE JOURS", 15], ["mois", "MOIS", 30], ["annee", "ANNÉE", 365], ["n", "NOMBRE DE JOURS", 0]];
 const achEspL = p => Array.isArray(p.espL) ? p.espL : [{ id: "e1", per: "jour", n: "", mt: p.esp === undefined ? 5000 : achN(p.esp) }];
 const achEspJour = p => { const L = achEspL(p), j = L.find(x => x.per === "jour") || L[0]; return j ? achN(j.mt) : Infinity; };
+/* série B (B27) : RÉFÉRENCES — un modèle par type de pièce ; texte fixe tel quel, variables {AA} (année, 2 chiffres), {AAAA}, {MM}, {JJ},
+   {NNN} (compteur, autant de chiffres que de N) ; compteur remis à zéro chaque jour (par défaut), mois, année ou jamais */
+const ACH_REF_T = [["BSN", "BESOIN"], ["CAF", "CONSULTATION (DEMANDE DE DEVIS)"], ["DVF", "DEVIS DU FOURNISSEUR"], ["CMF", "COMMANDE"], ["RTC", "RETOUR DE COMMANDE"], ["RCP", "RÉCEPTION"],
+  ["RTR", "RETOUR DE RÉCEPTION"], ["FAF", "FACTURE DU FOURNISSEUR"], ["AVF", "AVOIR DU FOURNISSEUR"], ["PAF", "PAIEMENT"]];
+const ACH_REF_RZ = [["jour", "CHAQUE JOUR"], ["mois", "CHAQUE MOIS"], ["annee", "CHAQUE ANNÉE"], ["jamais", "JAMAIS"]];
+const achRefs = p => { const r = p.refs && typeof p.refs === "object" ? p.refs : {};
+  return Object.fromEntries(ACH_REF_T.map(([k]) => { const x = r[k] || {}; return [k, { m: String(x.m || "").trim() || k + " {AA}-{MM}{JJ}/{NNN}", rz: ACH_REF_RZ.some(z => z[0] === x.rz) ? x.rz : "jour" }]; })); };
+const achRefFill = (m, d, n) => { const p2 = x => String(x).padStart(2, "0");
+  return m.replace(/\{AAAA\}/g, d.getFullYear()).replace(/\{AA\}/g, p2(d.getFullYear() % 100)).replace(/\{MM\}/g, p2(d.getMonth() + 1)).replace(/\{JJ\}/g, p2(d.getDate()))
+    .replace(/\{(N+)\}/g, (_, N) => String(n).padStart(N.length, "0")); };
+const achRefRx = m => new RegExp("^" + m.split(/(\{AAAA\}|\{AA\}|\{MM\}|\{JJ\}|\{N+\})/).map(s => s === "{AAAA}" ? "\\d{4}" : /^\{(AA|MM|JJ)\}$/.test(s) ? "\\d{2}" : /^\{N+\}$/.test(s) ? "(\\d+)" : s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("") + "$");
+/* série B (B29, B30) : CLAUSES — chaque article a un TYPE qui reprend sa valeur par défaut ; GÉNÉRALES = contrat type repris sur chaque nouveau
+   fournisseur ; PARTICULIÈRES = reprises sur chaque nouvelle commande (imprimées en page annexe) ; modifiées sur la fiche ou la commande seulement */
+const ACH_CLT = [["pay", "DÉLAI DE PAIEMENT", "60 JOURS APRÈS LA DATE DE LA FACTURE (DÉLAI LÉGAL MAXIMUM)"], ["liv", "DÉLAI DE LIVRAISON", ""], ["pen", "PÉNALITÉS DE RETARD", ""],
+  ["val", "VALIDITÉ DU DEVIS", "30 JOURS"], ["av", "AVANCE SUR COMMANDE", ""], ["cond", "CONDITIONS DE PAIEMENT", ""], ["autre", "AUTRE", ""]];
+const achCltDef = t => (ACH_CLT.find(x => x[0] === t) || ["", "", ""])[2];
+const achCltLab = t => (ACH_CLT.find(x => x[0] === t) || ["", ""])[1];
+const achClG = p => Array.isArray(p.clG) ? p.clG : ACH_CLT.filter(x => x[0] !== "autre").map((x, i) => ({ id: "g" + (i + 1), t: x[0], txt: x[2] }));
+const achClP = p => Array.isArray(p.clP) ? p.clP : [{ id: "p1", t: "liv", txt: "" }, { id: "p2", t: "pen", txt: "" }];
+const achClCopy = L => (L || []).map(x => ({ t: x.t, txt: x.txt || "" }));
 const achPrm0 = p => ({ tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: achEspJour(p), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: achAlrJ(p, "av", p.avj === undefined ? 90 : achN(p.avj)), chqj: achAlrJ(p, "chq", p.chqj === undefined ? 30 : achN(p.chqj)), dorm: p.dorm === undefined ? 12 : achN(p.dorm), directJ: p.directJ === undefined ? 30 : Math.max(1, Math.round(achN(p.directJ)) || 1), nfrs: p.nfrs === undefined ? 3 : Math.max(1, Math.round(achN(p.nfrs)) || 1), avMax: p.avMax === undefined ? 30 : achN(p.avMax), delaiLeg: p.delaiLeg === undefined ? 60 : Math.max(1, achN(p.delaiLeg) || 60), seuilBdg: p.seuilBdg === undefined ? 90 : Math.min(100, Math.max(1, achN(p.seuilBdg) || 90)), exFin: p.exFin === undefined ? 12 : Math.min(12, Math.max(1, Math.round(achN(p.exFin)) || 12)), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), socIce: p.socIce || "", socIf: p.socIf || "", banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })), grp: Array.isArray(p.grp) && p.grp.length ? p.grp : ACH_GRP_DEF.map(g => ({ ...g, req: g.req.slice() })), alr: achAlr(p), espL: achEspL(p), ment: p.ment && typeof p.ment === "object" ? p.ment : { ice: true, if: true }, seuV: Array.isArray(p.seuV) ? p.seuV : [],
-  freqA: p.freqA === undefined ? 3 : achN(p.freqA), freqB: p.freqB === undefined ? 6 : achN(p.freqB), plafT: p.plafT === undefined ? "" : p.plafT, plafU: p.plafU === "%" ? "%" : "DH" });
+  freqA: p.freqA === undefined ? 3 : achN(p.freqA), freqB: p.freqB === undefined ? 6 : achN(p.freqB), plafT: p.plafT === undefined ? "" : p.plafT, plafU: p.plafU === "%" ? "%" : "DH", refs: achRefs(p), clG: achClG(p), clP: achClP(p) });
 const achPrmSave = p => achW(ACH_K.prm, p);
 /* v811 : lectures mémorisées. Une donnée dérivée n'est recalculée que si le texte gardé dans l'appareil a changé :
    rien à remettre à zéro, quel que soit celui qui écrit. Le résultat se lit seulement, il ne se modifie jamais. */
@@ -175,7 +195,7 @@ const achFrsNew = (L, o) => {
   const now = new Date().toISOString();
   const f = { id: "F" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), code: achFrsNextCode(L), nom: achU(o.nom), denom: "", forme: "", ville: "", adresse: "", site: "", resp: "",
     ice: "", ifisc: "", rc: "", villeRc: "", patente: "", capital: 0, codeCpt: "", intCpt: "", ribs: [], cond: "", fam: [], occ: !!o.occ, orgFin: false, actif: true,
-    docf: [], cte: [], evl: [], cgf: [], ribChg: "", cree: now, mod: now, del: "" };
+    docf: [], cte: [], evl: [], cgf: [], cla: achClCopy(achPrm().clG), ribChg: "", cree: now, mod: now, del: "" };
   L.push(f);
   return f;
 };
@@ -268,9 +288,7 @@ const achDirCmfCheck = C => { const S = achPrm().direct, from = achDirFrom(), B 
   return tot > S ? "ACHAT DIRECT IMPOSSIBLE : CUMUL CHEZ CE FOURNISSEUR " + achF2(tot) + " HT SUR " + achPrm().directJ + " JOURS, AU-DELÀ DU SEUIL DE " + achF2(S) + " HT — PASSER PAR UNE CONSULTATION" : ""; };
 const achBsn = () => { const L = achJ(ACH_K.bsn, []); return Array.isArray(L) ? L : []; };
 const achBsnSave = L => achW(ACH_K.bsn, L);
-const achBsnNextRef = (L, d) => { d = d || new Date(); const p2 = x => String(x).padStart(2, "0");
-  const n = L.reduce((m, b) => Math.max(m, Number((String(b.ref || "").match(/\/(\d+)$/) || [])[1]) || 0), 0) + 1;
-  return "BSN " + p2(d.getFullYear() % 100) + "-" + p2(d.getMonth() + 1) + p2(d.getDate()) + "/" + String(n).padStart(3, "0"); };
+const achBsnNextRef = (L, d) => achNextRef("BSN", L, d);
 /* budgets proposés : étapes de l'appareil (pas les versions, scénarios ni recalages), hors archivés ; famille = consolidé */
 const achBdgList = () => { let L = []; try { L = sviInstGet(); } catch (e) {}
   return L.filter(b => b && !b.parent && !b.rclOf && !b.virtual && !b.arch).map(b => ({ ref: b.ref, lab: achU(b.project) + " " + b.ref + (b.intitule ? " — " + achU(b.intitule) : ""), prj: achU(b.project) }))
@@ -345,9 +363,13 @@ const achCaf = () => { const L = achJ(ACH_K.caf, []); return Array.isArray(L) ? 
 const achCafSave = L => achW(ACH_K.caf, L);
 const achDvf = () => { const L = achJ(ACH_K.dvf, []); return Array.isArray(L) ? L : []; };
 const achDvfSave = L => achW(ACH_K.dvf, L);
-const achNextRef = (pfx, L, d) => { d = d || new Date(); const p2 = x => String(x).padStart(2, "0");
-  const n = L.reduce((m, b) => Math.max(m, Number((String(b.ref || "").match(/\/(\d+)$/) || [])[1]) || 0), 0) + 1;
-  return pfx + " " + p2(d.getFullYear() % 100) + "-" + p2(d.getMonth() + 1) + p2(d.getDate()) + "/" + String(n).padStart(3, "0"); };
+/* B27 : numéro suivant d'après le modèle du type de pièce (ACHATS › PARAMÈTRES › RÉFÉRENCES) ; le compteur ne compte que les pièces de la même
+   période (jour, mois ou année de création) dont la référence suit le modèle */
+const achNextRef = (pfx, L, d) => { d = d || new Date(); const R = achPrm().refs[pfx] || { m: pfx + " {AA}-{MM}{JJ}/{NNN}", rz: "jour" }, rx = achRefRx(R.m);
+  const key = x => { const t = x instanceof Date ? x : new Date(x); if (isNaN(t)) return null; return R.rz === "annee" ? "" + t.getFullYear() : R.rz === "mois" ? t.getFullYear() + "-" + t.getMonth() : t.getFullYear() + "-" + t.getMonth() + "-" + t.getDate(); };
+  const k0 = key(d), same = b => { if (R.rz === "jamais") return true; const v = b.cree || b.date; if (!v) return true; return key(v) === k0; };
+  const n = (L || []).reduce((m, b) => { const g = String(b.ref || "").match(rx); return g && same(b) ? Math.max(m, Number(g[1]) || 0) : m; }, 0) + 1;
+  return achRefFill(R.m, d, n); };
 /* besoins validés pas encore couverts (ni consultation close, ni achat direct, ni dans une consultation ouverte) */
 const achBsnOpen = (B, C) => { B = B || achBsn(); C = C || achCaf();
   const inOpen = new Set(C.filter(c => c.state === "ouverte").flatMap(c => (c.lignes || []).map(l => l.bsn).filter(Boolean)));

@@ -2944,7 +2944,7 @@ def main():
             return [r1, wc.length, wa.join('|'), h1, n0, n1, secs, conf, sig, hist, ok && pgOk]; }""")
         check("v759 : FOURNISSEURS — ICE (15 chiffres, unique), RIB 24 chiffres, occasionnel sans ICE ni RIB, document expiré ; onglet, création, fiche ; changement de RIB confirmé, signalé, noté dans H, puis RIB VÉRIFIÉ",
               f759[0] == ["FRS-0001", "FRS-0002", False, True, "FRS-0001", True] and f759[1] == 0 and "DOCUMENT EXPIRÉ : ATTESTATION CNSS" in f759[2] and "ICE EN DOUBLE" in f759[2]
-              and f759[3] == "FOURNISSEURS (VALIDÉS) 2" and f759[4] == 2 and f759[5] == 3 and f759[6] == "IDENTITÉ,FISCAL,QUALIFICATION,ASSURANCES,,COMPTE,RIB,ENCOURS,CAUTIONS,CONDITIONS,COMMANDE,IMPORT,FERMETURES,GARANTIE,TARIFS,FAMILLES,DOCUMENTS,CONTACTS,RISQUE,MOYENS,RÉFÉRENCES,ÉVALUATIONS,CONTRATS|IDENTITÉ,FISCAL ET LÉGAL,BANQUE ET PAIEMENT,CONDITIONS D'ACHAT,RISQUE ET MOYENS|2"
+              and f759[3] == "FOURNISSEURS (VALIDÉS) 2" and f759[4] == 2 and f759[5] == 3 and f759[6] == "IDENTITÉ,FISCAL,QUALIFICATION,ASSURANCES,,COMPTE,RIB,ENCOURS,CAUTIONS,CONDITIONS,COMMANDE,IMPORT,FERMETURES,GARANTIE,TARIFS,FAMILLES,DOCUMENTS,CONTACTS,RISQUE,MOYENS,RÉFÉRENCES,ÉVALUATIONS,CONTRATS,CLAUSES|IDENTITÉ,FISCAL ET LÉGAL,BANQUE ET PAIEMENT,CONDITIONS D'ACHAT,RISQUE ET MOYENS|2"
               and f759[7] == "CHANGEMENT DE RIB" and f759[8] and f759[9] and f759[10], f759)
         # v760 : BESOINS — charges du budget avec leurs tâches, contrôle prévu / déjà demandé, dépassement BLOQUÉ (justifier puis DÉBLOQUER),
         # seuil 90 %, centre SIÈGE hors budget ; menu ☰ › BESOIN, fiche de création (budget › charge › tâche), validation
@@ -3541,6 +3541,40 @@ def main():
   if (keep === null) localStorage.removeItem('svi_ach_prm_v1'); else localStorage.setItem('svi_ach_prm_v1', keep); if (kt === null) localStorage.removeItem('svi_achprm_tab_v1'); else localStorage.setItem('svi_achprm_tab_v1', kt);
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check('SÉRIE B, B10 B12a B36 B30 B12 B13 B14 B15 B19 : ACHATS › PARAMÈTRES en onglets (GÉNÉRAL, CATÉGORIES, GROUPES), tableaux alignés — règles internes, alertes de retard, plafonds en espèces par période, mentions imprimées, seuils de validation ; banques, import NovApp et alerte 90 % du budget retirés', b10.get('tabs','').startswith('GÉNÉRAL|CATÉGORIES|GROUPES') and b10.get('alr') == 15 and b10.get('esp', 0) >= 2 and b10.get('seu') == '[[5000,["3","1"],true]]' and b10.get('noBq') and b10.get('cat'), b10)
+        b27 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_ach_prm_v1'), kt = localStorage.getItem('svi_achprm_tab_v1');
+  document.querySelector('#navMenu .nav-btn[data-ach="prm"]').click(); await w(400); const v = document.getElementById('ach');
+  v.querySelector('[data-ptab="ref"]').click(); await w(200);
+  r.rows = v.querySelectorAll('.ach-pref tbody tr').length; r.tip = !!v.querySelector('.ach-pref th[data-tip]');
+  const m = v.querySelector('.ach-ref[data-k="DVF"][data-f="m"]'); m.value = 'DV {AAAA}/{NNNN}'; m.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
+  const z = v.querySelector('.ach-ref[data-k="DVF"][data-f="rz"]'); z.value = 'annee'; z.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
+  const y = new Date().getFullYear(), d0 = new Date();
+  r.n1 = achNextRef('DVF', [{ ref: 'DV ' + y + '/0007', cree: d0.toISOString() }, { ref: 'DV ' + (y - 1) + '/0040', cree: new Date(y - 1, 5, 1).toISOString() }]) === 'DV ' + y + '/0008';
+  r.bad = (() => { const m2 = v.querySelector('.ach-ref[data-k="CMF"][data-f="m"]'); m2.value = 'CMF {AA}'; m2.dispatchEvent(new Event('change', { bubbles: true })); return achPrm().refs.CMF.m; })();
+  r.def = achNextRef('CMF', [{ ref: achRefFill('CMF {AA}-{MM}{JJ}/{NNN}', d0, 3), cree: d0.toISOString() }, { ref: 'CMF 20-0101/009', cree: '2020-01-01T10:00:00Z' }]) === achRefFill('CMF {AA}-{MM}{JJ}/{NNN}', d0, 4);
+  await w(100); v.querySelector('[data-ptab="cla"]').click(); await w(200);
+  r.fold = v.querySelectorAll('details.ach-pfold').length; r.g = achPrm().clG.length;
+  const nw = v.querySelectorAll('.ach-clnew')[1]; nw.value = 'garantie un an'; nw.dispatchEvent(new Event('change', { bubbles: true })); await w(150);
+  const tsel = v.querySelectorAll('details.ach-pfold')[1].querySelector('tr[data-clid] select.ach-cl'); tsel.value = 'val'; tsel.dispatchEvent(new Event('change', { bubbles: true })); await w(150);
+  r.p = achPrm().clP.map(x => x.t + ':' + x.txt).join('|');
+  const L = achFrs(); const f = achFrsNew(L, { nom: 'TEST CLAUSES' }); r.fcla = f.cla.length === r.g && f.cla[0].t === 'pay';
+  const c = achCmfFrom({ why: 'T' }); r.ccla = (c.cla || []).length; r.cref = /^CMF /.test(c.ref);
+  const L2 = achCmf().filter(x => x.id !== c.id); achCmfSave(L2);
+  if (keep === null) localStorage.removeItem('svi_ach_prm_v1'); else localStorage.setItem('svi_ach_prm_v1', keep); if (kt === null) localStorage.removeItem('svi_achprm_tab_v1'); else localStorage.setItem('svi_achprm_tab_v1', kt);
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("SÉRIE B, B27 : RÉFÉRENCES — modèle par type de pièce ({AA} {AAAA} {MM} {JJ} {NNN}), compteur remis à zéro par jour (défaut), mois, année ou jamais ; explication à l'appui long sur MODÈLE ; modèle sans compteur refusé", b27.get('rows') == 10 and b27.get('tip') and b27.get('n1') and b27.get('def') and b27.get('bad') == 'CMF {AA}-{MM}{JJ}/{NNN}' and b27.get('fold') == 2 and b27.get('fcla') and b27.get('ccla', 0) >= 2 and b27.get('cref'), b27)
+        b29 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {};
+  document.querySelector('#navMenu .nav-btn[data-ach="cmf"]').click(); await w(400);
+  const c = achCmfFrom({ why: 'T' }); achCmfFiche(c.id); await w(300); const d = document.getElementById('svConf') || document.querySelector('.cmf-card');
+  r.sec = !!document.querySelector('.cmf-cla'); r.n = document.querySelectorAll('.cmf-cla tr[data-ci]').length;
+  document.querySelector('[data-addcl]').click(); await w(150); r.n2 = document.querySelectorAll('.cmf-cla tr[data-ci]').length;
+  const s = document.querySelector('.cmf-cla tr[data-ci="2"] select'); s.value = 'pay'; s.dispatchEvent(new Event('change', { bubbles: true })); await w(150);
+  r.txt = document.querySelector('.cmf-cla tr[data-ci="2"] input').value;
+  document.querySelector('[data-x]').click(); await w(150);
+  sviMep.open({ key: 'T-ANX', title: 'COMMANDE', ref: 'CMF X', party: 'F', rows: [], cols: [], annex: { title: 'CLAUSES PARTICULIÈRES', items: [['DÉLAI DE LIVRAISON', '8 JOURS'], ['', 'GARANTIE']] } }); await w(400);
+  r.anx = (document.querySelector('.mep-annex') || {}).textContent || '';
+  document.querySelectorAll('.mep-ov, #mepOv, .mep-wrap').forEach(x => x.remove());
+  achCmfSave(achCmf().filter(x => x.id !== c.id)); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check('SÉRIE B, B29 B30 : CLAUSES générales (chaque nouveau fournisseur) et particulières (chaque nouvelle commande, modifiables sur la commande, le type reprend sa valeur par défaut, imprimées en page ANNEXE)', b29.get('sec') and b29.get('n2') == b29.get('n', 0) + 1 and b29.get('txt', '').startswith('60 JOURS') and 'ANNEXE — CLAUSES PARTICULIÈRES' in b29.get('anx', '') and 'ARTICLE 2 : GARANTIE' in b29.get('anx', ''), b29)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

@@ -11,6 +11,16 @@
 const SVI_G = { lp: 450, drag: 8, dbl: 350, hitW: 44, hitH: 32, pinch: 1, ganttMin: 24, ganttMax: 80 };
 window.SVI_G = SVI_G;
 try { document.documentElement.style.setProperty("--svi-hit-w", SVI_G.hitW + "px"); document.documentElement.style.setProperty("--svi-hit-h", SVI_G.hitH + "px"); } catch (e) {}
+/* série B (B16, B27) : BULLE D'EXPLICATION COMMUNE — l'explication d'un titre ou d'un champ n'est plus écrite dessous : elle s'affiche
+   à l'APPUI LONG (ou au clic droit) sur l'élément qui porte data-tip */
+{
+  let tm = 0, x0 = 0, y0 = 0;
+  const show = el => { if (typeof svToast === "function") svToast(el.dataset.tip, 7000, el); };
+  document.addEventListener("pointerdown", e => { const el = e.target.closest && e.target.closest("[data-tip]"); clearTimeout(tm); if (!el) return; x0 = e.clientX; y0 = e.clientY; tm = setTimeout(() => show(el), SVI_G.lp); }, true);
+  document.addEventListener("pointermove", e => { if (tm && Math.hypot(e.clientX - x0, e.clientY - y0) > SVI_G.drag) clearTimeout(tm); }, true);
+  ["pointerup", "pointercancel"].forEach(t => document.addEventListener(t, () => clearTimeout(tm), true));
+  document.addEventListener("contextmenu", e => { const el = e.target.closest && e.target.closest("[data-tip]"); if (!el) return; e.preventDefault(); e.stopPropagation(); clearTimeout(tm); show(el); }, true);
+}
 /* v785 : RACCOURCIS COMMUNS — Ctrl (Commande sur l'iPad) + Z = ANNULER, + Y (ou Maj + Z) = RÉTABLIR, sur tout écran qui a la barre commune.
    Dans une case en cours de saisie (curseur dans le texte), le raccourci reste celui du texte. */
 document.addEventListener("keydown", e => {

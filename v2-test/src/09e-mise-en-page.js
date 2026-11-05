@@ -92,6 +92,14 @@ const sviMep = (() => {
       });
       pages.push(`<div class="mep-pw"><div class="mep-pg${ed ? " lay" : ""}" style="width:${W}px;height:${H}px">${D.prelim && !ed ? `<div class="mep-wm" style="${D.wmColor ? "color:" + D.wmColor : ""}">${E(D.wmText || "VERSION PRÉLIMINAIRE")}</div>` : ""}${h}${chunks.length > 1 ? `<div class="mep-no">${pi + 1} / ${chunks.length}</div>` : ""}</div></div>`);
     });
+    /* B29 : page ANNEXE (ex. clauses particulières de la commande) : entête et pied repris, articles numérotés */
+    if (D.annex && (D.annex.items || []).length && !ed) {
+      let h = ""; ["entete", "pied"].forEach(k => { const b = Ly[k]; if (b && !b.hide && inner[k]) h += blockHTML(k, b, inner[k], false, { x: b.x, y: b.y, w: b.w, h: b.h }); });
+      const y = Ly.entete.y + Ly.entete.h + 20, cb = Ly.corps;
+      h += `<div class="mep-annex" style="position:absolute;left:${cb.x}px;top:${y}px;width:${cb.w}px;font-size:${cb.fs || 12}px"><div class="mep-ax-t">ANNEXE — ${E(D.annex.title || "")} — ${E(D.ref || "")}</div>
+        ${D.annex.items.map((x, i) => `<div class="mep-ax-i"><b>ARTICLE ${i + 1}${x[0] ? " — " + E(x[0]) : ""}</b>${x[1] ? " : " + E(x[1]) : ""}</div>`).join("")}</div>`;
+      pages.push(`<div class="mep-pw"><div class="mep-pg" style="width:${W}px;height:${H}px">${h}</div></div>`);
+    }
     return pages.join("");
   };
   /* volet de gauche */

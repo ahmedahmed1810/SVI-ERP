@@ -98,12 +98,28 @@ function sviAchInit() {
      GÉNÉRAL = règles internes (B30) alignées en colonnes régulières, puis ALERTES DE RETARD (B13), PLAFONDS EN ESPÈCES (B12),
      MENTIONS IMPRIMÉES (B14) et SEUILS DE VALIDATION (B25). Banques : PARAMÉTRAGE GÉNÉRAL (B9) ; TVA et transport : PARAMÉTRAGE GÉNÉRAL › GÉNÉRAL (B2) ;
      l'alerte du prévu du budget ira au module PRODUCTIVITÉ (B19). Les explications passent dans la bulle des champs (B16, B17). */
-  const PTABS = [["gen", "GÉNÉRAL"], ["cat", "CATÉGORIES"], ["grp", "GROUPES DE FOURNISSEURS"]];
+  const PTABS = [["gen", "GÉNÉRAL"], ["cat", "CATÉGORIES"], ["grp", "GROUPES DE FOURNISSEURS"], ["ref", "RÉFÉRENCES"], ["cla", "CLAUSES"]];
   const prmTab = () => { let k = "gen"; try { k = localStorage.getItem("svi_achprm_tab_v1") || "gen"; } catch (e) {} return PTABS.some(x => x[0] === k) ? k : "gen"; };
   const prmHTML = () => {
     const P = achPrm(), T = prmTab();
     const catRows = cfApply("ach_cat", [["cat1", "CATÉGORIE (FAMILLE D'ARTICLES)", x => x, ""]], P.cat);
     const tabs = `<div class="bdg-d-tabs ach-ptabs">${PTABS.map(([k, l]) => `<button type="button" class="bdg-d-tab tab-eq${k === T ? " active" : ""}" data-ptab="${k}">${l}</button>`).join("")}</div>`;
+    /* B27 : RÉFÉRENCES — modèle et remise à zéro du compteur par type de pièce */
+    if (T === "ref") return `<div class="ach-prm">${tabs}
+      <div class="ach-pbox"><div class="ach-pt">RÉFÉRENCES DES PIÈCES</div><table class="bdg-d-table prm-table ach-pref"><colgroup><col style="width:300px"><col style="width:280px"><col style="width:220px"><col style="width:220px"></colgroup>
+        <thead><tr><th>TYPE DE PIÈCE</th><th data-tip="TEXTE FIXE TEL QUEL ; VARIABLES ENTRE ACCOLADES : {AA} ANNÉE SUR 2 CHIFFRES ({AAAA} SUR 4), {MM} MOIS, {JJ} JOUR, {NNN} COMPTEUR (AUTANT DE CHIFFRES QUE DE N). EXEMPLE : DVF {AA}-{MM}{JJ}/{NNN} → DVF 26-0101/012">MODÈLE</th><th>EXEMPLE (AUJOURD'HUI, N° 12)</th><th>REMISE À ZÉRO DU COMPTEUR</th></tr></thead>
+        <tbody>${ACH_REF_T.map(([k, l]) => { const R = P.refs[k]; return `<tr><td>${l}</td><td><input class="ins-in ach-ref" data-k="${k}" data-f="m" value="${esc(R.m)}" autocomplete="off"></td><td>${esc(achRefFill(R.m, new Date(), 12))}</td>
+          <td><select class="ins-in ach-ref" data-k="${k}" data-f="rz">${ACH_REF_RZ.map(([v, t]) => `<option value="${v}"${v === R.rz ? " selected" : ""}>${t}</option>`).join("")}</select></td></tr>`; }).join("")}</tbody></table></div>
+      </div>`;
+    /* B29 : CLAUSES — deux tableaux pliables (générales : chaque nouveau fournisseur ; particulières : chaque nouvelle commande, page annexe) */
+    if (T === "cla") { const tb = (l, ttl, L) => `<details class="ach-pbox ach-pfold" open><summary class="ach-pt">${ttl} ${svCnt(L.length)}</summary>
+        <table class="bdg-d-table prm-table ach-pcl"><colgroup><col style="width:60px"><col style="width:260px"><col style="width:620px"><col style="width:44px"></colgroup>
+        <thead><tr><th class="center">N°</th><th>TYPE</th><th>ARTICLE</th><th class="center"><input type="checkbox" class="ach-pall" aria-label="Tout cocher"></th></tr></thead>
+        <tbody>${L.map((x, i) => `<tr data-clid="${esc(x.id)}"><td class="center">${i + 1}</td><td><select class="ins-in ach-cl" data-l="${l}" data-f="t">${ACH_CLT.map(([k, t]) => `<option value="${k}"${k === x.t ? " selected" : ""}>${t}</option>`).join("")}</select></td>
+          <td><input class="ins-in ach-cl" data-l="${l}" data-f="txt" value="${esc(x.txt || "")}" autocomplete="off"></td><td class="center"><input type="checkbox" class="ach-pcb" data-xcl="${l}|${esc(x.id)}"></td></tr>`).join("")}
+          <tr class="ach-new"><td></td><td colspan="2"><input class="ins-in ach-clnew" data-l="${l}" placeholder="CRÉER UN ARTICLE ICI…" autocomplete="off"></td><td></td></tr></tbody></table>
+        <div class="prm-foot"><button type="button" class="prm-del ach-pdel" data-pdel="cl${l}" disabled>SUPPRIMER LES LIGNES COCHÉES <span class="svi-cnt">0</span></button></div></details>`;
+      return `<div class="ach-prm">${tabs}${tb("G", "CLAUSES GÉNÉRALES D'ACHAT (CONTRAT TYPE, REPRIS SUR CHAQUE NOUVEAU FOURNISSEUR)", P.clG)}${tb("P", "CLAUSES PARTICULIÈRES (REPRISES SUR CHAQUE NOUVELLE COMMANDE, IMPRIMÉES EN ANNEXE)", P.clP)}</div>`; }
     if (T === "cat") return `<div class="ach-prm">${tabs}
       <div class="ach-pbox"><div class="ach-pt">CATÉGORIES ${svCnt ? svCnt(catRows.length, P.cat.length) : ""}</div>
         <div class="ach-scroll"><table id="achCatT" class="bdg-d-table prm-table ach-table" data-ach="cat" style="width:${cw("cat", "cat1") + 44}px"><colgroup><col data-w="ach_cat.cat1" style="width:${cw("cat", "cat1")}px"><col style="width:44px"></colgroup>
@@ -226,11 +242,12 @@ function sviAchInit() {
       const xg = new Set(ck.map(c => c.dataset.xgrp).filter(Boolean));
       if (xg.size) { const u = achFrs().find(f => !f.del && xg.has(achFrsGrpId(f))); if (u) { svToast("GROUPE UTILISÉ PAR " + u.code + " — " + u.nom + " : SUPPRESSION REFUSÉE.", 4000); return; }
         if (xg.size >= achPrm().grp.length) { svToast("IL FAUT GARDER AU MOINS UN GROUPE.", 3000); return; } }
-      const labs = ck.map(c => c.dataset.xcat || ((achPrm().grp.find(g => g.id === c.dataset.xgrp) || {}).nom || "") || (c.dataset.xesp ? "PLAFOND EN ESPÈCES" : "") || (c.dataset.xseu ? "SEUIL DE VALIDATION" : "")).filter(Boolean);
+      const labs = ck.map(c => c.dataset.xcat || ((achPrm().grp.find(g => g.id === c.dataset.xgrp) || {}).nom || "") || (c.dataset.xesp ? "PLAFOND EN ESPÈCES" : "") || (c.dataset.xseu ? "SEUIL DE VALIDATION" : "") || (c.dataset.xcl ? "ARTICLE " + ((c.closest("tr").querySelector('input[data-f="txt"]') || {}).value || "") : "")).filter(Boolean);
       if (!ck.length || !(await svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES", html: `<ul class="svc-list">${labs.map(l => `<li>${esc(l)}</li>`).join("")}</ul>`, ok: "SUPPRIMER" }))) return;
       const P = achPrm(), xc = new Set(ck.map(c => c.dataset.xcat).filter(Boolean)), xb = new Set(ck.map(c => c.dataset.xbq).filter(Boolean));
       const xe = new Set(ck.map(c => c.dataset.xesp).filter(Boolean)), xs = new Set(ck.map(c => c.dataset.xseu).filter(Boolean));
-      P.cat = P.cat.filter(c => !xc.has(c)); P.grp = P.grp.filter(g => !xg.has(g.id)); P.espL = P.espL.filter(x => !xe.has(x.id)); P.seuV = P.seuV.filter(x => !xs.has(x.id)); achPrmSave(P); draw(); return; }
+      P.cat = P.cat.filter(c => !xc.has(c)); P.grp = P.grp.filter(g => !xg.has(g.id)); P.espL = P.espL.filter(x => !xe.has(x.id)); P.seuV = P.seuV.filter(x => !xs.has(x.id));
+      const xl = new Set(ck.map(c => c.dataset.xcl).filter(Boolean)); P.clG = P.clG.filter(x => !xl.has("G|" + x.id)); P.clP = P.clP.filter(x => !xl.has("P|" + x.id)); achPrmSave(P); draw(); return; }
     /* v810 : champs obligatoires d'un groupe de fournisseurs */
     const gq = e.target.closest(".ach-greq");
     if (gq) { const P0 = achPrm(), g0 = P0.grp.find(g => g.id === gq.dataset.greq); if (!g0) return; const d = sviWinNew();
@@ -281,6 +298,14 @@ function sviAchInit() {
     if (t.classList.contains("ach-all")) { body.querySelectorAll("tr[data-id]").forEach(tr => { if (t.checked) SEL.add(tr.dataset.id); else SEL.delete(tr.dataset.id); }); draw(); return; }
     if (t.classList.contains("ach-cb")) { const tr = t.closest("tr[data-id]"); if (t.checked) SEL.add(tr.dataset.id); else SEL.delete(tr.dataset.id); draw(); return; }
     /* paramètres — série B : plafond de transactions (unité), alertes de retard, plafonds en espèces, mentions, seuils de validation */
+    if (t.classList.contains("ach-ref")) { const P = achPrm(), k = t.dataset.k, f = t.dataset.f, v = f === "m" ? String(t.value).trim() : t.value;
+      if (f === "m" && v && !/\{N+\}/.test(v)) { svToast("LE MODÈLE DOIT CONTENIR LE COMPTEUR {NNN}.", 3500, t); draw(); return; }
+      P.refs = { ...P.refs, [k]: { ...P.refs[k], [f]: v } }; achPrmSave(P); draw(); return; }
+    if (t.classList.contains("ach-cl") || t.classList.contains("ach-clnew")) { const P = achPrm(), l = "cl" + t.dataset.l, L = P[l].map(x => ({ ...x }));
+      if (t.classList.contains("ach-clnew")) { const v = achU(t.value); if (!v) return; L.push({ id: "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 4), t: "autre", txt: v }); }
+      else { const x = L.find(y => y.id === t.closest("tr").dataset.clid); if (!x) return;
+        if (t.dataset.f === "t") { if (!x.txt || x.txt === achCltDef(x.t)) x.txt = achCltDef(t.value); x.t = t.value; } else x.txt = achU(t.value); }
+      P[l] = L; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-pplu")) { const P = achPrm(); P.plafU = t.value; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-alr")) { const P = achPrm(), s = String(t.value).trim(); if (s && !/^\d+$/.test(s)) { svToast("NOMBRE DE JOURS (VIDE = PAS D'ALERTE).", 3000, t); draw(); return; } P.alr = { ...P.alr, [t.dataset.k]: s === "" ? "" : +s }; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-esp")) { const P = achPrm(), x = P.espL.find(y => y.id === t.closest("tr").dataset.eid); if (!x) return; const f = t.dataset.f;
