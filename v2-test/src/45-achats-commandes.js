@@ -218,6 +218,7 @@ function achCmfFiche(id, done) {
       if (achCmfSeu(C) && !achCircDone(C)) { svToast("AU-DELÀ DU SEUIL DE VALIDATION : ENVOYER EN VALIDATION.", 3500); return; }
       { const no = achDirCmfCheck(C) || achCmfValNo(C); if (no) { svToast(no + ".", 5500); return; } }
       if (await achFrsStop(achFrs().find(f => f.id === C.frs), "VALIDER LA COMMANDE " + C.ref)) return;
+      if (await achArtStop(C.lignes, "VALIDER LA COMMANDE " + C.ref)) return;
       if (!(await svConfirm({ title: "VALIDER LA COMMANDE", text: C.ref + " : " + achF2(achCmfTot(C).ttc) + " TTC (" + frMoney(achCmfTot(C).ttc) + "). LE MONTANT EST ENGAGÉ SUR LE BUDGET DES BESOINS.", ok: "VALIDER", tone: "neutral" }))) return;
       C.state = "valide"; C.valide = achNow(); store("VALIDÉE"); draw(); return; }
     if (e.target.closest("[data-fac]")) { achFafFiche(null, { cmf: C.id }, () => draw()); return; }

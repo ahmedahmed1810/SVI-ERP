@@ -3102,7 +3102,7 @@ def main():
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v764 : ARTICLES au format du budget — listes EN INSTANCE / VALIDÉS, dates, création par fenêtre (en instance, corbeille), page : bloc DOC / TAF / OBS, ⋯ VALIDER et UNITÉ DE CONVERSION, devis liés, ‹ ›",
               a764 == ["ARTICLES (VALIDÉS) 2", 2, 2, 1, "instance", "ARTICLES (EN INSTANCE) 1", 1, True, True, "ART-0003", True, 3, 1, True,
-                       "FIGER|UNITÉ DE CONVERSION|BUDGETS (0)|APERÇU|MODIFIER LE FORMAT|DISPOSITION PAR DÉFAUT|SUPPRIMER CET ARTICLE|FERMER", '[{"u":"SAC","r":20}]', "fige", True, "valide", True, "ARTICLES (VALIDÉS) 3", True, True, True], a764)
+                       "FIGER|UNITÉ DE CONVERSION|BUDGETS (0)|BLOQUER|APERÇU|MODIFIER LE FORMAT|DISPOSITION PAR DÉFAUT|SUPPRIMER CET ARTICLE|FERMER", '[{"u":"SAC","r":20}]', "fige", True, "valide", True, "ARTICLES (VALIDÉS) 3", True, True, True], a764)
         # v765 : toutes les listes des achats au format du budget — pas d'onglets, titre EN INSTANCE / VALIDÉS + bascule, dates, corbeille = ANNULER
         l765 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_caf_v1', 'svi_ach_caf_mode_v1', 'svi_ach_caf_etat2_v1'], keep = K.map(k => localStorage.getItem(k)); K.forEach(k => localStorage.removeItem(k));
             achCafSave([{ id: 'c1', ref: 'CAF 1', state: 'ouverte', cree: '2026-10-30T10:00:00Z', lignes: [], frs: [] }, { id: 'c2', ref: 'CAF 2', state: 'close', cree: '2026-10-20T10:00:00Z', valide: '2026-10-25T10:00:00Z', lignes: [], frs: [] }]);
@@ -3719,6 +3719,18 @@ def main():
   const g2 = v.querySelector('[data-ptab="grp"]'); g2.click(); await w(200); r.noNote = !v.querySelector('.ach-note') && !!v.querySelector('.ach-pt[data-tip]');
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("SÉRIE B, B16 : plus de phrase d'explication sous les champs — l'explication passe dans la bulle (appui long ou clic droit sur l'intitulé) : PARAMÉTRAGE GÉNÉRAL, ACHATS › PARAMÈTRES, fiches", b16.get('pgTip') and b16.get('achTip') and b16.get('bubble') and b16.get('noNote'), b16)
+        b8 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_art_v1', 'svi_pg_v1'], keep = K.map(k => localStorage.getItem(k));
+  const o = sviPg(); o.lieux = [{ id: 'p1', p: '', lab: 'MAROC' }, { id: 'r1', p: 'p1', lab: 'SOUSS' }, { id: 'v1', p: 'r1', lab: 'AGADIR' }]; sviPgSave(o);
+  const L = achFrs(); const f = achFrsNew(L, { nom: 'LIEUX' }); achFrsSave(L);
+  document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(300); achFrsFiche(f.id); await w(400);
+  r.villes = [...document.querySelectorAll('#frsL-ville option')].map(x => x.value).join(','); r.pays = [...document.querySelectorAll('#frsL-pays option')].map(x => x.value).join(',');
+  document.querySelectorAll('#svConf').forEach(x => x.remove());
+  const A = achArts(); A.push({ id: 'AB1', code: 'ART-9100', des: 'FER HA8', u: 'T', cat: 'GROS ŒUVRE', bloq: { why: 'QUALITÉ' } }); achArtsSave(A);
+  const p = achArtStop([{ des: 'FER HA8', u: 'T' }], 'TEST'); await w(300); r.ask = !!document.querySelector('.ask-v'); [...document.querySelectorAll('[data-x]')].pop().click(); r.stop = await p;
+  r.free = await achArtStop([{ des: 'AUTRE', u: 'T' }], 'TEST');
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check('SÉRIE B, B8 B44 : pays et ville de la fiche fournisseur proposés depuis LIEUX ; ARTICLE BLOQUÉ = commande arrêtée sauf autorisation exceptionnelle', b8.get('villes') == 'AGADIR' and b8.get('pays') == 'MAROC' and b8.get('ask') and b8.get('stop') is True and b8.get('free') is False, b8)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

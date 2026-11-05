@@ -289,6 +289,10 @@ const achFrsArchWhy = f => { const w = [], P = achPrm(), n = Math.max(12, P.dorm
   PA.filter(p => p.frs === f.id && (p.state === "instance" || p.state === "emis")).forEach(p => w.push("PAIEMENT EN COURS : " + p.ref));
   achDvf().filter(v => v.frs === f.id && v.state === "recu" && (!v.validite || v.validite >= new Date().toISOString().slice(0, 10))).forEach(v => w.push("DEVIS EN ATTENTE : " + v.ref));
   return w; };
+/* B44 : un ARTICLE bloqué suit la même règle (commande arrêtée sauf autorisation exceptionnelle) */
+async function achArtStop(lignes, what) { const B = achArts().filter(a => !a.del && a.bloq), hit = B.filter(a => (lignes || []).some(l => achKey(l.des, l.u) === achKey(a.des, a.u))); if (!hit.length) return false;
+  const m = await achAsk("ARTICLE BLOQUÉ — " + hit.map(a => a.des).join(", "), "BLOQUÉ : " + hit.map(a => (a.bloq.why || "")).join(" ; ") + ". AUTORISATION EXCEPTIONNELLE D'UN SUPÉRIEUR POUR : " + what + " (NOM ET MOTIF)");
+  if (!m) return true; hit.forEach(a => achHist(a.code, "AUTORISATION EXCEPTIONNELLE", what + " — " + m)); return false; }
 /* B44 : BLOQUÉ (à la main) — plus de commande, réception, facture ni paiement, sauf AUTORISATION EXCEPTIONNELLE d'un supérieur (nom et motif, notée dans H) ;
    ARCHIVÉ — rien du tout. Renvoie true si l'opération est arrêtée. */
 async function achFrsStop(fr, what) { if (!fr || !(fr.bloq || fr.arch || fr.actif === false)) return false;

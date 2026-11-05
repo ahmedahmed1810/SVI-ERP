@@ -382,7 +382,7 @@ function achRefSvi(x, L, pfx) {
 }
 function achArtNvMod(ctx) {
   const same = (l, a) => achKey(l.des, l.u) === achKey(a.des, a.u);
-  const artWhy = a => achArtWhy(a).concat(a.cat ? [] : ["CATÉGORIE MANQUANTE"]);
+  const artWhy = a => achArtWhy(a).concat(a.cat ? [] : ["CATÉGORIE MANQUANTE"]).concat(a.bloq ? ["BLOQUÉ : " + (a.bloq.why || "")] : []);
   return achNvMod(ctx, {
     list: { k: "art", t: "ach_art2", id: "achArtT", name: "ARTICLES", one: "ARTICLE", all: achArts, save: achArtsSave, code: a => achRefSvi(a, achArts(), "ARA"), nom: a => a.des, why: artWhy,
       newRow: "CRÉER UN ARTICLE ICI…", add: done => achArtFiche(null, done),
@@ -397,8 +397,11 @@ function achArtNvMod(ctx) {
       return { id, code: a.code, ref: achRefSvi(a, achArts(), "ARA"), tag: "ARTICLE", title: a.des + " (" + a.u + ")", st: achStF(a), del: !!a.del, inactif: a.actif === false, why: artWhy(a),
         info: done => achArtFiche(id, () => done()),
         menu: [...achNvCycle(a), { k: "cv", lab: "UNITÉ DE CONVERSION" + ((a.cv || []).length ? " (" + a.cv.length + ")" : "") }, { k: "bdg", lab: "BUDGETS (" + achArtBudgets(a).length + ")" },
+          a.del ? null : a.bloq ? { k: "debl", lab: "DÉBLOQUER" } : { k: "bloq", lab: "BLOQUER" },
           a.del ? { k: "rest", lab: "RESTAURER" } : { k: "del", lab: "SUPPRIMER CET ARTICLE" }].filter(Boolean),
         act: async (k, redraw) => { const L = achArts(), x = L.find(y => y.id === id); if (!x) return;
+          if (k === "bloq") { const m = await achAsk("BLOQUER " + x.des, "MOTIF DU BLOCAGE"); if (!m) return; x.bloq = { u: sviUser(), t: achNow(), why: m }; x.mod = achNow(); achArtsSave(L); achHist(x.code, "BLOQUÉ", m); redraw(); return; }
+          if (k === "debl") { const m = await achAsk("DÉBLOQUER " + x.des, "MOTIF DU DÉBLOCAGE"); if (!m) return; delete x.bloq; x.mod = achNow(); achArtsSave(L); achHist(x.code, "DÉBLOQUÉ", m); redraw(); return; }
           if (k === "fige") { if (await achNvFiger(L, x, x.code, x.des, artWhy(x), achArtsSave)) redraw(); return; }
           if (k === "defige") { achNvDefiger(L, x, x.code, x.des, achArtsSave); redraw(); return; }
           if (k === "val") { if (await achNvValider(L, x, x.code, x.des, artWhy(x), achArtsSave)) redraw(); return; }

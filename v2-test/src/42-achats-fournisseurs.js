@@ -159,9 +159,9 @@ function achFrsFiche(id, sec, done) {
         <div class="rec-tabs frs-tabs">${TABS.map(t => `<button type="button" class="rec-tab${t[0] === tab ? " active on" : ""}" data-ftab="${t[0]}">${t[1]}</button>`).join("")}</div>
         <div class="frs-scroll">
         <div class="frs-sec" data-s="id"><div class="frs-st">IDENTITÉ</div><div class="frs-g">
-          ${inp("nom", "NOM", { req: 1, w: 1 })}${sel("grp", "GROUPE <b>*</b>", achPrm().grp.map(g => [g.id, g.nom + " (" + g.pre + ")"]), { dis: achSt(f0) !== "instance" })}${inp("denom", "DÉNOMINATION SOCIALE", { w: 1 })}${inp("forme", "FORME JURIDIQUE", { list: ACH_FORMES })}${inp("ville", "VILLE")}
+          ${inp("nom", "NOM", { req: 1, w: 1 })}${sel("grp", "GROUPE <b>*</b>", achPrm().grp.map(g => [g.id, g.nom + " (" + g.pre + ")"]), { dis: achSt(f0) !== "instance" })}${inp("denom", "DÉNOMINATION SOCIALE", { w: 1 })}${inp("forme", "FORME JURIDIQUE", { list: ACH_FORMES })}${inp("ville", "VILLE", { list: sviPgVilles().map(x => x.lab) })}
           ${(() => { const T = sviPgL("ftypes").map(t => [t.lab, t.lab + (t.pre ? " (" + t.pre + ")" : "")]); if (F.type && !T.some(t => t[0] === F.type)) T.push([F.type, F.type]);
-            return sel("type", "TYPE DE FOURNISSEUR", T, { dis: achSt(f0) !== "instance" && !!(achFrsType(f0) || {}).pre }); })()}${inp("pays", "PAYS")}${(() => { const L = sviLangues().slice(); if (F.lang && !L.includes(F.lang)) L.push(F.lang);
+            return sel("type", "TYPE DE FOURNISSEUR", T, { dis: achSt(f0) !== "instance" && !!(achFrsType(f0) || {}).pre }); })()}${inp("pays", "PAYS", { list: sviPgL("lieux").filter(x => !x.p).map(x => x.lab) })}${(() => { const L = sviLangues().slice(); if (F.lang && !L.includes(F.lang)) L.push(F.lang);
             return sel("lang", "LANGUE", [...L, ["__add", "AJOUTER…"]]); })()}
           ${inp("adresse", "ADRESSE", { w: 1 })}${inp("site", "SITE WEB", { keep: 1 })}${inp("resp", "RESPONSABLE INTERNE")}
           ${inp("origine", "ORIGINE (TROUVÉ COMMENT, RECOMMANDÉ PAR QUI)", { w: 1 })}

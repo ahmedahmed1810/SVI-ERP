@@ -290,6 +290,10 @@ const achFrsArchWhy = f => { const w = [], P = achPrm(), n = Math.max(12, P.dorm
   PA.filter(p => p.frs === f.id && (p.state === "instance" || p.state === "emis")).forEach(p => w.push("PAIEMENT EN COURS : " + p.ref));
   achDvf().filter(v => v.frs === f.id && v.state === "recu" && (!v.validite || v.validite >= new Date().toISOString().slice(0, 10))).forEach(v => w.push("DEVIS EN ATTENTE : " + v.ref));
   return w; };
+/* B44 : un ARTICLE bloqué suit la même règle (commande arrêtée sauf autorisation exceptionnelle) */
+async function achArtStop(lignes, what) { const B = achArts().filter(a => !a.del && a.bloq), hit = B.filter(a => (lignes || []).some(l => achKey(l.des, l.u) === achKey(a.des, a.u))); if (!hit.length) return false;
+  const m = await achAsk("ARTICLE BLOQUÉ — " + hit.map(a => a.des).join(", "), "BLOQUÉ : " + hit.map(a => (a.bloq.why || "")).join(" ; ") + ". AUTORISATION EXCEPTIONNELLE D'UN SUPÉRIEUR POUR : " + what + " (NOM ET MOTIF)");
+  if (!m) return true; hit.forEach(a => achHist(a.code, "AUTORISATION EXCEPTIONNELLE", what + " — " + m)); return false; }
 /* B44 : BLOQUÉ (à la main) — plus de commande, réception, facture ni paiement, sauf AUTORISATION EXCEPTIONNELLE d'un supérieur (nom et motif, notée dans H) ;
    ARCHIVÉ — rien du tout. Renvoie true si l'opération est arrêtée. */
 async function achFrsStop(fr, what) { if (!fr || !(fr.bloq || fr.arch || fr.actif === false)) return false;
@@ -1333,9 +1337,9 @@ function achFrsFiche(id, sec, done) {
         <div class="rec-tabs frs-tabs">${TABS.map(t => `<button type="button" class="rec-tab${t[0] === tab ? " active on" : ""}" data-ftab="${t[0]}">${t[1]}</button>`).join("")}</div>
         <div class="frs-scroll">
         <div class="frs-sec" data-s="id"><div class="frs-st">IDENTITÉ</div><div class="frs-g">
-          ${inp("nom", "NOM", { req: 1, w: 1 })}${sel("grp", "GROUPE <b>*</b>", achPrm().grp.map(g => [g.id, g.nom + " (" + g.pre + ")"]), { dis: achSt(f0) !== "instance" })}${inp("denom", "DÉNOMINATION SOCIALE", { w: 1 })}${inp("forme", "FORME JURIDIQUE", { list: ACH_FORMES })}${inp("ville", "VILLE")}
+          ${inp("nom", "NOM", { req: 1, w: 1 })}${sel("grp", "GROUPE <b>*</b>", achPrm().grp.map(g => [g.id, g.nom + " (" + g.pre + ")"]), { dis: achSt(f0) !== "instance" })}${inp("denom", "DÉNOMINATION SOCIALE", { w: 1 })}${inp("forme", "FORME JURIDIQUE", { list: ACH_FORMES })}${inp("ville", "VILLE", { list: sviPgVilles().map(x => x.lab) })}
           ${(() => { const T = sviPgL("ftypes").map(t => [t.lab, t.lab + (t.pre ? " (" + t.pre + ")" : "")]); if (F.type && !T.some(t => t[0] === F.type)) T.push([F.type, F.type]);
-            return sel("type", "TYPE DE FOURNISSEUR", T, { dis: achSt(f0) !== "instance" && !!(achFrsType(f0) || {}).pre }); })()}${inp("pays", "PAYS")}${(() => { const L = sviLangues().slice(); if (F.lang && !L.includes(F.lang)) L.push(F.lang);
+            return sel("type", "TYPE DE FOURNISSEUR", T, { dis: achSt(f0) !== "instance" && !!(achFrsType(f0) || {}).pre }); })()}${inp("pays", "PAYS", { list: sviPgL("lieux").filter(x => !x.p).map(x => x.lab) })}${(() => { const L = sviLangues().slice(); if (F.lang && !L.includes(F.lang)) L.push(F.lang);
             return sel("lang", "LANGUE", [...L, ["__add", "AJOUTER…"]]); })()}
           ${inp("adresse", "ADRESSE", { w: 1 })}${inp("site", "SITE WEB", { keep: 1 })}${inp("resp", "RESPONSABLE INTERNE")}
           ${inp("origine", "ORIGINE (TROUVÉ COMMENT, RECOMMANDÉ PAR QUI)", { w: 1 })}
@@ -2245,6 +2249,7 @@ function achCmfFiche(id, done) {
       if (achCmfSeu(C) && !achCircDone(C)) { svToast("AU-DELÀ DU SEUIL DE VALIDATION : ENVOYER EN VALIDATION.", 3500); return; }
       { const no = achDirCmfCheck(C) || achCmfValNo(C); if (no) { svToast(no + ".", 5500); return; } }
       if (await achFrsStop(achFrs().find(f => f.id === C.frs), "VALIDER LA COMMANDE " + C.ref)) return;
+      if (await achArtStop(C.lignes, "VALIDER LA COMMANDE " + C.ref)) return;
       if (!(await svConfirm({ title: "VALIDER LA COMMANDE", text: C.ref + " : " + achF2(achCmfTot(C).ttc) + " TTC (" + frMoney(achCmfTot(C).ttc) + "). LE MONTANT EST ENGAGÉ SUR LE BUDGET DES BESOINS.", ok: "VALIDER", tone: "neutral" }))) return;
       C.state = "valide"; C.valide = achNow(); store("VALIDÉE"); draw(); return; }
     if (e.target.closest("[data-fac]")) { achFafFiche(null, { cmf: C.id }, () => draw()); return; }
@@ -3117,7 +3122,7 @@ function achRefSvi(x, L, pfx) {
 }
 function achArtNvMod(ctx) {
   const same = (l, a) => achKey(l.des, l.u) === achKey(a.des, a.u);
-  const artWhy = a => achArtWhy(a).concat(a.cat ? [] : ["CATÉGORIE MANQUANTE"]);
+  const artWhy = a => achArtWhy(a).concat(a.cat ? [] : ["CATÉGORIE MANQUANTE"]).concat(a.bloq ? ["BLOQUÉ : " + (a.bloq.why || "")] : []);
   return achNvMod(ctx, {
     list: { k: "art", t: "ach_art2", id: "achArtT", name: "ARTICLES", one: "ARTICLE", all: achArts, save: achArtsSave, code: a => achRefSvi(a, achArts(), "ARA"), nom: a => a.des, why: artWhy,
       newRow: "CRÉER UN ARTICLE ICI…", add: done => achArtFiche(null, done),
@@ -3132,8 +3137,11 @@ function achArtNvMod(ctx) {
       return { id, code: a.code, ref: achRefSvi(a, achArts(), "ARA"), tag: "ARTICLE", title: a.des + " (" + a.u + ")", st: achStF(a), del: !!a.del, inactif: a.actif === false, why: artWhy(a),
         info: done => achArtFiche(id, () => done()),
         menu: [...achNvCycle(a), { k: "cv", lab: "UNITÉ DE CONVERSION" + ((a.cv || []).length ? " (" + a.cv.length + ")" : "") }, { k: "bdg", lab: "BUDGETS (" + achArtBudgets(a).length + ")" },
+          a.del ? null : a.bloq ? { k: "debl", lab: "DÉBLOQUER" } : { k: "bloq", lab: "BLOQUER" },
           a.del ? { k: "rest", lab: "RESTAURER" } : { k: "del", lab: "SUPPRIMER CET ARTICLE" }].filter(Boolean),
         act: async (k, redraw) => { const L = achArts(), x = L.find(y => y.id === id); if (!x) return;
+          if (k === "bloq") { const m = await achAsk("BLOQUER " + x.des, "MOTIF DU BLOCAGE"); if (!m) return; x.bloq = { u: sviUser(), t: achNow(), why: m }; x.mod = achNow(); achArtsSave(L); achHist(x.code, "BLOQUÉ", m); redraw(); return; }
+          if (k === "debl") { const m = await achAsk("DÉBLOQUER " + x.des, "MOTIF DU DÉBLOCAGE"); if (!m) return; delete x.bloq; x.mod = achNow(); achArtsSave(L); achHist(x.code, "DÉBLOQUÉ", m); redraw(); return; }
           if (k === "fige") { if (await achNvFiger(L, x, x.code, x.des, artWhy(x), achArtsSave)) redraw(); return; }
           if (k === "defige") { achNvDefiger(L, x, x.code, x.des, achArtsSave); redraw(); return; }
           if (k === "val") { if (await achNvValider(L, x, x.code, x.des, artWhy(x), achArtsSave)) redraw(); return; }
