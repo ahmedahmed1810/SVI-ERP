@@ -17,9 +17,13 @@ const ACH_LK_LIST = { frs: "frs", art: "art", caf: "caf", dvf: "dvf", cmf: "cmf"
 const achLkIdx = t => { const k = ACH_K[ACH_LK_LIST[t]]; return k ? achMemo("lk_" + t, [k], () => new Map((achJ(k, []) || []).map(x => [x.id, x]))) : new Map(); };
 const achLkSt = (t, id) => { if (!ACH_LK_LIST[t]) return ""; let x = null; try { x = achLkIdx(t).get(id); } catch (e) {} if (!x) return "";
   if (x.del || x.state === "annule" || x.state === "rejete") return "annule"; if (t === "frs" || t === "art") return x.bloq || x.arch ? "bloque" : achSt(x);
-  return x.state === "instance" || x.state === "ouverte" || x.state === "recu" || x.state === "reclame" ? "instance" : "valide"; };
+  /* 05/11 (2.10) : comme dans sa propre liste — devis reçu en partie chiffré (bleu, PARTIEL) ; paiement ÉMIS (orange, REMIS) */
+  if (t === "dvf" && x.state !== "instance") { const L = x.lignes || []; if (L.some(l => achN(l.pu) > 0) && L.some(l => !(achN(l.pu) > 0))) return "partiel"; }
+  if (x.state === "instance" || x.state === "ouverte" || x.state === "recu" || x.state === "reclame") return "instance";
+  if (x.state === "emis") return "remis";
+  return "valide"; };
 function achLkPaint(root) { (root || document).querySelectorAll(".ach-link[data-nvgo]").forEach(b => { const [t, id] = String(b.dataset.nvgo).split("|"), s = achLkSt(t, id);
-  if (b.dataset.lk === s) return; ["instance", "valide", "annule", "bloque"].forEach(k => b.classList.toggle("lk-" + k, k === s)); b.dataset.lk = s; }); }
+  if (b.dataset.lk === s) return; ["instance", "partiel", "remis", "valide", "annule", "bloque"].forEach(k => b.classList.toggle("lk-" + k, k === s)); b.dataset.lk = s; }); }
 { let raf = 0; new MutationObserver(() => { if (raf) return; raf = requestAnimationFrame(() => { raf = 0; const v = document.getElementById("ach"); if (v) achLkPaint(v); const c = document.getElementById("svConf"); if (c) achLkPaint(c); }); })
     .observe(document.documentElement, { childList: true, subtree: true }); }
 const achSt = x => x && (x.st === "instance" || x.st === "fige") ? "instance" : "valide";

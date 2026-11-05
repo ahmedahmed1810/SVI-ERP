@@ -3913,6 +3913,16 @@ def main():
   r.order = hs().map(c => c.textContent.trim()).slice(0, 4).join('|'); r.cell = [...tb().tBodies[0].rows[0].cells].slice(0, 4).map(c => c.textContent.trim()).join('|');
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("SÉRIE B, B47 B48 : colonnes des pièces — chaque colonne se règle seule (les autres ne bougent pas), l'ordre se change en glissant un titre (cellules suivent) ; ouverture directe d'une pièce rapide (sans redessiner la liste, texte des listes gardé décompressé)", b47.get('ref') == 'DVF 26-0101/10' and b47.get('ms', 9999) < 400 and b47.get('only') and b47.get('other') and b47.get('order') == 'RÉFÉRENCE|U|QUANTITÉ|DÉSIGNATION' and b47.get('cell') == 'DVF 26-0101/10-001|U|2,00|ART 10', b47)
+        b210 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_dvf_v1', 'svi_ach_cmf_v1'], keep = K.map(k => localStorage.getItem(k));
+  await sviAchLoad(); const L = achFrs(); const f = achFrsNew(L, { nom: 'NOIR' }); f.st = 'valide'; achFrsSave(L);
+  achDvfSave([{ id: 'VK', ref: 'DVF A', frs: f.id, state: 'instance', lignes: [{ des: 'X', u: 'U', q: 1, pu: 1 }] }, { id: 'VP', ref: 'DVF P', frs: f.id, state: 'recu', lignes: [{ des: 'X', u: 'U', q: 1, pu: 1 }, { des: 'Y', u: 'U', q: 1, pu: 0 }] }]);
+  document.querySelector('#navMenu .nav-btn[data-ach="dvf"]').click(); await w(300); achGo('dvf', 'VK'); await w(700);
+  const pg = document.querySelector('#ach .nvp'); pg.style.setProperty('--st-valide', '#00ff00'); pg.style.setProperty('--st-instance', '#00ff00');
+  const b = document.querySelector('#ach .nvp-blk'); b.insertAdjacentHTML('beforeend', `<table><tbody><tr class="nvr-instance"><td style="-webkit-text-fill-color:#00ff00"><button type="button" class="ach-link" data-nvgo="frs|${f.id}">F</button></td><td><button type="button" class="ach-link" data-nvgo="dvf|VP">P</button></td><td class="q">1</td></tr></tbody></table>`); await w(200);
+  const c = e => getComputedStyle(e).color + '/' + getComputedStyle(e).webkitTextFillColor, bt = b.querySelectorAll('tr.nvr-instance .ach-link');
+  r.frs = c(bt[0]); r.dvf = c(bt[1]); r.q = getComputedStyle(b.querySelector('tr.nvr-instance td.q')).color;
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("DOCUMENT UNIQUE 2.10 : sur une ligne en instance, le fournisseur validé reste noir et le devis partiel bleu (couleurs de la palette, même si le format de l'interface ou des lignes change) ; les champs simples prennent la couleur de la pièce de la ligne", b210.get('frs') == 'rgb(23, 32, 51)/rgb(23, 32, 51)' and b210.get('dvf') == 'rgb(29, 78, 216)/rgb(29, 78, 216)' and b210.get('q') == 'rgb(0, 255, 0)', b210)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

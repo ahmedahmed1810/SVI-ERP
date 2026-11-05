@@ -3357,6 +3357,8 @@ function sviColors() {
 function sviColorsApply() {
   const C = sviColors(), r = document.documentElement;
   Object.keys(C).forEach(k => r.style.setProperty("--st-" + k, C[k]));
+  /* 05/11 (document unique 2.10) : copie de la palette que rien ne remplace (ni le format d'une interface) — couleurs des noms liés */
+  Object.keys(C).forEach(k => r.style.setProperty("--stg-" + k, C[k]));
 }
 function sviColorsSave(o) {
   try { localStorage.setItem(SVI_COL_KEY, JSON.stringify(o)); } catch (e) {}

@@ -3053,10 +3053,16 @@ tr.av-orow .av-olab { display: inline-block; min-width: 140px; font-weight: 800;
 /* ===== v759 : ACHATS — FOURNISSEURS ===== */
 #ach .ach-link, #svConf .ach-link, #sviScreenTag .ach-link { background: none; border: 0; padding: 0; font: inherit; font-weight: 800; color: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 /* B51 (05/11) : nom lié = couleur de son propre état (palette), souligné */
-html body .ach-link[data-nvgo].lk-instance { color: var(--st-instance, #b91c1c) !important; }
-html body .ach-link[data-nvgo].lk-valide { color: var(--st-valide, #172033) !important; }
-html body .ach-link[data-nvgo].lk-bloque { color: var(--st-bloque, #6b7280) !important; }
-html body .ach-link[data-nvgo].lk-annule { color: #94a3b8 !important; text-decoration: line-through underline; }
+/* 05/11 (document unique 2.10) : un nom lié garde la couleur de SON état, prise dans la palette (--stg-*) — ni la couleur de la ligne,
+   ni le format d'une interface, ni la couleur des lignes du tableau ne la remplacent */
+html body .ach-link[data-nvgo].lk-instance { color: var(--stg-instance, #b91c1c) !important; -webkit-text-fill-color: currentColor !important; }
+html body .ach-link[data-nvgo].lk-partiel { color: var(--stg-partiel, #1d4ed8) !important; -webkit-text-fill-color: currentColor !important; }
+html body .ach-link[data-nvgo].lk-remis { color: var(--stg-remis, #ea580c) !important; -webkit-text-fill-color: currentColor !important; }
+html body .ach-link[data-nvgo].lk-valide { color: var(--stg-valide, #172033) !important; -webkit-text-fill-color: currentColor !important; }
+html body .ach-link[data-nvgo].lk-bloque { color: var(--stg-bloque, #6b7280) !important; -webkit-text-fill-color: currentColor !important; }
+html body .ach-link[data-nvgo].lk-annule { color: #94a3b8 !important; -webkit-text-fill-color: currentColor !important; text-decoration: line-through underline; }
+/* 05/11 (2.10) : la couleur de l'état d'une ligne prime sur la couleur des lignes réglée dans le format */
+html body table tbody tr[class*="inst-"] td, html body table tbody tr[class*="nvr-"] td, html body table tbody tr.etat-bloque td { -webkit-text-fill-color: currentColor !important; }
 .svc-card.frs-card { width: min(980px, 96vw) !important; max-width: 96vw; }
 .frs-card .frs-scroll { max-height: 64vh; overflow: auto; padding-right: 4px; }
 .frs-card .frs-why { margin: 6px 0 8px; padding: 8px 10px; border-radius: 8px; background: #fff7ed; color: #9a3412; font-size: 12px; font-weight: 800; }
@@ -3108,11 +3114,11 @@ table.svi-bdgl tbody tr[data-nvo] { cursor: pointer; }
 table.svi-bdgl thead th .cf-wrap { float: none; width: 100%; }
 #ach .nvp .nv-strike td { text-decoration: line-through; color: #94a3b8; }
 /* B3 (série B) : ligne entière à la couleur de l'état de la pièce liée */
-#ach .nvp .nvp-blk tr.nvr-instance td, #ach .nvp .nvp-blk tr.nvr-instance td .ach-link { color: var(--st-instance, #b91c1c) !important; }
-#ach .nvp .nvp-blk tr.nvr-fige td, #ach .nvp .nvp-blk tr.nvr-fige td .ach-link { color: var(--st-fige, #15803d) !important; }
-#ach .nvp .nvp-blk tr.nvr-partiel td, #ach .nvp .nvp-blk tr.nvr-partiel td .ach-link { color: var(--st-partiel, #1d4ed8) !important; }
-#ach .nvp .nvp-blk tr.nvr-remis td, #ach .nvp .nvp-blk tr.nvr-remis td .ach-link { color: var(--st-remis, #ea580c) !important; }
-#ach .nvp .nvp-blk tr.nvr-valide td, #ach .nvp .nvp-blk tr.nvr-valide td .ach-link { color: var(--st-valide, #172033) !important; }
+#ach .nvp .nvp-blk tr.nvr-instance td, #ach .nvp .nvp-blk tr.nvr-instance td .ach-link:not([data-nvgo]) { color: var(--st-instance, #b91c1c) !important; }
+#ach .nvp .nvp-blk tr.nvr-fige td, #ach .nvp .nvp-blk tr.nvr-fige td .ach-link:not([data-nvgo]) { color: var(--st-fige, #15803d) !important; }
+#ach .nvp .nvp-blk tr.nvr-partiel td, #ach .nvp .nvp-blk tr.nvr-partiel td .ach-link:not([data-nvgo]) { color: var(--st-partiel, #1d4ed8) !important; }
+#ach .nvp .nvp-blk tr.nvr-remis td, #ach .nvp .nvp-blk tr.nvr-remis td .ach-link:not([data-nvgo]) { color: var(--st-remis, #ea580c) !important; }
+#ach .nvp .nvp-blk tr.nvr-valide td, #ach .nvp .nvp-blk tr.nvr-valide td .ach-link:not([data-nvgo]) { color: var(--st-valide, #172033) !important; }
 /* v771 : bloc AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES comme les autres blocs — 5 lignes par défaut, défilement au-delà, poignée libre */
 .blk-etp .etp-pane .rec-scroll { height: auto; max-height: var(--h-etp, var(--svi-hdef-n, 129px)); overflow: auto; }
 .bdg-d-page.max-etp .blk-etp .etp-pane .rec-scroll { max-height: none !important; }
