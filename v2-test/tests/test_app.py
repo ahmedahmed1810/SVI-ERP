@@ -3507,6 +3507,14 @@ def main():
             if (keepRh === null) localStorage.removeItem(DLY_RH_KEY); else localStorage.setItem(DLY_RH_KEY, keepRh); return r; }""")
         check("FORME 04/11, remarque 16 : sur ordinateur — Ctrl / Cmd + molette = hauteur des lignes du Gantt (zoom de la page bloqué), Option + molette = échelle du temps, clic droit = appui long",
               g16.get("g") and g16.get("rh") and g16.get("dw") and g16.get("ctx") == "d:touch,u|true", g16)
+        # remarque 7 : fenêtres — nom du champ au-dessus, trois colonnes (INF comprise) ; champs agrandissables par leur coin
+        f7 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {};
+            const p = sviPopNew(); p.innerHTML = '<div class="doc-card"><div class="doc-body"><div class="doc-grid"><span class="doc-lab">A</span><input class="doc-in" id="tA"><span class="doc-lab">B</span><input class="doc-in" id="tB"><div class="doc-note">N</div></div></div></div>'; sviPopShow(p); await w(120);
+            const a = p.querySelector('#tA'), la = p.querySelector('.doc-lab'); r.top = !!a.closest('.doc-cell') && la.getBoundingClientRect().bottom <= a.getBoundingClientRect().top + 1 && p.querySelector('.doc-note').classList.contains('doc-span');
+            p.remove(); const d = sviWinNew(); d.innerHTML = sviWinCard({ title: 'T', body: '<div class="frs-g"><label class="frs-f"><span>NOM</span><input class="ins-in" data-k="nom"></label></div>' }); sviWinShow(d); await w(120);
+            r.rsz = !!d.querySelector('.frs-f .svc-fw .fld-rsz'); d.remove(); return r; }""")
+        check("FORME 04/11, remarque 7 : fenêtres — nom du champ au-dessus du champ (cases sur trois colonnes, ce qui n'est pas un champ sur toute la largeur), champs des fenêtres agrandissables par leur coin",
+              f7.get("top") and f7.get("rsz"), f7)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

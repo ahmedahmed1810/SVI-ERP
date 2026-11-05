@@ -110,6 +110,29 @@ function sviFootUp(f) {
   const twin = bs.some(b => b !== x && /^ANNULER\s/.test(String(b.textContent || "").trim()));
   if (x && bs.length > 1 && !twin) { x.textContent = "ANNULER"; f.prepend(x); }
 }
+/* v930 (remarque 7 du 04/11/2026, document unique 10.2) : NOM DU CHAMP AU-DESSUS DU CHAMP, sur deux ou trois colonnes, dans toutes
+   les fenêtres au format INF (#docPop : INF du budget, nouveau budget, avenant, documents, TAF, observations…) — chaque libellé et son champ
+   forment une case ; ce qui n'est pas un champ (note, fichier) prend toute la largeur. Les fenêtres des achats l'ont déjà (NOUVELLE FACTURE). */
+function sviGridTop(g) {
+  if (!g || g.dataset.top) return; g.dataset.top = "1";
+  const C = [...g.children];
+  for (let i = 0; i < C.length; i++) {
+    const c = C[i]; if (!c.matches(".doc-lab")) { c.classList.add("doc-span"); continue; }
+    const cell = document.createElement("div"); cell.className = "doc-cell"; g.insertBefore(cell, c); cell.appendChild(c);
+    const n = C[i + 1]; if (n && !n.matches(".doc-lab")) { cell.appendChild(n); i++; }
+  }
+}
+/* champs des fenêtres des achats (#svConf) agrandissables par leur coin (même poignée que les fenêtres INF ; taille gardée par champ) */
+function sviFldRszUp(i) {
+  if (!i || i.__rsz || i.closest(".fld-wrap") || i.closest("table") || ["checkbox", "radio", "file", "color", "hidden"].includes(i.type)) return; i.__rsz = true;
+  const lab = i.closest("label"), k = "fld.svc." + (i.dataset.k || i.dataset.f || i.id || ((lab && lab.querySelector("span")) || {}).textContent || "x").replace(/\s+/g, " ").trim();
+  const wrap = document.createElement("span"); wrap.className = "fld-wrap svc-fw"; i.replaceWith(wrap); wrap.appendChild(i);
+  const S = (() => { try { return psLoad()[k]; } catch (e) { return null; } })(); if (S && S.w) { wrap.style.width = S.w + "px"; wrap.classList.add("sized"); } if (S && S.h) i.style.height = S.h + "px";
+  const hd = document.createElement("span"); hd.className = "fld-rsz"; hd.title = "Glisser pour régler la taille du champ"; wrap.appendChild(hd);
+  hd.addEventListener("pointerdown", e => { const r = i.getBoundingClientRect(); let w = r.width, h = r.height;
+    dragXY(e, (dx, dy) => { w = Math.max(60, Math.round(r.width + dx)); h = Math.max(28, Math.round(r.height + dy)); wrap.style.width = w + "px"; wrap.classList.add("sized"); i.style.height = h + "px"; }, () => psSet(k, { w, h })); });
+  hd.addEventListener("dblclick", () => { wrap.style.width = ""; wrap.classList.remove("sized"); i.style.height = ""; psSet(k, null); });
+}
 function sviUpAll() {
   document.querySelectorAll(SVI_UP_SC).forEach(root => {
     root.querySelectorAll("select").forEach(sviSelUp);
@@ -117,6 +140,8 @@ function sviUpAll() {
     root.querySelectorAll("button[data-addl]").forEach(sviAddRowUp);
     root.querySelectorAll("table").forEach(sviRmUp);
     root.querySelectorAll(".svc-f").forEach(sviFootUp);
+    root.querySelectorAll(".doc-grid").forEach(sviGridTop);
+    if (root.id === "svConf") root.querySelectorAll(".frs-f > input.ins-in, .frs-f > textarea.ins-in").forEach(sviFldRszUp);
   });
 }
 let sviUpRaf = 0;

@@ -1360,6 +1360,21 @@ détail technique en petit */
 #svMaskPop .mkp-m { height: 32px; border: 1px solid #d0d5dd; border-radius: 7px; padding: 0 8px; font-size: 14px; }
 #svMaskPop .mkp-c, #svMaskPop .mkp-x, #svMaskPop .mkp-n { font-size: 11px; font-weight: 700; color: #475467; }
 #svMaskPop .mkp-b { display: flex; justify-content: flex-end; gap: 8px; }
+/* v930 (remarque 7) : fenêtres au format INF — nom du champ au-dessus, trois colonnes (deux, puis une sur petit écran) */
+#docPop .doc-grid[data-top] { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; align-items: start !important; gap: 10px 14px !important; }
+#docPop .doc-grid.doc-grid-2[data-top] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+#docPop .doc-grid[data-top] > .doc-span { grid-column: 1 / -1; }
+#docPop .doc-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+#docPop .doc-cell > .doc-lab { padding-top: 0 !important; margin-left: 0 !important; white-space: normal; }
+#docPop .doc-cell .inf-cell { align-items: flex-start !important; justify-content: flex-start !important; text-align: left; }
+#docPop .doc-cell > .doc-in, #docPop .doc-cell > .fld-wrap:not(.sized), #docPop .doc-cell > .inf-cell, #docPop .doc-cell > .doc-row { width: 100%; box-sizing: border-box; }
+@media (max-width: 900px) { #docPop .doc-grid[data-top] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
+@media (max-width: 560px) { #docPop .doc-grid[data-top] { grid-template-columns: 1fr !important; } }
+#svConf .svc-fw { position: relative; display: block; min-width: 0; }
+#svConf .svc-fw.sized { max-width: none; }
+#svConf .svc-fw > input, #svConf .svc-fw > textarea { width: 100%; box-sizing: border-box; }
+#svConf .svc-fw .fld-rsz { position: absolute; right: 1px; bottom: 1px; width: 12px; height: 12px; cursor: nwse-resize; touch-action: none; opacity: .5;
+  background: linear-gradient(135deg, transparent 50%, #9aa3af 50%, #9aa3af 60%, transparent 60%, transparent 75%, #9aa3af 75%, #9aa3af 85%, transparent 85%); }
 #home .home-note { padding: 14px 16px; color: #475467; font-size: 12px; font-weight: 700; }
 #blkMenu .dly-sc.on span { font-weight: 800; }
 #blkMenu [data-dly].off { opacity: .45; }
