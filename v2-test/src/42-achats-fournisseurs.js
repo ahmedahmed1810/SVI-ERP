@@ -150,7 +150,7 @@ function achFrsFiche(id, sec, done) {
     </tbody></table>${ro ? "" : `<button type="button" class="ach-b frs-add" data-add="${k}" data-addl>+ ${add}</button>`}`;
   /* v801 : la fenêtre i a cinq onglets (checklist, fenêtre i du fournisseur, 02/11/2026) */
   const TABS = [["id", "IDENTITÉ", ["id", "cte"]], ["leg", "FISCAL ET LÉGAL", ["fisc", "qual", "secu", "docf"]], ["bq", "BANQUE ET PAIEMENT", ["rib", "cpt", "enc", "cau"]],
-    ["ach", "CONDITIONS D'ACHAT", ["cond", "com", "imp", "ferm", "sav", "tar", "fam", "cgf", "cla"]], ["rsq", "RISQUE ET MOYENS", ["rsq", "moy", "refs"]]];
+    ["ach", "CONDITIONS D'ACHAT", ["cond", "com", "imp", "ferm", "sav", "tar", "fam", "cgf", "cla"]], ["rsq", "RISQUE ET MOYENS", ["rsq", "moy", "refs"]], ["sim", "FOURNISSEURS SIMILAIRES", ["sim"]], ["stat", "STATISTIQUES", ["stat"]]];
   let tab = (TABS.find(t => t[2].includes(sec)) || TABS[0])[0];
   const draw = () => {
     const why = achFrsWhy(F, achFrs()), note = achFrsNote(F);
@@ -221,6 +221,16 @@ function achFrsFiche(id, sec, done) {
           ${ro ? "" : `<table class="prm-table frs-sub frs-ecrit"><thead><tr><th>CRITÈRE</th><th>NOTE (0 À 10)</th></tr></thead><tbody>${[0, 1, 2, 3, 4].map(i => `<tr><td><input class="ins-in frs-ed" data-i="${i}" placeholder="${["QUALITÉ", "DÉLAIS", "PRIX", "SERVICE", ""][i]}" autocomplete="off"></td><td><input class="ins-in frs-en" data-i="${i}" inputmode="decimal" autocomplete="off"></td></tr>`).join("")}</tbody></table><button type="button" class="ach-b frs-add" data-evladd>+ AJOUTER L'ÉVALUATION</button>`}</div>
         <div class="frs-sec" data-s="cgf"><div class="frs-st">CONTRATS ${svCnt(F.cgf.length)}</div>
           ${sub("cgf", [["intitule", "INTITULÉ"], ["debut", "DÉBUT", (r) => `<input type="date" class="ins-in frs-s" data-c="debut" value="${esc(r.debut || "")}"${ro ? " readonly" : ""}>`], ["fin", "FIN", (r) => `<input type="date" class="ins-in frs-s" data-c="fin" value="${esc(r.fin || "")}"${ro ? " readonly" : ""}>`]], "AJOUTER UN CONTRAT")}</div>
+        ${(() => { const SP = achFrsSpec(f0), S = achFrsSim(f0); /* B33 : spécialité (catégories des articles vendus) et fournisseurs qui vendent les mêmes articles ou catégories */
+          return `<div class="frs-sec" data-s="sim"><div class="frs-st">SPÉCIALITÉ</div><div class="bsn-note">${SP.length ? SP.map(esc).join(" · ") : "— (CATÉGORIES DES ARTICLES VENDUS, D'APRÈS SES DEVIS ET COMMANDES)"}</div>
+            <div class="frs-st">FOURNISSEURS SIMILAIRES ${svCnt(S.length)}</div><table class="prm-table frs-sub frs-sim"><thead><tr><th>FOURNISSEUR</th><th class="center">ARTICLES COMMUNS</th><th>CATÉGORIES COMMUNES</th><th>FRÉQUENCE</th></tr></thead><tbody>
+            ${S.map(s => `<tr><td>${esc(achFrsRef(s.f) + " — " + s.f.nom)}</td><td class="center" title="${esc(s.arts.map(k => k.replace("|", " (") + ")").join(", "))}">${s.arts.length}</td><td>${esc(s.cats.join(", "))}</td><td>${esc(achFrsFreq(s.f).lab || "—")}</td></tr>`).join("") || `<tr><td colspan="4" class="empty">AUCUN</td></tr>`}</tbody></table></div>`; })()}
+        ${(() => { const T = achFrsStats(f0), F2 = v => achF2(v); /* B43 : statistiques (les courbes viendront plus tard) */
+          return `<div class="frs-sec" data-s="stat"><div class="frs-st">STATISTIQUES (12 DERNIERS MOIS)</div><div class="frs-g">
+            <label class="frs-f"><span>FRÉQUENCE</span><input class="ins-in" value="${esc(T.freq.lab ? T.freq.lab + (T.freq.m !== undefined ? " (" + String(Math.round(T.freq.m * 10) / 10).replace(".", ",") + " MOIS ENTRE DEUX COMMANDES)" : "") : "—")}" readonly></label>
+            <label class="frs-f"><span>COMMANDES (EN TOUT)</span><input class="ins-in" value="${T.n}" readonly></label><label class="frs-f"><span>ACHETÉ SUR 12 MOIS (HT)</span><input class="ins-in" value="${esc(F2(T.mt))}" readonly></label></div>
+            <div class="frs-st">PARTS PAR ARTICLE ${svCnt(T.parts.length)}</div><table class="prm-table frs-sub frs-stat"><thead><tr><th>ARTICLE</th><th>U</th><th class="number">ACHETÉ ICI (HT)</th><th class="number">TOTAL ARTICLE (HT)</th><th class="number">PART</th><th class="center">FOURNISSEURS</th></tr></thead><tbody>
+            ${T.parts.map(p => `<tr><td>${esc(p.des)}</td><td>${esc(p.u)}</td><td class="number">${esc(F2(p.mt))}</td><td class="number">${esc(F2(p.tot))}</td><td class="number">${esc(String(Math.round(p.pct)))} %</td><td class="center">${p.n}</td></tr>`).join("") || `<tr><td colspan="6" class="empty">AUCUN ACHAT SUR 12 MOIS</td></tr>`}</tbody></table></div>`; })()}
         <div class="frs-sec" data-s="cla"><div class="frs-st">CLAUSES GÉNÉRALES D'ACHAT ${svCnt(F.cla.length)}</div>
           ${sub("cla", [["t", "TYPE", (r) => `<select class="ins-in frs-s" data-c="t"${ro ? " disabled" : ""}>${ACH_CLT.map(([k, l]) => `<option value="${k}"${k === r.t ? " selected" : ""}>${l}</option>`).join("")}</select>`], ["txt", "ARTICLE"]], "AJOUTER UN ARTICLE")}</div>
         </div>`,

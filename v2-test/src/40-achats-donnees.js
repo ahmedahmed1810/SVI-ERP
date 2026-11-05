@@ -223,6 +223,29 @@ const achFrsFreq = f => { if (!f) return { k: "", lab: "" }; if (achFrsDormant(f
   const C = (achFrsDates().get(f.id) || {}).cmd || []; if (C.length < 2) return { k: "", lab: "" };
   const P = achPrm(), m = (new Date(C[C.length - 1]) - new Date(C[0])) / 864e5 / (C.length - 1) / 30.44;
   const k = m <= P.freqA ? "frequent" : m <= P.freqB ? "normal" : "occasionnel"; return { k, lab: ACH_FREQ.find(x => x[0] === k)[1], m }; };
+/* B40 (série B) : fournisseurs LIÉS (maison mère, filiale, même groupe) = un seul pour la répartition — racine commune du groupe de liens */
+const achFrsRootMap = () => achMemo("froot", [ACH_K.frs], () => { const L = achFrsRO().filter(f => !f.del), P = new Map(L.map(f => [f.id, f.id]));
+  const find = x => { while (P.get(x) !== x) { P.set(x, P.get(P.get(x))); x = P.get(x); } return x; };
+  L.forEach(f => { if (f.lie && P.has(f.lie)) { const a = find(f.id), b = find(f.lie); if (a !== b) P.set(a < b ? b : a, a < b ? a : b); } });
+  const M = new Map(); L.forEach(f => M.set(f.id, find(f.id))); return M; });
+const achFrsRoot = id => achFrsRootMap().get(id) || id;
+/* B33, B34, B35, B43 : achats par article sur l'année glissante (12 derniers mois) — commandes validées ou soldées, montant HT par groupe de fournisseurs */
+const achBuy12 = () => achMemo("buy12", [ACH_K.cmf, ACH_K.frs], () => { const lim = new Date(); lim.setFullYear(lim.getFullYear() - 1); const L0 = lim.toISOString().slice(0, 10), M = new Map();
+  achCmf().filter(c => (c.state === "valide" || c.state === "solde") && c.frs && String(c.valide || c.cree || "").slice(0, 10) >= L0).forEach(c => { const g = achFrsRoot(c.frs), r = 1 - achN(c.rem) / 100;
+    (c.lignes || []).forEach(l => { const k = achKey(l.des, l.u), mt = achN(l.q) * achN(l.pu) * r; if (!(mt > 0)) return; if (!M.has(k)) M.set(k, new Map()); const m = M.get(k); m.set(g, (m.get(g) || 0) + mt); }); });
+  return M; });
+/* articles qu'un fournisseur vend (devis non annulés + commandes) et leurs catégories = sa SPÉCIALITÉ */
+const achFrsArts = () => achMemo("frsart", [ACH_K.dvf, ACH_K.cmf, ACH_K.art], () => { const M = new Map(), add = (f, l) => { if (!f || !l.des) return; if (!M.has(f)) M.set(f, new Set()); M.get(f).add(achKey(l.des, l.u)); };
+  achDvf().filter(v => v.state !== "annule").forEach(v => (v.lignes || []).forEach(l => add(v.frs, l))); achCmf().filter(c => c.state !== "annule").forEach(c => (c.lignes || []).forEach(l => add(c.frs, l))); return M; });
+const achArtCatOf = k => { const a = achArts().find(x => !x.del && achKey(x.des, x.u) === k); return a ? a.cat || "" : ""; };
+const achFrsSpec = f => [...new Set([...(achFrsArts().get(f.id) || [])].map(achArtCatOf).filter(Boolean))].sort();
+const achFrsSim = f => { const A = achFrsArts().get(f.id) || new Set(), C = new Set(achFrsSpec(f)); if (!A.size && !C.size) return [];
+  return achLive(achFrsRO()).filter(x => x.id !== f.id && !x.arch).map(x => { const B = achFrsArts().get(x.id) || new Set(), ca = [...B].filter(k => A.has(k)), cc = [...new Set([...B].map(achArtCatOf).filter(c => C.has(c)))];
+    return { f: x, arts: ca, cats: cc }; }).filter(s => s.arts.length || s.cats.length).sort((a, b) => b.arts.length - a.arts.length || b.cats.length - a.cats.length || a.f.nom.localeCompare(b.f.nom)); };
+/* B43 : STATISTIQUES du fournisseur — fréquence, commandes, montant sur 12 mois, part par article (son groupe de liens compte comme un seul) */
+const achFrsStats = f => { const g = achFrsRoot(f.id), B = achBuy12(), parts = []; let mt = 0;
+  B.forEach((m, k) => { const v = m.get(g) || 0; if (!(v > 0)) return; const tot = [...m.values()].reduce((s, x) => s + x, 0); mt += v; const [des, u] = k.split("|"); parts.push({ k, des, u, mt: v, tot, pct: tot ? v / tot * 100 : 0, n: m.size }); });
+  parts.sort((a, b) => b.mt - a.mt); const D = achFrsDates().get(f.id) || { cmd: [] }; return { freq: achFrsFreq(f), n: D.cmd.length, mt, parts }; };
 /* B44 : ARCHIVÉ — dormant depuis plus de 12 mois (ou le délai « dormant » s'il est plus long), au mois de clôture de l'exercice, soldé, sans pièce
    en cours ou en attente ; liste des empêchements (vide = archivage possible) */
 const achFrsArchWhy = f => { const w = [], P = achPrm(), n = Math.max(12, P.dorm), d = achFrsLast(f.id) || String(f.cree || "").slice(0, 10), lim = new Date(); lim.setMonth(lim.getMonth() - n);

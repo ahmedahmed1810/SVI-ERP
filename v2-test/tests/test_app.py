@@ -2944,7 +2944,7 @@ def main():
             return [r1, wc.length, wa.join('|'), h1, n0, n1, secs, conf, sig, hist, ok && pgOk]; }""")
         check("v759 : FOURNISSEURS — ICE (15 chiffres, unique), RIB 24 chiffres, occasionnel sans ICE ni RIB, document expiré ; onglet, création, fiche ; changement de RIB confirmé, signalé, noté dans H, puis RIB VÉRIFIÉ",
               f759[0] == ["FRS-0001", "FRS-0002", False, True, "FRS-0001", True] and f759[1] == 0 and "DOCUMENT EXPIRÉ : ATTESTATION CNSS" in f759[2] and "ICE EN DOUBLE" in f759[2]
-              and f759[3] == "FOURNISSEURS (VALIDÉS) 2" and f759[4] == 2 and f759[5] == 3 and f759[6] == "IDENTITÉ,FISCAL,QUALIFICATION,ASSURANCES,,COMPTE,RIB,ENCOURS,CAUTIONS,CONDITIONS,COMMANDE,IMPORT,FERMETURES,GARANTIE,TARIFS,FAMILLES,DOCUMENTS,CONTACTS,RISQUE,MOYENS,RÉFÉRENCES,ÉVALUATIONS,CONTRATS,CLAUSES|IDENTITÉ,FISCAL ET LÉGAL,BANQUE ET PAIEMENT,CONDITIONS D'ACHAT,RISQUE ET MOYENS|2"
+              and f759[3] == "FOURNISSEURS (VALIDÉS) 2" and f759[4] == 2 and f759[5] == 3 and f759[6] == "IDENTITÉ,FISCAL,QUALIFICATION,ASSURANCES,,COMPTE,RIB,ENCOURS,CAUTIONS,CONDITIONS,COMMANDE,IMPORT,FERMETURES,GARANTIE,TARIFS,FAMILLES,DOCUMENTS,CONTACTS,RISQUE,MOYENS,RÉFÉRENCES,ÉVALUATIONS,CONTRATS,SPÉCIALITÉ,FOURNISSEURS,STATISTIQUES,PARTS,CLAUSES|IDENTITÉ,FISCAL ET LÉGAL,BANQUE ET PAIEMENT,CONDITIONS D'ACHAT,RISQUE ET MOYENS,FOURNISSEURS SIMILAIRES,STATISTIQUES|2"
               and f759[7] == "CHANGEMENT DE RIB" and f759[8] and f759[9] and f759[10], f759)
         # v760 : BESOINS — charges du budget avec leurs tâches, contrôle prévu / déjà demandé, dépassement BLOQUÉ (justifier puis DÉBLOQUER),
         # seuil 90 %, centre SIÈGE hors budget ; menu ☰ › BESOIN, fiche de création (budget › charge › tâche), validation
@@ -3619,6 +3619,21 @@ def main():
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("SÉRIE B, B42 B44 : FRÉQUENCE calculée (fréquent, normal, occasionnel, dormant ; colonne et états de la liste ; case ACTIF retirée) ; ARCHIVER seulement dormant depuis 12 mois, soldé, sans pièce en cours ; BLOQUÉ = tout s'arrête sauf autorisation exceptionnelle notée ; archivé = rien", b42.get('fa') == 'FRÉQUENT' and b42.get('fb') == 'NORMAL' and b42.get('fc') == 'DORMANT' and b42.get('none') == '' and b42.get('archA') and b42.get('archC') == '' and b42.get('ask') and b42.get('stop') is False and b42.get('stopArch') is True and b42.get('col'), b42)
+        b43 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_cmf_v1', 'svi_ach_art_v1'], keep = K.map(k => localStorage.getItem(k));
+  const L = achFrs(); const a = achFrsNew(L, { nom: 'SIM A' }), b = achFrsNew(L, { nom: 'SIM B' }), c = achFrsNew(L, { nom: 'SIM C FILIALE' }); c.lie = b.id; achFrsSave(L);
+  const AR = achArts(); AR.push({ id: 'AZ1', code: 'ART-9001', des: 'CIMENT CPJ45', u: 'T', cat: 'GROS ŒUVRE' }); achArtsSave(AR);
+  const d = n => { const x = new Date(); x.setDate(x.getDate() - n); return x.toISOString(); };
+  const C = achCmf(); [[a.id, 10, 600], [b.id, 20, 300], [c.id, 30, 100], [a.id, 400, 999]].forEach(([f, n, pu], i) => C.push({ id: 'S' + i, ref: 'CMF S' + i, frs: f, state: 'solde', cree: d(n), valide: d(n), lignes: [{ des: 'CIMENT CPJ45', u: 'T', q: 1, pu }] })); achCmfSave(C);
+  r.root = achFrsRoot(c.id) === achFrsRoot(b.id); r.spec = achFrsSpec(a).join(','); r.sim = achFrsSim(a).map(s => s.f.nom + ':' + s.arts.length).join('|');
+  const T = achFrsStats(a); r.pct = Math.round(T.parts[0].pct); r.mt = T.mt; r.n = T.n;
+  const Tb = achFrsStats(b); r.pctB = Math.round(Tb.parts[0].pct);
+  document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(400); achFrsFiche(a.id); await w(400);
+  r.tabs = [...document.querySelectorAll('[data-ftab]')].map(b => b.textContent.trim()).slice(-2).join('|');
+  document.querySelector('[data-ftab="stat"]').click(); await w(200); r.statVis = !document.querySelector('.frs-sec[data-s="stat"]').hidden && document.querySelectorAll('.frs-stat tbody tr').length === 1;
+  document.querySelector('[data-x]').click(); await w(200);
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("SÉRIE B, B33 B43 (et B40) : fiche fournisseur — onglets FOURNISSEURS SIMILAIRES (spécialité d'après les catégories des articles vendus) et STATISTIQUES (fréquence, achats sur 12 mois, part par article) ; fournisseurs liés comptés comme un seul", b43.get('root') and b43.get('spec') == 'GROS ŒUVRE' and b43.get('sim') == 'SIM B:1|SIM C FILIALE:1' and b43.get('pct') == 60 and b43.get('mt') == 600 and b43.get('n') == 2 and b43.get('pctB') == 40 and b43.get('tabs') == 'FOURNISSEURS SIMILAIRES|STATISTIQUES' and b43.get('statVis'), b43)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
