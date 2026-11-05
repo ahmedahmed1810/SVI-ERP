@@ -3479,7 +3479,7 @@ def main():
         check("FORME 04/11, remarques 10 et 11 : interfaces (4 par pièce, 3 pour le budget, ordre du menu) et interface affichée connue ; MASQUER LA COLONNE dans la loupe, AFFICHER LES COLONNES MASQUÉES (compteur) dans le ⋯",
               f1104["ifs"] == "53|bdgl_i,bdgl_v,bdg,caf_li,caf_lv,caf_fi,caf_fv" and f1104["cur"] in ("bdgl_i", "bdgl_v") and f1104["colh"] == "1,true,0,1" and f1104["loupe"], f1104)
         check("FORME 04/11, remarques 12 et 13 : MODIFIER LE FORMAT d'une interface (ÉTAT de l'écran puis les éléments, sans les parties des fenêtres) ; écran d'ACCUEIL et RÉGLAGES COMMUNS (APPLIQUER PARTOUT remplace les réglages par interface)",
-              f1104["byCss"] and f1104["win1"] == "true,10,true" and f1104["saved"] == "#112233" and f1104["win2"] == "true,16,true" and f1104["cleared"] == 0 and f1104["home"], f1104)
+              f1104["byCss"] and f1104["win1"] == "true,10,true" and f1104["saved"] == "#112233" and f1104["win2"] == "true,22,true" and f1104["cleared"] == 0 and f1104["home"], f1104)
         check("FORME 04/11, remarques 14 et 15 : rubrique FORMAT et MASQUES DE SAISIE retirées de PARAMÉTRAGE ; masque posé sur un champ par appui long (clic droit), \"texte\" écrit d'office, autres signes placés d'office",
               f1104["noFmt"] and f1104["tok"] == "+212 6 12 34 56 78|ABC-123|123-AB" and f1104["pop"] and f1104["applied"] == "12345-B-67|99999-A-99", f1104)
         # remarque 16 : gestes sur ordinateur (Ctrl / Cmd + molette = hauteur des lignes, Option + molette = échelle du temps, clic droit = appui long)
@@ -3831,6 +3831,20 @@ def main():
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("05/11 : BANQUES › agence › MODES DE PAIEMENT (modèle d'impression par mode, dans la MISE EN PAGE) › CARNETS du n° au n°, feuilles suivies (utilisée par quel paiement, abîmée, erronée) ; paiement : IMPRIMER LE CHÈQUE avec le modèle de son carnet", c13.get('tree') == 'BANQUE UN,AGENCE AGADIR,CHÈQUE,C1:1000-1024' and c13.get('btn') and c13.get('used') == 1 and c13.get('of') == 'C1' and c13.get('win') == 25 and c13.get('fl') == '{"1001":"abime"}' and c13.get('mep'), c13)
+        c15 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_format_v1', 'svi_pal_v1', 'svi_colors_v1'], keep = K.map(k => localStorage.getItem(k));
+  sviFmtWin(null); await w(200); const d = document.querySelector('#svConf');
+  r.cats = [...d.querySelectorAll('.fmt-catg')].map(x => x.textContent.replace(/[›⌄]/g, '').trim()).join('|');
+  d.querySelector('[data-catf="lv"]').click(); await w(100); r.lv = [...document.querySelectorAll('#svConf .fmt-catr[data-cat="lv"]')].map(x => x.dataset.el).join(',');
+  document.querySelector('[data-catf="fi"]').click(); await w(100); r.fi = document.querySelectorAll('#svConf .fmt-catr[data-cat="fi"]').length;
+  document.querySelector('[data-catf="wi"]').click(); await w(100); r.wi = document.querySelectorAll('#svConf .fmt-catr[data-cat="wi"]').length;
+  const c = document.querySelector('#svConf .fmt-catr[data-cat="lv"][data-el="row"] input[data-f="bg"]'); c.value = '#123456'; c.dispatchEvent(new Event('input', { bubbles: true })); await w(50);
+  r.css = /html\[data-svif\$="_lv"\] body table tbody td[^{]*\{[^}]*#123456/.test(document.getElementById('sviFmtStyle').textContent);
+  document.querySelector('#svConf [data-pal="nuit"]').click(); await w(200); r.nuit = document.documentElement.classList.contains('svi-nuit') && sviPal().mode === 'nuit' && !!(sviFmt().el.top || {}).bg;
+  document.querySelector('#svConf [data-setdef]').click(); await w(100); r.def = !!(sviPal().def || {}).nuit;
+  document.querySelector('#svConf [data-pal="jour"]').click(); await w(200); r.jour = !document.documentElement.classList.contains('svi-nuit') && !!(sviPal().nuit || {}).F;
+  document.querySelectorAll('#svConf').forEach(x => x.remove());
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); sviFmtApply(); sviPalApply(); return r; }""")
+        check('05/11 : RÉGLAGES COMMUNS en arbre pliable (LISTE, FICHE, FENÊTRE — EN INSTANCE / VALIDÉE, seuls les éléments qui existent ; nouvelles parties des fenêtres) ; palettes JOUR et NUIT ; DÉFINIR COMME PAR DÉFAUT', c15.get('cats') == 'LISTE EN INSTANCE|LISTE VALIDÉE|FICHE EN INSTANCE|FICHE VALIDÉE|FENÊTRE EN INSTANCE|FENÊTRE VALIDÉE' and c15.get('lv') == 'top,th,row,tot' and c15.get('fi') == 10 and c15.get('wi') == 12 and c15.get('css') and c15.get('nuit') and c15.get('def') and c15.get('jour'), c15)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

@@ -1424,6 +1424,14 @@ détail technique en petit */
 .prm-foot[hidden] { display: none !important; }
 /* 05/11 : contrat du fournisseur en instance (nouvelle version à valider) */
 .frs-st.cla-inst { color: var(--svi-col-instance, #dc2626); }
+/* 05/11 : palette de NUIT — fond de page sombre (les éléments réglables viennent de la palette) ; bascule dans les RÉGLAGES COMMUNS */
+html.svi-nuit body, html.svi-nuit .content, html.svi-nuit section { background: #0b1220 !important; color: #e5e7eb; }
+html.svi-nuit .prm-table td, html.svi-nuit .bdg-d-table td { border-color: #334155; }
+.fmw-pal { display: inline-flex; align-items: center; gap: 4px; margin-right: auto; font-weight: 800; font-size: 12px; }
+.fmw-pal .svc-b.on { outline: 2px solid currentColor; }
+/* 05/11 : réglages communs en arbre pliable */
+.fmt-cat .fmt-catg td { background: #f1f4f8; }
+.fmt-cat .fmt-ind { display: inline-block; width: 22px; }
 #home .home-note { padding: 14px 16px; color: #475467; font-size: 12px; font-weight: 700; }
 #blkMenu .dly-sc.on span { font-weight: 800; }
 #blkMenu [data-dly].off { opacity: .45; }
