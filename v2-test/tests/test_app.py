@@ -3963,6 +3963,14 @@ def main():
         c4b = pg.evaluate("() => { const i = document.activeElement; return [i.selectionStart, i.selectionEnd]; }")
         pg.evaluate("() => { document.querySelectorAll('#svConf').forEach(x => x.remove()); const k = window.__c4k; k === null ? localStorage.removeItem('svi_ach_frs_v1') : localStorage.setItem('svi_ach_frs_v1', k); document.querySelector('#navMenu .nav-btn[data-view=\"bdg\"]').click(); }"); pg.wait_for_timeout(300)
         check("SÉRIE C, C4 (document unique 8.8) : 1er toucher sur un champ = tout le contenu sélectionné ; 2e toucher = curseur là où on touche", c4a[0] == 0 and c4a[1] == c4a[2] > 0 and c4b[0] == c4b[1] and 0 < c4b[0] < c4a[2], [c4a, c4b])
+        c3t = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_frs_v1'], keep = K.map(k => localStorage.getItem(k)); await sviAchLoad(); const L = achFrs(); const f = achFrsNew(L, { nom: 'LARGEURS' }); achFrsSave(L);
+  document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(300); achFrsFiche(f.id); await w(700);
+  const o = {}, H = new Set(); const ks = [...document.querySelectorAll('#svConf [data-ftab]')].map(t => t.dataset.ftab);
+  for (const k of ks) { document.querySelector('#svConf [data-ftab="' + k + '"]').click(); await w(250);
+    document.querySelectorAll('#svConf [data-fam]').forEach(e => { if (!e.offsetWidth || (!e.classList.contains('fld-wrap') && e.closest('.fld-wrap'))) return; const r = e.getBoundingClientRect(); (o[e.dataset.fam] = o[e.dataset.fam] || new Set()).add(Math.round(r.width)); if (e.dataset.fam !== 'long') H.add(Math.round(r.height)); }); }
+  document.querySelectorAll('#svConf').forEach(x => x.remove()); K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200);
+  return { date: [...(o.date || [])].join(','), code: [...(o.code || [])].join(','), mt: [...(o.mt || [])].join(','), pct: [...(o.pct || [])].join(','), nb: [...(o.nb || [])].join(','), h: [...H].join(',') }; }""")
+        check('SÉRIE C, C3 (document unique 10.6) : fiche fournisseur — tous les champs à la même hauteur ; même largeur par famille (dates, codes, montants, pourcentages, petits nombres)', c3t.get('date') == '132' and c3t.get('code') == '196' and c3t.get('mt') == '150' and c3t.get('pct') == '96' and c3t.get('nb') == '96' and c3t.get('h') == '34', c3t)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

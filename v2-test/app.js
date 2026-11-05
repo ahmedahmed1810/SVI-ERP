@@ -4454,6 +4454,38 @@ function sviWhyUp(card) {
     b.addEventListener("click", e => { e.stopPropagation(); svToast("⚠ " + (b.__msgs || []).join(" · "), 6000, b); }); }
   b.__msgs = msgs; b.innerHTML = `⚠<b>${msgs.length}</b>`;
 }
+/* C3 (série C, document unique 10.6) : TAILLE DES CHAMPS — même hauteur pour tous ; même largeur pour une même famille, partout :
+   date ; date et heure ; montant ; pourcentage ; petit nombre ; code ; RIB ; téléphone ; e-mail et site ; texte court ; texte long.
+   La famille se lit sur le type du champ et sur son intitulé ; un champ agrandi à la main (.sized) garde sa taille. */
+const SVI_FAM_W = { date: 132, dt: 196, mt: 150, pct: 96, nb: 96, code: 196, rib: 290, tel: 164, mail: 270, court: 220, long: "100%" };
+function sviFldFam(el) {
+  const t = String(el.getAttribute("type") || "").toLowerCase(), lab0 = el.closest("label, .doc-cell, .frs-f"), sp = lab0 && lab0.querySelector("span, .doc-lab");
+  const L = String((sp && sp !== el && (sp.dataset.olab || sp.textContent)) || el.getAttribute("aria-label") || el.placeholder || "").toUpperCase();
+  const ph = String(el.placeholder || "").toUpperCase();
+  if (/HH:MM/.test(ph) && /AAAA/.test(ph)) return "dt";
+  if (el.classList.contains("sv-date") || /JJ\/MM\/AAAA/.test(ph)) return "date";
+  if (t === "datetime-local" || (/DATE|\bLE$|\bLE\b.*\bÀ\b/.test(L) && /HEURE|\bÀ\b/.test(L))) return "dt";
+  if (t === "date" || /^DATE\b|\bDATE\b|\bLE$|DÉBUT$|FIN$|ÉCHÉANCE|EXPIR/.test(L)) return "date";
+  if (el.tagName === "TEXTAREA" || /ADRESSE|MÉMO|NOTE|OBSERVATION|EXPLICATION|COMMENTAIRE|DESCRIPTI|OBJET|MOTIF|CLAUSE|TEXTE/.test(L)) return "long";
+  if (/^VILLE|^PAYS|^NOM\b|^INTITULÉ|^BANQUE|^AGENCE/.test(L)) return "court";
+  if (/%/.test(L)) return "pct";
+  if (/\(MAD\)|\(DH|\bDH\b|\(HT\)|\bHT\)/.test(L)) return "mt";
+  if (/\bRIB\b/.test(L)) return "rib";
+  if (/E-?MAIL|COURRIEL|\bSITE\b/.test(L)) return "mail";
+  if (/TÉL|GSM|FAX|PORTABLE/.test(L)) return "tel";
+  if (/\(JOURS?\)|\(MOIS\)|NOMBRE|EFFECTIF|QUANTIT|\bQTÉ\b|\bJOURS?\b|\bMOIS\b|\(EN TOUT\)|DURÉE|RANG|ORDRE/.test(L)) return "nb";
+  if (/\(MAD\)|\(DH|\bDH\b|MONTANT|PLAFOND|PRIX|CAPITAL|FRANCO|MINIMUM|TOTAL|\bHT\b|\bTTC\b|SOLDE|AVANCE|ACOMPTE|FRAIS|ENCOURS/.test(L)) return "mt";
+  if (/\bICE\b|\bIF\b|IDENTIFIANT|REGISTRE|\bRC\b|CNSS|\bCODE\b|PATENTE|\bCIN\b|\bN°|NUMÉRO|SWIFT|IBAN|RÉFÉRENCE|MATRICULE|IMMATRICULATION/.test(L)) return "code";
+  if (t === "number" || el.inputMode === "decimal" || el.inputMode === "numeric") return "nb";
+  return "court";
+}
+function sviFamUp(root) {
+  root.querySelectorAll("input, select, textarea").forEach(el => {
+    if (el.closest("table, .mkp-f, #svMaskPop") || ["checkbox", "radio", "file", "color", "hidden", "range"].includes(String(el.type || "").toLowerCase())) return;
+    if (!el.closest(".frs-f, .doc-cell, .svc-card label, #docPop label")) return;
+    const box = el.closest(".fld-wrap") || (el.tagName === "SELECT" && el.__svBtn) || el;
+    const f = sviFldFam(el); if (el.dataset.fam !== f) el.dataset.fam = f; if (box.dataset.fam !== f) box.dataset.fam = f; if (box !== el && el.dataset.fam !== f) el.dataset.fam = f; });
+}
 function sviUpAll() {
   document.querySelectorAll(SVI_UP_SC).forEach(root => {
     root.querySelectorAll("select").forEach(sviSelUp);
@@ -4463,6 +4495,7 @@ function sviUpAll() {
     root.querySelectorAll(".svc-f").forEach(sviFootUp);
     root.querySelectorAll(".doc-grid").forEach(sviGridTop);
     if (root.id === "svConf") root.querySelectorAll(".frs-f > input.ins-in, .frs-f > textarea.ins-in").forEach(sviFldRszUp);
+    if (root.id === "svConf" || root.id === "docPop") sviFamUp(root);
     if (typeof sviFldApply === "function") sviFldApply(root);
     if (root.id === "svConf") root.querySelectorAll(".svc-card").forEach(sviWhyUp);   /* B11, B17 : réglages des champs */
   });
