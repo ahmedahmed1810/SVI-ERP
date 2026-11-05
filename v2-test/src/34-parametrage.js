@@ -210,28 +210,21 @@ function sviParamTabs() {
   if (!view || view.querySelector(".prm-tabs")) return;
   const head = view.querySelector(".section-head");
   const bar = document.createElement("div");
-  bar.className = "prm-tabs";
-  /* v790 (DOCUMENT UNIQUE §1.1) : une seule interface PARAMÉTRAGE à deux niveaux — RUBRIQUES (BUDGET, FORMAT), puis leurs onglets */
-  bar.innerHTML = `<div class="prm-rubs"><button type="button" class="prm-rub on" data-rub="bdg">BUDGET</button></div>`
-    + `<button type="button" class="prm-tab on" data-prm="unit" data-rub="bdg">UNITÉS</button><button type="button" class="prm-tab" data-prm="lib" data-rub="bdg">BIBLIOTHÈQUE DE PRIX</button>`
-    + `<button type="button" class="prm-tab prm-bdg" data-bdg="cal" data-rub="bdg">CALENDRIER</button><button type="button" class="prm-tab" data-prm="tva" data-rub="bdg">TVA</button><button type="button" class="prm-tab" data-prm="trk" data-rub="bdg">TRANSPORT</button>`;
-  /* v928 (remarque 14 du 04/11/2026) : plus de rubrique FORMAT (ÉTATS, ÉLÉMENTS, INTERFACES, COLONNES) ni MASQUES DE SAISIE — réglages communs à l'accueil, MODIFIER LE FORMAT par interface, colonnes par la loupe, masques sur le champ */
-  /* CALENDRIER et DATES DU BUDGET : pour le budget ouvert ; grisés sans budget ouvert (appui long = raison) */
-  const why = () => { const L = window.__sviBdgLive; return !L ? "OUVRIR UN BUDGET D'ABORD" : !L.edit ? "BUDGET FIGÉ OU VALIDÉ : LECTURE SEULE" : ""; };
-  const paint = () => bar.querySelectorAll(".prm-bdg").forEach(b => b.classList.toggle("off", !!why()));
-  paint();
-  document.addEventListener("click", e => { if (e.target.closest && e.target.closest('.nav-btn[data-view="chs"], .open-menu')) setTimeout(paint, 0); });
-  let lp = null;
-  bar.addEventListener("pointerdown", e => { const b = e.target.closest(".prm-bdg.off"); if (!b) return; lp = setTimeout(() => svToast(why(), 3000, b), SVI_G.lp); });
-  ["pointerup", "pointerleave", "pointercancel"].forEach(t => bar.addEventListener(t, () => clearTimeout(lp)));
-  bar.addEventListener("click", e => {
-    const b = e.target.closest(".prm-bdg");
-    if (!b) return;
-    e.stopPropagation();
-    paint();
-    if (why()) return;
-    if (b.dataset.bdg === "cal") sviBdgCalWin(); else sviBdgDatesWin();
-  }, true);
+  bar.className = "prm-tabs pg-tabs bdg-d-tabs";
+  /* B6 (série B, 04/11/2026) : PARAMÉTRAGE GÉNÉRAL — une seule rangée d'onglets pour toute l'application (forme des onglets du budget,
+     même largeur, glissables pour changer l'ordre) ; plus de rubriques BUDGET / FORMAT ; GÉNÉRAL en premier ; TVA et TRANSPORT dans GÉNÉRAL (B2) */
+  const tabsHTML = () => sviPgTabs().map(T => `<button type="button" class="prm-tab bdg-d-tab tab-eq" data-prm="${T.k}">${esc(T.lab)}</button>`).join("");
+  bar.innerHTML = tabsHTML();
+  /* glisser un onglet (appui long puis glisser) = changer l'ordre, gardé */
+  { let lp = 0, drag = null;
+    bar.addEventListener("pointerdown", e => { const b = e.target.closest(".prm-tab"); if (!b) return; clearTimeout(lp); lp = setTimeout(() => { drag = b; b.classList.add("pg-drag"); }, SVI_G.lp); });
+    document.addEventListener("pointermove", e => { if (!drag) return; e.preventDefault(); const o = document.elementFromPoint(e.clientX, e.clientY), t2 = o && o.closest && o.closest(".pg-tabs .prm-tab");
+      bar.querySelectorAll(".pg-over").forEach(x => x.classList.remove("pg-over")); if (t2 && t2 !== drag) t2.classList.add("pg-over"); }, { passive: false });
+    const up = e => { clearTimeout(lp); if (!drag) return; const o = document.elementFromPoint(e.clientX, e.clientY), t2 = o && o.closest && o.closest(".pg-tabs .prm-tab");
+      const ks = [...bar.querySelectorAll(".prm-tab")].map(x => x.dataset.prm), a = drag.dataset.prm; drag.classList.remove("pg-drag"); drag = null; bar.querySelectorAll(".pg-over").forEach(x => x.classList.remove("pg-over"));
+      if (!t2 || t2.dataset.prm === a) return; ks.splice(ks.indexOf(a), 1); ks.splice(ks.indexOf(t2.dataset.prm), 0, a);
+      try { localStorage.setItem(SVI_PG_ORD, JSON.stringify(ks)); } catch (er) {} const cur = (bar.querySelector(".prm-tab.on") || {}).dataset?.prm; bar.innerHTML = tabsHTML(); show(cur || ks[0]); bar.__moved = Date.now(); };
+    document.addEventListener("pointerup", up); document.addEventListener("pointercancel", () => { clearTimeout(lp); if (drag) { drag.classList.remove("pg-drag"); drag = null; } }); }
   head.after(bar);
   const pane = document.createElement("div");
   pane.className = "prm-unit";
@@ -242,43 +235,26 @@ function sviParamTabs() {
   lpane.className = "prm-lib";
   lpane.hidden = true;
   pane.after(lpane);
-  /* v899 (cahier, décision du 03/11/2026) : BUDGET › TVA — TVA PAR DÉFAUT, un seul réglage commun au budget et aux achats */
-  const tpane = document.createElement("div"); tpane.className = "prm-tva"; tpane.hidden = true; lpane.after(tpane);
-  const tvaDraw = () => { const d = sviTvaDef();
-    tpane.innerHTML = `<table class="prm-table fmt-t tva-t"><colgroup><col style="width:420px"><col style="width:140px"></colgroup>
-      <thead><tr><th>RÉGLAGE</th><th class="center">TAUX %</th></tr></thead>
-      <tbody><tr><td>TVA PAR DÉFAUT (DÉSIGNATIONS SANS TVA, ARTICLES ET PIÈCES D'ACHAT)</td><td class="center"><input class="ins-in tva-def number" inputmode="decimal" value="${d === null ? "" : esc(String(d).replace(".", ","))}" autocomplete="off"></td></tr></tbody></table>
-      <div class="mask-note">VIDE : UNE DÉSIGNATION SANS TVA NE PEUT PAS ÊTRE ENREGISTRÉE (TVA MANQUANTE)</div>`; };
-  /* v913 : BUDGET › TRANSPORT — PRIX DU TRANSPORT AU KM, le même pour tous les fournisseurs (distance à vol d'oiseau dépôt → chantier) */
-  const kpane = document.createElement("div"); kpane.className = "prm-trk"; kpane.hidden = true; tpane.after(kpane);
-  const trkDraw = () => { const k = sviTrKm();
-    kpane.innerHTML = `<table class="prm-table fmt-t tva-t"><colgroup><col style="width:420px"><col style="width:140px"></colgroup>
-      <thead><tr><th>RÉGLAGE</th><th class="center">DH / KM</th></tr></thead>
-      <tbody><tr><td>PRIX DU TRANSPORT AU KILOMÈTRE (TOUS LES FOURNISSEURS)</td><td class="center"><input class="ins-in trk-km number" inputmode="decimal" value="${k === null ? "" : esc(String(k).replace(".", ","))}" autocomplete="off"></td></tr></tbody></table>
-      <div class="mask-note">DISTANCE À VOL D'OISEAU ENTRE LE DÉPÔT DU FOURNISSEUR (GPS DE SA FICHE) ET LE CHANTIER (GPS DU CHANTIER DANS INF)</div>`; };
-  kpane.addEventListener("change", e => { const i = e.target.closest(".trk-km"); if (!i) return; const s = String(i.value).trim();
-    if (s === "") { sviTrKmSave(null); trkDraw(); return; }
-    const v = num(s); if (!sviNumOk(s) || v < 0) { svToast("PRIX AU KM NON VALIDE.", 3000, i); trkDraw(); return; }
-    sviTrKmSave(v); trkDraw(); });
-  tpane.addEventListener("change", e => { const i = e.target.closest(".tva-def"); if (!i) return; const s = String(i.value).trim();
-    if (s === "") { sviTvaSave(null); tvaDraw(); return; }
-    const v = num(s); if (!sviNumOk(s) || v < 0 || v > 100) { svToast("TVA NON VALIDE (0 À 100).", 3000, i); tvaDraw(); return; }
-    sviTvaSave(v); tvaDraw(); });
+  /* B2 (série B) : réglages ponctuels dans GÉNÉRAL ; autres onglets du paramétrage général (34b-parametrage-general.js) */
+  const gpane = document.createElement("div"); gpane.className = "prm-pg"; gpane.hidden = true; lpane.after(gpane);
+  gpane.addEventListener("change", e => {
+    const i = e.target; if (i.matches(".pg-soc-in")) { const o = sviPg(); o.soc = { ...sviSoc(), [i.dataset.f]: i.dataset.f === "mail" ? i.value.trim() : sviPgU(i.value) }; sviPgSave(o); return; }
+    if (i.matches(".pg-logo-in")) { const f = i.files && i.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { const o = sviPg(); o.soc = { ...sviSoc(), logo: rd.result }; sviPgSave(o); sviPgDraw("soc", gpane); }; rd.readAsDataURL(f); return; }
+    if (!i.matches(".pg-gv")) return; const g = i.dataset.g, s = String(i.value).trim();
+    if (g === "tz") { const o = sviPg(); o.gen = { ...(o.gen || {}), tz: s }; sviPgSave(o); return; }
+    if (s === "") { if (g === "tva") sviTvaSave(null); else sviTrKmSave(null); sviPgDraw("gen", gpane); return; }
+    const v = num(s); if (!sviNumOk(s) || v < 0 || (g === "tva" && v > 100)) { svToast(g === "tva" ? "TVA NON VALIDE (0 À 100)." : "PRIX AU KM NON VALIDE.", 3000, i); sviPgDraw("gen", gpane); return; }
+    if (g === "tva") sviTvaSave(v); else sviTrKmSave(v); sviPgDraw("gen", gpane); });
   const show = which => {
-    if (["col", "fel", "fif", "colh", "mask"].includes(which)) which = "unit";   /* v928 : rubrique FORMAT supprimée */
-    const rub = "bdg";
-    bar.querySelectorAll(".prm-rub").forEach(b => b.classList.toggle("on", b.dataset.rub === rub));
-    bar.querySelectorAll(".prm-tab").forEach(b => { b.hidden = b.dataset.rub !== rub; });
-    bar.querySelectorAll(".prm-tab").forEach(b => b.classList.toggle("on", b.dataset.prm === which));
-    pane.hidden = which !== "unit";
-    lpane.hidden = which !== "lib";
-    tpane.hidden = which !== "tva"; kpane.hidden = which !== "trk";
-    if (which === "tva") tvaDraw(); if (which === "trk") trkDraw();
-    const h1 = head.querySelector("h1"), sub = head.querySelector("p");
-    if (h1) h1.textContent = which === "trk" ? "TRANSPORT" : which === "tva" ? "TVA" : which === "lib" ? "BIBLIOTHÈQUE DE PRIX" : which === "col" ? "FORMAT — ÉTATS" : which === "fel" ? "FORMAT — ÉLÉMENTS" : which === "fif" ? "FORMAT — INTERFACES" : which === "colh" ? "FORMAT — COLONNES" : which === "mask" ? "FORMAT — MASQUES DE SAISIE" : "UNITÉS";
-    if (sub) sub.textContent = which === "trk" ? "PRIX DU TRANSPORT AU KM, LE MÊME POUR TOUS LES FOURNISSEURS" : which === "tva" ? "TVA PAR DÉFAUT, COMMUNE AU BUDGET ET AUX ACHATS" : which === "lib" ? "RECETTES PAR ACTIVITÉ SECONDAIRE : CHARGES, UNITÉ, PRIX ET QUANTITÉ POUR UNE UNITÉ DE PRODUIT ; COMMUNE À TOUS LES BUDGETS" : "INTITULÉ ET ABRÉVIATION (L'ABRÉVIATION EST CELLE UTILISÉE DANS LES TABLEAUX)";
+    if (!SVI_PG_TABS.some(T => T.k === which)) which = which === "tva" || which === "trk" ? "gen" : "gen";   /* anciens onglets (TVA, TRANSPORT, FORMAT) */
+    bar.querySelectorAll(".prm-tab").forEach(b => { b.classList.toggle("on", b.dataset.prm === which); b.classList.toggle("active", b.dataset.prm === which); });
+    pane.hidden = which !== "unit"; lpane.hidden = which !== "lib"; gpane.hidden = which === "unit" || which === "lib";
+    const T = SVI_PG_TABS.find(x => x.k === which), h1 = head.querySelector("h1"), sub = head.querySelector("p");
+    if (h1) h1.textContent = "PARAMÉTRAGE GÉNÉRAL — " + T.lab;
+    if (sub) sub.textContent = which === "lib" ? "RECETTES PAR ACTIVITÉ SECONDAIRE : CHARGES, UNITÉ, PRIX ET QUANTITÉ POUR UNE UNITÉ DE PRODUIT" : T.sub || "";
     if (which === "unit") draw();
     if (which === "lib") libDraw();
+    if (!gpane.hidden) sviPgDraw(which, gpane);
     try { localStorage.setItem("svi_prm_v1", which); } catch (e) {}
   };
   /* v793 : UNITÉS au format commun des tableaux — loupe de tri / filtre sur chaque colonne, largeur des colonnes réglable et gardée */
@@ -339,7 +315,7 @@ function sviParamTabs() {
     sviUnitsSave(L.filter((x, i) => !idx.includes(i)));
     draw();
   });
-  bar.addEventListener("click", e => { const r = e.target.closest(".prm-rub"); if (r) { show(r.dataset.rub === "fmt" ? "col" : "unit"); return; } const b = e.target.closest(".prm-tab"); if (b && b.dataset.prm) show(b.dataset.prm); });
+  bar.addEventListener("click", e => { if (Date.now() - (bar.__moved || 0) < 300) return; const b = e.target.closest(".prm-tab"); if (b && b.dataset.prm) show(b.dataset.prm); });
   /* v739 : BIBLIOTHÈQUE DE PRIX — activités à gauche, recettes et leurs charges à droite ; tout modifiable ; enregistré aussitôt */
   let libAct = "";
   const U2 = v => String(v ?? "").replace(/\s+/g, " ").trim().toUpperCase();
@@ -390,8 +366,8 @@ function sviParamTabs() {
       setTimeout(() => { const i = lpane.querySelector(`.lib-rec[data-rid="${CSS.escape(R.id)}"] tr[data-ci="${R.chg.length - 1}"] input[data-f="u"]`); if (i) i.focus(); }, 0); return; }
     if (t.classList.contains("lib-c")) { const c = R.chg[Number(t.closest("tr").dataset.ci)]; if (!c) return; const f = t.dataset.f; c[f] = f === "k" || f === "p" ? N2(t.value) : U2(t.value); libSave(L); }
   });
-  /* v727 (bloc 11.1) : CHS n'existe plus — PARAMÉTRAGE ouvre UNITÉS */
-  show("unit");
+  /* B6 : le paramétrage général s'ouvre sur le premier onglet (GÉNÉRAL par défaut) */
+  show(sviPgTabs()[0].k);
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", sviParamTabs); else sviParamTabs();
 /* PARAMÉTRAGE › CALENDRIER : fenêtre CALENDRIER DU BUDGET (FORMAT 101) — un mois à la fois ;

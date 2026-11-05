@@ -2833,7 +2833,7 @@ def main():
             const r = [top.join(','), sub.join(','), open, still, stay, document.getElementById('ach').classList.contains('active-view'), (document.querySelector('#ach .novapp-list-titlebar h1') || document.querySelector('#ach .section-head h1')).textContent.trim().replace(/ \(.*$/, '')];
             M.querySelector('.nav-grp').click(); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); M.classList.add('hidden'); await w(600); return r; }""")
         check("v751 / v752 : menu ☰ — ordre BDG, ACHAT, BESOIN, PARAMÉTRAGE ; ACHAT dépliable (CONSULTATIONS, DEVIS, COMMANDES, RÉCEPTIONS, FACTURES, PAIEMENTS, FOURNISSEURS, ARTICLES, ACC), BESOIN dessous ; entrées à venir grisées ; ARTICLES ouvre les achats",
-              m751 == ["ACCUEIL,BDG,ACHAT,BESOIN,PARAMÉTRAGE,DONNÉES SOURCE", "TABLEAU DE BORD,CONSULTATIONS,DEVIS,COMMANDES,RETOURS DE COMMANDE,RÉCEPTIONS,RETOURS DE RÉCEPTION,FACTURES,AVOIRS,PAIEMENTS,FOURNISSEURS,ARTICLES,PARAMÈTRES ACHATS,ACC", True, True, True, True, "ARTICLES"], m751)
+              m751 == ["ACCUEIL,BDG,ACHAT,BESOIN,PARAMÉTRAGE GÉNÉRAL,DONNÉES SOURCE", "TABLEAU DE BORD,CONSULTATIONS,DEVIS,COMMANDES,RETOURS DE COMMANDE,RÉCEPTIONS,RETOURS DE RÉCEPTION,FACTURES,AVOIRS,PAIEMENTS,FOURNISSEURS,ARTICLES,PARAMÈTRES ACHATS,ACC", True, True, True, True, "ARTICLES"], m751)
         # v752 : icône devant chaque entrée du menu ; liste des budgets en gras ; lignes du dessous décalées ; corbeille de la couleur de sa ligne
         k752 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const M = document.getElementById('navMenu');
             const ic = [...M.querySelectorAll('.nav-btn, .nav-grp, .nav-off, .nav-src')].every(b => !!b.querySelector('svg.nav-ic'));
@@ -3516,6 +3516,19 @@ def main():
         check("SÉRIE B, B3 et B4 : blocs liés des fiches — ligne entière à la couleur de l'état ; hauteur commune (lignes par défaut / mode réduit) par le ⋯ du bloc", b34.get("cls") == "nvr-instance|nvr-valide|nvr-instance" and b34.get("menu") == "AGRANDIR|5 LIGNES (PAR DÉFAUT)|MODE RÉDUIT (1 LIGNE)" and b34.get("red") == "commandes", b34)
         b5 = pg.evaluate("""() => { const E = SVI_FMT_EL.find(x => x.k === 'toptag'); return !!E && E.sel.includes('#sviScreenTag') && /#sviScreenTag[^{]*\{[^}]*font-size:18px/.test(sviFmtCss({ el: { toptag: { fs: 18, bg: '#000000' } } })); }""")
         check('SÉRIE B, B5 : bandeau du milieu de la barre du haut réglable avec elle (fond, texte, taille)', b5 is True, b5)
+        b6 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_pg_v1');
+  document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300);
+  r.tabs = [...document.querySelectorAll('#chs .pg-tabs .prm-tab')].map(b => b.textContent.trim()).join('|'); r.first = (document.querySelector('#chs .prm-tab.on') || {}).dataset?.prm;
+  r.gen = !!document.querySelector('#chs .prm-pg .tva-def') && !!document.querySelector('#chs .prm-pg .trk-km') && !document.querySelector('.prm-tab[data-prm="tva"]');
+  document.querySelector('.prm-tab[data-prm="banq"]').click(); await w(150);
+  const nb = document.querySelector('#chs .pg-tree tr.pg-tnew[data-lv="0"] input'); nb.value = 'banque populaire'; nb.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
+  const ab = document.querySelector('#chs .pg-tree tr.pg-tnew[data-lv="1"] input'); ab.value = 'agence centre'; ab.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
+  const B = sviPgL('banques'); r.banq = B.map(x => (x.p ? '>' : '') + x.lab).join(',') + '|' + (document.querySelector('#chs .pg-tree tr.pg-lv0 .svi-cnt') || {}).textContent;
+  const code = document.querySelector('#chs .pg-tree tr.pg-lv0 input[data-f="code"]'); code.value = '12'; code.dispatchEvent(new Event('change', { bubbles: true })); await w(100); r.code = (sviPgL('banques')[0].code || '') === '';
+  document.querySelector('.prm-tab[data-prm="cpt"]').click(); await w(150); const c = document.querySelector('#chs .pg-new input[data-f="code"]'); c.value = '4411'; c.dispatchEvent(new Event('change', { bubbles: true })); await w(100); r.cpt = sviPgL('cpt').map(x => x.code).join(',');
+  document.querySelector('.prm-tab[data-prm="cal"]').click(); await w(150); const o = sviPg(); o.cal = [{ id: 'c1', a: '2030-01-01', b: '2030-01-02', m: 'FÉRIÉ' }]; sviPgSave(o); r.cal = sviCalOf({}).off.join(',') + '|' + sviCalOf({ cal: { off: [] } }).off.length;
+  if (keep === null) localStorage.removeItem('svi_pg_v1'); else localStorage.setItem('svi_pg_v1', keep); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("SÉRIE B, B6 B2 B7 B8 B9 B20 B22 B24 B31 B38 B41 : PARAMÉTRAGE GÉNÉRAL — une rangée d'onglets (GÉNÉRAL en premier), TVA et transport dans GÉNÉRAL, BANQUES pliables (agences, code banque 3 chiffres), COMPTABILITÉ, CALENDRIER de la société repris par les budgets sans calendrier propre", b6.get("tabs", "").startswith("GÉNÉRAL|SOCIÉTÉ|UNITÉS") and b6.get("gen") and b6.get("banq") == "BANQUE POPULAIRE,>AGENCE CENTRE|1" and b6.get("code") and b6.get("cpt") == "4411" and b6.get("cal") == "2030-01-01,2030-01-02|0", b6)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

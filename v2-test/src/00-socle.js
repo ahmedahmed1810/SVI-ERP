@@ -337,7 +337,8 @@ const sviNumOk = v => { const t = String(v ?? "").replace(/[\s\u00a0\u202f]/g, "
    dates non travaillées (off) et dates rendues travaillées (on). Par défaut : le dimanche. ===== */
 const SVI_CAL_DEF = { we: [0], off: [], on: [] };
 const sviCalOf = d => {
-  const c = (d && d.cal) || {};
+  /* B38 (série B) : un budget sans calendrier propre reprend les jours non travaillés de la société (PARAMÉTRAGE GÉNÉRAL › CALENDRIER) */
+  const c = (d && d.cal) || { off: typeof sviPgOffDays === "function" ? sviPgOffDays() : [] };
   return { we: Array.isArray(c.we) ? c.we.slice() : SVI_CAL_DEF.we.slice(), off: (c.off || []).slice(), on: (c.on || []).slice() };
 };
 /* v747 (rapidité) : calculs de dates par numéro de jour (sans objet Date local ni mise en forme à chaque pas) et mémorisés —
