@@ -3932,6 +3932,13 @@ def main():
   const p = document.querySelector('#ach .svi-bdgp'); r.pw = Math.round(p.getBoundingClientRect().width);
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check('DOCUMENT UNIQUE 6.13 : liste validée des achats sans colonne de corbeille (la liste en instance la garde) ; panneau des dates resserré', c613.get('v', {}).get('act') == 0 and c613['v']['cols'] == c613['v']['ths'] and c613.get('i', {}).get('act', 0) > 0 and c613['i']['cols'] == c613['i']['ths'] and c613.get('pw', 999) < 165, c613)
+        fmtu = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_format_v1');
+  const F = sviFmt(); F.el = F.el || {}; F.el.blk = Object.assign({}, F.el.blk, { b: 0 }); F.el.taba = Object.assign({}, F.el.taba, { c: '#0000a3' }); F.el.ttl = Object.assign({}, F.el.ttl, { c: '#0000a5' }); F.el.top = Object.assign({}, F.el.top, { bg: '#0000a9' }); F.to = null; sviFmtSave(F); await w(200); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(800); if (!document.getElementById('bdgDetailHead')) { document.querySelector('#budgetListTable tbody tr[data-budget-ref] .budget-link, #budgetListTable tbody tr[data-budget-ref] td')?.click(); await w(1500); }
+  const d = document.getElementById('bdgDetailHead'); r.det = d ? getComputedStyle(d).fontWeight : 'absent';
+  const ra = document.querySelector('.rec-tab.active'); r.reca = ra ? getComputedStyle(ra).webkitTextFillColor : 'absent';
+  const css = document.getElementById('sviFmtStyle').textContent; r.vars = /--ttl-c:#0000a5/.test(css); r.chs = /#chs > \.section-head[^{]*\{[^}]*#0000a9/.test(css);
+  keep === null ? localStorage.removeItem('svi_format_v1') : localStorage.setItem('svi_format_v1', keep); sviFmtApply(); return r; }""")
+        check("FORMAT (règle 1.8) : l'en-tête DÉTAIL suit EN-TÊTE DE BLOC (gras décoché), l'onglet actif de SUIVI / RÉVISIONS suit ONGLET ACTIF, les lignes de titre (délais…) suivent LIGNES DE TITRE, la barre du haut du PARAMÉTRAGE suit BARRE DU HAUT", fmtu.get('det') == '400' and fmtu.get('reca') == 'rgb(0, 0, 163)' and fmtu.get('vars') and fmtu.get('chs'), fmtu)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
