@@ -89,8 +89,11 @@ const SVI_FLD_K = "svi_fld_v1";
 const sviFlds = () => { try { const o = JSON.parse(localStorage.getItem(SVI_FLD_K) || "{}"); return o && typeof o === "object" ? o : {}; } catch (e) { return {}; } };
 const sviFldSave = o => { try { localStorage.setItem(SVI_FLD_K, JSON.stringify(o)); } catch (e) {} };
 const sviFldSrc = i => { const m = String(i.className || "").match(/\b([a-z]+)-xs?\b/); return m ? m[1] : ""; };
-const sviFldCtx = i => { const c = i.closest(".svc-card, .frs-card, #docPop") || document, v = s => ((c.querySelector(s) || {}).value || ""); return { g: v('select[data-k="grp"]'), t: v('select[data-k="type"]') }; };
-const sviFldReq = (S, x) => !!S && (S.req === "all" || (S.req === "some" && (((S.reqG || []).includes(x.g)) || ((S.reqT || []).includes(x.t)))));
+/* 05/11 : « SEULEMENT POUR… » = LOCAL, ÉTRANGER (d'après le PAYS de la fiche), OCCASIONNEL (fréquence calculée), puis les types */
+const SVI_FLD_ORIG = [["loc", "LOCAL"], ["etr", "ÉTRANGER"], ["occ", "OCCASIONNEL"]];
+const sviFldCtx = i => { const c = i.closest(".svc-card, .frs-card, #docPop") || document, v = s => ((c.querySelector(s) || {}).value || ""), p = String(v('input[data-k="pays"]')).trim().toUpperCase();
+  const card = i.closest(".frs-card"), g0 = card && card.dataset.grp; return { g: p ? (p === "MAROC" || p === "MA" ? "loc" : "etr") : (g0 === "etr" ? "etr" : "loc"), occ: !!card && (card.dataset.freq === "occasionnel" || g0 === "occ"), t: v('select[data-k="type"]') }; };
+const sviFldReq = (S, x) => !!S && (S.req === "all" || (S.req === "some" && (((S.reqG || []).includes(x.g)) || (x.occ && (S.reqG || []).includes("occ")) || ((S.reqT || []).includes(x.t)))));
 const SVI_FLD_SEL = "#svConf input, #svConf select, #svConf textarea, #docPop input, #docPop textarea";
 const sviFldSpan = i => { const l = i.closest("label"); const s = l && l.querySelector("span"); return s && !s.contains(i) ? s : null; };
 /* intitulé renommé, bulle d'explication, astérisque des champs obligatoires */
@@ -111,13 +114,13 @@ function sviMaskWin(i) {
   document.getElementById("svMaskPop")?.remove();
   const p = document.createElement("div"); p.id = "svMaskPop";
   const ex = m => m ? sviMaskRun(m, "1A2B3C4D5E6F7G8H9I0J1K2L3M4N5O6P7Q8R9S").out : "";
-  const GR = typeof achPrm === "function" ? achPrm().grp.map(g => [g.id, g.nom]) : [], TY = typeof sviPgL === "function" ? sviPgL("ftypes").map(t => [t.lab, t.lab]) : [], src = sviFldSrc(i);
+  const GR = SVI_FLD_ORIG, TY = typeof sviPgL === "function" ? sviPgL("ftypes").map(t => [t.lab, t.lab]) : [], src = sviFldSrc(i);
   const ck = (cls, L, on) => L.map(([v, l]) => `<label class="mkp-c"><input type="checkbox" class="${cls}" value="${esc(v)}"${(on || []).includes(v) ? " checked" : ""}> ${esc(l)}</label>`).join("");
   p.innerHTML = `<div class="mkp-t">CHAMP — ${esc(S.lab || M.lab)}</div>
     <label class="mkp-f"><span>INTITULÉ</span><input class="mkp-lab" value="${esc(S.lab || M.lab)}" autocomplete="off"></label>
     <label class="mkp-f"><span>EXPLICATION (BULLE À L'APPUI LONG SUR L'INTITULÉ)</span><textarea class="mkp-tip" rows="2">${esc(S.tip || "")}</textarea></label>
     <label class="mkp-f"><span>OBLIGATOIRE</span><select class="mkp-req"><option value="">NON</option><option value="all"${S.req === "all" ? " selected" : ""}>POUR TOUS</option><option value="some"${S.req === "some" ? " selected" : ""}>SEULEMENT POUR…</option></select></label>
-    <div class="mkp-some"${S.req === "some" ? "" : " hidden"}>${GR.length ? `<div class="mkp-n">GROUPES</div>${ck("mkp-rg", GR, S.reqG)}` : ""}${TY.length ? `<div class="mkp-n">TYPES DE FOURNISSEURS</div>${ck("mkp-rt", TY, S.reqT)}` : ""}</div>
+    <div class="mkp-some"${S.req === "some" ? "" : " hidden"}><div class="mkp-n">LOCAL, ÉTRANGER, OCCASIONNEL</div>${ck("mkp-rg", GR, S.reqG)}${TY.length ? `<div class="mkp-n">TYPES DE FOURNISSEURS</div>${ck("mkp-rt", TY, S.reqT)}` : ""}</div>
     <label class="mkp-c"><input type="checkbox" class="mkp-prt"${S.prt ? " checked" : ""}> IMPRIMÉ SUR LA COMMANDE</label>
     <div class="mkp-t mkp-t2">MASQUE DE SAISIE</div>
     <label class="mkp-f"><span>MASQUE</span><input class="mkp-m" value="${esc(M.m)}" autocomplete="off" data-keepcase></label>

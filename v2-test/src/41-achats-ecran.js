@@ -98,7 +98,7 @@ function sviAchInit() {
      GÉNÉRAL = règles internes (B30) alignées en colonnes régulières, puis ALERTES DE RETARD (B13), PLAFONDS EN ESPÈCES (B12),
      MENTIONS IMPRIMÉES (B14) et SEUILS DE VALIDATION (B25). Banques : PARAMÉTRAGE GÉNÉRAL (B9) ; TVA et transport : PARAMÉTRAGE GÉNÉRAL › GÉNÉRAL (B2) ;
      l'alerte du prévu du budget ira au module PRODUCTIVITÉ (B19). Les explications passent dans la bulle des champs (B16, B17). */
-  const PTABS = [["gen", "GÉNÉRAL"], ["cat", "CATÉGORIES"], ["grp", "GROUPES DE FOURNISSEURS"], ["ref", "RÉFÉRENCES"], ["cla", "CLAUSES"]];
+  const PTABS = [["gen", "GÉNÉRAL"], ["cat", "CATÉGORIES"], ["ref", "RÉFÉRENCES"], ["cla", "CLAUSES"]];   /* 05/11 : plus de groupes */
   const prmTab = () => { let k = "gen"; try { k = localStorage.getItem("svi_achprm_tab_v1") || "gen"; } catch (e) {} return PTABS.some(x => x[0] === k) ? k : "gen"; };
   const prmHTML = () => {
     const P = achPrm(), T = prmTab();

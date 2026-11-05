@@ -3540,7 +3540,7 @@ def main():
   v.querySelector('[data-ptab="cat"]').click(); await w(200); r.cat = !!v.querySelector('#achCatT');
   if (keep === null) localStorage.removeItem('svi_ach_prm_v1'); else localStorage.setItem('svi_ach_prm_v1', keep); if (kt === null) localStorage.removeItem('svi_achprm_tab_v1'); else localStorage.setItem('svi_achprm_tab_v1', kt);
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
-        check('SÉRIE B, B10 B12a B36 B30 B12 B13 B14 B15 B19 : ACHATS › PARAMÈTRES en onglets (GÉNÉRAL, CATÉGORIES, GROUPES), tableaux alignés — règles internes, alertes de retard, plafonds en espèces par période, mentions imprimées, seuils de validation ; banques, import NovApp et alerte 90 % du budget retirés', b10.get('tabs','').startswith('GÉNÉRAL|CATÉGORIES|GROUPES') and b10.get('alr') == 15 and b10.get('esp', 0) >= 2 and b10.get('seu') == '[[5000,["3","1"],true]]' and b10.get('noBq') and b10.get('cat'), b10)
+        check('SÉRIE B, B10 B12a B36 B30 B12 B13 B14 B15 B19 : ACHATS › PARAMÈTRES en onglets (GÉNÉRAL, CATÉGORIES, GROUPES), tableaux alignés — règles internes, alertes de retard, plafonds en espèces par période, mentions imprimées, seuils de validation ; banques, import NovApp et alerte 90 % du budget retirés', b10.get('tabs','').startswith('GÉNÉRAL|CATÉGORIES|RÉFÉRENCES') and b10.get('alr') == 15 and b10.get('esp', 0) >= 2 and b10.get('seu') == '[[5000,["3","1"],true]]' and b10.get('noBq') and b10.get('cat'), b10)
         b27 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_ach_prm_v1'), kt = localStorage.getItem('svi_achprm_tab_v1');
   document.querySelector('#navMenu .nav-btn[data-ach="prm"]').click(); await w(400); const v = document.getElementById('ach');
   v.querySelector('[data-ptab="ref"]').click(); await w(200);
@@ -3716,7 +3716,7 @@ def main():
   const td = v.querySelector('.ach-pgen td[data-tip]'); r.achTip = !!td;
   td.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })); await w(200);
   r.bubble = [...document.querySelectorAll('body > div')].some(d => d.textContent.includes(td.dataset.tip) && !d.contains(td));
-  const g2 = v.querySelector('[data-ptab="grp"]'); g2.click(); await w(200); r.noNote = !v.querySelector('.ach-note') && !!v.querySelector('.ach-pt[data-tip]');
+  r.noNote = !document.querySelector('.ach-note');
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("SÉRIE B, B16 : plus de phrase d'explication sous les champs — l'explication passe dans la bulle (appui long ou clic droit sur l'intitulé) : PARAMÉTRAGE GÉNÉRAL, ACHATS › PARAMÈTRES, fiches", b16.get('pgTip') and b16.get('achTip') and b16.get('bubble') and b16.get('noNote'), b16)
         b8 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_art_v1', 'svi_pg_v1'], keep = K.map(k => localStorage.getItem(k));
@@ -3743,6 +3743,23 @@ def main():
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check('05/11 : barre du haut — plus de nom du tiers à côté de la référence ; bandeau du centre en texte de la barre (même police et taille que la référence), nom cliquable ; FUSEAU HORAIRE ; titre JOURS NON TRAVAILLÉS du calendrier', c7.get('noParty') and c7.get('tag') == 'DEVIS — BARRE' and c7.get('link') and c7.get('font') and c7.get('round') == '0px' and c7.get('cal') == 'JOURS NON TRAVAILLÉS DE LA SOCIÉTÉ' and c7.get('tz'), c7)
+        c2 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_fld_v1'], keep = K.map(k => localStorage.getItem(k));
+  localStorage.removeItem('svi_fld_v1');
+  const L = achFrs(); const a = achFrsNew(L, { nom: 'LOC' }), b = achFrsNew(L, { nom: 'ETR' }), c = achFrsNew(L, { nom: 'OLD ETR' }), o = achFrsNew(L, { nom: 'OLD OCC' });
+  a.pays = 'MAROC'; b.pays = 'FRANCE'; c.grp = 'etr'; o.grp = 'occ'; achFrsSave(L);
+  r.ids = [a, b, c, o].map(achFrsGrpId).join(','); r.pfx = [a, b].map(achFrsPfx).join(','); r.miss = achFrsWhy(a, L).filter(m => /^LOCAL/.test(m)).length; r.occ = achFrsMissing(o).length;
+  document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(300); achFrsFiche(b.id); await w(400);
+  r.noGrp = !document.querySelector('#svConf select[data-k="grp"]');
+  const ice = document.querySelector('#svConf input.frs-x[data-k="ice"]'); ice.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })); await w(200);
+  const p = document.getElementById('svMaskPop'); r.opts = [...p.querySelectorAll('.mkp-rg')].map(x => x.value).join(',');
+  p.querySelector('.mkp-req').value = 'some'; p.querySelector('.mkp-rg[value="loc"]').checked = true; p.querySelector('[data-ms]').click(); await w(300);
+  r.etrFree = !document.querySelector('#svConf input.frs-x[data-k="ice"]').closest('label').querySelector('b');
+  const py = document.querySelector('#svConf input.frs-x[data-k="pays"]'); py.value = 'MAROC'; document.querySelector('#svConf [data-save]').click(); await w(300);
+  r.locBlocked = !!document.getElementById('svConf');
+  document.querySelectorAll('#svConf').forEach(x => x.remove());
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("05/11 : plus de groupes de fournisseurs — LOCAL / ÉTRANGER d'après le PAYS (préfixe FRS / FRE), ancien OCCASIONNEL gardé ; OBLIGATOIRE « seulement pour » LOCAL, ÉTRANGER, OCCASIONNEL ou un type", c2.get('ids') == 'loc,etr,etr,occ' and c2.get('pfx') == 'FRS,FRE' and c2.get('miss') == 1 and c2.get('occ') == 0 and c2.get('noGrp') and c2.get('opts') == 'loc,etr,occ' and c2.get('etrFree') and c2.get('locBlocked'), c2)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
