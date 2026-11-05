@@ -3515,6 +3515,16 @@ def main():
             r.rsz = !!d.querySelector('.frs-f .svc-fw .fld-rsz'); d.remove(); return r; }""")
         check("FORME 04/11, remarque 7 : fenêtres — nom du champ au-dessus du champ (cases sur trois colonnes, ce qui n'est pas un champ sur toute la largeur), champs des fenêtres agrandissables par leur coin",
               f7.get("top") and f7.get("rsz"), f7)
+        b34 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_cmf_v1', 'svi_ach_dvf_v1', 'svi_ach_nvh_v1'], keep = K.map(k => localStorage.getItem(k));
+  const F = []; const f = achFrsNew(F, { nom: 'B3' }); achFrsSave(F);
+  achCmfSave([{ id: 'c1', ref: 'CMF 1', frs: f.id, state: 'instance', lignes: [] }, { id: 'c2', ref: 'CMF 2', frs: f.id, state: 'solde', lignes: [] }]); achDvfSave([{ id: 'v1', ref: 'DVF 1', frs: f.id, state: 'recu', lignes: [] }]);
+  document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(400); document.getElementById('ach').__achOpen('frs', f.id); await w(400);
+  const tr = [...document.querySelectorAll('#ach .nvp-blk tbody tr')]; r.cls = ['CMF 1', 'CMF 2', 'DVF 1'].map(x => (tr.find(t => t.textContent.includes(x)) || { className: '?' }).className.trim()).join('|');
+  const b = [...document.querySelectorAll('#ach .nvp-blk')].find(x => /COMMANDES/.test(x.textContent)); b.querySelector('[data-nvmore]').click(); await w(150);
+  r.menu = [...document.querySelectorAll('#blkMenu button')].map(x => x.textContent.trim()).slice(0, 3).join('|'); document.querySelector('#blkMenu [data-a="hred"]').click(); await w(150);
+  r.red = Object.keys(JSON.parse(localStorage.getItem('svi_ach_nvh_v1') || '{}')).join(',');
+  K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
+        check("SÉRIE B, B3 et B4 : blocs liés des fiches — ligne entière à la couleur de l'état ; hauteur commune (lignes par défaut / mode réduit) par le ⋯ du bloc", b34.get("cls") == "nvr-instance|nvr-valide|nvr-instance" and b34.get("menu") == "AGRANDIR|5 LIGNES (PAR DÉFAUT)|MODE RÉDUIT (1 LIGNE)" and b34.get("red") == "commandes", b34)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
