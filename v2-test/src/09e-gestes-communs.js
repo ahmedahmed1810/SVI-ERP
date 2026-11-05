@@ -151,3 +151,15 @@ document.addEventListener("change", e => {
   if (all) { all.checked = n > 0 && n === cbs.length; all.indeterminate = n > 0 && n < cbs.length; }
   cbs.forEach(x => x.closest("tr").classList.toggle("nvl-on", x.checked));
 });
+
+/* v929 (remarque 16 du 04/11/2026, document unique 9.4) : SUR ORDINATEUR — appui long = clic droit (ou Ctrl + clic sur Mac) :
+   le menu du navigateur est remplacé par un appui long au même endroit (toucher = clic, double toucher = double clic et glisser = cliquer-glisser
+   passent déjà par les mêmes événements). Un champ qui a son propre clic droit (masque de saisie) le garde. */
+document.addEventListener("contextmenu", e => {
+  if (e.defaultPrevented) return;
+  const tg = e.target; if (!tg || !tg.dispatchEvent || (tg.closest && tg.closest("textarea, input[type=file]"))) return;
+  e.preventDefault();
+  const o = { bubbles: true, cancelable: true, composed: true, clientX: e.clientX, clientY: e.clientY, screenX: e.screenX, screenY: e.screenY, pointerId: 91, pointerType: "touch", isPrimary: true, button: 0 };
+  tg.dispatchEvent(new PointerEvent("pointerdown", { ...o, buttons: 1 }));
+  setTimeout(() => { (tg.isConnected ? tg : document).dispatchEvent(new PointerEvent("pointerup", { ...o, buttons: 0 })); }, SVI_G.lp + 80);
+});

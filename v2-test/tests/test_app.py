@@ -3493,6 +3493,20 @@ def main():
               f1104["byCss"] and f1104["win1"] == "true,10,true" and f1104["saved"] == "#112233" and f1104["win2"] == "true,16,true" and f1104["cleared"] == 0 and f1104["home"], f1104)
         check("FORME 04/11, remarques 14 et 15 : rubrique FORMAT et MASQUES DE SAISIE retirées de PARAMÉTRAGE ; masque posé sur un champ par appui long (clic droit), \"texte\" écrit d'office, autres signes placés d'office",
               f1104["noFmt"] and f1104["tok"] == "+212 6 12 34 56 78|ABC-123|123-AB" and f1104["pop"] and f1104["applied"] == "12345-B-67|99999-A-99", f1104)
+        # remarque 16 : gestes sur ordinateur (Ctrl / Cmd + molette = hauteur des lignes, Option + molette = échelle du temps, clic droit = appui long)
+        g16 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keepRh = localStorage.getItem(DLY_RH_KEY);
+            document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); if (!document.querySelector('.bdg-d-page')) { window.__sviAvOpen('TEST-1'); await w(2000); }
+            document.querySelectorAll('#svConf').forEach(x => x.remove()); document.querySelector('.bdg-d-tab[data-tab="dly"]')?.click(); await w(1200);
+            const g = document.querySelector('#dlyGantt'); r.g = !!g;
+            if (g) { const rh0 = dlyRhGet(), gr = g.getBoundingClientRect(), o = { bubbles: true, cancelable: true, clientX: gr.left + 100, clientY: gr.top + 40, deltaY: -40 };
+              const ev = new WheelEvent('wheel', { ...o, ctrlKey: true }); g.dispatchEvent(ev); await w(100); r.rh = dlyRhGet() > rh0 && ev.defaultPrevented;
+              g.dispatchEvent(new WheelEvent('wheel', { ...o, altKey: true, deltaY: 40 })); await w(150); let dl = !!document.getElementById('dlyDwLab');
+              g.dispatchEvent(new WheelEvent('wheel', { ...o, altKey: true, deltaY: -40 })); await w(150); r.dw = dl || !!document.getElementById('dlyDwLab'); }
+            const t = document.createElement('div'); document.body.appendChild(t); const L = []; t.addEventListener('pointerdown', e => L.push('d:' + e.pointerType)); t.addEventListener('pointerup', () => L.push('u'));
+            const cm = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 }); t.dispatchEvent(cm); await w(SVI_G.lp + 200); r.ctx = L.join(',') + '|' + cm.defaultPrevented; t.remove();
+            if (keepRh === null) localStorage.removeItem(DLY_RH_KEY); else localStorage.setItem(DLY_RH_KEY, keepRh); return r; }""")
+        check("FORME 04/11, remarque 16 : sur ordinateur — Ctrl / Cmd + molette = hauteur des lignes du Gantt (zoom de la page bloqué), Option + molette = échelle du temps, clic droit = appui long",
+              g16.get("g") and g16.get("rh") and g16.get("dw") and g16.get("ctx") == "d:touch,u|true", g16)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

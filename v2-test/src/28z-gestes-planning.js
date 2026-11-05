@@ -963,6 +963,23 @@ function sviBdgGestesPlanning(C) {
         P0 = null; setTimeout(() => { shell.__dlyPinch = false; }, 50);
       };
       shell.addEventListener("touchend", end); shell.addEventListener("touchcancel", end);
+      /* v929 (remarque 16 du 04/11/2026, document unique 9.4) : SUR ORDINATEUR — pincement du trackpad ou Ctrl / Cmd + molette = hauteur des lignes
+         (24 à 80 px) ; Option + molette = échelle du temps (Gantt et graphique) ; le zoom de la page est bloqué sur ces zones ; boutons + / − dans les réglages */
+      const zRh = f => { const rh = Math.round(Math.max(SVI_G.ganttMin, Math.min(SVI_G.ganttMax, dlyRhGet() * f))); if (rh !== dlyRhGet()) { try { localStorage.setItem(DLY_RH_KEY, String(rh)); } catch (err) {} dlyRhApply(rh); } return rh; };
+      const zDw = (f, cx) => { const host = shell.querySelector("#dlyGantt"); if (!host) return; const hr = host.getBoundingClientRect(), ax = cx === undefined ? host.clientWidth / 2 : Math.max(0, cx - hr.left);
+        dlyDwSet(host, ECR.DLY_DW * f, ax, (ax + host.scrollLeft) / ECR.DLY_DW); };
+      shell.__dlyZoom = { rh: zRh, dw: zDw };
+      const zZone = t => t && t.closest && t.closest("#dlyGantt, .dlyg-foot, .dlyg-l");
+      shell.addEventListener("wheel", e => {
+        if (!zZone(e.target) || !(e.ctrlKey || e.metaKey || e.altKey)) return;
+        e.preventDefault();
+        const f = Math.exp(-Math.max(-60, Math.min(60, e.deltaY)) * 0.01 * (SVI_G.pinch || 1));
+        if (e.altKey) zDw(f, e.clientX); else zRh(f);
+      }, { passive: false });
+      let G0 = 0;
+      shell.addEventListener("gesturestart", e => { if (!zZone(e.target)) return; e.preventDefault(); G0 = dlyRhGet(); }, { passive: false });
+      shell.addEventListener("gesturechange", e => { if (!zZone(e.target) || !G0) return; e.preventDefault(); zRh(G0 * e.scale / dlyRhGet()); }, { passive: false });
+      shell.addEventListener("gestureend", () => { G0 = 0; });
       /* v582 : graphique zoomé — un doigt à la verticale fait monter ou descendre l'échelle (le sens dominant du geste décide) ;
          double toucher = échelle entière */
       const yRedraw = () => { if (shell.__dlyYRaf) return; shell.__dlyYRaf = requestAnimationFrame(() => { shell.__dlyYRaf = 0; const H = shell.querySelector("#dlyGantt"); if (H) { H.__drawn = false; dlyGanttDraw(); } }); };

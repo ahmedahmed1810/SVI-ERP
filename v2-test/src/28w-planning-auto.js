@@ -558,6 +558,8 @@ function sviBdgPlanningAuto(C) {
         <span class="hcf-k">AFFICHAGE</span><span class="hcf-sw hcf-sw3">${[["j", "JOUR"], ["s", "SEMAINE"], ["m", "MOIS"]].map(([v, l]) => seg("gcs", v, l, sc === v)).join("")}</span>
         <span class="hcf-k">ORDRE</span><span class="hcf-sw">${seg("gco", "l", "NORMAL", vw !== "d")}${seg("gco", "d", "PAR DÉBUT", vw === "d")}</span>
         <span class="hcf-k">COUPE</span><span class="hcf-cbs"><label><input type="checkbox" class="gcf-cut"${dlyCutOK() ? " checked" : ""}><span>AUTORISER LA COUPE DES TÂCHES</span></label></span>
+        <span class="hcf-k">ZOOM</span><span class="hcf-pl gcf-zoom"><span>LIGNES</span><button type="button" class="svc-b" data-gz="rh-">−</button><button type="button" class="svc-b" data-gz="rh+">+</button>
+          <span>JOURS</span><button type="button" class="svc-b" data-gz="dw-">−</button><button type="button" class="svc-b" data-gz="dw+">+</button></span>
         <span class="hcf-k">CALCUL</span><span class="hcf-pl gcf-acts">${act("comp", "COMPRESSER", compWhy)}${act("gen", "GÉNÉRER" + (miss ? " (" + miss + ")" : ""), genWhy)}</span>
       </div>
       <div class="gcf-more"><button type="button" class="svc-b" data-gcf="ccal">CALENDRIER DES CHARGES…</button>${gOn ? ` <button type="button" class="svc-b" data-gcf="graph">RÉGLAGES DU GRAPHIQUE…</button>` : ""}</div>
@@ -573,6 +575,8 @@ function sviBdgPlanningAuto(C) {
     });
     d.addEventListener("click", e => {
       if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+      /* v929 (remarque 16) : boutons + / − de secours (hauteur des lignes, largeur des jours) */
+      const z = e.target.closest("[data-gz]"); if (z && shell.__dlyZoom) { const k = z.dataset.gz; if (k[0] === "r") shell.__dlyZoom.rh(k[2] === "+" ? 1.15 : 1 / 1.15); else shell.__dlyZoom.dw(k[2] === "+" ? 1.25 : 0.8); return; }
       const b = e.target.closest("[data-gcf]"); if (!b) return;
       if (b.classList.contains("off")) { svToast(b.dataset.why, 3000, b); return; }
       d.remove();
