@@ -339,7 +339,26 @@ function sviParamTabs() {
   });
   bar.addEventListener("click", e => { if (Date.now() - (bar.__moved || 0) < 300) return; const b = e.target.closest(".prm-tab"); if (b && b.dataset.prm) show(b.dataset.prm); });
   /* v739 : BIBLIOTHÈQUE DE PRIX — activités à gauche, recettes et leurs charges à droite ; tout modifiable ; enregistré aussitôt */
-  let libAct = "";
+  let libAct = "", libPt = "", libSrc = "";
+  /* 05/11 : BIBLIOTHÈQUE — en tête de l'activité : un nuage de points par charge (un point par recette : quantité pour une unité), la MOYENNE pondérée
+     au prorata des quantités produites en trait ; filtre TOUS LES BUDGETS / un budget ; dessous le tableau MOYENNE ; toucher un point = ce tableau montre
+     la recette du point ; « i » après l'unité = ouvrir son budget */
+  const libKey = c => U2(c.des) + "|" + U2(c.u);
+  const libMean = (Rs, key) => { let sw = 0, sk = 0, sp = 0, n = 0; Rs.forEach(R => { const c = (R.chg || []).find(x => libKey(x) === key); if (!c) return; const wgt = N2(R.q) > 0 ? N2(R.q) : 1; sw += wgt; sk += wgt * N2(c.k); sp += wgt * N2(c.p); n++; });
+    return { n, k: sw ? sk / sw : 0, p: sw ? sp / sw : 0 }; };
+  const libChart = (Rs) => { if (!Rs.length) return "";
+    const keys = [...new Set(Rs.flatMap(R => (R.chg || []).map(libKey)))], srcs = [...new Set(sviLibGet().filter(R => U2(R.act) === libAct).map(R => R.src).filter(Boolean))].sort();
+    const chart = key => { const pts = Rs.map(R => { const c = (R.chg || []).find(x => libKey(x) === key); return c ? { R, k: N2(c.k) } : null; }).filter(Boolean), M = libMean(Rs, key);
+      const W = 260, H = 110, mx = Math.max(...pts.map(p => p.k), M.k) * 1.15 || 1, y = v => H - 14 - v / mx * (H - 28), x = i => 20 + (pts.length > 1 ? i * (W - 40) / (pts.length - 1) : (W - 40) / 2);
+      return `<div class="lib-ch"><div class="lib-ch-t">${esc(key.split("|")[0])} <small>(${esc(key.split("|")[1] || "")} POUR 1 ${esc(Rs[0].u || "U")})</small></div>
+        <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><line x1="16" x2="${W - 8}" y1="${y(M.k)}" y2="${y(M.k)}" class="lib-mean"/><text x="${W - 8}" y="${y(M.k) - 3}" text-anchor="end" class="lib-mt">MOY. ${esc(F2(M.k, 3))}</text>
+        ${pts.map((p, i) => `<circle cx="${x(i)}" cy="${y(p.k)}" r="${p.R.id === libPt ? 7 : 5}" class="lib-pt${p.R.id === libPt ? " on" : ""}" data-lpt="${esc(p.R.id)}"><title>${esc(p.R.nom + " — " + F2(p.k, 4) + (p.R.src ? " — " + p.R.src : ""))}</title></circle>`).join("")}</svg></div>`; };
+    const P = libPt ? Rs.find(R => R.id === libPt) : null;
+    const rows = P ? (P.chg || []).map(c => [c.des, c.u, N2(c.k), N2(c.p), P.src]) : keys.map(k => { const M = libMean(Rs, k); return [k.split("|")[0], k.split("|")[1], M.k, M.p, ""]; });
+    return `<div class="lib-top"><div class="lib-flt">BUDGETS <select class="lib-src"><option value="">TOUS LES BUDGETS</option>${srcs.map(s => `<option${s === libSrc ? " selected" : ""}>${esc(s)}</option>`).join("")}</select></div>
+      <div class="lib-chs">${keys.map(chart).join("")}</div>
+      <table class="prm-table lib-moy"><thead><tr><th>${P ? "RECETTE : " + esc(P.nom) + ` <button type="button" class="ach-link" data-lpt="">‹ MOYENNE</button>` : "MOYENNE (" + Rs.length + " RECETTE" + (Rs.length > 1 ? "S" : "") + ", AU PRORATA DES QUANTITÉS PRODUITES)"}</th><th class="center">UNITÉ</th><th class="number">QTÉ POUR 1 ${esc(Rs[0].u || "U")}</th><th class="number">PRIX</th><th class="number">COÛT</th></tr></thead>
+        <tbody>${rows.map(r => `<tr><td>${esc(r[0])}</td><td class="center">${esc(r[1])}${r[4] ? ` <span class="bdg-d-badge lib-i" data-lsrc="${esc(r[4])}" role="button" title="Ouvrir le budget">i</span>` : ""}</td><td class="number">${esc(F2(r[2], 4))}</td><td class="number">${esc(F2(r[3], 2))}</td><td class="number">${esc(F2(r[2] * r[3], 2))}</td></tr>`).join("")}</tbody></table></div>`; };
   const U2 = v => String(v ?? "").replace(/\s+/g, " ").trim().toUpperCase();
   const N2 = v => Number(String(v ?? "").replace(/\s/g, "").replace(",", ".")) || 0;
   const F2 = (v, d) => (Number(v) || 0).toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -350,13 +369,13 @@ function sviParamTabs() {
   const libDraw = () => {
     const L = sviLibGet(), acts0 = [...new Set(L.map(R => U2(R.act)))].sort((a, b) => a.localeCompare(b, "fr")), acts = LKIT.cfApply("prm_liba", LACOLS, acts0);
     if (!acts.includes(libAct)) libAct = acts[0] || "";
-    const R0 = L.filter(R => U2(R.act) === libAct);
+    const R0 = L.filter(R => U2(R.act) === libAct), RF = R0.filter(R => !libSrc || R.src === libSrc);
     /* v793 : largeur des colonnes réglable et gardée (moteur commun) */
     const LA = sviCwCols("prm_liba", [["act", 240], ["n", 100]]), LC = sviCwCols("prm_libc", [["des", 220], ["u", 80], ["k", 120], ["p", 110], ["c", 110]], [["_x", 44]]);
     lpane.innerHTML = `<div class="lib-wrap"><div class="lib-acts"><table class="prm-table" data-svcw="prm_liba" style="${LA.style}">${LA.cg}<thead><tr>${LACOLS.map(c => LKIT.cfHead("prm_liba", c[0], c[1], c[3])).join("")}</tr></thead><tbody>
         ${acts.map(a => `<tr class="lib-a${a === libAct ? " on" : ""}" data-act="${esc(a)}"><td>${esc(a)}</td><td class="center">${svCnt(L.filter(R => U2(R.act) === a).length)}</td></tr>`).join("") || `<tr><td colspan="2" class="empty">BIBLIOTHÈQUE VIDE : ELLE SE REMPLIT AU FIL DES BUDGETS FIGÉS, OU ICI.</td></tr>`}
         <tr class="prm-new"><td colspan="2"><input class="prm-in lib-newa" placeholder="CRÉER UNE RECETTE ICI… (ACTIVITÉ — VARIANTE)" autocomplete="off"></td></tr></tbody></table></div>
-      <div class="lib-recs">${R0.map(R => `<div class="lib-rec" data-rid="${esc(R.id)}"><div class="lib-rh"><b>${esc(U2(R.act))} —</b> <input class="prm-in lib-in" data-f="nom" value="${esc(R.nom)}" autocomplete="off"> <span>UNITÉ</span> <input class="prm-in lib-in center" data-f="u" value="${esc(R.u || "")}" style="width:60px" autocomplete="off">${R.chk ? ' <span class="lib-chk">À VÉRIFIER</span>' : ""}
+      <div class="lib-recs">${libChart(RF)}${R0.map(R => `<div class="lib-rec" data-rid="${esc(R.id)}"><div class="lib-rh"><b>${esc(U2(R.act))} —</b> <input class="prm-in lib-in" data-f="nom" value="${esc(R.nom)}" autocomplete="off"> <span>UNITÉ</span> <input class="prm-in lib-in center" data-f="u" value="${esc(R.u || "")}" style="width:60px" autocomplete="off">${R.chk ? ' <span class="lib-chk">À VÉRIFIER</span>' : ""}
           <small>${(R.des || []).length ? "UTILISÉE : " + esc((R.des || []).slice(0, 3).join(", ")) : ""}</small><button type="button" class="prm-del lib-del" data-rdel="${esc(R.id)}" title="Supprimer la recette">✕</button></div>
         <table class="prm-table lib-t" data-svcw="prm_libc" style="${LC.style}">${LC.cg}<thead><tr>${LCCOLS.map(c => LKIT.cfHead("prm_libc_" + R.id, c[0], c[0] === "k" ? "QTÉ POUR 1 " + esc(R.u || "U") : c[1], c[3])).join("")}<th class="center"><input type="checkbox" class="lib-call" aria-label="Tout cocher"></th></tr></thead><tbody>
           ${LKIT.cfApply("prm_libc_" + R.id, LCCOLS, (R.chg || []).map((c, i) => ({ c, i }))).map(({ c, i }) => `<tr data-ci="${i}"><td><input class="prm-in lib-c" data-f="des" value="${esc(c.des)}" autocomplete="off"></td><td><input class="prm-in lib-c center" data-f="u" value="${esc(c.u)}" autocomplete="off"></td>
@@ -367,7 +386,9 @@ function sviParamTabs() {
   };
   const libSave = (L, keep) => { sviLibSet(L); if (!keep) libDraw(); };
   lpane.addEventListener("click", e => {
-    const a = e.target.closest(".lib-a"); if (a) { libAct = a.dataset.act; libDraw(); return; }
+    const a = e.target.closest(".lib-a"); if (a) { libAct = a.dataset.act; libPt = ""; libSrc = ""; libDraw(); return; }
+    const pt = e.target.closest("[data-lpt]"); if (pt) { libPt = pt.dataset.lpt === libPt ? "" : pt.dataset.lpt; libDraw(); return; }
+    const li = e.target.closest("[data-lsrc]"); if (li) { if (window.__sviAvOpen) { document.querySelector('#navMenu .nav-btn[data-view="bdg"]')?.click(); setTimeout(() => window.__sviAvOpen(li.dataset.lsrc), 50); } return; }
     const rd = e.target.closest("[data-rdel]"); if (rd) { (async () => { const L = sviLibGet(), R = L.find(x => x.id === rd.dataset.rdel); if (!R) return; if (typeof svConfirm === "function" && !(await svConfirm({ title: "SUPPRIMER LA RECETTE", text: U2(R.act) + " — " + R.nom, ok: "SUPPRIMER" }))) return; libSave(L.filter(x => x !== R)); })(); return; }
     const cf = e.target.closest(".cf-btn"); if (cf) { e.preventDefault(); e.stopPropagation(); LKIT.cfOpenMenu(cf); return; }
     const cd = e.target.closest(".lib-cdels"); if (cd && !cd.disabled) { const rec = cd.closest(".lib-rec"), L = sviLibGet(), R = L.find(x => x.id === rec.dataset.rid);
@@ -375,6 +396,7 @@ function sviParamTabs() {
   });
   lpane.addEventListener("change", e => {
     const t = e.target, L = sviLibGet();
+    if (t.matches(".lib-src")) { libSrc = t.value; libPt = ""; libDraw(); return; }
     if (t.matches(".lib-call, .lib-ccb")) { const rec = t.closest(".lib-rec"), cbs = [...rec.querySelectorAll(".lib-ccb")]; if (t.matches(".lib-call")) cbs.forEach(c => { c.checked = t.checked; });
       const n = cbs.filter(c => c.checked).length, d = rec.querySelector(".lib-cdels"); d.disabled = !n; d.querySelector(".svi-cnt").textContent = n; return; }
     if (t.classList.contains("lib-newa")) {

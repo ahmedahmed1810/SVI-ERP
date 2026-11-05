@@ -3845,6 +3845,16 @@ def main():
   document.querySelectorAll('#svConf').forEach(x => x.remove());
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); sviFmtApply(); sviPalApply(); return r; }""")
         check('05/11 : RÉGLAGES COMMUNS en arbre pliable (LISTE, FICHE, FENÊTRE — EN INSTANCE / VALIDÉE, seuls les éléments qui existent ; nouvelles parties des fenêtres) ; palettes JOUR et NUIT ; DÉFINIR COMME PAR DÉFAUT', c15.get('cats') == 'LISTE EN INSTANCE|LISTE VALIDÉE|FICHE EN INSTANCE|FICHE VALIDÉE|FENÊTRE EN INSTANCE|FENÊTRE VALIDÉE' and c15.get('lv') == 'top,th,row,tot' and c15.get('fi') == 10 and c15.get('wi') == 12 and c15.get('css') and c15.get('nuit') and c15.get('def') and c15.get('jour'), c15)
+        c10 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = sviLibGet();
+  sviLibSet([{ id: 'ra', act: 'BÉTON', nom: 'R1', u: 'M3', q: 10, src: 'TEST-1', chg: [{ des: 'CIMENT', u: 'T', k: 0.3, p: 1000 }] }, { id: 'rb', act: 'BÉTON', nom: 'R2', u: 'M3', q: 30, src: 'TEST-2', chg: [{ des: 'CIMENT', u: 'T', k: 0.4, p: 1100 }] }]);
+  document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300); document.querySelector('#chs .prm-tab[data-prm="lib"]').click(); await w(300);
+  const a = document.querySelector('#chs .lib-a[data-act="BÉTON"]'); if (a) a.click(); await w(300);
+  r.pts = document.querySelectorAll('#chs .lib-ch .lib-pt').length; r.mean = (document.querySelector('#chs .lib-moy tbody td:nth-child(3)') || {}).textContent;
+  document.querySelector('#chs .lib-pt[data-lpt="rb"]').dispatchEvent(new MouseEvent('click', { bubbles: true })); await w(200);
+  r.rec = /RECETTE : R2/.test(document.querySelector('#chs .lib-moy thead').textContent) && !!document.querySelector('#chs .lib-moy .lib-i[data-lsrc="TEST-2"]');
+  const s = document.querySelector('#chs .lib-src'); s.value = 'TEST-1'; s.dispatchEvent(new Event('change', { bubbles: true })); await w(200); r.flt = document.querySelectorAll('#chs .lib-ch .lib-pt').length;
+  sviLibSet(keep); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check('05/11 : BIBLIOTHÈQUE DE PRIX — nuage de points par charge, moyenne pondérée au prorata des quantités produites, tableau MOYENNE, toucher un point = sa recette, « i » = son budget, filtre par budget', c10.get('pts') == 2 and c10.get('mean') == '0,3750' and c10.get('rec') and c10.get('flt') == 1, c10)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

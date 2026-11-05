@@ -1158,7 +1158,7 @@ const sviLibFromBudget = (d, src) => {
       .map(r => ({ des: U_(r.des), u: U_(r.u), k: Number(String(r.q).replace(",", ".")) / Q, p: Number(String(r.p || 0).replace(",", ".")) || 0 }));
     if (!chg.length) return;
     const sec = (d.sec || []).find(x => x.id === t.l.sec) || {};
-    out.push({ act: U_(sec.v || ""), nom: [...t.des][0] || "RECETTE", u: U_(sec.u || ""), chg, des: [...t.des], lot: [nm("lot", t.l.lot)], src: src || "", date: new Date().toISOString().slice(0, 10) });
+    out.push({ act: U_(sec.v || ""), nom: [...t.des][0] || "RECETTE", u: U_(sec.u || ""), q: Q, chg, des: [...t.des], lot: [nm("lot", t.l.lot)], src: src || "", date: new Date().toISOString().slice(0, 10) });
   });
   return out;
 };

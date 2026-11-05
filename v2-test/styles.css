@@ -1432,6 +1432,17 @@ html.svi-nuit .prm-table td, html.svi-nuit .bdg-d-table td { border-color: #3341
 /* 05/11 : réglages communs en arbre pliable */
 .fmt-cat .fmt-catg td { background: #f1f4f8; }
 .fmt-cat .fmt-ind { display: inline-block; width: 22px; }
+/* 05/11 : bibliothèque — nuages de points par charge, moyenne pondérée */
+.lib-top { margin: 0 0 12px; }
+.lib-flt { font-weight: 800; font-size: 12px; margin: 0 0 6px; }
+.lib-chs { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 8px; }
+.lib-ch { border: 1px solid #e5e9f0; border-radius: 8px; padding: 4px 6px; background: #fff; }
+.lib-ch-t { font-weight: 800; font-size: 12px; }
+.lib-ch .lib-mean { stroke: #b91c1c; stroke-dasharray: 4 3; }
+.lib-ch .lib-mt { fill: #b91c1c; font-size: 9px; font-weight: 700; }
+.lib-ch .lib-pt { fill: #2563eb; opacity: .75; cursor: pointer; }
+.lib-ch .lib-pt.on { fill: #ea580c; opacity: 1; }
+.lib-moy .lib-i { cursor: pointer; }
 #home .home-note { padding: 14px 16px; color: #475467; font-size: 12px; font-weight: 700; }
 #blkMenu .dly-sc.on span { font-weight: 800; }
 #blkMenu [data-dly].off { opacity: .45; }
