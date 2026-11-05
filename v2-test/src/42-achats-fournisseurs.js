@@ -134,7 +134,7 @@ function achFrsEvalWin(id, done) {
 }
 function achFrsFiche(id, sec, done) {
   const L0 = achFrs(), f0 = L0.find(x => x.id === id); if (!f0) return;
-  const F = JSON.parse(JSON.stringify(f0)), ro = !!f0.del || f0.st === "fige", P = achPrm();   /* v922 : figé (vert) = lecture seule, comme le budget (REVENIR EN INSTANCE pour modifier) */
+  const F = JSON.parse(JSON.stringify(f0)), ro = !!f0.del, P = achPrm();   /* v922 : figé (vert) = lecture seule, comme le budget (REVENIR EN INSTANCE pour modifier) */
   F.type = achFrsTypeLab(F); F.grp = achFrsGrpId(F);   /* B41 : un ancien groupe (sous-traitant, organisme financier) devient le type ; le groupe devient LOCAL */
   ["ribs", "docf", "cte", "evl", "cgf", "fam", "cau", "jours", "tar", "fermJ", "refs"].forEach(k => { if (!Array.isArray(F[k])) F[k] = []; });
   if (!Array.isArray(F.cla)) F.cla = achClCopy(P.clG);

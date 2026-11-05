@@ -3090,8 +3090,8 @@ def main():
             const cvv = document.querySelector('#svConf'); cvv.querySelector('.cv-x[data-c="u"]').value = 'SAC'; cvv.querySelector('.cv-x[data-c="r"]').value = '20'; cvv.querySelector('[data-save]').click(); await w(250);
             r.push(JSON.stringify(achArts().find(a => a.id === A.id).cv));
             /* v921 (remarque 3) : FIGER (vert) puis VALIDER */
-            v.querySelector('[data-nvp="more"]').click(); await w(150); document.querySelector('#blkMenu [data-a="fige"]').click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(300);
-            r.push(achArts().find(a => a.id === A.id).st, !!v.querySelector('.nvp.bdg-inst-fige'));
+            /* 05/11 : plus de FIGER — VALIDER directement depuis EN INSTANCE */
+            r.push(achArts().find(a => a.id === A.id).st, !!v.querySelector('.nvp.bdg-inst-instance'));
             v.querySelector('[data-nvp="more"]').click(); await w(150); document.querySelector('#blkMenu [data-a="val"]').click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(300);
             r.push(achArts().find(a => a.id === A.id).st, !v.querySelector('.nvp.bdg-inst-instance'));
             v.querySelector('[data-nvp="close"]').click(); await w(200); r.push((v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim());
@@ -3102,7 +3102,7 @@ def main():
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v764 : ARTICLES au format du budget — listes EN INSTANCE / VALIDÉS, dates, création par fenêtre (en instance, corbeille), page : bloc DOC / TAF / OBS, ⋯ VALIDER et UNITÉ DE CONVERSION, devis liés, ‹ ›",
               a764 == ["ARTICLES (VALIDÉS) 2", 2, 2, 1, "instance", "ARTICLES (EN INSTANCE) 1", 1, True, True, "ART-0003", True, 3, 1, True,
-                       "FIGER|UNITÉ DE CONVERSION|BUDGETS (0)|BLOQUER|APERÇU|MODIFIER LE FORMAT|DISPOSITION PAR DÉFAUT|SUPPRIMER CET ARTICLE|FERMER", '[{"u":"SAC","r":20}]', "fige", True, "valide", True, "ARTICLES (VALIDÉS) 3", True, True, True], a764)
+                       "VALIDER|UNITÉ DE CONVERSION|BUDGETS (0)|BLOQUER|APERÇU|MODIFIER LE FORMAT|DISPOSITION PAR DÉFAUT|SUPPRIMER CET ARTICLE|FERMER", '[{"u":"SAC","r":20}]', "instance", True, "valide", True, "ARTICLES (VALIDÉS) 3", True, True, True], a764)
         # v765 : toutes les listes des achats au format du budget — pas d'onglets, titre EN INSTANCE / VALIDÉS + bascule, dates, corbeille = ANNULER
         l765 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_caf_v1', 'svi_ach_caf_mode_v1', 'svi_ach_caf_etat2_v1'], keep = K.map(k => localStorage.getItem(k)); K.forEach(k => localStorage.removeItem(k));
             achCafSave([{ id: 'c1', ref: 'CAF 1', state: 'ouverte', cree: '2026-10-30T10:00:00Z', lignes: [], frs: [] }, { id: 'c2', ref: 'CAF 2', state: 'close', cree: '2026-10-20T10:00:00Z', valide: '2026-10-25T10:00:00Z', lignes: [], frs: [] }]);
@@ -3793,6 +3793,13 @@ def main():
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("05/11 : COMPTABILITÉ (classe, compte parent, nature, LETTRABLE, rangés par code) ; plafonds du fournisseur en DH ET en % (l'un dépassé = refusé ; ancien plafond en % repris) ; part maximum d'un fournisseur sur la fiche ARTICLE", c14.get('heads') == 'CODE|INTITULÉ|CLASSE|COMPTE PARENT|NATURE|LETTRABLE' and c14.get('sorted') == '441,4411' and c14.get('cls') == '4' and c14.get('nat') == 'FOURNISSEUR' and c14.get('old') == '{"dh":"","pct":50}' and c14.get('pct', '').startswith('PLAFOND') and c14.get('dh', '').startswith('PLAFOND') and c14.get('part', '').startswith('PART MAXIMUM'), c14)
+        c18 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_dvf_v1'], keep = K.map(k => localStorage.getItem(k));
+  const L = achFrs(); const f = achFrsNew(L, { nom: 'SANS FIGER' }); f.st = 'instance'; f.ice = '001234567000089'; f.ribs = [{ rib: '011780000123456789012386', p: true }]; const g = achFrsNew(L, { nom: 'ANCIEN FIGE' }); g.st = 'fige'; achFrsSave(L);
+  r.cyc = achNvCycle(f).map(x => x.lab).join('|'); r.cycOld = achNvCycle(g).map(x => x.lab).join('|'); r.stF = achStF(g);
+  const V = achDvf(); V.push({ id: 'VL', ref: 'DVF 26-0101/007', frs: f.id, state: 'recu', date: '2026-01-01', lignes: [{ des: 'A', u: 'U', q: 1, pu: 1 }, { des: 'B', u: 'U', q: 2, pu: 1 }] }); achDvfSave(V);
+  const D = achDocPage('dvf', achDvf().find(x => x.id === 'VL')), Lg = D.links.find(l => /^LIGNES/.test(l.t)); r.lref = Lg ? Lg.rows.map(x => x.cells[0]).join(',') : ''; r.c0 = Lg ? Lg.cols[0][0] : '';
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); return r; }""")
+        check('05/11 : plus de FIGER dans les achats (EN INSTANCE → VALIDER ; ancienne fiche figée = en instance) ; référence de chaque ligne = référence de la pièce + -001, -002…', c18.get('cyc') == 'VALIDER' and c18.get('cycOld') == 'VALIDER' and c18.get('stF') == 'instance' and c18.get('lref') == 'DVF 26-0101/007-001,DVF 26-0101/007-002' and c18.get('c0') == 'RÉFÉRENCE', c18)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

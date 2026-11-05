@@ -12,7 +12,7 @@
 /* v921 (remarque 3 du 04/11/2026) : même cycle que le budget — EN INSTANCE (rouge) → FIGÉ (vert) → VALIDÉ (noir) ;
    un élément figé reste dans la liste EN INSTANCE (achSt = « instance »), en vert ; achStF dit l'état exact */
 const achSt = x => x && (x.st === "instance" || x.st === "fige") ? "instance" : "valide";
-const achStF = x => x && x.st === "fige" ? "fige" : achSt(x);
+const achStF = x => achSt(x);
 const achDay = v => String(v || "").slice(0, 10);
 const ACH_TRASH = `<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>`;
 const ACH_SW = '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h14M14 4l4 4-4 4M20 16H6M10 12l-4 4 4 4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -292,7 +292,7 @@ function achNvMod(ctx, cfg) {
 function achArtFiche(id, done) {
   const a0 = id ? achArts().find(x => x.id === id) : null; if (id && !a0) return;
   const A = a0 ? JSON.parse(JSON.stringify(a0)) : { des: "", u: "", cat: "", stk: false, tva: achPrm().tva, pref: 0, pmax: 0, actif: true, cpt: "", cptI: "" };
-  const ro = !!(a0 && (a0.del || a0.st === "fige")), dis = ro ? " readonly" : "", d = sviWinNew(), P = achPrm();
+  const ro = !!(a0 && a0.del), dis = ro ? " readonly" : "", d = sviWinNew(), P = achPrm();
   const inp = (k, lab, o = {}) => `<label class="frs-f${o.w ? " frs-w" : ""}"><span>${lab}${o.req ? " <b>*</b>" : ""}</span><input class="ins-in art-x${o.num ? " number" : ""}" data-k="${k}" value="${esc(o.num ? (achN(A[k]) || k === "tva" ? achF2(A[k]) : "") : A[k] ?? "")}"${o.num ? ' inputmode="decimal"' : ""}${o.list ? ` list="artL-${k}"` : ""}${dis} autocomplete="off">${o.list ? `<datalist id="artL-${k}">${o.list.map(x => `<option value="${esc(x)}">`).join("")}</datalist>` : ""}</label>`;
   const units = (() => { try { return (typeof sviUnits === "function" ? sviUnits() : []).map(u => u.a || u).filter(Boolean); } catch (e) { return []; } })();
   d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: a0 ? esc(a0.des + " (" + a0.u + ") : " + achRefSvi(a0, achArts(), "ARA")) : "NOUVEL ARTICLE",
@@ -357,7 +357,8 @@ function achArtCv(id, done) {
 }
 /* validation d'un élément (articles, fournisseurs) : contrôles puis confirmation */
 /* v921 (remarque 3) : FIGER (rouge → vert ; refusé tant qu'il reste une alerte) et REVENIR EN INSTANCE (vert → rouge) ; VALIDER seulement après FIGER */
-const achNvCycle = (x) => x.del ? [] : x.st === "fige" ? [{ k: "val", lab: "VALIDER" }, { k: "defige", lab: "REVENIR EN INSTANCE" }] : x.st === "instance" ? [{ k: "fige", lab: "FIGER" }] : [];
+/* 05/11 : PLUS DE FIGER — une fiche passe directement d'EN INSTANCE (rouge) à VALIDÉE (noir) ; une ancienne fiche « figée » est en instance */
+const achNvCycle = (x) => x.del ? [] : x.st === "fige" || x.st === "instance" ? [{ k: "val", lab: "VALIDER" }] : [];
 async function achNvFiger(L, x, code, nom, why, save) {
   if (why.length) { svToast("FIGER IMPOSSIBLE : " + why.join(" · "), 4500); return false; }
   if (!(await svConfirm({ title: "FIGER", text: code + " — " + nom + " PASSE EN VERT : IL ATTEND SA VALIDATION.", ok: "FIGER", tone: "neutral" }))) return false;
@@ -365,7 +366,6 @@ async function achNvFiger(L, x, code, nom, why, save) {
 }
 function achNvDefiger(L, x, code, nom, save) { x.st = "instance"; delete x.fige; x.mod = achNow(); save(L); achHist(code, "REVENU EN INSTANCE", nom); return true; }
 async function achNvValider(L, x, code, nom, why, save) {
-  if (x.st === "instance") { svToast("FIGER D'ABORD : LA VALIDATION SUIT LE FIGEAGE.", 3500); return false; }
   if (why.length) { svToast("VALIDATION IMPOSSIBLE : " + why.join(" · "), 4500); return false; }
   if (!(await svConfirm({ title: "VALIDER", text: code + " — " + nom + " PASSE DANS LA LISTE DES VALIDÉS.", ok: "VALIDER", tone: "neutral" }))) return false;
   x.st = "valide"; x.val = achNow(); x.mod = x.val; save(L); achHist(code, "VALIDATION", nom); return true;
