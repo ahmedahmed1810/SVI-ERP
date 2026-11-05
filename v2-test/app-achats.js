@@ -182,6 +182,11 @@ const achIceMsg = () => "ICE NON VALIDE : FORMAT " + ((typeof sviMaskOf === "fun
 /* v810 : clé du RIB (C1.40, validée par Ahmed le 02/11/2026) — 24 chiffres divisibles par 97, sinon refusé */
 const achRibOk = v => achRibOk0(v) && achRibKeyOk(v);
 const achRibKeyOk = v => { const d = achDig(v); try { return d.length === 24 && BigInt(d) % 97n === 0n; } catch (e) { return true; } };
+/* B21 (série B) : RIB contrôlé avec la banque et l'agence choisies (code banque = 3 premiers chiffres, code de l'agence = 3 suivants, code ville du RIB) */
+const achRibBqWhy = r => { const d = achDig(r.rib); if (d.length < 6) return ""; const B = r.bqId ? achBanks().find(b => b.id === r.bqId) : null, A = r.ag ? achAgences(r.bqId).find(a => a.id === r.ag) : null;
+  if (B && B.code && !achBankHasCode(B, d.slice(0, 3))) return "RIB " + d.slice(0, 3) + "… : NE CORRESPOND PAS À LA BANQUE " + B.n + " (CODE " + B.code + ")";
+  if (A && /^\d{3}$/.test(String(A.code || "")) && A.code !== d.slice(3, 6)) return "RIB : CODE VILLE " + d.slice(3, 6) + " ≠ AGENCE " + A.lab + " (" + A.code + ")";
+  return ""; };
 const achRibOk0 = v => /^\d{24}$/.test(achDig(v));
 const achFrs = () => { const L = achJ(ACH_K.frs, []); return Array.isArray(L) ? L : []; };
 const achFrsSave = L => achW(ACH_K.frs, L);
@@ -1340,9 +1345,14 @@ function achFrsFiche(id, sec, done) {
         <div class="frs-sec" data-s="secu"><div class="frs-st">ASSURANCES, SÉCURITÉ ET CONDITIONS GÉNÉRALES</div><div class="frs-g">
           ${inp("cgaDate", "CONDITIONS GÉNÉRALES SIGNÉES LE", { date: 1 })}${inp("revue", "DERNIÈRE REVUE DE LA FICHE", { date: 1 })}
           <div class="frs-cs">${chk("assRc", "ASSURANCE RESPONSABILITÉ CIVILE")}${chk("secu", "RESPECTE LES RÈGLES DE SÉCURITÉ SUR CHANTIER")}${chk("cga", "CONDITIONS GÉNÉRALES D'ACHAT SIGNÉES ET ACCEPTÉES")}</div></div></div>
-        <div class="frs-sec" data-s="cpt"><div class="frs-st">COMPTE COMPTABLE</div><div class="frs-g">${inp("codeCpt", "CODE COMPTABLE", { num: 1 })}${inp("intCpt", "INTITULÉ COMPTABLE")}</div></div>
+        <div class="frs-sec" data-s="cpt"><div class="frs-st">COMPTE COMPTABLE</div><div class="frs-g">${(() => { const CP = sviPgL("cpt"); /* B21 : choisi dans PARAMÉTRAGE GÉNÉRAL › COMPTABILITÉ */
+            if (!CP.length) return inp("codeCpt", "CODE COMPTABLE", { num: 1 }) + inp("intCpt", "INTITULÉ COMPTABLE");
+            const O = CP.map(c => [String(c.code), c.code + " — " + (c.lab || "")]); if (F.codeCpt && !O.some(o => o[0] === String(F.codeCpt))) O.push([String(F.codeCpt), F.codeCpt + " — " + (F.intCpt || "")]);
+            return sel("codeCpt", "COMPTE COMPTABLE (PARAMÉTRAGE GÉNÉRAL › COMPTABILITÉ)", O, { w: 1 }); })()}</div></div>
         <div class="frs-sec" data-s="rib"><div class="frs-st">RIB ${svCnt(F.ribs.length)}</div>
-          ${sub("ribs", [["rib", "RIB (24 CHIFFRES)", null, ' inputmode="numeric"'], ["bq", "BANQUE", r => esc((achBankOfRib(r.rib) || {}).n || (achDig(r.rib).length >= 3 ? "CODE " + achDig(r.rib).slice(0, 3) + " INCONNU" : "—"))],
+          ${sub("ribs", [["bqId", "BANQUE", r => { const B = achBanks(), g = r.bqId || (achBankOfRib(r.rib) || {}).id || ""; return `<select class="ins-in frs-s" data-c="bqId"${ro ? " disabled" : ""}><option value="">—</option>${B.map(b => `<option value="${esc(b.id)}"${b.id === g ? " selected" : ""}>${esc(b.n)}</option>`).join("")}</select>`; }],
+            ["ag", "AGENCE", r => { const g = r.bqId || (achBankOfRib(r.rib) || {}).id || "", A = g ? achAgences(g) : []; return `<select class="ins-in frs-s" data-c="ag"${ro || !A.length ? " disabled" : ""}><option value="">—</option>${A.map(a => `<option value="${esc(a.id)}"${a.id === r.ag ? " selected" : ""}>${esc(a.lab + (a.code ? " (" + a.code + ")" : ""))}</option>`).join("")}</select>`; }],
+            ["rib", "RIB (24 CHIFFRES)", null, ' inputmode="numeric"'], ["ck", "CONTRÔLE", r => { const m = achRibBqWhy({ ...r, bqId: r.bqId || (achBankOfRib(r.rib) || {}).id || "" }); return m ? `<span class="ach-warn" title="${esc(m)}">⚠ ${esc(m)}</span>` : achRibOk(r.rib) ? "✓" : "—"; }],
             ["p", "PRINCIPAL", (r, i) => `<input type="radio" name="frsRibP" class="frs-rp" data-i="${i}"${r.p ? " checked" : ""}${ro ? " disabled" : ""}>`]], "AJOUTER UN RIB")}</div>
         <div class="frs-sec" data-s="enc"><div class="frs-st">ENCOURS ET ENCAISSEMENT</div><div class="frs-g">
           ${inp("plafEnc", "PLAFOND D'ENCOURS (MAD)", { num: 1 })}${inp("plafT", "PLAFOND DE TRANSACTIONS (12 MOIS)", { num: 1 })}${sel("plafU", "UNITÉ DU PLAFOND", [["DH", "DH HT"], ["%", "% DES ACHATS"]])}<label class="frs-f"><span>ENCOURS ACTUEL</span><input class="ins-in" value="${esc(achF2(achFrsEnc(id)))}" readonly></label>
@@ -1406,13 +1416,14 @@ function achFrsFiche(id, sec, done) {
   const pull = () => {
     d.querySelectorAll(".frs-x").forEach(i => { const k = i.dataset.k; F[k] = ["ice", "ifisc", "rc", "cnss"].includes(k) ? sviMaskRaw(i.value) : ["patente", "codeCpt", "aeNo"].includes(k) ? achDig(i.value) : ["capital", "effectif", "plafEnc", "plafT", "escTaux", "escJours", "retTaux", "delai", "minCmd", "franco", "remise", "garMois", "camions"].includes(k) ? (String(i.value || "").trim() === "" ? "" : achN(i.value)) : ["dateCrea", "cgaDate", "revue"].includes(k) ? i.value : ["site", "mailCmd", "mailFac"].includes(k) ? String(i.value || "").trim().toLowerCase() : k === "gps" ? String(i.value || "").trim() : achU(i.value); });
     d.querySelectorAll(".frs-xs").forEach(i => { F[i.dataset.k] = i.value; });
+    if (d.querySelector('select.frs-xs[data-k="codeCpt"]')) { const c = sviPgL("cpt").find(x => String(x.code) === String(F.codeCpt)); if (c) F.intCpt = achU(c.lab || ""); }
     d.querySelectorAll(".frs-xc").forEach(i => { F[i.dataset.k] = i.checked; });
     F.fam = [...d.querySelectorAll(".frs-fc:checked")].map(i => i.value);
     F.jours = [...d.querySelectorAll(".frs-jr:checked")].map(i => i.value);
     F.fermJ = [...d.querySelectorAll(".frs-fj:checked")].map(i => i.value);
     d.querySelectorAll('.frs-sub[data-sub="cte"] tr[data-i]').forEach(tr => { const r = F.cte[+tr.dataset.i]; if (r && !ro) r.rec = [...tr.querySelectorAll(".frs-rcb:checked")].map(i => i.value); });
     d.querySelectorAll(".frs-sub[data-sub]").forEach(t => { const k = t.dataset.sub; t.querySelectorAll("tr[data-i]").forEach(tr => { const r = F[k][+tr.dataset.i]; if (!r) return;
-      tr.querySelectorAll(".frs-s").forEach(i => { const c = i.dataset.c; r[c] = c === "rib" ? achDig(i.value) : c === "email" ? String(i.value || "").trim().toLowerCase() : c === "mt" || c === "pu" ? achN(i.value) : c === "exp" || c === "ech" || c === "valid" || c === "debut" || c === "fin" || c === "type" || c === "role" || c === "t" ? i.value : achU(i.value); }); }); });
+      tr.querySelectorAll(".frs-s").forEach(i => { const c = i.dataset.c; if (c === "bqId") return; /* B21 : la banque n'est gardée que choisie (sinon déduite du RIB) */ r[c] = c === "rib" ? achDig(i.value) : c === "email" ? String(i.value || "").trim().toLowerCase() : c === "mt" || c === "pu" ? achN(i.value) : c === "exp" || c === "ech" || c === "valid" || c === "debut" || c === "fin" || c === "type" || c === "role" || c === "t" || c === "bqId" || c === "ag" ? i.value : achU(i.value); }); }); });
     const rp = d.querySelector(".frs-rp:checked"); F.ribs.forEach((r, i) => { r.p = !!rp && +rp.dataset.i === i; });
   };
   /* v906 (principe du 03/11/2026 : erreur refusée dès la saisie) : chaque case de la fiche est contrôlée en la quittant —
@@ -1442,6 +1453,8 @@ function achFrsFiche(id, sec, done) {
   /* B29 : changer le TYPE d'un article reprend sa valeur par défaut (si l'article était vide ou gardait celle de l'ancien type) */
   d.addEventListener("change", e => { const s = e.target.closest && e.target.closest('table[data-sub="cla"] select[data-c="t"]'); if (!s) return; const tr = s.closest("tr[data-i]"), x = F.cla[+tr.dataset.i]; if (!x) return;
     const inp = tr.querySelector('input[data-c="txt"]'), cur = inp ? achU(inp.value) : x.txt; if (!cur || cur === achCltDef(x.t)) { if (inp) inp.value = achCltDef(s.value); } x.t = s.value; x.txt = inp ? achU(inp.value) : x.txt; });
+  /* B21 : changer la banque d'un RIB recharge ses agences */
+  d.addEventListener("change", e => { const s = e.target.closest && e.target.closest('table[data-sub="ribs"] select[data-c="bqId"]'); if (!s) return; pull(); const r = F.ribs[+s.closest("tr[data-i]").dataset.i]; if (r) { r.bqId = s.value; r.ag = ""; } draw(); });
   /* B41 : LANGUE — « AJOUTER… » en bas de la liste ; la langue ajoutée l'est partout (PARAMÉTRAGE GÉNÉRAL) */
   d.addEventListener("change", async e => { const s = e.target.closest && e.target.closest('select[data-k="lang"]'); if (!s || s.value !== "__add") return; e.stopImmediatePropagation();
     let v = ""; const h = ev => { if (ev.target && ev.target.id === "frsLangNew") v = ev.target.value; }; document.addEventListener("input", h, true);
@@ -1497,6 +1510,7 @@ function achFrsFiche(id, sec, done) {
     if (F.gps && !/^-?\d{1,2}(\.\d+)?\s*,\s*-?\d{1,3}(\.\d+)?$/.test(F.gps)) { svToast("POSITION GPS : LATITUDE, LONGITUDE (EX. 33.5731, -7.5898).", 3500); return; }
     if (F.refs.some(x => x.annee && !/^(19|20)\d{2}$/.test(String(x.annee)))) { svToast("RÉFÉRENCES : ANNÉE SUR 4 CHIFFRES.", 3000); return; }
     if (F.tar.some(x => !(achN(x.pu) > 0))) { svToast("TARIFS : PRIX OBLIGATOIRE.", 3000); return; }
+    { const m = F.ribs.map(r => achRibBqWhy({ ...r, bqId: r.bqId || (achBankOfRib(r.rib) || {}).id || "" })).find(Boolean); if (m) { svToast(m + ".", 4500); return; } }
     if (!F.grp || !achPrm().grp.some(g => g.id === F.grp)) { svToast("GROUPE OBLIGATOIRE.", 3000); return; }
     if (achSt(f0) !== "instance" && achFrsGrpId(f0) !== F.grp) { svToast("LE GROUPE NE SE CHANGE PLUS APRÈS LA VALIDATION (LA RÉFÉRENCE CHANGERAIT).", 4000); return; }
     if (achSt(f0) !== "instance" && achFrsPfx(f0) !== achFrsPfx(F)) { svToast("LE TYPE NE SE CHANGE PLUS APRÈS LA VALIDATION (LE PRÉFIXE DE LA RÉFÉRENCE CHANGERAIT).", 4000); return; }
@@ -1735,7 +1749,7 @@ function achDocPage(k, x) {
     /* v780 (remarque 9) : TABLEAU COMPARATIF (une ligne par fournisseur ayant répondu, ★ = le moins cher), RETENU et MOTIF DU CHOIX ; CRÉER LA COMMANDE dans le ⋯ principal */
     const DD = achDvf().filter(v => v.caf === x.id && v.state !== "annule"), dvOf = f => DD.find(v => v.frs === f), HT = (x.frs || []).map(f => dvOf(f) ? achDvfTot(dvOf(f)).ht : null).filter(v => v !== null && v > 0), MIN = HT.length ? Math.min(...HT) : null;
     const CMP = { t: "TABLEAU COMPARATIF", cols: [["FOURNISSEUR"], ["DEVIS"], ["MONTANT HT", "number"], ["MONTANT TTC", "number"], ["RETENU", "center"], ["MOTIF DU CHOIX"]],
-      rows: (x.frs || []).filter(dvOf).map(f => { const v = dvOf(f), t = achDvfTot(v); return { cells: [fr(f) + (MIN !== null && Math.abs(t.ht - MIN) < 0.005 ? " ★" : ""), v.ref, t.ht, t.ttc, x.retenu === f ? "RETENU" : "", x.retenu === f ? x.motif || "" : ""], cls: x.retenu === f ? "nvp-ret" : "" }; }) };
+      rows: (x.frs || []).filter(dvOf).map(f => { const v = dvOf(f), t = achDvfTot(v), bang = x.retenu === f && HT.length < achPrm().nfrs; return { cells: [fr(f) + (MIN !== null && Math.abs(t.ht - MIN) < 0.005 ? " ★" : ""), v.ref, bang ? "! " + achF2(t.ht) : t.ht, t.ttc, x.retenu === f ? "RETENU" : "", x.retenu === f ? x.motif || "" : ""], cls: x.retenu === f ? "nvp-ret" : "" }; }) };
     const canCmd = x.state === "close" && !achCmf().some(c => c.caf === x.id && c.state !== "annule");
     return { title: x.objet || "", menu: canCmd ? [{ k: "mkcmf", lab: "CRÉER LA COMMANDE" }] : [],
       act: async k => { if (k !== "mkcmf") return false; const v = achDvf().find(y => y.caf === x.id && y.state === "retenu"); if (!v) { svToast("AUCUN DEVIS RETENU.", 3000); return true; }
@@ -1825,7 +1839,7 @@ function achCafFiche(id, done) {
           <table class="prm-table frs-sub caf-cmp"><thead><tr><th>LIGNE</th>${C.frs.filter(dv).map(f => `<th class="number">${esc(achFrsNom(f))}</th>`).join("")}</tr></thead><tbody>
           ${C.lignes.map(l => `<tr><td>${esc(l.des)} (${esc(achF2(l.q))} ${esc(l.u)})</td>${C.frs.filter(dv).map(f => { const x = (dv(f).lignes || []).find(y => achU(y.des) === achU(l.des) && achU(y.u) === achU(l.u)); return `<td class="number">${x && achN(x.pu) ? esc(achF2(achDvfPuNet(dv(f), x))) + (achDvfLow(C, D, l, dv(f), x) ? " ⚠ BAS" : "") : "—"}</td>`; }).join("")}</tr>`).join("")}
           <tr><td>TRANSPORT HT</td>${C.frs.filter(dv).map(f => `<td class="number">${achN(dv(f).transp) ? esc(achF2(dv(f).transp)) : "FRANCO"}</td>`).join("")}</tr>
-          <tr class="caf-tot"><td><b>TOTAL RENDU CHANTIER HT</b></td>${C.frs.filter(dv).map(f => { const t = achDvfTot(dv(f)).ht; return `<td class="number"><b>${esc(achF2(t))}</b>${t === min ? " ★" : ""}</td>`; }).join("")}</tr>
+          <tr class="caf-tot"><td><b>TOTAL RENDU CHANTIER HT</b></td>${C.frs.filter(dv).map(f => { const t = achDvfTot(dv(f)).ht; const nd = C.frs.filter(dv).filter(g => achDvfTot(dv(g)).ht > 0).length; return `<td class="number">${C.retenu === f && nd < achPrm().nfrs ? `<b class="caf-bang" data-tip="MOINS DE ${achPrm().nfrs} DEVIS (${nd}) : MINIMUM NON BLOQUANT">!</b> ` : ""}<b>${esc(achF2(t))}</b>${t === min ? " ★" : ""}</td>`; }).join("")}</tr>
           <tr><td><b>RETENU</b></td>${C.frs.filter(dv).map(f => `<td class="center"><input type="radio" name="cafRet" class="caf-ret" value="${esc(f)}"${C.retenu === f ? " checked" : ""}${dis}></td>`).join("")}</tr></tbody></table>
           <label class="frs-f frs-w"><span>MOTIF DU CHOIX (OBLIGATOIRE SI LE RETENU N'EST PAS LE MOINS CHER ★)</span><input class="ins-in caf-x" data-k="motif" value="${esc(C.motif || "")}"${dis} autocomplete="off"></label></div>` : ""}
         ${C.state === "close" ? `<div class="bsn-note">CLOSE LE ${esc(achDFr(C.close))} : RETENU ${esc(achFrsNom(C.retenu))}.${(() => { const m = achCmf().find(x => x.caf === C.id && x.state !== "annule"); return m ? " COMMANDE : " + esc(m.ref) + "." : ""; })()}</div>` : ""}

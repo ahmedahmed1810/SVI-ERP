@@ -3649,6 +3649,25 @@ def main():
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("SÉRIE B, B34 B35 B32 B40 : RÉPARTITION par article (part cible = 100 % ÷ fournisseurs actifs ± marge, liés = un seul, devis expiré = sorti, alerte tant qu'il en manque) ; fiche article onglet FOURNISSEURS (part sur 12 mois, ! sous 3) ; PLAFOND DE TRANSACTIONS atteint = commande refusée", b34.get('n') == 2 and b34.get('cible') == 50 and b34.get('why') == 'RÉPARTITION SABLE FIN : 2 FOURNISSEURS ACTIFS SUR 3 PRÉVUS|PART DU FOURNISSEUR SUR SABLE FIN : 80 % (CIBLE 50 % ± 10)' and b34.get('plaf', '').startswith('PLAFOND DE TRANSACTIONS ATTEINT') and not b34.get('plafOk', '').startswith('PLAFOND') and b34.get('nExp') == 1 and b34.get('frsRows') == 1 and b34.get('bang'), b34)
+        b21 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_pg_v1', 'svi_ach_caf_v1', 'svi_ach_dvf_v1'], keep = K.map(k => localStorage.getItem(k));
+  const o = sviPg(); o.banques = [{ id: 'BQ1', p: '', lab: 'BANQUE UN', abr: 'B1', code: '230' }, { id: 'AG1', p: 'BQ1', lab: 'AGENCE AGADIR', abr: '', code: '010' }, { id: 'AG2', p: 'BQ1', lab: 'AGENCE RABAT', abr: '', code: '780' }];
+  o.cpt = [{ id: 'k1', code: '4411', lab: 'fournisseurs' }]; sviPgSave(o);
+  r.ok = achRibBqWhy({ rib: '230010000000000000000000', bqId: 'BQ1', ag: 'AG1' }); r.badAg = achRibBqWhy({ rib: '230010000000000000000000', bqId: 'BQ1', ag: 'AG2' }); r.badBq = achRibBqWhy({ rib: '007010000000000000000000', bqId: 'BQ1' });
+  const L = achFrs(); const a = achFrsNew(L, { nom: 'BANQ' }); a.ribs = [{ rib: '230010000000000000000000', p: true }]; achFrsSave(L);
+  document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(400); achFrsFiche(a.id, 'rib'); await w(400);
+  const bs = document.querySelector('table[data-sub="ribs"] select[data-c="bqId"]'); r.bqDef = bs.value;
+  r.agN = document.querySelectorAll('table[data-sub="ribs"] select[data-c="ag"] option').length;
+  const cs = document.querySelector('select[data-k="codeCpt"]'); r.cpt = !!cs; if (cs) { cs.value = '4411'; }
+  const ag = document.querySelector('table[data-sub="ribs"] select[data-c="ag"]'); ag.value = 'AG2'; document.querySelector('[data-save]').click(); await w(400);
+  r.refused = !(achFrs().find(x => x.id === a.id).ribs[0] || {}).ag;
+  document.querySelectorAll('#svConf').forEach(x => x.remove());
+  const L2 = achFrs(), f1 = achFrsNew(L2, { nom: 'CMP1' }), f2 = achFrsNew(L2, { nom: 'CMP2' }); achFrsSave(L2);
+  const CA = achCaf(); CA.push({ id: 'CB', ref: 'CAF B', state: 'ouverte', frs: [f1.id, f2.id], retenu: f1.id, lignes: [{ des: 'X', u: 'U', q: 1 }], cree: new Date().toISOString() }); achCafSave(CA);
+  const DV = achDvf(); DV.push({ id: 'DB1', ref: 'DVF B1', caf: 'CB', frs: f1.id, state: 'recu', lignes: [{ des: 'X', u: 'U', q: 1, pu: 50 }] }); achDvfSave(DV);
+  achCafFiche('CB'); await w(400); r.bang = !!document.querySelector('.caf-cmp .caf-bang[data-tip]'); document.querySelectorAll('#svConf').forEach(x => x.remove());
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("SÉRIE B, B21 B18 : fiche fournisseur BANQUE › AGENCE › RIB contrôlé (code banque, code ville de l'agence), compte comptable choisi dans COMPTABILITÉ ; minimum de devis non bloquant = « ! » devant le prix retenu", b21.get('ok') == '' and b21.get('badAg', '').startswith('RIB : CODE VILLE') and b21.get('badBq', '').startswith('RIB 007') and b21.get('bqDef') == 'BQ1' and b21.get('agN') == 3 and b21.get('cpt') and b21.get('refused') and b21.get('bang'), b21)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

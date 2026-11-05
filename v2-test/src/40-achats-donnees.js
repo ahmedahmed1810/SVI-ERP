@@ -181,6 +181,11 @@ const achIceMsg = () => "ICE NON VALIDE : FORMAT " + ((typeof sviMaskOf === "fun
 /* v810 : clé du RIB (C1.40, validée par Ahmed le 02/11/2026) — 24 chiffres divisibles par 97, sinon refusé */
 const achRibOk = v => achRibOk0(v) && achRibKeyOk(v);
 const achRibKeyOk = v => { const d = achDig(v); try { return d.length === 24 && BigInt(d) % 97n === 0n; } catch (e) { return true; } };
+/* B21 (série B) : RIB contrôlé avec la banque et l'agence choisies (code banque = 3 premiers chiffres, code de l'agence = 3 suivants, code ville du RIB) */
+const achRibBqWhy = r => { const d = achDig(r.rib); if (d.length < 6) return ""; const B = r.bqId ? achBanks().find(b => b.id === r.bqId) : null, A = r.ag ? achAgences(r.bqId).find(a => a.id === r.ag) : null;
+  if (B && B.code && !achBankHasCode(B, d.slice(0, 3))) return "RIB " + d.slice(0, 3) + "… : NE CORRESPOND PAS À LA BANQUE " + B.n + " (CODE " + B.code + ")";
+  if (A && /^\d{3}$/.test(String(A.code || "")) && A.code !== d.slice(3, 6)) return "RIB : CODE VILLE " + d.slice(3, 6) + " ≠ AGENCE " + A.lab + " (" + A.code + ")";
+  return ""; };
 const achRibOk0 = v => /^\d{24}$/.test(achDig(v));
 const achFrs = () => { const L = achJ(ACH_K.frs, []); return Array.isArray(L) ? L : []; };
 const achFrsSave = L => achW(ACH_K.frs, L);

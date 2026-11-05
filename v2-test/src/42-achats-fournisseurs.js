@@ -179,9 +179,14 @@ function achFrsFiche(id, sec, done) {
         <div class="frs-sec" data-s="secu"><div class="frs-st">ASSURANCES, SÉCURITÉ ET CONDITIONS GÉNÉRALES</div><div class="frs-g">
           ${inp("cgaDate", "CONDITIONS GÉNÉRALES SIGNÉES LE", { date: 1 })}${inp("revue", "DERNIÈRE REVUE DE LA FICHE", { date: 1 })}
           <div class="frs-cs">${chk("assRc", "ASSURANCE RESPONSABILITÉ CIVILE")}${chk("secu", "RESPECTE LES RÈGLES DE SÉCURITÉ SUR CHANTIER")}${chk("cga", "CONDITIONS GÉNÉRALES D'ACHAT SIGNÉES ET ACCEPTÉES")}</div></div></div>
-        <div class="frs-sec" data-s="cpt"><div class="frs-st">COMPTE COMPTABLE</div><div class="frs-g">${inp("codeCpt", "CODE COMPTABLE", { num: 1 })}${inp("intCpt", "INTITULÉ COMPTABLE")}</div></div>
+        <div class="frs-sec" data-s="cpt"><div class="frs-st">COMPTE COMPTABLE</div><div class="frs-g">${(() => { const CP = sviPgL("cpt"); /* B21 : choisi dans PARAMÉTRAGE GÉNÉRAL › COMPTABILITÉ */
+            if (!CP.length) return inp("codeCpt", "CODE COMPTABLE", { num: 1 }) + inp("intCpt", "INTITULÉ COMPTABLE");
+            const O = CP.map(c => [String(c.code), c.code + " — " + (c.lab || "")]); if (F.codeCpt && !O.some(o => o[0] === String(F.codeCpt))) O.push([String(F.codeCpt), F.codeCpt + " — " + (F.intCpt || "")]);
+            return sel("codeCpt", "COMPTE COMPTABLE (PARAMÉTRAGE GÉNÉRAL › COMPTABILITÉ)", O, { w: 1 }); })()}</div></div>
         <div class="frs-sec" data-s="rib"><div class="frs-st">RIB ${svCnt(F.ribs.length)}</div>
-          ${sub("ribs", [["rib", "RIB (24 CHIFFRES)", null, ' inputmode="numeric"'], ["bq", "BANQUE", r => esc((achBankOfRib(r.rib) || {}).n || (achDig(r.rib).length >= 3 ? "CODE " + achDig(r.rib).slice(0, 3) + " INCONNU" : "—"))],
+          ${sub("ribs", [["bqId", "BANQUE", r => { const B = achBanks(), g = r.bqId || (achBankOfRib(r.rib) || {}).id || ""; return `<select class="ins-in frs-s" data-c="bqId"${ro ? " disabled" : ""}><option value="">—</option>${B.map(b => `<option value="${esc(b.id)}"${b.id === g ? " selected" : ""}>${esc(b.n)}</option>`).join("")}</select>`; }],
+            ["ag", "AGENCE", r => { const g = r.bqId || (achBankOfRib(r.rib) || {}).id || "", A = g ? achAgences(g) : []; return `<select class="ins-in frs-s" data-c="ag"${ro || !A.length ? " disabled" : ""}><option value="">—</option>${A.map(a => `<option value="${esc(a.id)}"${a.id === r.ag ? " selected" : ""}>${esc(a.lab + (a.code ? " (" + a.code + ")" : ""))}</option>`).join("")}</select>`; }],
+            ["rib", "RIB (24 CHIFFRES)", null, ' inputmode="numeric"'], ["ck", "CONTRÔLE", r => { const m = achRibBqWhy({ ...r, bqId: r.bqId || (achBankOfRib(r.rib) || {}).id || "" }); return m ? `<span class="ach-warn" title="${esc(m)}">⚠ ${esc(m)}</span>` : achRibOk(r.rib) ? "✓" : "—"; }],
             ["p", "PRINCIPAL", (r, i) => `<input type="radio" name="frsRibP" class="frs-rp" data-i="${i}"${r.p ? " checked" : ""}${ro ? " disabled" : ""}>`]], "AJOUTER UN RIB")}</div>
         <div class="frs-sec" data-s="enc"><div class="frs-st">ENCOURS ET ENCAISSEMENT</div><div class="frs-g">
           ${inp("plafEnc", "PLAFOND D'ENCOURS (MAD)", { num: 1 })}${inp("plafT", "PLAFOND DE TRANSACTIONS (12 MOIS)", { num: 1 })}${sel("plafU", "UNITÉ DU PLAFOND", [["DH", "DH HT"], ["%", "% DES ACHATS"]])}<label class="frs-f"><span>ENCOURS ACTUEL</span><input class="ins-in" value="${esc(achF2(achFrsEnc(id)))}" readonly></label>
@@ -245,13 +250,14 @@ function achFrsFiche(id, sec, done) {
   const pull = () => {
     d.querySelectorAll(".frs-x").forEach(i => { const k = i.dataset.k; F[k] = ["ice", "ifisc", "rc", "cnss"].includes(k) ? sviMaskRaw(i.value) : ["patente", "codeCpt", "aeNo"].includes(k) ? achDig(i.value) : ["capital", "effectif", "plafEnc", "plafT", "escTaux", "escJours", "retTaux", "delai", "minCmd", "franco", "remise", "garMois", "camions"].includes(k) ? (String(i.value || "").trim() === "" ? "" : achN(i.value)) : ["dateCrea", "cgaDate", "revue"].includes(k) ? i.value : ["site", "mailCmd", "mailFac"].includes(k) ? String(i.value || "").trim().toLowerCase() : k === "gps" ? String(i.value || "").trim() : achU(i.value); });
     d.querySelectorAll(".frs-xs").forEach(i => { F[i.dataset.k] = i.value; });
+    if (d.querySelector('select.frs-xs[data-k="codeCpt"]')) { const c = sviPgL("cpt").find(x => String(x.code) === String(F.codeCpt)); if (c) F.intCpt = achU(c.lab || ""); }
     d.querySelectorAll(".frs-xc").forEach(i => { F[i.dataset.k] = i.checked; });
     F.fam = [...d.querySelectorAll(".frs-fc:checked")].map(i => i.value);
     F.jours = [...d.querySelectorAll(".frs-jr:checked")].map(i => i.value);
     F.fermJ = [...d.querySelectorAll(".frs-fj:checked")].map(i => i.value);
     d.querySelectorAll('.frs-sub[data-sub="cte"] tr[data-i]').forEach(tr => { const r = F.cte[+tr.dataset.i]; if (r && !ro) r.rec = [...tr.querySelectorAll(".frs-rcb:checked")].map(i => i.value); });
     d.querySelectorAll(".frs-sub[data-sub]").forEach(t => { const k = t.dataset.sub; t.querySelectorAll("tr[data-i]").forEach(tr => { const r = F[k][+tr.dataset.i]; if (!r) return;
-      tr.querySelectorAll(".frs-s").forEach(i => { const c = i.dataset.c; r[c] = c === "rib" ? achDig(i.value) : c === "email" ? String(i.value || "").trim().toLowerCase() : c === "mt" || c === "pu" ? achN(i.value) : c === "exp" || c === "ech" || c === "valid" || c === "debut" || c === "fin" || c === "type" || c === "role" || c === "t" ? i.value : achU(i.value); }); }); });
+      tr.querySelectorAll(".frs-s").forEach(i => { const c = i.dataset.c; if (c === "bqId") return; /* B21 : la banque n'est gardée que choisie (sinon déduite du RIB) */ r[c] = c === "rib" ? achDig(i.value) : c === "email" ? String(i.value || "").trim().toLowerCase() : c === "mt" || c === "pu" ? achN(i.value) : c === "exp" || c === "ech" || c === "valid" || c === "debut" || c === "fin" || c === "type" || c === "role" || c === "t" || c === "bqId" || c === "ag" ? i.value : achU(i.value); }); }); });
     const rp = d.querySelector(".frs-rp:checked"); F.ribs.forEach((r, i) => { r.p = !!rp && +rp.dataset.i === i; });
   };
   /* v906 (principe du 03/11/2026 : erreur refusée dès la saisie) : chaque case de la fiche est contrôlée en la quittant —
@@ -281,6 +287,8 @@ function achFrsFiche(id, sec, done) {
   /* B29 : changer le TYPE d'un article reprend sa valeur par défaut (si l'article était vide ou gardait celle de l'ancien type) */
   d.addEventListener("change", e => { const s = e.target.closest && e.target.closest('table[data-sub="cla"] select[data-c="t"]'); if (!s) return; const tr = s.closest("tr[data-i]"), x = F.cla[+tr.dataset.i]; if (!x) return;
     const inp = tr.querySelector('input[data-c="txt"]'), cur = inp ? achU(inp.value) : x.txt; if (!cur || cur === achCltDef(x.t)) { if (inp) inp.value = achCltDef(s.value); } x.t = s.value; x.txt = inp ? achU(inp.value) : x.txt; });
+  /* B21 : changer la banque d'un RIB recharge ses agences */
+  d.addEventListener("change", e => { const s = e.target.closest && e.target.closest('table[data-sub="ribs"] select[data-c="bqId"]'); if (!s) return; pull(); const r = F.ribs[+s.closest("tr[data-i]").dataset.i]; if (r) { r.bqId = s.value; r.ag = ""; } draw(); });
   /* B41 : LANGUE — « AJOUTER… » en bas de la liste ; la langue ajoutée l'est partout (PARAMÉTRAGE GÉNÉRAL) */
   d.addEventListener("change", async e => { const s = e.target.closest && e.target.closest('select[data-k="lang"]'); if (!s || s.value !== "__add") return; e.stopImmediatePropagation();
     let v = ""; const h = ev => { if (ev.target && ev.target.id === "frsLangNew") v = ev.target.value; }; document.addEventListener("input", h, true);
@@ -336,6 +344,7 @@ function achFrsFiche(id, sec, done) {
     if (F.gps && !/^-?\d{1,2}(\.\d+)?\s*,\s*-?\d{1,3}(\.\d+)?$/.test(F.gps)) { svToast("POSITION GPS : LATITUDE, LONGITUDE (EX. 33.5731, -7.5898).", 3500); return; }
     if (F.refs.some(x => x.annee && !/^(19|20)\d{2}$/.test(String(x.annee)))) { svToast("RÉFÉRENCES : ANNÉE SUR 4 CHIFFRES.", 3000); return; }
     if (F.tar.some(x => !(achN(x.pu) > 0))) { svToast("TARIFS : PRIX OBLIGATOIRE.", 3000); return; }
+    { const m = F.ribs.map(r => achRibBqWhy({ ...r, bqId: r.bqId || (achBankOfRib(r.rib) || {}).id || "" })).find(Boolean); if (m) { svToast(m + ".", 4500); return; } }
     if (!F.grp || !achPrm().grp.some(g => g.id === F.grp)) { svToast("GROUPE OBLIGATOIRE.", 3000); return; }
     if (achSt(f0) !== "instance" && achFrsGrpId(f0) !== F.grp) { svToast("LE GROUPE NE SE CHANGE PLUS APRÈS LA VALIDATION (LA RÉFÉRENCE CHANGERAIT).", 4000); return; }
     if (achSt(f0) !== "instance" && achFrsPfx(f0) !== achFrsPfx(F)) { svToast("LE TYPE NE SE CHANGE PLUS APRÈS LA VALIDATION (LE PRÉFIXE DE LA RÉFÉRENCE CHANGERAIT).", 4000); return; }
