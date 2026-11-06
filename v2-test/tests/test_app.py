@@ -168,7 +168,7 @@ def main():
             document.getElementById('svConf')?.remove();
             const K = JSON.parse(keep); if (K.vfz) I.vfz = K.vfz; else delete I.vfz; if (keepT === null) localStorage.removeItem('svi_etp_tab_v1'); else localStorage.setItem('svi_etp_tab_v1', keepT); X.refreshAll(); return r; }""".replace("INS_X", ins))
         check("v756 / v757 : un seul bloc à onglets AVENANTS / SCÉNARIOS / VERSIONS / RECALAGES, boutons de l'onglet ouvert, menu ⋯ (COMPARER, CRÉER, APERÇU, EXPORTER), onglet AVENANTS ; COMPARER côte à côte avec écarts",
-              e756[:5] == [True, "av,scn,ver,rcl", True, True, True] and e756[5].endswith(" INI") and "COMPARER" not in e756[6] and e756[6].startswith("AGRANDIR|CRÉER UN AVENANT|IMPORTER") and e756[6].index("EXPORTER") < e756[6].index("APERÇU") and e756[7] == [3, 13, True], e756)
+              e756[:5] == [True, "av,scn,ver,rcl", True, True, True] and e756[5].endswith(" INI") and "COMPARER" not in e756[6] and e756[6].startswith("AGRANDIR|IMPORTER") and e756[6].endswith("CRÉER UN AVENANT") and e756[6].index("EXPORTER") < e756[6].index("APERÇU") and e756[7] == [3, 13, True], e756)
         # v758 : fenêtre d'import unique — sources FICHIER / GOOGLE SHEETS / MS PROJECT (XML) / AUTRE BUDGET ; un fichier est lu à blanc (budget
         # ouvert inchangé) puis proposé comme source de la même fenêtre (cases, aperçu, IMPORTER) ; IMPORTER dans AVENANTS, SCÉNARIOS, RECALAGES, pas VERSIONS
         import tempfile
@@ -2763,7 +2763,7 @@ def main():
             r.push([...document.querySelectorAll('.bdg-d-hright > *')].filter(b => b.offsetParent).map(b => b.id).join(','));
             document.getElementById('bdgMore').click(); await w(200);
             const M = [...document.querySelectorAll('#blkMenu > *')].map(x => x.classList.contains('blk-sep') ? '-' : x.textContent.trim()); document.getElementById('blkMenu')?.remove();
-            r.push(M[1] === '-' && /^(FIGER|REVENIR|ENREGISTRER|VALIDER)/.test(M[0]) && M[2] === 'COMPARER / CUMULER' && M.slice(-3).join('|').startsWith('-|SUPPRIMER') && M.slice(-1)[0] === 'FERMER' && M[M.indexOf('DISPOSITION PAR DÉFAUT') - 1] === '-');
+            r.push(M[0] === 'MODIFIER LE FORMAT' && M[1] === '-' && M.findIndex(x => /^SUPPRIMER/.test(x)) < M.findIndex(x => /^(FIGER|REVENIR|ENREGISTRER|VALIDER)/.test(x)) && M.includes('COMPARER / CUMULER') && M.slice(-1)[0] === 'FERMER' && M[M.indexOf('DISPOSITION PAR DÉFAUT') - 1] === '-');   /* C5 : actions communes en haut */
             document.querySelector('#bdgClientTitle .blk-more').click(); await w(200);
             const C = [...document.querySelectorAll('#blkMenu > *')].map(x => x.classList.contains('blk-sep') ? '-' : x.textContent.trim().replace(/\\d+$/, '')); document.getElementById('blkMenu')?.remove();
             r.push(C.join('|'));
@@ -2775,7 +2775,7 @@ def main():
             return r; }""".replace("INS_X", ins))
         check("v774 : RÉVISIONS ; barre ANNULER, RÉTABLIR, PRÉCÉDENT, SUIVANT, ALERTES, FERMER, ⋯ ; ⋯ principal ordonné ; ⋯ de DÉSIGNATIONS CLIENT par groupes ; v780 : référence des versions et MONTANT TTC",
               r774[0] == "RÉVISIONS" and r774[1] == "instUndo,instRedo,instPrev,instNext,instTodo,instClose,bdgMore" and r774[2] is True
-              and r774[3].startswith("AGRANDIR|SOUS-DÉTAIL DES PRIX|✕ DÉLIER LES LIGNES COCHÉES|-|Importer|Exporter|Aperçu PDF|-|Copier") and "COMPARATIF" not in r774[3]
+              and r774[3].startswith("AGRANDIR|-|Copier") and "|-|Importer|Exporter|Aperçu PDF|-|Supprimer" in r774[3] and "SOUS-DÉTAIL DES PRIX|✕ DÉLIER LES LIGNES COCHÉES" in r774[3] and "COMPARATIF" not in r774[3]
               and r774[4] is True and r774[5] == "VR1" and r774[6] == "6", r774)   # v780 : SOURCE annulée — référence en chaîne (… INI VR1) et MONTANT TTC
         # v750 : liste des budgets — colonnes (marge de pliage, RÉFÉRENCE, NATURE, PROJET, INTITULÉ, MONTANT TTC, SAISI LE ; VALIDÉ LE seulement
         # dans les validés), une icône de bascule, plus de cases ni d'impression (corbeille seule), CONSOLIDÉ en ligne de titre, menu de filtre commun,
@@ -3102,7 +3102,7 @@ def main():
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v764 : ARTICLES au format du budget — listes EN INSTANCE / VALIDÉS, dates, création par fenêtre (en instance, corbeille), page : bloc DOC / TAF / OBS, ⋯ VALIDER et UNITÉ DE CONVERSION, devis liés, ‹ ›",
               a764 == ["ARTICLES (VALIDÉS) 2", 2, 2, 1, "instance", "ARTICLES (EN INSTANCE) 1", 1, True, True, "ART-0003", True, 3, 1, True,
-                       "VALIDER|UNITÉ DE CONVERSION|BUDGETS (0)|BLOQUER|APERÇU|MODIFIER LE FORMAT|DISPOSITION PAR DÉFAUT|SUPPRIMER CET ARTICLE|FERMER", '[{"u":"SAC","r":20}]', "instance", True, "valide", True, "ARTICLES (VALIDÉS) 3", True, True, True], a764)
+                       "MODIFIER LE FORMAT|APERÇU|SUPPRIMER CET ARTICLE|VALIDER|UNITÉ DE CONVERSION|BUDGETS (0)|BLOQUER|DISPOSITION PAR DÉFAUT|FERMER", '[{"u":"SAC","r":20}]', "instance", True, "valide", True, "ARTICLES (VALIDÉS) 3", True, True, True], a764)
         # v765 : toutes les listes des achats au format du budget — pas d'onglets, titre EN INSTANCE / VALIDÉS + bascule, dates, corbeille = ANNULER
         l765 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_caf_v1', 'svi_ach_caf_mode_v1', 'svi_ach_caf_etat2_v1'], keep = K.map(k => localStorage.getItem(k)); K.forEach(k => localStorage.removeItem(k));
             achCafSave([{ id: 'c1', ref: 'CAF 1', state: 'ouverte', cree: '2026-10-30T10:00:00Z', lignes: [], frs: [] }, { id: 'c2', ref: 'CAF 2', state: 'close', cree: '2026-10-20T10:00:00Z', valide: '2026-10-25T10:00:00Z', lignes: [], frs: [] }]);
@@ -3513,7 +3513,7 @@ def main():
   r.menu = [...document.querySelectorAll('#blkMenu button')].map(x => x.textContent.trim()).slice(0, 3).join('|'); document.querySelector('#blkMenu [data-a="hred"]').click(); await w(150);
   r.red = Object.keys(JSON.parse(localStorage.getItem('svi_ach_nvh_v1') || '{}')).join(',');
   K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
-        check("SÉRIE B, B3 et B4 : blocs liés des fiches — ligne entière à la couleur de l'état ; hauteur commune (lignes par défaut / mode réduit) par le ⋯ du bloc", b34.get("cls") == "nvr-instance|nvr-valide|nvr-instance" and b34.get("menu") == "AGRANDIR|5 LIGNES (PAR DÉFAUT)|MODE RÉDUIT (1 LIGNE)" and b34.get("red") == "commandes", b34)
+        check("SÉRIE B, B3 et B4 : blocs liés des fiches — ligne entière à la couleur de l'état ; hauteur commune (lignes par défaut / mode réduit) par le ⋯ du bloc", b34.get("cls") == "nvr-instance|nvr-valide|nvr-instance" and b34.get("menu") == "AGRANDIR|EXPORTER|APERÇU" and b34.get("red") == "commandes", b34)
         b5 = pg.evaluate("""() => !SVI_FMT_EL.some(x => x.k === 'toptag')""")
         check('SÉRIE B, B5 (05/11) : bandeau du milieu de la barre du haut = texte de la barre, plus d’élément à part', b5 is True, b5)
         b6 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_pg_v1'); { const o0 = sviPg(); o0.banques = []; sviPgSave(o0); }
@@ -3971,6 +3971,14 @@ def main():
   document.querySelectorAll('#svConf').forEach(x => x.remove()); K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200);
   return { date: [...(o.date || [])].join(','), code: [...(o.code || [])].join(','), mt: [...(o.mt || [])].join(','), pct: [...(o.pct || [])].join(','), nb: [...(o.nb || [])].join(','), h: [...H].join(',') }; }""")
         check('SÉRIE C, C3 (document unique 10.6) : fiche fournisseur — tous les champs à la même hauteur ; même largeur par famille (dates, codes, montants, pourcentages, petits nombres)', c3t.get('date') == '132' and c3t.get('code') == '196' and c3t.get('mt') == '150' and c3t.get('pct') == '96' and c3t.get('nb') == '96' and c3t.get('h') == '34', c3t)
+        c5t = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), out = [];
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(1200);
+  const bs = [...document.querySelectorAll('.blk-more, .bdg-more-btn, [data-nvmore]')].filter(b => b.offsetWidth);
+  let bad = 0, n = 0; for (const b of bs.slice(0, 10)) { b.click(); await w(120); const m = document.getElementById('blkMenu'); if (!m) continue; n++;
+    const R = [...m.children].filter(c => !c.classList.contains('blk-sep')).map(c => sviMenuRank(c.textContent)); let seenOwn = false, last = 0;
+    R.forEach(r => { if (!r) seenOwn = true; else { if (seenOwn || r < last) bad++; last = r; } }); m.remove(); }
+  return { n, bad }; }""")
+        check("SÉRIE C, C5 (document unique 10.1) : tous les menus ⋯ — actions communes en haut dans l'ordre AGRANDIR, COPIER/COUPER/COLLER, MODIFIER LE FORMAT, IMPORTER/EXPORTER/APERÇU, SUPPRIMER ; actions propres en bas", c5t.get('n', 0) >= 3 and c5t.get('bad') == 0, c5t)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

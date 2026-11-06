@@ -348,3 +348,19 @@ function sviHdrMenu(btn, groups, pick) {
   /* v790 (DOCUMENT UNIQUE §10.1) : un 2e toucher sur le même ⋯ ferme le menu (sans le rouvrir) */
   setTimeout(() => document.addEventListener("click", function off(e) { if (!m.isConnected) { document.removeEventListener("click", off, true); return; } if (!e.target.closest("#blkMenu")) { if (btn.contains(e.target)) { e.stopPropagation(); e.preventDefault(); } m.remove(); document.removeEventListener("click", off, true); } }, true), 0);
 }
+/* C5 (série C, document unique 10.1) : MÊME PLAN POUR TOUS LES MENUS ⋯ — en haut les actions communes, toujours dans cet ordre :
+   AGRANDIR / RÉDUIRE ; COPIER / COUPER / COLLER ; MODIFIER LE FORMAT ; IMPORTER / EXPORTER / APERÇU ; SUPPRIMER ;
+   en bas, les actions propres à l'interface (dans leur ordre et leurs groupes d'origine). Appliqué à tout menu #blkMenu, quel que soit
+   le module qui l'a construit (les boutons sont déplacés, pas recréés : leurs actions restent). */
+const SVI_MENU_RANK = [[1, /^(AGRANDIR|RÉDUIRE)\b/], [2, /^(COPIER|COUPER|COLLER)\b/], [3, /^MODIFIER LE FORMAT\b/], [4, /^(IMPORTER|EXPORTER|APERÇU)\b/], [5, /^SUPPRIMER\b/]];
+const sviMenuRank = t => { const u = String(t || "").replace(/\s+/g, " ").trim().toUpperCase(); const r = SVI_MENU_RANK.find(x => x[1].test(u)); return r ? r[0] : 0; };
+function sviMenuOrder(m) {
+  if (!m || m.__ord) return; const K = [...m.children]; if (!K.length || K.some(c => !(c.tagName === "BUTTON" || c.classList.contains("blk-sep")))) return; m.__ord = true;
+  const items = []; let g = 0; K.forEach(c => { if (c.classList.contains("blk-sep")) { g++; return; } items.push({ c, g, r: sviMenuRank(c.textContent) }); });
+  if (!items.some(x => x.r)) return;
+  const sep = () => { const s = document.createElement("div"); s.className = "blk-sep"; return s; }, out = [];
+  [1, 2, 3, 4, 5].forEach(r => { const L = items.filter(x => x.r === r); if (!L.length) return; if (out.length) out.push(sep()); L.forEach(x => out.push(x.c)); });
+  let lastG = null; items.filter(x => !x.r).forEach(x => { if (out.length && x.g !== lastG) out.push(sep()); lastG = x.g; out.push(x.c); });
+  m.replaceChildren(...out);
+}
+new MutationObserver(ms => { for (const mu of ms) for (const n of mu.addedNodes) if (n.id === "blkMenu") sviMenuOrder(n); }).observe(document.body || document.documentElement, { childList: true });
