@@ -19,7 +19,7 @@ function achBsnMod(ctx) {
     ["etat", "ÉTAT", b => stLab(b), "center"], ["ctl", "CONTRÔLE", b => ctlLab(b, L), "center"], ["dem", "DEMANDEUR", b => b.dem || "", ""]];
   const W0 = { ref: 150, bdg: 220, des: 220, u: 60, q: 100, pu: 110, mt: 120, tache: 220, prevue: 110, prio: 120, av: 170, etat: 110, ctl: 130, dem: 120 };
   /* v765 : liste au format du budget (achListMod → achNvList) : EN INSTANCE / VALIDÉS, dates, CRÉER UN BESOIN ICI… en bas */
-  return achListMod(ctx, { k: "bsn", t: "ach_bsn", id: "achBsnT", name: "BESOINS", list: achBsn, save: achBsnSave, inst: b => b.state !== "valide" && b.state !== "annule",
+  return achListMod(ctx, { k: "bsn", t: "ach_bsn", id: "achBsnT", name: "BESOINS", list: achBsn, save: achBsnSave, edit: ACH_ED.bsn, inst: b => b.state !== "valide" && b.state !== "annule",
     open: achBsnFiche, why: (b, L) => achBsnWhy(b, L), w: W0, cols: () => COLS(achBsn()), newRow: "CRÉER UN BESOIN ICI…" });
 }
 function achBsnFiche(id, done) {

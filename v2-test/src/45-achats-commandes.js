@@ -5,7 +5,7 @@
 const ACH_CMF_ST = { instance: "EN INSTANCE", valide: "VALIDÉE", solde: "SOLDÉE", annule: "ANNULÉE" };
 const achNow = () => new Date().toISOString();
 function achCmfMod(ctx) {
-  return achListMod(ctx, { k: "cmf", t: "ach_cmf", id: "achCmfT", list: achCmf, name: "COMMANDES", save: achCmfSave,
+  return achListMod(ctx, { k: "cmf", t: "ach_cmf", id: "achCmfT", list: achCmf, name: "COMMANDES", save: achCmfSave, edit: ACH_ED.cmf,
     /* D1 : les retours de commande sont des commandes de montant négatif, rangées ici */
     merge: [{ o: achRtrCfg("cmd"), col: { ref: x => x.ref, nat: () => "RETOUR DE COMMANDE", frs: x => x.frs ? achFrsNom(x.frs) : "", prom: x => achDFr(x.date), ht: x => achRtrMt(x), ttc: x => achRtrTtc(x), recu: x => achRtrSrc(x), etat: x => x.state === "annule" ? "ANNULÉ" : "RETOUR" } }], inst: c => c.state === "instance", etatKey: "svi_ach_cmf_etat_v1", newLab: "NOUVELLE COMMANDE", newRow: "CRÉER UNE COMMANDE ICI…", open: achCmfFiche,
     etats: [["actif", "EN COURS"], ["instance", "EN INSTANCE"], ["valide", "VALIDÉES"], ["solde", "SOLDÉES"], ["alerte", "ALERTE"], ["annule", "ANNULÉES"], ["tout", "TOUT"]],

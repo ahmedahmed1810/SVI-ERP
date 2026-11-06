@@ -36,7 +36,7 @@ function achListMod(ctx, o) {
       ok: (x, k, L) => k === "tout" ? true : k === "annule" ? dead(x) : !dead(x) && (k !== "alerte" || o.why(x, L || o.list()).length > 0),
       inst: o.inst || (() => false), dI: x => x.cree || x.date || "", dV: x => x.valide || x.val || x.bap || x.solde || x.cree || x.date || "",
       /* 06/11 : une seule liste — état commun de chaque ligne (cases à cocher à gauche) et étape exacte (colonne ÉTAT, E3) */
-      edit: o.edit, mOf: o.mOf,
+      edit: o.edit, mOf: o.mOf, save: o.save, code: x => x.ref,
       stOf: x => { const m = o.mOf && o.mOf(x); if (m) return x.state === "annule" ? "annule" : "valide"; return achPcSt(o.k, x) || ((o.inst || (() => false))(x) ? "instance" : "valide"); },
       step: x => { const m = o.mOf && o.mOf(x); if (m) return m.col.etat ? m.col.etat(x) : ""; return achPcStep(o.k, x); },
       cols: () => o.cols(), newRow: o.newRow, kill,
@@ -118,7 +118,7 @@ function achDocPage(k, x) {
 }
 function achCafMod(ctx) {
   const st = { ouverte: "OUVERTE", close: "CLOSE", annule: "ANNULÉE" }, DV = () => achDvf().filter(v => v.state !== "annule" && v.state !== "rejete");
-  return achListMod(ctx, { k: "caf", t: "ach_caf", id: "achCafT", list: achCaf, name: "CONSULTATIONS FOURNISSEURS", save: achCafSave, edit: { objet: { lab: "OBJET" }, dlim: { lab: "DATE LIMITE", type: "date" } }, inst: c => c.state === "ouverte", etatKey: "svi_ach_caf_etat_v1", newLab: "NOUVELLE CONSULTATION FOURNISSEURS", newRow: "CRÉER UNE CONSULTATION FOURNISSEURS ICI…", open: (id, done) => id ? achCafFiche(id, done) : achCafInfo(null, done), info: achCafInfo,   /* F5 : le i = RÉFÉRENCE, OBJET, PROJET, DATE */
+  return achListMod(ctx, { k: "caf", t: "ach_caf", id: "achCafT", list: achCaf, name: "CONSULTATIONS FOURNISSEURS", save: achCafSave, edit: ACH_ED.caf, inst: c => c.state === "ouverte", etatKey: "svi_ach_caf_etat_v1", newLab: "NOUVELLE CONSULTATION FOURNISSEURS", newRow: "CRÉER UNE CONSULTATION FOURNISSEURS ICI…", open: (id, done) => id ? achCafFiche(id, done) : achCafInfo(null, done), info: achCafInfo,   /* F5 : le i = RÉFÉRENCE, OBJET, PROJET, DATE */
     etats: [["actif", "OUVERTES"], ["close", "CLOSES"], ["alerte", "ALERTE"], ["annule", "ANNULÉES"], ["tout", "TOUT"]],
     ok: (c, k, L) => k === "tout" ? true : k === "alerte" ? achCafWhy(c).length > 0 : k === "actif" ? c.state === "ouverte" : c.state === k,
     why: c => achCafWhy(c),
@@ -132,7 +132,7 @@ function achCafMod(ctx) {
 }
 function achDvfMod(ctx) {
   const st = { recu: "REÇU", retenu: "RETENU", rejete: "REJETÉ", annule: "ANNULÉ" };
-  return achListMod(ctx, { k: "dvf", t: "ach_dvf", id: "achDvfT", list: achDvf, name: "DEVIS", save: achDvfSave, inst: v => v.state === "recu" || !v.state, etatKey: "svi_ach_dvf_etat_v1", newLab: "NOUVEAU DEVIS", newRow: "CRÉER UN DEVIS ICI… (HORS CONSULTATION)", open: achDvfFiche,
+  return achListMod(ctx, { k: "dvf", t: "ach_dvf", id: "achDvfT", list: achDvf, name: "DEVIS", save: achDvfSave, edit: ACH_ED.dvf, inst: v => v.state === "recu" || !v.state, etatKey: "svi_ach_dvf_etat_v1", newLab: "NOUVEAU DEVIS", newRow: "CRÉER UN DEVIS ICI… (HORS CONSULTATION)", open: achDvfFiche,
     etats: [["actif", "REÇUS"], ["retenu", "RETENUS"], ["rejete", "REJETÉS"], ["alerte", "ALERTE"], ["annule", "ANNULÉS"], ["tout", "TOUT"]],
     ok: (v, k) => k === "tout" ? true : k === "alerte" ? achDvfWhy(v).length > 0 : k === "actif" ? v.state === "recu" : v.state === k,
     why: v => achDvfWhy(v),
