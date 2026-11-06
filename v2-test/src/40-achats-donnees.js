@@ -218,7 +218,7 @@ const achFrsDupNom = (L, nom, id) => achLive(L).find(f => f.id !== id && achU(f.
 const achFrsNew = (L, o) => {
   const now = new Date().toISOString();
   const f = { id: "F" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), code: achFrsNextCode(L), nom: achU(o.nom), denom: "", forme: "", ville: "", adresse: "", site: "", resp: "",
-    ice: "", ifisc: "", rc: "", villeRc: "", patente: "", capital: 0, codeCpt: "", intCpt: "", ribs: [], cond: "", fam: [], occ: !!o.occ, orgFin: false, actif: true,
+    ice: "", ifisc: "", rc: "", villeRc: "", patente: "", capital: 0, codeCpt: "", intCpt: "", ribs: [], cond: "", fam: [], occ: !!o.occ, orgFin: false,
     docf: [], cte: [], evl: [], cgf: [], cla: achClCopy(achPrm().clG), plafT: achPrm().plafT, plafP: achPrm().plafP, ribChg: "", cree: now, mod: now, del: "" };
   L.push(f);
   return f;
@@ -230,6 +230,8 @@ const achFrsNote = f => { const E = f.evl || []; return E.length ? E.reduce((t, 
 const achFrsAttExp = f => { const A = ((f && f.docf) || []).filter(d => d.type === "ATTESTATION DE RÉGULARITÉ FISCALE" && d.exp).map(d => d.exp).sort();
   return A.length ? A[A.length - 1] < new Date().toISOString().slice(0, 10) : false; };
 /* v809 : fournisseur utilisable dans une nouvelle pièce = ni supprimé, ni inactif, ni bloqué, ni archivé */
+/* D3 (série D) : plus aucune case ACTIF pour les fournisseurs — une ancienne fiche « inactive » devient BLOQUÉE (une fois pour toutes) */
+function achFrsMigActif() { const L = achFrs(); let ch = false; L.forEach(f => { if (f.actif === undefined) return; if (f.actif === false && !f.bloq && !f.arch) f.bloq = true; delete f.actif; ch = true; }); if (ch) achFrsSave(L); }
 const achFrsOk = f => !!f && !f.del && f.actif !== false && !f.bloq && !f.arch;
 /* C1.45 : dernier achat (commande ou facture) ; dormant = sans achat depuis PARAMÈTRES › dorm mois ; archivage proposé au mois de clôture de l'exercice */
 /* série B (B42) : dates des commandes et dernier achat de chaque fournisseur, calculés une fois (mémorisés) */

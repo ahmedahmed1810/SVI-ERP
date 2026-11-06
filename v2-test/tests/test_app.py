@@ -4007,6 +4007,18 @@ def main():
   r.col = [...document.querySelectorAll('#chs .ach-pref thead th')].map(t => t.textContent.trim()).includes('MODÈLE DES LIGNES');
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("SÉRIE C, C6 (document unique 6.14) : lignes d'une pièce = {PARENT}-{LLL} par défaut (DVF …/001-001, -002) ; modèle des lignes réglable dans RÉFÉRENCES", c6.get('def') == 'DVF 26-0101/001-001,DVF 26-0101/001-002' and c6.get('mod') == 'DVF 26-0101/001.01,DVF 26-0101/001.02' and c6.get('col'), c6)
+        d3 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_frs_etat2_v1'], keep = K.map(k => localStorage.getItem(k)); await sviAchLoad(); localStorage.removeItem('svi_ach_frs_etat2_v1');
+  const L = achFrs(); const a = achFrsNew(L, { nom: 'ANCIEN INACTIF' }); a.actif = false; a.st = 'valide'; achFrsSave(L);
+  document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(500);
+  const b = document.querySelector('#ach .novapp-date-filter'); r.lab = b.textContent.replace(/\s+/g, ' ').trim(); b.click(); await w(200);
+  r.menu = [...document.querySelectorAll('#sviEtatMenu button')].map(x => x.textContent.replace(/[\d✓]/g, '').trim()).filter(Boolean).join('|');
+  document.getElementById('sviEtatMenu')?.remove(); const f = achFrs().find(x => x.id === a.id); r.mig = f.actif === undefined && !!f.bloq; r.newNoActif = !('actif' in achFrsNew([], { nom: 'X' }));
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check('SÉRIE D, D3 : filtre des fournisseurs = statuts (FRÉQUENTS, NORMAUX, OCCASIONNELS, DORMANTS, BLOQUÉS, ARCHIVÉS) + CORBEILLE et TOUT, TOUT par défaut ; plus de case ACTIF (ancienne fiche inactive → bloquée)', d3.get('lab', '').startswith('TOUT') and d3.get('menu') == 'FRÉQUENTS|NORMAUX|OCCASIONNELS|DORMANTS|BLOQUÉS|ARCHIVÉS|CORBEILLE|TOUT' and d3.get('mig') and d3.get('newNoActif'), d3)
+        d5 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); document.documentElement.classList.add('svi-nuit'); svConfirm({ title: 'TEST', text: 'X', ok: 'OK' }); await w(200);
+  const x = document.querySelector('#svConf .svc-close'), r = x ? [getComputedStyle(x).color, getComputedStyle(x).webkitTextFillColor].join('|') : 'absente';
+  document.querySelector('#svConf [data-r="0"]')?.click(); document.querySelectorAll('#svConf').forEach(e => e.remove()); document.documentElement.classList.remove('svi-nuit'); sviPalApply(); return r; }""")
+        check('SÉRIE D, D5 (document unique 10.2) : la ✕ des fenêtres reste bien visible en palette NUIT', d5 == 'rgb(248, 250, 252)|rgb(248, 250, 252)', d5)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

@@ -3576,3 +3576,7 @@ html.svi-nuit #chs .pg-grps .prm-grp.on, html.svi-nuit #chs .pg-tabs.bdg-d-tabs 
 .fmw-card > .svc-t .fmw-pal { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 11px; }
 .fmw-card .svc-t .fmw-ttl { flex: 1 1 auto; min-width: 0; }
 .fmw-card .svc-t .fmw-pal .svc-b { height: 30px; min-height: 0; padding: 0 12px; font-size: 11px; }
+
+/* D5 (série D, document unique 10.2) : la ✕ des fenêtres reste bien visible dans les deux palettes */
+html.svi-nuit :is(#svConf, #dlyAddW, #docPop, #svMaskPop) :is(.svc-close, .doc-x) { color: #f8fafc !important; -webkit-text-fill-color: #f8fafc !important; background: rgba(255,255,255,.14) !important; border: 1px solid rgba(255,255,255,.4) !important; border-radius: 8px; opacity: 1 !important; }
+:is(#svConf, #dlyAddW) .svc-close { opacity: 1; font-weight: 800; }
