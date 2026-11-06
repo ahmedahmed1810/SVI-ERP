@@ -222,14 +222,8 @@ function openObsAlertFor(ref, project) {
 }
 
 
-/* logo de la société (impressions) */
-const SVI_LOGO = "data:image/png;base64,";
-
-/* cachet et signature de la société (impression, sur demande) */
-const SVI_STAMP = "data:image/png;base64,";
-
-/* signature provisoire (tirée du modèle), en attendant celle fournie */
-const SVI_SIGN = "data:image/png;base64,";
+/* F6 (série F, 06/11) : plus de logo, cachet ni signature écrits ici (données de la société, jamais dans le dépôt public) —
+   ils se choisissent comme fichiers dans PARAMÉTRAGE › SOCIÉTÉ (sviSocImg) */
 
 /* nombre en toutes lettres (français, majuscules) */
 function frWords(n) {
@@ -3383,11 +3377,11 @@ sviColorsApply();
 const SVI_FMT_KEY = "svi_format_v1";
 const SVI_FMT_EL = [
   /* v924 (remarques 3 et 4 du 04/11/2026) : une HAUTEUR (h, px) pour chaque élément ; parties des fenêtres (win: réglées une fois pour toutes les fenêtres) */
-  { k: "top", lab: "BARRE DU HAUT DE L'INTERFACE", sel: [".bdg-d-sticky .novapp-list-titlebar", ".novapp-list-shell > .novapp-list-titlebar", "#chs > .section-head"], def: { bg: "#ffffff", c: "#172033", fs: 28, b: 1, h: 54 } },
+  { k: "top", lab: "BARRE DU HAUT DE L'INTERFACE", sel: [".bdg-d-sticky .novapp-list-titlebar", ".novapp-list-shell > .novapp-list-titlebar", "#chs > .section-head"], tsel: ["h1", ".bdg-d-h1", ".nvp-ref"], def: { bg: "#ffffff", c: "#172033", fs: 28, b: 1, h: 54 } },
   /* B5 (série B) : le bandeau du milieu de la barre du haut (« FOURNISSEUR — … ») fait partie de la barre */
   /* 05/11 : le bandeau du milieu n'est plus un élément à part — il prend le fond, la couleur, la police et la taille de la barre du haut */
   /* 05/11 : l'en-tête DÉTAIL du budget (hors .bdg-d-block) et l'onglet actif des blocs SUIVI / RÉVISIONS (.active) suivent aussi le format */
-  { k: "blk", lab: "EN-TÊTE DE BLOC", sel: [".bdg-d-block > .bdg-d-block-title", "#bdgDetailHead.bdg-d-block-title"], def: { bg: "#dde2e9", c: "#b91c1c", fs: 11, b: 1, h: 29 } },
+  { k: "blk", lab: "EN-TÊTE DE BLOC", sel: [".bdg-d-block > .bdg-d-block-title", "#bdgDetailHead.bdg-d-block-title"], tsel: [".ttl"], def: { bg: "#dde2e9", c: "#b91c1c", fs: 11, b: 1, h: 29 } },
   /* v923 (remarque 2) : FOND DES ONGLETS — seule la couleur du fond a un sens (f = réglages permis) */
   { k: "tabs", lab: "FOND DES ONGLETS", sel: [".bdg-d-tabs:not(.pg-grps):not(.pg-tabs)", "#bdgTabs", ".rec-tabs"], def: { bg: "#eceff3" }, f: ["bg"] },
   { k: "tab", lab: "ONGLET", sel: [".bdg-d-tab:not(.active):not(.on):not(.prm-grp):not(.prm-tab)", ".rec-tab:not(.on):not(.active)"], def: { bg: "#eceff3", c: "#6b7280", fs: 12, b: 1, h: 33 } },
@@ -3396,7 +3390,7 @@ const SVI_FMT_EL = [
      sur une bande gris-vert, l'actif clair et raccordé à la rangée du dessous) et SOUS-ONGLETS (légers, l'actif marqué d'un trait dessous) */
   { k: "tabm", lab: "ONGLETS DE MODULE", sel: [".pg-grps .prm-grp:not(.on)"], def: { bg: "#cfd9d2", c: "#3f4d44", fs: 12, b: 1, h: 32 } },
   { k: "tabsub", lab: "SOUS-ONGLETS", sel: [".pg-tabs > .prm-tab"], def: { bg: "#f7f9f8", c: "#5b6670", fs: 11, b: 1, h: 30 } },
-  { k: "th", lab: "TITRES DES COLONNES (EN-TÊTE DE TABLEAU)", sel: ["table thead th", ".ins-hcol .bdg-h-head"], def: { bg: "#f6f7f9", c: "#6b7480", fs: 11, b: 1, h: 22 } },
+  { k: "th", lab: "TITRES DES COLONNES (EN-TÊTE DE TABLEAU)", sel: ["table thead th", ".ins-hcol .bdg-h-head"], tsel: [".cf-lab", ".bdg-head-label"], def: { bg: "#f6f7f9", c: "#6b7480", fs: 11, b: 1, h: 22 } },
   { k: "ttl", lab: "LIGNES DE TITRE DANS UN TABLEAU", sel: ["tr.ins-title td", "tr.ins-gtitle td", ".dly-grp td", ".ins-hcol .ins-li.lot-grp"], def: { bg: "#ece8e1", c: "#2f2a24", fs: 12, b: 1, h: 21 } },
   { k: "row", lab: "LIGNES D'UN TABLEAU", sel: ["table tbody td"], def: { bg: "#ffffff", c: "#172033", fs: 12, b: 0, h: 21 } },
   { k: "new", lab: "LIGNE CRÉER … ICI", sel: ["tbody tr.ins-new td", "tbody tr.rec-new td", "tbody tr.scn-new td", "tbody tr.dly-new td", "tbody tr.bdg-newrow td", ".ins-hcol .ins-li.ins-new"], def: { bg: "#fdf0f0", c: "#b91c1c", fs: 12, b: 0, h: 21 } },
@@ -3469,6 +3463,15 @@ function sviFmt() {
    il passe devant le réglage commun, seulement quand cette interface est affichée (html[data-svif]) */
 /* 05/11 : les LIGNES DE TITRE ont leurs propres règles de couleur (variables --ttl-c / --ttl-bg) — le format règle aussi ces variables */
 const sviFmtVars = (E, o) => E.k !== "ttl" ? "" : [o.c ? `--ttl-c:${o.c}` : "", o.bg ? `--ttl-bg:${o.bg}` : ""].filter(Boolean).join(";");
+/* F15 (série F, 06/11) : un réglage du format passe devant les règles de la feuille de styles (même celles qui visent un identifiant) —
+   sélecteur renforcé (sviFmtZ) ; le texte d'un élément (titre de la barre du haut, nom des colonnes, titre du bloc) suit la taille, le gras,
+   l'italique, le souligné et la couleur réglés (E.tsel = parties texte de l'élément) */
+const sviFmtZ = x => x.split(",").map(y => y.trim() + ":not(#svi-z1):not(#svi-z2)").join(", ");
+const sviFmtTxt = (sels, E, o) => { if (!E || !E.tsel) return ""; const d = [];
+  if (o.c) d.push(`color:${o.c}!important;-webkit-text-fill-color:${o.c}!important`); if (o.fs) d.push(`font-size:${+o.fs}px!important`);
+  if (o.b !== undefined) d.push(`font-weight:${o.b ? 800 : 400}!important`); if (o.i !== undefined) d.push(`font-style:${o.i ? "italic" : "normal"}!important`);
+  if (o.u !== undefined) d.push(`text-decoration:${o.u ? "underline" : "none"}!important`);
+  return d.length ? sels.flatMap(s => E.tsel.map(t => sviFmtZ(s + " " + t))).join(", ") + " { " + d.join("; ") + " }" : ""; };
 const sviFmtDecl = (o, E) => { const d = [];
   if (E && E.bd) { if (o.c) d.push(`border-color:${o.c}!important`); return d; }   /* E1 : traits des tableaux */
   if (o.bg) d.push(`background:${o.bg}!important`);
@@ -3489,7 +3492,7 @@ const sviFmtCatEls = c => { const C = SVI_FMT_CAT.find(x => x[0] === c); return 
 function sviFmtCssCat(F) { const out = [];
   SVI_FMT_CAT.forEach(([c, , pre]) => { const el = ((F.cat || {})[c] || {}).el || {};
     sviFmtCatEls(c).forEach(E => { const o0 = el[E.k]; if (!o0) return; const o = E.f ? Object.fromEntries(Object.entries(o0).filter(([f]) => E.f.includes(f))) : o0, d = sviFmtDecl(o, E); if (!d.length) return;
-      out.push(pre.flatMap(p => E.sel.map(s => p + " body " + s)).join(", ") + " { " + d.join("; ") + " }");
+      { const SS = pre.flatMap(p => E.sel.map(s => p + " body " + s)); out.push(SS.map(sviFmtZ).join(", ") + " { " + d.join("; ") + " }"); const tx = sviFmtTxt(SS, E, o); if (tx) out.push(tx); }
       const vv = sviFmtVars(E, o); if (vv) out.push(pre.map(p => p + " body").join(", ") + " { " + vv + " }"); }); });
   return out.join("\n"); }
 function sviFmtCssBy(F) {
@@ -3498,7 +3501,7 @@ function sviFmtCssBy(F) {
     /* 06/11 : FENÊTRE d'une pièce (k_w) — seulement les parties des fenêtres, quand la liste ou la fiche de cette pièce est affichée */
     SVI_FMT_EL.forEach(E => { if (!!E.win !== W) return; const o0 = (B.el || {})[E.k]; if (!o0) return;
       const o = E.f ? Object.fromEntries(Object.entries(o0).filter(([f]) => E.f.includes(f))) : o0, d = sviFmtDecl(o, E); if (!d.length) return;
-      out.push(PP.flatMap(p => E.sel.map(x => p + x)).join(", ") + " { " + d.join("; ") + " }"); const vv = sviFmtVars(E, o); if (vv) out.push(PP.map(p => p.trim()).join(", ") + " { " + vv + " }"); });
+      { const SS = PP.flatMap(p => E.sel.map(x => p + x)); out.push(SS.map(sviFmtZ).join(", ") + " { " + d.join("; ") + " }"); const tx = sviFmtTxt(SS, E, o); if (tx) out.push(tx); } const vv = sviFmtVars(E, o); if (vv) out.push(PP.map(p => p.trim()).join(", ") + " { " + vv + " }"); });
     if (W) return;
     const st = B.st || {};
     /* 06/11 : plus de couleur d'écran forcée par interface — elle suit l'état de la pièce (palette) */
@@ -3517,7 +3520,7 @@ function sviFmtCss(F) {
     if (!d.length) return;
     const sels = SC && !E.win ? SC.flatMap(sc => E.sel.map(x => x.startsWith(sc) ? x : sc + " " + x)).filter(x => !(x.startsWith("#svConf ") && x.indexOf(" #svConf") > 0)) : E.sel;
     if (!sels.length) return;
-    out.push(sels.map(x => "html body " + x).join(", ") + " { " + d.join("; ") + " }");
+    { const SS = sels.map(x => "html body " + x); out.push(SS.map(sviFmtZ).join(", ") + " { " + d.join("; ") + " }"); const tx = sviFmtTxt(SS, E, o); if (tx) out.push(tx); }
     const vv = sviFmtVars(E, o); if (vv) out.push((SC ? SC.map(x => "html body " + x).join(", ") : "html body") + " { " + vv + " }");
   });
   const ca = sviFmtCssCat(F); if (ca) out.push(ca);
@@ -4212,6 +4215,20 @@ function sviColSetWin(t, k, def) {
     tm = setTimeout(() => { tm = 0; const lab = th.querySelector(".cf-lab"), def = (th.dataset.svcolDef || (lab && lab.lastChild ? lab.lastChild.textContent : th.textContent)).trim(); sviColSetWin(b.dataset.cf, b.dataset.col, def); }, SVI_G.lp); }, true);
   document.addEventListener("pointermove", e => { if (tm && Math.hypot(e.clientX - x0, e.clientY - y0) > SVI_G.drag) { clearTimeout(tm); tm = 0; } }, true);
   ["pointerup", "pointercancel"].forEach(t => document.addEventListener(t, () => { clearTimeout(tm); tm = 0; }, true)); }
+/* F16 (série F, 06/11) : POIGNÉE DE LARGEUR dans tous les tableaux — un tableau à colgroup qui n'a pas encore de poignées (PARAMÉTRAGE,
+   paramètres des achats…) reçoit le moteur commun (data-svcw, poignée sur chaque titre) ; largeur gardée par tableau */
+{ let raf = 0;
+  const run = () => { raf = 0; const CW = cwLoad();
+    document.querySelectorAll("table.prm-table:not([data-svcw]), table.frs-sub:not([data-svcw])").forEach(t => {
+      const cg = t.querySelector(":scope > colgroup"), tr = t.tHead && t.tHead.rows.length === 1 ? t.tHead.rows[0] : null; if (!cg || !tr || t.querySelector("thead .col-rs")) return;
+      const cols = [...cg.children]; if (cols.length !== tr.cells.length || [...tr.cells].some(c => c.colSpan > 1)) return;
+      const key = "auto_" + (t.dataset.pgk || t.dataset.colh || [...t.classList].filter(c => !/^(prm-table|frs-sub|bdg-d-table)$/.test(c)).join("_") || "t") + "_" + cols.length;
+      t.dataset.svcw = key; let set = false;
+      cols.forEach((c, i) => { c.dataset.k = "c" + i; const w = CW[key + ".c" + i]; if (w) { c.style.width = w + "px"; set = true; } });
+      if (set) { const tw = cols.reduce((s, c) => s + (parseFloat(c.style.width) || 0), 0); if (tw) { t.style.width = tw + "px"; t.style.minWidth = tw + "px"; } }
+      [...tr.cells].forEach((th, i) => { if (th.querySelector("input[type=checkbox]") && !th.textContent.trim()) return; th.insertAdjacentHTML("beforeend", `<span class="col-rs" data-col="c${i}"></span>`); }); }); };
+  const go = () => { if (!raf) raf = requestAnimationFrame(run); };
+  const start = () => new MutationObserver(go).observe(document.body, { childList: true, subtree: true }); if (document.body) start(); else document.addEventListener("DOMContentLoaded", start); }
 /* ⟪ src/09e-mise-en-page.js ⟫ */
 /* =========================================================
    v783 : APERÇU UNIQUE — éditeur MISE EN PAGE par blocs (repris d'achats.html)
@@ -4276,11 +4293,13 @@ const sviMep = (() => {
   const pagesHTML = () => {
     const Ly = L(), ed = !!ED, [W, H] = PW[Ly.__o || "p"], rows = D.trs || D.rows || [];
     const inner = {
-      entete: O.ent || ed ? `<img src="${typeof SVI_LOGO !== "undefined" ? SVI_LOGO : ""}" alt="">` : "",
+      /* F6 : logo et lignes d'EN-TÊTE / PIED DE PAGE pris dans SOCIÉTÉ (rien d'écrit dans le code) */
+      entete: O.ent || ed ? (() => { const lg = typeof sviSocImg === "function" ? sviSocImg("logo") : "", L = typeof sviSocLines === "function" ? sviSocLines("hdr") : [];
+        return (lg ? `<img src="${lg}" alt="">` : "") + (L.length ? `<div class="mep-hd">${L.map(E).join("<br>")}</div>` : "") || (ed ? "EN-TÊTE" : ""); })() : "",
       date: "<b>" + today() + "</b>", titre: D.titleHtml || E(D.title || ""), frs: E(D.party || ""), ref: D.refHtml || "RÉFÉRENCE : " + E(D.ref || ""),
-      sign: (O.sign || ed) ? `<img src="${(ls.get("svi_sign_v1", null)) || (typeof SVI_SIGN !== "undefined" ? SVI_SIGN : "")}" alt="">` : "",
-      cachet: (O.cachet || ed) ? `<img src="${typeof SVI_STAMP !== "undefined" ? SVI_STAMP : ""}" alt="" class="mep-stamp">` : "",
-      pied: O.pied || ed ? `<div class="mep-ft">${D.footHtml || "SOCIÉTÉ SVI — AGADIR"}</div>` : "" };
+      sign: (O.sign || ed) ? (() => { const u = ls.get("svi_sign_v1", null) || (typeof sviSocImg === "function" ? sviSocImg("sign") : ""); return u ? `<img src="${u}" alt="">` : ed ? "SIGNATURE" : ""; })() : "",
+      cachet: (O.cachet || ed) ? (() => { const u = typeof sviSocImg === "function" ? sviSocImg("cachet") : ""; return u ? `<img src="${u}" alt="" class="mep-stamp">` : ed ? "CACHET" : ""; })() : "",
+      pied: O.pied || ed ? `<div class="mep-ft">${D.footHtml || (typeof sviSocLines === "function" ? sviSocLines("ftr").map(E).join("<br>") : "")}</div>` : "" };
     const cb = Ly.corps, pages = [];
     /* découpe des lignes : mesure réelle dans un conteneur caché, à la largeur du bloc TABLEAU */
     let chunks = [rows];
@@ -5726,9 +5745,11 @@ function sviParamTabs() {
   /* B2 (série B) : réglages ponctuels dans GÉNÉRAL ; autres onglets du paramétrage général (34b-parametrage-general.js) */
   const gpane = document.createElement("div"); gpane.className = "prm-pg"; gpane.hidden = true; lpane.after(gpane);
   const apane = document.createElement("div"); apane.className = "prm-ach"; apane.hidden = true; gpane.after(apane);   /* 05/11 : onglets dessinés par le module ACHATS */
+  gpane.addEventListener("click", e => { const b = e.target.closest("[data-socl]"); if (!b) return; const [k, i] = b.dataset.socl.split("|"); sviSocLineWin(k, +i, () => sviPgDraw("soc", gpane)); });
   gpane.addEventListener("change", e => {
     const i = e.target; if (i.matches(".pg-soc-in")) { const o = sviPg(); o.soc = { ...sviSoc(), [i.dataset.f]: i.dataset.f === "mail" ? i.value.trim() : sviPgU(i.value) }; sviPgSave(o); return; }
-    if (i.matches(".pg-logo-in")) { const f = i.files && i.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { const o = sviPg(); o.soc = { ...sviSoc(), logo: rd.result }; sviPgSave(o); sviPgDraw("gen", gpane); }; rd.readAsDataURL(f); return; }
+    if (i.matches(".pg-logo-in")) { const f = i.files && i.files[0]; if (!f) return; const k = i.dataset.img || "logo";   /* F6 : image réduite d'office */
+      sviImgReduce(f, k === "logo" ? 600 : 400, u => { if (!u) { svToast("IMAGE ILLISIBLE.", 2500); return; } const o = sviPg(); o.soc = { ...sviSoc(), [k]: u }; sviPgSave(o); sviPgDraw("soc", gpane); sviLogoApply(); }); return; }
     if (!i.matches(".pg-gv")) return; const g = i.dataset.g, s = String(i.value).trim();
     if (g === "tz") { const o = sviPg(); o.gen = { ...(o.gen || {}), tz: s }; sviPgSave(o); return; }
     const tab = g === "tva" ? "soc" : "gen";   /* E5 : la TVA PAR DÉFAUT est dans SOCIÉTÉ */
@@ -6095,7 +6116,7 @@ function sviPgTree(pane, c) {
 const SVI_PG_GRP = [["gen", "GÉNÉRAL"], ["ach", "ACHATS"], ["art", "ARTICLES"], ["pers", "PERSONNEL"]];
 const SVI_PG_TABS = [
   { k: "gen", lab: "GÉNÉRAL", sub: "RÉGLAGES PONCTUELS DE TOUTE L'APPLICATION" },
-  { k: "soc", lab: "SOCIÉTÉ", sub: "IDENTITÉ DE LA SOCIÉTÉ (EN-TÊTE DES PIÈCES IMPRIMÉES)" },   /* C8 : SOCIÉTÉ dans son propre onglet, après GÉNÉRAL (B6) */
+  { k: "soc", lab: "SOCIÉTÉ", sub: "IDENTITÉ DE LA SOCIÉTÉ" },   /* C8 : SOCIÉTÉ dans son propre onglet, après GÉNÉRAL (B6) */
   { k: "unit", g: "art", lab: "UNITÉS", sub: "" }, { k: "lib", g: "art", lab: "BIBLIOTHÈQUE DE PRIX", sub: "" },
   { k: "cal", lab: "CALENDRIER", sub: "JOURS NON TRAVAILLÉS DE TOUTE LA SOCIÉTÉ (FÉRIÉS, GRÈVE, DEUIL NATIONAL, ÉVÉNEMENT…)" },
   { k: "lieux", lab: "LIEUX", sub: "PAYS › RÉGION › VILLE (ADRESSES, TRANSPORT, AGENCES BANCAIRES)" },
@@ -6132,7 +6153,27 @@ function sviPgDraw(k, pane) {
 function sviPgSocHTML() { const S = sviSoc();
   return `<div class="pg-soc-card"><div class="frs-g pg-soc">${SVI_SOC_F.map(([f, l]) => `<label class="frs-f${f === "rs" || f === "adr" ? " frs-w" : ""}"><span>${l}</span><input class="ins-in pg-soc-in" data-f="${f}" value="${esc(S[f] || "")}" autocomplete="off"${f === "mail" ? " data-keepcase" : ""}></label>`).join("")}
       <label class="frs-f"><span data-tip="COMMUNE AU BUDGET ET AUX ACHATS ; VIDE : UNE DÉSIGNATION SANS TVA NE PEUT PAS ÊTRE ENREGISTRÉE">TVA PAR DÉFAUT (%)</span><input class="ins-in tva-def pg-gv number" data-g="tva" data-fam="pct" inputmode="decimal" value="${(() => { const tv = sviTvaDef(); return tv === null ? "" : esc(String(tv).replace(".", ",")); })()}" autocomplete="off"></label>
-      <div class="frs-f frs-w"><span>LOGO</span><div class="pg-logo">${S.logo ? `<img src="${esc(S.logo)}" alt="">` : ""}<input type="file" accept="image/*" class="pg-logo-in"></div></div></div></div>`; }
+      ${[["logo", "LOGO"], ["cachet", "CACHET"], ["sign", "SIGNATURE"]].map(([k, l]) => `<div class="frs-f"><span>${l}</span><div class="pg-logo">${S[k] ? `<img src="${esc(S[k])}" alt="">` : ""}<input type="file" accept="image/*" class="pg-logo-in" data-img="${k}"></div></div>`).join("")}
+      ${[["hdr", "EN-TÊTE DE PAGE"], ["ftr", "PIED DE PAGE"]].map(([k, l]) => [0, 1].map(i => `<div class="frs-f frs-w"><span>${l} — LIGNE ${i + 1}</span><button type="button" class="ach-link pg-socl" data-socl="${k}|${i}">${esc(sviSocLine(k, i) || "CHOISIR LES CHAMPS…")}</button></div>`).join("")).join("")}
+      </div></div>`; }
+/* F6 (série F) : images de la société (LOGO, CACHET, SIGNATURE), choisies comme fichiers et réduites d'office ; vides = rien d'imprimé */
+const sviSocImg = k => (sviSoc() || {})[k] || "";
+function sviImgReduce(file, max, done) { const rd = new FileReader(); rd.onload = () => { const im = new Image(); im.onload = () => { const r = Math.min(1, max / Math.max(im.width, im.height)), c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(im.width * r)); c.height = Math.max(1, Math.round(im.height * r)); const x = c.getContext("2d"); x.drawImage(im, 0, 0, c.width, c.height);
+  let u = ""; try { u = c.toDataURL("image/png"); if (u.length > 400000) u = c.toDataURL("image/jpeg", 0.85); } catch (e) { u = rd.result; } done(u); }; im.onerror = () => done(""); im.src = rd.result; }; rd.readAsDataURL(file); }
+/* F6 : EN-TÊTE et PIED DE PAGE composés — deux lignes chacun ; chaque ligne = des champs de SOCIÉTÉ, « NOM : valeur » séparés par un tiret,
+   recalculés à chaque impression (suivent SOCIÉTÉ) */
+const sviSocLine = (k, i) => { const S = sviSoc(), L = ((S[k] || [])[i]) || [];
+  return L.map(f => { const d = SVI_SOC_F.find(x => x[0] === f); return d && S[f] ? (f === "rs" ? S[f] : d[1] + " : " + S[f]) : ""; }).filter(Boolean).join(" – "); };
+const sviSocLines = k => [0, 1].map(i => sviSocLine(k, i)).filter(Boolean);
+function sviSocLineWin(k, i, done) { const S = sviSoc(), cur = ((S[k] || [])[i]) || [], d = sviWinNew();
+  d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: (k === "hdr" ? "EN-TÊTE DE PAGE" : "PIED DE PAGE") + " — LIGNE " + (i + 1),
+    body: `<div class="frs-cs">${SVI_SOC_F.map(([f, l]) => `<label class="frs-c"><input type="checkbox" class="socl-c" value="${f}"${cur.includes(f) ? " checked" : ""}> ${esc(l)}</label>`).join("")}</div>`,
+    foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button>` });
+  sviWinShow(d);
+  d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; } if (!e.target.closest("[data-ok]")) return;
+    const o = sviPg(), s0 = { ...sviSoc() }, A = Array.isArray(s0[k]) ? s0[k].slice() : [[], []]; A[i] = [...d.querySelectorAll(".socl-c:checked")].map(x => x.value);
+    s0[k] = A; o.soc = s0; sviPgSave(o); d.remove(); if (done) done(); }); }
 function sviPgDraw2(k, pane) {
   if (k === "cal") { sviPgCalPrev = sviPgOffDays(); pane.__pgc = { k: "cal", newLab: "AJOUTER UN JOUR ICI… (DATE)", cols: [["a", "DU", 160, "date"], ["b", "AU (FACULTATIF)", 160, "date"], ["m", "MOTIF", 200, "sel", () => SVI_PG_CAL_M], ["lab", "INTITULÉ", 320, ""]],
       after: () => sviPgCalImpact() }; sviPgTable(pane, pane.__pgc); pane.insertAdjacentHTML("afterbegin", `<div class="pg-ttl">JOURS NON TRAVAILLÉS DE LA SOCIÉTÉ</div>`);   /* 05/11 : titre du tableau */ return; }
@@ -6207,6 +6248,11 @@ function sviCarnetWin(x) { const used = new Map(sviCarnetUsed(x).map(p => [Strin
   d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) d.remove(); });
   d.addEventListener("change", e => { const s = e.target.closest(".pg-fl"); if (!s) return; const L = sviPgL("banques"), y = L.find(z => z.id === x.id); if (!y) return; y.fl = { ...(y.fl || {}) }; if (s.value) y.fl[s.dataset.n] = s.value; else delete y.fl[s.dataset.n]; sviPgLSave("banques", L); x.fl = y.fl; });
 }
+/* F6 (série F) : LOGO — en grand sur la page d'accueil ; en petit, tout à gauche de la barre du haut de toutes les autres interfaces, avant le ≡,
+   à la taille du bouton ≡, décoratif (toucher = rien). Variable --svi-logo posée sur la page (html.svi-logo s'il y en a un). */
+function sviLogoApply() { try { const u = sviSocImg("logo"), r = document.documentElement; r.classList.toggle("svi-logo", !!u);
+  if (u) r.style.setProperty("--svi-logo", "url(\"" + u + "\")"); else r.style.removeProperty("--svi-logo"); } catch (e) {} }
+try { sviLogoApply(); } catch (e) {}
 /* ⟪ src/35-calendrier-saisie.js ⟫ */
 /* =========================================================
    CALENDRIER DE L'APPLICATION (FORMAT 76) : toutes les dates se choisissent dans un calendrier ;

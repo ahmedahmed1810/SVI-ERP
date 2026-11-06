@@ -8953,7 +8953,7 @@ function sviBdgApercus(C) {
         party: "CLIENT : " + sviClient(budget.inst), fields: { projet }, prelim: st !== "valide", wmText: st === "fige" ? "PROVISOIRE" : "EN INSTANCE", wmColor: st === "fige" ? "rgba(21,128,61,.12)" : "rgba(185,28,28,.12)",
         colgroup: t && t.querySelector("colgroup") ? t.querySelector("colgroup").outerHTML : "", thead: t && t.tHead ? t.tHead.outerHTML : "",
         trs: t && t.tBodies[0] ? [...t.tBodies[0].rows].map(r => r.outerHTML) : [], endHtml: cfg.end || "",
-        footHtml: "<br>",
+        footHtml: sviSocLines("ftr").map(esc).join("<br>"),   /* F6 : pied de page composé dans SOCIÉTÉ */
         name: (fullRef + " " + cfg.fileTag).replace(/[\\/:*?"<>|]+/g, "-"),
         save: (blob, name) => window.__sviSavePdfDoc ? window.__sviSavePdfDoc(blob, cfg.docTitle, name, "", fp) : null });
       return;
@@ -9175,21 +9175,20 @@ body.portrait .head .t { padding-left: 30mm; padding-right: 30mm; }
 
 <div id="src" style="display:none">
 <div class="head">
-  <img src="${SVI_LOGO}" alt="">
+  ${sviSocImg("logo") ? `<img src="${sviSocImg("logo")}" alt="">` : ""}${sviSocLines("hdr").length ? `<div class="hdtxt">${sviSocLines("hdr").map(esc).join("<br>")}</div>` : ""}
   <div class="date">${dateTxt}</div>
   <div class="t">${cfg.bpu ? (() => { const A = (INS && INS.ao) || {}; return "<b>BORDEREAU DES PRIX – DÉTAIL ESTIMATIF</b><br>RÉFÉRENCE : " + esc(String(A.num || "").trim() || fullRef) + (String(A.obj || "").trim() ? "<br>OBJET : " + esc(A.obj) : ""); })() : "DEVIS N° : " + esc(fullRef.replace(/\bBDG\b/, "DVC"))}<br>CLIENT : ${esc(sviClient(budget.inst))}<br>PROJET : ${esc(projet)}${cfg.headLine ? "<br>" + esc(cfg.headLine) : ""}</div>
 </div>
 ${/* FORMAT 133 : unités M² / M³ (cellule d'unité seule) */ cfg.table.replace(/(<td[^>]*>)\s*M([23])\s*(<\/td>)/g, (m, a, d, b) => a + "M" + (d === "2" ? "²" : "³") + b)}
 <div id="end">${cfg.end}</div>
 <div class="foot"><div class="pg">Page 1 / 1</div><hr>
-  <div class="ad"><br>
-  </div></div>
+  <div class="ad">${sviSocLines("ftr").map(esc).join("<br>")}</div></div>
 </div>
 <script>
 const WM = ${JSON.stringify(budget && budget.inst && budget.inst.state !== "valide" ? (budget.inst.state === "fige" ? "#15803d" : "#b91c1c") : "")};
 const WMT = ${JSON.stringify(budget && budget.inst && budget.inst.state === "fige" ? "PROVISOIRE" : "EN INSTANCE")};
 (function () {
-const STAMP = "${SVI_STAMP}";
+const STAMP = ${JSON.stringify(sviSocImg("cachet"))};
 const $ = id => document.getElementById(id);
 const KEY = "svi_printopt_v2", SKEY = "svi_sign_v1";
 const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -9197,7 +9196,7 @@ const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return
 let o = { head: true, foot: true, sign: false, signPg: "last", stamp: false, stampPg: "last" };
 try { Object.assign(o, JSON.parse(ls.get(KEY) || "{}")); } catch (e) {}
 /* signature importée sur cet appareil, sinon signature provisoire */
-let signImg = ls.get(SKEY) || "${SVI_SIGN}";
+let signImg = ls.get(SKEY) || ${JSON.stringify(sviSocImg("sign"))};
 
 const src = $("src"), out = $("pages"), tpl = $("tpl");
 /* code aléatoire de l'aperçu, imprimé sur chaque page */

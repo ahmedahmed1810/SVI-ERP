@@ -221,14 +221,8 @@ function openObsAlertFor(ref, project) {
 }
 
 
-/* logo de la société (impressions) */
-const SVI_LOGO = "data:image/png;base64,";
-
-/* cachet et signature de la société (impression, sur demande) */
-const SVI_STAMP = "data:image/png;base64,";
-
-/* signature provisoire (tirée du modèle), en attendant celle fournie */
-const SVI_SIGN = "data:image/png;base64,";
+/* F6 (série F, 06/11) : plus de logo, cachet ni signature écrits ici (données de la société, jamais dans le dépôt public) —
+   ils se choisissent comme fichiers dans PARAMÉTRAGE › SOCIÉTÉ (sviSocImg) */
 
 /* nombre en toutes lettres (français, majuscules) */
 function frWords(n) {

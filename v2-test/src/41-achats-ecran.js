@@ -114,7 +114,7 @@ function sviAchInit() {
     /* B27 : RÉFÉRENCES — modèle et remise à zéro du compteur par type de pièce */
     if (T === "ref") return `<div class="ach-prm">${tabs}
       <div class="ach-pbox"><div class="ach-pt">RÉFÉRENCES DES PIÈCES</div><table class="bdg-d-table prm-table ach-pref"><colgroup><col style="width:260px"><col style="width:240px"><col style="width:190px"><col style="width:200px"><col style="width:200px"><col style="width:220px"></colgroup>
-        <thead><tr><th>TYPE DE PIÈCE</th><th data-tip="TEXTE FIXE TEL QUEL ; VARIABLES ENTRE ACCOLADES : {AA} ANNÉE SUR 2 CHIFFRES ({AAAA} SUR 4), {MM} MOIS, {JJ} JOUR, {NNN} COMPTEUR (AUTANT DE CHIFFRES QUE DE N). EXEMPLE : DVF {AA}-{MM}{JJ}/{NNN} → DVF 26-0101/012">MODÈLE</th><th>EXEMPLE (AUJOURD'HUI, N° 12)</th><th>REMISE À ZÉRO DU COMPTEUR</th><th data-tip="{PARENT} = RÉFÉRENCE DE LA PIÈCE ; {LLL} = COMPTEUR DES LIGNES (AUTANT DE CHIFFRES QUE DE L), QUI REPART À 001 DANS CHAQUE PIÈCE">MODÈLE DES LIGNES</th><th>EXEMPLE (LIGNE 2)</th></tr></thead>
+        <thead><tr><th>TYPE DE PIÈCE</th><th data-tip="TEXTE FIXE TEL QUEL ; VARIABLES ENTRE ACCOLADES : {AA} ANNÉE SUR 2 CHIFFRES ({AAAA} SUR 4), {MM} MOIS, {JJ} JOUR, {NNN} COMPTEUR (AUTANT DE CHIFFRES QUE DE N). EXEMPLE : DVF {AA}-{MM}{JJ}/{NNN} → DVF 26-0101/012">MODÈLE</th><th>EXEMPLE (AUJOURD'HUI, N° 12)</th><th>REMISE À ZÉRO DU COMPTEUR</th><th data-tip="{PARENT} = RÉFÉRENCE DE LA PIÈCE ; {LLL} = COMPTEUR DES LIGNES (AUTANT DE CHIFFRES QUE DE L), QUI REPART À 001 DANS CHAQUE PIÈCE">MODÈLE DES DÉTAILS</th><th>EXEMPLE (LIGNE 2)</th></tr></thead>
         <tbody>${ACH_REF_T.map(([k, l]) => { const R = P.refs[k]; return `<tr><td>${l}</td><td><input class="ins-in ach-ref" data-k="${k}" data-f="m" value="${esc(R.m)}" autocomplete="off"></td><td>${esc(achRefFill(R.m, new Date(), 12))}</td>
           <td><select class="ins-in ach-ref" data-k="${k}" data-f="rz">${ACH_REF_RZ.map(([v, t]) => `<option value="${v}"${v === R.rz ? " selected" : ""}>${t}</option>`).join("")}</select></td>
           <td><input class="ins-in ach-ref" data-k="${k}" data-f="l" value="${esc(R.l)}" autocomplete="off"></td><td>${esc(achLineRef(k, achRefFill(R.m, new Date(), 12), 1))}</td></tr>`; }).join("")}</tbody></table></div>
@@ -173,12 +173,12 @@ function sviAchInit() {
       <div class="ach-pbox"><div class="ach-pt">SEUILS DE VALIDATION — CIRCUIT PROPRE À CHAQUE TYPE DE PIÈCE</div>
         <div class="rec-tabs ach-seut">${ACH_CIRC_T.map(([k, l]) => `<button type="button" class="rec-tab${k === seuK ? " active on" : ""}" data-seut="${k}">${l}${k !== "gen" && !achSeuOwn(k) ? " · GÉNÉRAL" : ""}</button>`).join("")}</div>
         ${seuK !== "gen" ? `<div class="ach-seuinfo">${achSeuOwn(seuK) ? `RÉGLAGE PROPRE À CE TYPE. <button type="button" class="ach-link" data-seugen>REPRENDRE LE SEUIL GÉNÉRAL</button>` : "SEUIL GÉNÉRAL PROPOSÉ PAR DÉFAUT : LE MODIFIER ICI LE RÈGLE POUR CE TYPE SEULEMENT."}</div>` : ""}
-        <table class="bdg-d-table prm-table ach-pseu"><colgroup><col style="width:200px"><col style="width:260px"><col style="width:200px"><col style="width:44px"></colgroup>
-        <thead><tr><th class="center">AU-DELÀ DE (DH HT)</th><th>GRADES QUI VALIDENT (N°, SÉPARÉS PAR ,)</th><th class="center">RESPECTER LA HIÉRARCHIE</th><th class="center"><input type="checkbox" class="ach-pall" aria-label="Tout cocher"></th></tr></thead>
-        <tbody>${achSeuL(seuK).map(x => `<tr data-sid="${esc(x.id)}"><td class="center"><input class="ins-in ach-seu number" data-f="mt" inputmode="decimal" value="${esc(F2(x.mt))}"></td>
+        <table class="bdg-d-table prm-table ach-pseu"><colgroup><col style="width:170px"><col style="width:170px"><col style="width:260px"><col style="width:200px"><col style="width:44px"></colgroup>
+        <thead><tr><th class="center" data-tip="F4 : LE NIVEAU S'APPLIQUE DE CE MONTANT…">DE (DH HT)</th><th class="center" data-tip="… JUSQU'À CE MONTANT ; VIDE = SANS FIN. 0 ET VIDE = TOUT PASSE PAR CE NIVEAU">À (DH HT)</th><th>GRADES QUI VALIDENT (N°, SÉPARÉS PAR ,)</th><th class="center">RESPECTER LA HIÉRARCHIE</th><th class="center"><input type="checkbox" class="ach-pall" aria-label="Tout cocher"></th></tr></thead>
+        <tbody>${achSeuL(seuK).map(x => `<tr data-sid="${esc(x.id)}"><td class="center"><input class="ins-in ach-seu number" data-f="mt" inputmode="decimal" value="${esc(F2(x.mt))}"></td><td class="center"><input class="ins-in ach-seu number" data-f="fin" inputmode="decimal" value="${x.fin === "" || x.fin === undefined ? "" : esc(F2(x.fin))}" placeholder="SANS FIN"></td>
           <td><input class="ins-in ach-seu" data-f="g" value="${esc((x.g || []).join(", "))}" title="${esc(G.map(g => g.n + " = " + (g.lab || "GRADE " + g.n)).join(" ; "))}"></td>
           <td class="center"><input type="checkbox" class="ach-seu" data-f="h"${x.h ? " checked" : ""}></td><td class="center"><input type="checkbox" class="ach-pcb" data-xseu="${esc(x.id)}"></td></tr>`).join("")}
-          <tr class="ach-new"><td colspan="3"><input class="ins-in ach-seunew number" inputmode="decimal" placeholder="CRÉER UN SEUIL ICI… (MONTANT)" autocomplete="off"></td><td></td></tr></tbody></table>
+          <tr class="ach-new"><td colspan="4"><input class="ins-in ach-seunew number" inputmode="decimal" placeholder="CRÉER UN NIVEAU ICI… (MONTANT DE DÉPART)" autocomplete="off"></td><td></td></tr></tbody></table>
         <div class="prm-foot"><button type="button" class="prm-del ach-pdel" data-pdel="seu" disabled>SUPPRIMER LES LIGNES COCHÉES <span class="svi-cnt">0</span></button></div></div>
       </div>`;
     tpl.content.querySelectorAll(".ach-pbox").forEach(b => { if (!keep.some(c => b.querySelector("table." + c))) b.remove(); });
@@ -322,7 +322,7 @@ function sviAchInit() {
     /* paramètres — série B : plafond de transactions (unité), alertes de retard, plafonds en espèces, mentions, seuils de validation */
     if (t.classList.contains("ach-ref")) { const P = achPrm(), k = t.dataset.k, f = t.dataset.f, v = f === "m" ? String(t.value).trim() : t.value;
       if (f === "m" && v && !/\{N+\}/.test(v)) { svToast("LE MODÈLE DOIT CONTENIR LE COMPTEUR {NNN}.", 3500, t); draw(); return; }
-      if (f === "l" && v && !(/\{L+\}/.test(v) && /\{PARENT\}/.test(v))) { svToast("LE MODÈLE DES LIGNES DOIT CONTENIR {PARENT} ET LE COMPTEUR {LLL}.", 3500, t); draw(); return; }
+      if (f === "l" && v && !(/\{L+\}/.test(v) && /\{PARENT\}/.test(v))) { svToast("LE MODÈLE DES DÉTAILS DOIT CONTENIR {PARENT} ET LE COMPTEUR {LLL}.", 3500, t); draw(); return; }
       P.refs = { ...P.refs, [k]: { ...P.refs[k], [f]: v } }; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-cl") || t.classList.contains("ach-clnew")) { const P = achPrm(), l = "cl" + t.dataset.l, L = P[l].map(x => ({ ...x }));
       if (t.classList.contains("ach-clnew")) { const v = achU(t.value); if (!v) return; L.push({ id: "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 4), t: "autre", txt: v }); }
@@ -336,9 +336,10 @@ function sviAchInit() {
     if (t.classList.contains("ach-ment")) { const P = achPrm(); P.ment = { ...P.ment, [t.dataset.f]: t.checked }; achPrmSave(P); return; }
     if (t.classList.contains("ach-seu") || t.classList.contains("ach-seunew")) { const P = achPrm(), gr = sviPgL("grades").map(g => String(g.n));
       const SL = seuEdit(P);
-      if (t.classList.contains("ach-seunew")) { const v = achN(t.value); if (!(v > 0)) return; SL.push({ id: "s" + Date.now().toString(36), mt: v, g: [], h: true }); SL.sort((a, b) => a.mt - b.mt); achPrmSave(P); draw(); return; }
+      if (t.classList.contains("ach-seunew")) { const v = achN(t.value); if (!(v >= 0) || String(t.value).trim() === "") return; SL.push({ id: "s" + Date.now().toString(36), mt: v, fin: "", g: [], h: true }); SL.sort((a, b) => a.mt - b.mt); achPrmSave(P); draw(); return; }
       const x = SL.find(y => y.id === t.closest("tr").dataset.sid); if (!x) return; const f = t.dataset.f;
-      if (f === "h") x.h = t.checked; else if (f === "mt") { const v = achN(t.value); if (!(v > 0)) { svToast("MONTANT NON VALIDE.", 3000, t); draw(); return; } x.mt = v; }
+      if (f === "h") x.h = t.checked; else if (f === "mt") { const v = achN(t.value); if (!(v >= 0) || String(t.value).trim() === "") { svToast("MONTANT NON VALIDE.", 3000, t); draw(); return; } x.mt = v; }
+      else if (f === "fin") { const s0 = String(t.value).trim(), v = achN(s0); if (s0 && !(v > achN(x.mt))) { svToast("LA FIN DOIT ÊTRE AU-DESSUS DU DÉPART (VIDE = SANS FIN).", 3500, t); draw(); return; } x.fin = s0 ? v : ""; }
       else { const L = String(t.value).split(/[,;\s]+/).filter(Boolean), bad = L.filter(g => !gr.includes(g)); if (bad.length) { svToast("GRADE INCONNU : " + bad.join(", ") + " (PARAMÉTRAGE GÉNÉRAL › GRADES).", 3500, t); draw(); return; } x.g = [...new Set(L)].sort((a, b) => b - a); }
       SL.sort((a, b) => a.mt - b.mt); achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-ptol")) { const P = achPrm(), v = achN(t.value); if (v < 0 || v > 100) { svToast("TOLÉRANCE NON VALIDE (0 À 100 %).", 3000, t); draw(); return; } P.tol = v; achPrmSave(P); draw(); return; }

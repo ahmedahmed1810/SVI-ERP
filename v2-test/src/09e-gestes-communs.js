@@ -218,3 +218,17 @@ function sviColSetWin(t, k, def) {
     tm = setTimeout(() => { tm = 0; const lab = th.querySelector(".cf-lab"), def = (th.dataset.svcolDef || (lab && lab.lastChild ? lab.lastChild.textContent : th.textContent)).trim(); sviColSetWin(b.dataset.cf, b.dataset.col, def); }, SVI_G.lp); }, true);
   document.addEventListener("pointermove", e => { if (tm && Math.hypot(e.clientX - x0, e.clientY - y0) > SVI_G.drag) { clearTimeout(tm); tm = 0; } }, true);
   ["pointerup", "pointercancel"].forEach(t => document.addEventListener(t, () => { clearTimeout(tm); tm = 0; }, true)); }
+/* F16 (série F, 06/11) : POIGNÉE DE LARGEUR dans tous les tableaux — un tableau à colgroup qui n'a pas encore de poignées (PARAMÉTRAGE,
+   paramètres des achats…) reçoit le moteur commun (data-svcw, poignée sur chaque titre) ; largeur gardée par tableau */
+{ let raf = 0;
+  const run = () => { raf = 0; const CW = cwLoad();
+    document.querySelectorAll("table.prm-table:not([data-svcw]), table.frs-sub:not([data-svcw])").forEach(t => {
+      const cg = t.querySelector(":scope > colgroup"), tr = t.tHead && t.tHead.rows.length === 1 ? t.tHead.rows[0] : null; if (!cg || !tr || t.querySelector("thead .col-rs")) return;
+      const cols = [...cg.children]; if (cols.length !== tr.cells.length || [...tr.cells].some(c => c.colSpan > 1)) return;
+      const key = "auto_" + (t.dataset.pgk || t.dataset.colh || [...t.classList].filter(c => !/^(prm-table|frs-sub|bdg-d-table)$/.test(c)).join("_") || "t") + "_" + cols.length;
+      t.dataset.svcw = key; let set = false;
+      cols.forEach((c, i) => { c.dataset.k = "c" + i; const w = CW[key + ".c" + i]; if (w) { c.style.width = w + "px"; set = true; } });
+      if (set) { const tw = cols.reduce((s, c) => s + (parseFloat(c.style.width) || 0), 0); if (tw) { t.style.width = tw + "px"; t.style.minWidth = tw + "px"; } }
+      [...tr.cells].forEach((th, i) => { if (th.querySelector("input[type=checkbox]") && !th.textContent.trim()) return; th.insertAdjacentHTML("beforeend", `<span class="col-rs" data-col="c${i}"></span>`); }); }); };
+  const go = () => { if (!raf) raf = requestAnimationFrame(run); };
+  const start = () => new MutationObserver(go).observe(document.body, { childList: true, subtree: true }); if (document.body) start(); else document.addEventListener("DOMContentLoaded", start); }

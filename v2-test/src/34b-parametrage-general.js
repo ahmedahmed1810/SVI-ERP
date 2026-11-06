@@ -104,7 +104,7 @@ function sviPgTree(pane, c) {
 const SVI_PG_GRP = [["gen", "GÉNÉRAL"], ["ach", "ACHATS"], ["art", "ARTICLES"], ["pers", "PERSONNEL"]];
 const SVI_PG_TABS = [
   { k: "gen", lab: "GÉNÉRAL", sub: "RÉGLAGES PONCTUELS DE TOUTE L'APPLICATION" },
-  { k: "soc", lab: "SOCIÉTÉ", sub: "IDENTITÉ DE LA SOCIÉTÉ (EN-TÊTE DES PIÈCES IMPRIMÉES)" },   /* C8 : SOCIÉTÉ dans son propre onglet, après GÉNÉRAL (B6) */
+  { k: "soc", lab: "SOCIÉTÉ", sub: "IDENTITÉ DE LA SOCIÉTÉ" },   /* C8 : SOCIÉTÉ dans son propre onglet, après GÉNÉRAL (B6) */
   { k: "unit", g: "art", lab: "UNITÉS", sub: "" }, { k: "lib", g: "art", lab: "BIBLIOTHÈQUE DE PRIX", sub: "" },
   { k: "cal", lab: "CALENDRIER", sub: "JOURS NON TRAVAILLÉS DE TOUTE LA SOCIÉTÉ (FÉRIÉS, GRÈVE, DEUIL NATIONAL, ÉVÉNEMENT…)" },
   { k: "lieux", lab: "LIEUX", sub: "PAYS › RÉGION › VILLE (ADRESSES, TRANSPORT, AGENCES BANCAIRES)" },
@@ -141,7 +141,27 @@ function sviPgDraw(k, pane) {
 function sviPgSocHTML() { const S = sviSoc();
   return `<div class="pg-soc-card"><div class="frs-g pg-soc">${SVI_SOC_F.map(([f, l]) => `<label class="frs-f${f === "rs" || f === "adr" ? " frs-w" : ""}"><span>${l}</span><input class="ins-in pg-soc-in" data-f="${f}" value="${esc(S[f] || "")}" autocomplete="off"${f === "mail" ? " data-keepcase" : ""}></label>`).join("")}
       <label class="frs-f"><span data-tip="COMMUNE AU BUDGET ET AUX ACHATS ; VIDE : UNE DÉSIGNATION SANS TVA NE PEUT PAS ÊTRE ENREGISTRÉE">TVA PAR DÉFAUT (%)</span><input class="ins-in tva-def pg-gv number" data-g="tva" data-fam="pct" inputmode="decimal" value="${(() => { const tv = sviTvaDef(); return tv === null ? "" : esc(String(tv).replace(".", ",")); })()}" autocomplete="off"></label>
-      <div class="frs-f frs-w"><span>LOGO</span><div class="pg-logo">${S.logo ? `<img src="${esc(S.logo)}" alt="">` : ""}<input type="file" accept="image/*" class="pg-logo-in"></div></div></div></div>`; }
+      ${[["logo", "LOGO"], ["cachet", "CACHET"], ["sign", "SIGNATURE"]].map(([k, l]) => `<div class="frs-f"><span>${l}</span><div class="pg-logo">${S[k] ? `<img src="${esc(S[k])}" alt="">` : ""}<input type="file" accept="image/*" class="pg-logo-in" data-img="${k}"></div></div>`).join("")}
+      ${[["hdr", "EN-TÊTE DE PAGE"], ["ftr", "PIED DE PAGE"]].map(([k, l]) => [0, 1].map(i => `<div class="frs-f frs-w"><span>${l} — LIGNE ${i + 1}</span><button type="button" class="ach-link pg-socl" data-socl="${k}|${i}">${esc(sviSocLine(k, i) || "CHOISIR LES CHAMPS…")}</button></div>`).join("")).join("")}
+      </div></div>`; }
+/* F6 (série F) : images de la société (LOGO, CACHET, SIGNATURE), choisies comme fichiers et réduites d'office ; vides = rien d'imprimé */
+const sviSocImg = k => (sviSoc() || {})[k] || "";
+function sviImgReduce(file, max, done) { const rd = new FileReader(); rd.onload = () => { const im = new Image(); im.onload = () => { const r = Math.min(1, max / Math.max(im.width, im.height)), c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(im.width * r)); c.height = Math.max(1, Math.round(im.height * r)); const x = c.getContext("2d"); x.drawImage(im, 0, 0, c.width, c.height);
+  let u = ""; try { u = c.toDataURL("image/png"); if (u.length > 400000) u = c.toDataURL("image/jpeg", 0.85); } catch (e) { u = rd.result; } done(u); }; im.onerror = () => done(""); im.src = rd.result; }; rd.readAsDataURL(file); }
+/* F6 : EN-TÊTE et PIED DE PAGE composés — deux lignes chacun ; chaque ligne = des champs de SOCIÉTÉ, « NOM : valeur » séparés par un tiret,
+   recalculés à chaque impression (suivent SOCIÉTÉ) */
+const sviSocLine = (k, i) => { const S = sviSoc(), L = ((S[k] || [])[i]) || [];
+  return L.map(f => { const d = SVI_SOC_F.find(x => x[0] === f); return d && S[f] ? (f === "rs" ? S[f] : d[1] + " : " + S[f]) : ""; }).filter(Boolean).join(" – "); };
+const sviSocLines = k => [0, 1].map(i => sviSocLine(k, i)).filter(Boolean);
+function sviSocLineWin(k, i, done) { const S = sviSoc(), cur = ((S[k] || [])[i]) || [], d = sviWinNew();
+  d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: (k === "hdr" ? "EN-TÊTE DE PAGE" : "PIED DE PAGE") + " — LIGNE " + (i + 1),
+    body: `<div class="frs-cs">${SVI_SOC_F.map(([f, l]) => `<label class="frs-c"><input type="checkbox" class="socl-c" value="${f}"${cur.includes(f) ? " checked" : ""}> ${esc(l)}</label>`).join("")}</div>`,
+    foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button>` });
+  sviWinShow(d);
+  d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; } if (!e.target.closest("[data-ok]")) return;
+    const o = sviPg(), s0 = { ...sviSoc() }, A = Array.isArray(s0[k]) ? s0[k].slice() : [[], []]; A[i] = [...d.querySelectorAll(".socl-c:checked")].map(x => x.value);
+    s0[k] = A; o.soc = s0; sviPgSave(o); d.remove(); if (done) done(); }); }
 function sviPgDraw2(k, pane) {
   if (k === "cal") { sviPgCalPrev = sviPgOffDays(); pane.__pgc = { k: "cal", newLab: "AJOUTER UN JOUR ICI… (DATE)", cols: [["a", "DU", 160, "date"], ["b", "AU (FACULTATIF)", 160, "date"], ["m", "MOTIF", 200, "sel", () => SVI_PG_CAL_M], ["lab", "INTITULÉ", 320, ""]],
       after: () => sviPgCalImpact() }; sviPgTable(pane, pane.__pgc); pane.insertAdjacentHTML("afterbegin", `<div class="pg-ttl">JOURS NON TRAVAILLÉS DE LA SOCIÉTÉ</div>`);   /* 05/11 : titre du tableau */ return; }
@@ -216,3 +236,8 @@ function sviCarnetWin(x) { const used = new Map(sviCarnetUsed(x).map(p => [Strin
   d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) d.remove(); });
   d.addEventListener("change", e => { const s = e.target.closest(".pg-fl"); if (!s) return; const L = sviPgL("banques"), y = L.find(z => z.id === x.id); if (!y) return; y.fl = { ...(y.fl || {}) }; if (s.value) y.fl[s.dataset.n] = s.value; else delete y.fl[s.dataset.n]; sviPgLSave("banques", L); x.fl = y.fl; });
 }
+/* F6 (série F) : LOGO — en grand sur la page d'accueil ; en petit, tout à gauche de la barre du haut de toutes les autres interfaces, avant le ≡,
+   à la taille du bouton ≡, décoratif (toucher = rien). Variable --svi-logo posée sur la page (html.svi-logo s'il y en a un). */
+function sviLogoApply() { try { const u = sviSocImg("logo"), r = document.documentElement; r.classList.toggle("svi-logo", !!u);
+  if (u) r.style.setProperty("--svi-logo", "url(\"" + u + "\")"); else r.style.removeProperty("--svi-logo"); } catch (e) {} }
+try { sviLogoApply(); } catch (e) {}

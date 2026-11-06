@@ -84,7 +84,7 @@ function achFafFiche(id, o, done) {
           <label class="frs-f"><span>REÇUE LE</span><input type="date" class="ins-in fa-x" data-k="dRec" value="${esc(P.dRec)}"${dis}></label>
           <label class="frs-f"><span>ÉCHÉANCE ${P.ech ? "(SAISIE)" : "(CONDITIONS DU FOURNISSEUR)"}</span><input type="date" class="ins-in fa-x" data-k="ech" value="${esc(achFafEch(P))}"${dis}></label>
           <label class="frs-f frs-w"><span>COPIE DE LA FACTURE</span>${achCopyBtn(P, ro)}</label></div></div>
-        <div class="frs-sec"><div class="frs-st">LIGNES ${svCnt(P.lignes.length)} ${C ? `<small>(REÇU − DÉJÀ FACTURÉ ; REMISE ${esc(String(achN(P.rem)).replace(".", ","))} %)</small>` : ""}</div>
+        <div class="frs-sec"><div class="frs-st">DÉTAIL FACTURE ${svCnt(P.lignes.length)} ${C ? `<small>(REÇU − DÉJÀ FACTURÉ ; REMISE ${esc(String(achN(P.rem)).replace(".", ","))} %)</small>` : ""}</div>
           <table class="prm-table frs-sub"><thead><tr><th>DÉSIGNATION</th><th>U</th><th class="number">QUANTITÉ</th><th class="number">PRIX HT</th><th class="number">TVA %</th><th class="number">MONTANT HT</th>${C ? `<th class="number">REÇU NON FACTURÉ</th>` : ""}<th></th></tr></thead><tbody>
           ${P.lignes.map((l, i) => { const lk = C && l.cl ? " disabled" : dis, rnf = C && l.cl ? achRecQ(C.id, l.cl) - achFacQ(C.id, l.cl, P.id) : null; return `<tr data-i="${i}">
             <td><input class="ins-in fa-l" data-c="des" value="${esc(l.des)}"${lk}></td><td><input class="ins-in fa-l" data-c="u" value="${esc(l.u)}"${lk}></td>

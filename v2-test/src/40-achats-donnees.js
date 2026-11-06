@@ -327,8 +327,11 @@ const achStdPu = (des, u, pu) => { const a = achArtOf(des, u); return a && achN(
 const achStdMt = L => (L || []).reduce((t, l) => t + achN(l.q) * achStdPu(l.des, l.u, l.pu), 0);
 const achSeuOwn = k => { const T = achPrm().seuT || {}; return !!k && k !== "gen" && Array.isArray(T[k]); };
 const achSeuL = k => achSeuOwn(k) ? achPrm().seuT[k] : achPrm().seuV;
-const achPcSeu = (k, ht) => { const S = achSeuL(k).filter(x => achN(x.mt) > 0 && ht > achN(x.mt) && (x.g || []).length).sort((a, b) => b.mt - a.mt)[0];
-  return S ? { mt: achN(S.mt), g: [...new Set(S.g.map(String))].sort((a, b) => +b - +a), h: !!S.h, k } : null; };
+/* F4 (série F) : chaque NIVEAU a un seuil de départ et de fin (fin vide = sans fin ; 0 et vide = tout passe par ce niveau) ; les niveaux dont
+   la plage contient le montant valident tous (grades réunis, du plus bas au plus haut si l'un demande la hiérarchie) */
+const achPcSeu = (k, ht) => { const S = achSeuL(k).filter(x => (x.g || []).length && (achN(x.mt) > 0 ? ht > achN(x.mt) : ht >= 0) && (x.fin === "" || x.fin === undefined || ht <= achN(x.fin)));
+  if (!S.length) return null; const top = S.slice().sort((a, b) => achN(b.mt) - achN(a.mt))[0];
+  return { mt: achN(top.mt), g: [...new Set(S.flatMap(x => x.g.map(String)))].sort((a, b) => +b - +a), h: S.some(x => x.h), k }; };
 const achCmfSeu = c => achPcSeu("cmf", achCmfTot(c).ht);
 const achCircNext = c => { const K = c.circ; if (!K) return []; const done = new Set((K.ok || []).map(x => String(x.g))), rest = K.g.filter(g => !done.has(g)); return K.h ? rest.slice(0, 1) : rest; };
 const achCircDone = c => !!c.circ && achCircNext(c).length === 0;
@@ -575,7 +578,7 @@ const achCafWhy = (c, D) => { const w = [], today = new Date().toISOString().sli
   if (c.state !== "ouverte") return w;
   if (!(c.lignes || []).length) w.push("AUCUNE LIGNE");
   /* 06/11 (soir) : une ligne hors de la liste des articles doit avoir un prix (montant de validation) */
-  (c.lignes || []).forEach(l => { if (l.des && !achArtOf(l.des, l.u) && !(achN(l.pu) > 0)) w.push(l.des + " : HORS LISTE DES ARTICLES, PRIX À SAISIR"); });
+  (c.lignes || []).forEach(l => { if (l.des && !achArtOf(l.des, l.u) && !(achN(l.pu) > 0)) w.push(l.des + " : HORS LISTE DES ARTICLES, PRIX ESTIMÉ À SAISIR"); });
   if (!(c.frs || []).length) w.push("AUCUN FOURNISSEUR CONSULTÉ");
   /* E6 (série E) : nombre minimum de fournisseurs consultés (PARAMÉTRAGE › ACHATS › RÈGLES INTERNES), non bloquant */
   else if ((c.frs || []).length < achPrm().ncons) w.push((c.frs || []).length + " FOURNISSEUR(S) CONSULTÉ(S) SUR " + achPrm().ncons + " AU MOINS");

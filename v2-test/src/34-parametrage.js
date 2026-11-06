@@ -263,9 +263,11 @@ function sviParamTabs() {
   /* B2 (série B) : réglages ponctuels dans GÉNÉRAL ; autres onglets du paramétrage général (34b-parametrage-general.js) */
   const gpane = document.createElement("div"); gpane.className = "prm-pg"; gpane.hidden = true; lpane.after(gpane);
   const apane = document.createElement("div"); apane.className = "prm-ach"; apane.hidden = true; gpane.after(apane);   /* 05/11 : onglets dessinés par le module ACHATS */
+  gpane.addEventListener("click", e => { const b = e.target.closest("[data-socl]"); if (!b) return; const [k, i] = b.dataset.socl.split("|"); sviSocLineWin(k, +i, () => sviPgDraw("soc", gpane)); });
   gpane.addEventListener("change", e => {
     const i = e.target; if (i.matches(".pg-soc-in")) { const o = sviPg(); o.soc = { ...sviSoc(), [i.dataset.f]: i.dataset.f === "mail" ? i.value.trim() : sviPgU(i.value) }; sviPgSave(o); return; }
-    if (i.matches(".pg-logo-in")) { const f = i.files && i.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { const o = sviPg(); o.soc = { ...sviSoc(), logo: rd.result }; sviPgSave(o); sviPgDraw("gen", gpane); }; rd.readAsDataURL(f); return; }
+    if (i.matches(".pg-logo-in")) { const f = i.files && i.files[0]; if (!f) return; const k = i.dataset.img || "logo";   /* F6 : image réduite d'office */
+      sviImgReduce(f, k === "logo" ? 600 : 400, u => { if (!u) { svToast("IMAGE ILLISIBLE.", 2500); return; } const o = sviPg(); o.soc = { ...sviSoc(), [k]: u }; sviPgSave(o); sviPgDraw("soc", gpane); sviLogoApply(); }); return; }
     if (!i.matches(".pg-gv")) return; const g = i.dataset.g, s = String(i.value).trim();
     if (g === "tz") { const o = sviPg(); o.gen = { ...(o.gen || {}), tz: s }; sviPgSave(o); return; }
     const tab = g === "tva" ? "soc" : "gen";   /* E5 : la TVA PAR DÉFAUT est dans SOCIÉTÉ */

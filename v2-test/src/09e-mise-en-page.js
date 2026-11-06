@@ -61,11 +61,13 @@ const sviMep = (() => {
   const pagesHTML = () => {
     const Ly = L(), ed = !!ED, [W, H] = PW[Ly.__o || "p"], rows = D.trs || D.rows || [];
     const inner = {
-      entete: O.ent || ed ? `<img src="${typeof SVI_LOGO !== "undefined" ? SVI_LOGO : ""}" alt="">` : "",
+      /* F6 : logo et lignes d'EN-TÊTE / PIED DE PAGE pris dans SOCIÉTÉ (rien d'écrit dans le code) */
+      entete: O.ent || ed ? (() => { const lg = typeof sviSocImg === "function" ? sviSocImg("logo") : "", L = typeof sviSocLines === "function" ? sviSocLines("hdr") : [];
+        return (lg ? `<img src="${lg}" alt="">` : "") + (L.length ? `<div class="mep-hd">${L.map(E).join("<br>")}</div>` : "") || (ed ? "EN-TÊTE" : ""); })() : "",
       date: "<b>" + today() + "</b>", titre: D.titleHtml || E(D.title || ""), frs: E(D.party || ""), ref: D.refHtml || "RÉFÉRENCE : " + E(D.ref || ""),
-      sign: (O.sign || ed) ? `<img src="${(ls.get("svi_sign_v1", null)) || (typeof SVI_SIGN !== "undefined" ? SVI_SIGN : "")}" alt="">` : "",
-      cachet: (O.cachet || ed) ? `<img src="${typeof SVI_STAMP !== "undefined" ? SVI_STAMP : ""}" alt="" class="mep-stamp">` : "",
-      pied: O.pied || ed ? `<div class="mep-ft">${D.footHtml || "SOCIÉTÉ SVI — AGADIR"}</div>` : "" };
+      sign: (O.sign || ed) ? (() => { const u = ls.get("svi_sign_v1", null) || (typeof sviSocImg === "function" ? sviSocImg("sign") : ""); return u ? `<img src="${u}" alt="">` : ed ? "SIGNATURE" : ""; })() : "",
+      cachet: (O.cachet || ed) ? (() => { const u = typeof sviSocImg === "function" ? sviSocImg("cachet") : ""; return u ? `<img src="${u}" alt="" class="mep-stamp">` : ed ? "CACHET" : ""; })() : "",
+      pied: O.pied || ed ? `<div class="mep-ft">${D.footHtml || (typeof sviSocLines === "function" ? sviSocLines("ftr").map(E).join("<br>") : "")}</div>` : "" };
     const cb = Ly.corps, pages = [];
     /* découpe des lignes : mesure réelle dans un conteneur caché, à la largeur du bloc TABLEAU */
     let chunks = [rows];

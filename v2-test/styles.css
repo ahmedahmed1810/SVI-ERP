@@ -3636,3 +3636,16 @@ html body .ach-link[data-nvgo].lk-archive { color: var(--stg-archive, #6d28d9) !
 .caf-card .cafw-top > .frs-sec { min-width: 0; overflow-x: auto; }
 .caf-card tr.cafw-r.sel td { background: #eef2ff !important; }
 .caf-card .caf-bsn { max-width: 210px; } .caf-card .caf-des { max-width: 240px; }
+/* F6 (série F) : logo de la société — accueil en grand ; petit, décoratif, avant le ≡ dans la barre du haut des autres interfaces */
+html.svi-logo .novapp-list-titlebar::before, html.svi-logo :is(#chs, #ach, #bdg) > .section-head::before { content: ""; flex: none; width: 36px; height: 36px; background: var(--svi-logo) center / contain no-repeat; pointer-events: none; order: -1; }
+html.svi-logo #home .home-body::before { content: ""; display: block; width: 100%; height: min(60vh, 520px); margin: 12px 0 18px; background: var(--svi-logo) center / contain no-repeat; pointer-events: none; }
+.mep-b .mep-hd { font-size: 10px; line-height: 1.3; } #src .head .hdtxt { font-size: 10px; }
+/* F16 : poignée de largeur — zone de toucher large (iPad), posée sur le trait entre deux colonnes */
+html body table[data-svcw] thead th .col-rs { position: absolute; top: 0; bottom: 0; right: -9px !important; width: 18px !important; cursor: col-resize; touch-action: none; z-index: 9 !important; }
+html body table[data-svcw] thead th:last-child .col-rs { right: 0 !important; width: 12px !important; }
+table.prm-table:not(.bdg-d-table) thead th, table.frs-sub thead th { position: relative; }
+/* F7, F14, F17 (série F) : référence soulignée (ouvre la pièce), case modifiable choisie puis saisie dans la liste, noms des fournisseurs */
+table.svi-bdgl .nv-reflink { border: 0; background: none; padding: 0; font: inherit; color: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+table.svi-bdgl td.nv-ed { cursor: text; } table.svi-bdgl td.nv-ed.nv-sel { box-shadow: inset 0 0 0 2px var(--svst, #172033); }
+table.svi-bdgl td.nv-ed input.nv-edin { width: 100%; height: 100%; min-height: 19px; box-sizing: border-box; border: 0; padding: 0 4px; font: inherit; background: #fff; }
+table.svi-bdgl td.nv-lk { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

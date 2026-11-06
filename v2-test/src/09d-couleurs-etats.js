@@ -34,11 +34,11 @@ sviColorsApply();
 const SVI_FMT_KEY = "svi_format_v1";
 const SVI_FMT_EL = [
   /* v924 (remarques 3 et 4 du 04/11/2026) : une HAUTEUR (h, px) pour chaque élément ; parties des fenêtres (win: réglées une fois pour toutes les fenêtres) */
-  { k: "top", lab: "BARRE DU HAUT DE L'INTERFACE", sel: [".bdg-d-sticky .novapp-list-titlebar", ".novapp-list-shell > .novapp-list-titlebar", "#chs > .section-head"], def: { bg: "#ffffff", c: "#172033", fs: 28, b: 1, h: 54 } },
+  { k: "top", lab: "BARRE DU HAUT DE L'INTERFACE", sel: [".bdg-d-sticky .novapp-list-titlebar", ".novapp-list-shell > .novapp-list-titlebar", "#chs > .section-head"], tsel: ["h1", ".bdg-d-h1", ".nvp-ref"], def: { bg: "#ffffff", c: "#172033", fs: 28, b: 1, h: 54 } },
   /* B5 (série B) : le bandeau du milieu de la barre du haut (« FOURNISSEUR — … ») fait partie de la barre */
   /* 05/11 : le bandeau du milieu n'est plus un élément à part — il prend le fond, la couleur, la police et la taille de la barre du haut */
   /* 05/11 : l'en-tête DÉTAIL du budget (hors .bdg-d-block) et l'onglet actif des blocs SUIVI / RÉVISIONS (.active) suivent aussi le format */
-  { k: "blk", lab: "EN-TÊTE DE BLOC", sel: [".bdg-d-block > .bdg-d-block-title", "#bdgDetailHead.bdg-d-block-title"], def: { bg: "#dde2e9", c: "#b91c1c", fs: 11, b: 1, h: 29 } },
+  { k: "blk", lab: "EN-TÊTE DE BLOC", sel: [".bdg-d-block > .bdg-d-block-title", "#bdgDetailHead.bdg-d-block-title"], tsel: [".ttl"], def: { bg: "#dde2e9", c: "#b91c1c", fs: 11, b: 1, h: 29 } },
   /* v923 (remarque 2) : FOND DES ONGLETS — seule la couleur du fond a un sens (f = réglages permis) */
   { k: "tabs", lab: "FOND DES ONGLETS", sel: [".bdg-d-tabs:not(.pg-grps):not(.pg-tabs)", "#bdgTabs", ".rec-tabs"], def: { bg: "#eceff3" }, f: ["bg"] },
   { k: "tab", lab: "ONGLET", sel: [".bdg-d-tab:not(.active):not(.on):not(.prm-grp):not(.prm-tab)", ".rec-tab:not(.on):not(.active)"], def: { bg: "#eceff3", c: "#6b7280", fs: 12, b: 1, h: 33 } },
@@ -47,7 +47,7 @@ const SVI_FMT_EL = [
      sur une bande gris-vert, l'actif clair et raccordé à la rangée du dessous) et SOUS-ONGLETS (légers, l'actif marqué d'un trait dessous) */
   { k: "tabm", lab: "ONGLETS DE MODULE", sel: [".pg-grps .prm-grp:not(.on)"], def: { bg: "#cfd9d2", c: "#3f4d44", fs: 12, b: 1, h: 32 } },
   { k: "tabsub", lab: "SOUS-ONGLETS", sel: [".pg-tabs > .prm-tab"], def: { bg: "#f7f9f8", c: "#5b6670", fs: 11, b: 1, h: 30 } },
-  { k: "th", lab: "TITRES DES COLONNES (EN-TÊTE DE TABLEAU)", sel: ["table thead th", ".ins-hcol .bdg-h-head"], def: { bg: "#f6f7f9", c: "#6b7480", fs: 11, b: 1, h: 22 } },
+  { k: "th", lab: "TITRES DES COLONNES (EN-TÊTE DE TABLEAU)", sel: ["table thead th", ".ins-hcol .bdg-h-head"], tsel: [".cf-lab", ".bdg-head-label"], def: { bg: "#f6f7f9", c: "#6b7480", fs: 11, b: 1, h: 22 } },
   { k: "ttl", lab: "LIGNES DE TITRE DANS UN TABLEAU", sel: ["tr.ins-title td", "tr.ins-gtitle td", ".dly-grp td", ".ins-hcol .ins-li.lot-grp"], def: { bg: "#ece8e1", c: "#2f2a24", fs: 12, b: 1, h: 21 } },
   { k: "row", lab: "LIGNES D'UN TABLEAU", sel: ["table tbody td"], def: { bg: "#ffffff", c: "#172033", fs: 12, b: 0, h: 21 } },
   { k: "new", lab: "LIGNE CRÉER … ICI", sel: ["tbody tr.ins-new td", "tbody tr.rec-new td", "tbody tr.scn-new td", "tbody tr.dly-new td", "tbody tr.bdg-newrow td", ".ins-hcol .ins-li.ins-new"], def: { bg: "#fdf0f0", c: "#b91c1c", fs: 12, b: 0, h: 21 } },
@@ -120,6 +120,15 @@ function sviFmt() {
    il passe devant le réglage commun, seulement quand cette interface est affichée (html[data-svif]) */
 /* 05/11 : les LIGNES DE TITRE ont leurs propres règles de couleur (variables --ttl-c / --ttl-bg) — le format règle aussi ces variables */
 const sviFmtVars = (E, o) => E.k !== "ttl" ? "" : [o.c ? `--ttl-c:${o.c}` : "", o.bg ? `--ttl-bg:${o.bg}` : ""].filter(Boolean).join(";");
+/* F15 (série F, 06/11) : un réglage du format passe devant les règles de la feuille de styles (même celles qui visent un identifiant) —
+   sélecteur renforcé (sviFmtZ) ; le texte d'un élément (titre de la barre du haut, nom des colonnes, titre du bloc) suit la taille, le gras,
+   l'italique, le souligné et la couleur réglés (E.tsel = parties texte de l'élément) */
+const sviFmtZ = x => x.split(",").map(y => y.trim() + ":not(#svi-z1):not(#svi-z2)").join(", ");
+const sviFmtTxt = (sels, E, o) => { if (!E || !E.tsel) return ""; const d = [];
+  if (o.c) d.push(`color:${o.c}!important;-webkit-text-fill-color:${o.c}!important`); if (o.fs) d.push(`font-size:${+o.fs}px!important`);
+  if (o.b !== undefined) d.push(`font-weight:${o.b ? 800 : 400}!important`); if (o.i !== undefined) d.push(`font-style:${o.i ? "italic" : "normal"}!important`);
+  if (o.u !== undefined) d.push(`text-decoration:${o.u ? "underline" : "none"}!important`);
+  return d.length ? sels.flatMap(s => E.tsel.map(t => sviFmtZ(s + " " + t))).join(", ") + " { " + d.join("; ") + " }" : ""; };
 const sviFmtDecl = (o, E) => { const d = [];
   if (E && E.bd) { if (o.c) d.push(`border-color:${o.c}!important`); return d; }   /* E1 : traits des tableaux */
   if (o.bg) d.push(`background:${o.bg}!important`);
@@ -140,7 +149,7 @@ const sviFmtCatEls = c => { const C = SVI_FMT_CAT.find(x => x[0] === c); return 
 function sviFmtCssCat(F) { const out = [];
   SVI_FMT_CAT.forEach(([c, , pre]) => { const el = ((F.cat || {})[c] || {}).el || {};
     sviFmtCatEls(c).forEach(E => { const o0 = el[E.k]; if (!o0) return; const o = E.f ? Object.fromEntries(Object.entries(o0).filter(([f]) => E.f.includes(f))) : o0, d = sviFmtDecl(o, E); if (!d.length) return;
-      out.push(pre.flatMap(p => E.sel.map(s => p + " body " + s)).join(", ") + " { " + d.join("; ") + " }");
+      { const SS = pre.flatMap(p => E.sel.map(s => p + " body " + s)); out.push(SS.map(sviFmtZ).join(", ") + " { " + d.join("; ") + " }"); const tx = sviFmtTxt(SS, E, o); if (tx) out.push(tx); }
       const vv = sviFmtVars(E, o); if (vv) out.push(pre.map(p => p + " body").join(", ") + " { " + vv + " }"); }); });
   return out.join("\n"); }
 function sviFmtCssBy(F) {
@@ -149,7 +158,7 @@ function sviFmtCssBy(F) {
     /* 06/11 : FENÊTRE d'une pièce (k_w) — seulement les parties des fenêtres, quand la liste ou la fiche de cette pièce est affichée */
     SVI_FMT_EL.forEach(E => { if (!!E.win !== W) return; const o0 = (B.el || {})[E.k]; if (!o0) return;
       const o = E.f ? Object.fromEntries(Object.entries(o0).filter(([f]) => E.f.includes(f))) : o0, d = sviFmtDecl(o, E); if (!d.length) return;
-      out.push(PP.flatMap(p => E.sel.map(x => p + x)).join(", ") + " { " + d.join("; ") + " }"); const vv = sviFmtVars(E, o); if (vv) out.push(PP.map(p => p.trim()).join(", ") + " { " + vv + " }"); });
+      { const SS = PP.flatMap(p => E.sel.map(x => p + x)); out.push(SS.map(sviFmtZ).join(", ") + " { " + d.join("; ") + " }"); const tx = sviFmtTxt(SS, E, o); if (tx) out.push(tx); } const vv = sviFmtVars(E, o); if (vv) out.push(PP.map(p => p.trim()).join(", ") + " { " + vv + " }"); });
     if (W) return;
     const st = B.st || {};
     /* 06/11 : plus de couleur d'écran forcée par interface — elle suit l'état de la pièce (palette) */
@@ -168,7 +177,7 @@ function sviFmtCss(F) {
     if (!d.length) return;
     const sels = SC && !E.win ? SC.flatMap(sc => E.sel.map(x => x.startsWith(sc) ? x : sc + " " + x)).filter(x => !(x.startsWith("#svConf ") && x.indexOf(" #svConf") > 0)) : E.sel;
     if (!sels.length) return;
-    out.push(sels.map(x => "html body " + x).join(", ") + " { " + d.join("; ") + " }");
+    { const SS = sels.map(x => "html body " + x); out.push(SS.map(sviFmtZ).join(", ") + " { " + d.join("; ") + " }"); const tx = sviFmtTxt(SS, E, o); if (tx) out.push(tx); }
     const vv = sviFmtVars(E, o); if (vv) out.push((SC ? SC.map(x => "html body " + x).join(", ") : "html body") + " { " + vv + " }");
   });
   const ca = sviFmtCssCat(F); if (ca) out.push(ca);

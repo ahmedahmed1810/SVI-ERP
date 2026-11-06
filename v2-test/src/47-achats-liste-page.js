@@ -124,8 +124,15 @@ function achNvList(ctx, o) {
     const canDel = x => isI(x) && !x.del && x.state !== "annule", delCol = rows.some(canDel);
     /* 06/11 (soir) : largeur des colonnes au moteur commun (chaque colonne se règle seule, gardée) */
     const W = o.w || {}, CG = sviCwCols(o.t, cols.map(c => [c[0], W[c[0]] || 120]), (delCol ? [["_del", 44]] : []).concat([["_cb", 40]]));
+    const ED = o.edit || {};
     const cell = (x, c) => { const v = c[2](x), cl = c[3] === "number" ? "number" : c[3] === "center" ? "center" : "";
-      if (c[0] === "ref") { const w = o.why(x, all); return `<td class="bdg-ref-c ${cl}">${w.length ? `<b class="obs-bang val-bang nv-bang" role="button" data-why="${esc(w.join(" · "))}">!</b> ` : ""}${esc(v)}</td>`; }
+      /* F7 (série F) : la RÉFÉRENCE est soulignée — elle ouvre la pièce */
+      if (c[0] === "ref") { const w = o.why(x, all); return `<td class="bdg-ref-c ${cl}">${w.length ? `<b class="obs-bang val-bang nv-bang" role="button" data-why="${esc(w.join(" · "))}">!</b> ` : ""}<button type="button" class="nv-reflink" data-nvo="${esc(x.id)}">${esc(v)}</button></td>`; }
+      /* F17 (série F), 2.10 : fournisseurs = noms soulignés, chacun dans la couleur de son propre état ; toucher = sa fiche */
+      if (c[0] === "frs" && x.frs && !(o.mOf && o.mOf(x))) { const F = (Array.isArray(x.frs) ? x.frs : [x.frs]).filter(Boolean);
+        return `<td class="${cl} nv-lk" title="${esc(F.map(achFrsNom).join(", "))}">${F.map(f => `<button type="button" class="ach-link" data-nvgo="frs|${esc(f)}">${esc(achFrsNom(f))}</button>`).join(", ")}</td>`; }
+      /* F14 (série F) : pièce EN INSTANCE — champ modifiable directement dans la liste (1er toucher = case choisie, 2e = saisie, règle 8.2) */
+      if (ED[c[0]] && isI(x) && !x.del) { const t = typeof v === "number" ? achF2(v) : String(v ?? ""); return `<td class="${cl} nv-ed" data-ed="${esc(c[0])}" title="${esc(t)}">${esc(t)}</td>`; }
       /* v910 (checklist C1.38) : 5e élément d'une colonne = image (logo) devant le texte, à la hauteur de la ligne */
       const im = c[4] ? c[4](x) : "";
       const t = typeof v === "number" ? achF2(v) : String(v ?? ""); return `<td class="${cl}" title="${esc(t)}">${im ? `<img class="nv-logo" src="${esc(im)}" alt="">` : ""}${esc(t)}</td>`; };
@@ -141,7 +148,20 @@ function achNvList(ctx, o) {
           || ""}
           ${o.newRow ? `<tr class="bdg-newrow" data-nvnew data-st="instance"><td colspan="${cols.length + (delCol ? 2 : 1)}">${esc(o.newRow)}</td></tr>` : ""}</tbody></table></div></div></div>`;
   };
+  /* F14 : saisie dans la case (ENTRÉE ou toucher ailleurs = enregistré ; ÉCHAP = annulé) */
+  const edit = td => { const id = td.closest("tr").dataset.id, k = td.dataset.ed, E = (o.edit || {})[k], L = o.all(), x = L.find(y => y.id === id); if (!E || !x) return;
+    const v0 = E.get ? E.get(x) : x[k] ?? "", inp = document.createElement("input"); inp.className = "ins-in nv-edin" + (E.type === "num" ? " number" : "");
+    if (E.type === "date") inp.type = "date"; else if (E.type === "num") inp.inputMode = "decimal"; inp.value = E.type === "num" ? String(v0 ?? "").replace(".", ",") : String(v0 ?? "");
+    td.textContent = ""; td.appendChild(inp); inp.focus(); try { inp.select(); } catch (er) {}
+    let done = false; const fin = ok => { if (done) return; done = true; if (ok) { const nv = E.type === "num" ? achN(inp.value) : E.type === "date" ? inp.value : achU(inp.value);
+        if (String(nv) !== String(v0 ?? "")) { const L2 = o.all(), y = L2.find(z => z.id === id); if (y) { if (E.set) E.set(y, nv); else y[k] = nv; y.mod = achNow(); o.save(L2); achHist(o.code ? o.code(y) : y.ref, "MODIFIÉ DANS LA LISTE", (E.lab || k).toUpperCase() + " : " + nv); } } }
+      draw(); };
+    inp.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); fin(true); } if (ev.key === "Escape") { ev.preventDefault(); fin(false); } });
+    inp.addEventListener("blur", () => fin(true)); };
   const click = async e => {
+    const ed = e.target.closest("td.nv-ed"); if (ed && !e.target.closest("input")) { if (ed.classList.contains("nv-sel")) edit(ed); else { document.querySelectorAll("td.nv-sel").forEach(t => t.classList.remove("nv-sel")); ed.classList.add("nv-sel"); } return true; }
+    if (e.target.closest("input.nv-edin")) return true;
+    const gl = e.target.closest(".ach-link[data-nvgo]"); if (gl) { const [t, gid] = gl.dataset.nvgo.split("|"); achGo(t, gid); return true; }
     const dy = e.target.closest("[data-nvday]"); if (dy) { dSel = dSel === dy.dataset.nvday ? "" : dy.dataset.nvday; draw(); return true; }
     const w = e.target.closest(".nv-bang"); if (w) { e.stopPropagation(); svToast(w.dataset.why, 4000, w); return true; }
     const dl = e.target.closest("[data-nvdel]");
@@ -244,7 +264,7 @@ function achNvPageHTML(p, rec, ctx) {
     const head = C.map(c => ctx && ctx.cfHead ? ctx.cfHead(t, c[0], c[1], c[3]) : `<th class="${c[3]}">${esc(c[1])}</th>`).join("");
     /* v793 : largeur des colonnes réglable et gardée (moteur commun sviCwCols / data-svcw) */
     const CG = sviCwCols(t, C.map((c, j) => [c[0], j === 0 ? 170 : /number/.test(c[3]) ? 110 : /center/.test(c[3]) ? 90 : 150]), [["_cb", 40]]);
-    const iM = L.cols.findIndex(c => /^MONTANT/.test(c[0])), isL = /^LIGNES|^DÉTAIL$/.test(L.t) && iM >= 0;
+    const iM = L.cols.findIndex(c => /^MONTANT/.test(c[0])), isL = /^DÉTAIL (?!FACTURE STANDARD)/.test(L.t) && iM >= 0;   /* F11 : TOTAL des DÉTAILS (TOTAL PARTIEL si filtre) */
     /* B3 (série B, 04/11/2026) : toute la ligne d'une pièce liée prend la couleur de son état (rouge, vert, bleu, orange, noir) */
     const iE = L.cols.findIndex(c => /^ÉTAT|^RÉPONSE/.test(c[0])), stOf = r => r.st !== undefined ? r.st : iE < 0 ? "" : achStTxt(r.cells[iE]);
     const tot = isL ? R.reduce((s2, r) => s2 + (typeof r.cells[iM] === "number" ? r.cells[iM] : achN(r.cells[iM]) || 0), 0) : 0;
@@ -278,10 +298,12 @@ const achPrtAuto = P => { const C = achCmf().find(c => c.ref === (P.ref || P.cod
     return [String(k).replace(/[^a-z0-9]/gi, "_"), S.lab || S.olab || f, v === undefined || v === null ? "" : String(v)]; }).filter(x => x[2] !== ""); };
 function achMepOpen(cfg, P, rec, redraw, o) {
   o = o || {};
-  const Lg0 = P.links.find(l => /^LIGNES|^DÉTAIL$|^DÉTAIL FACTURE FOURNISSEUR/.test(l.t)) || P.links[0] || { t: "", cols: [], rows: [] };
+  const Lg0 = P.links.find(l => /^DÉTAIL (?!FACTURE STANDARD)/.test(l.t)) || P.links[0] || { t: "", cols: [], rows: [] };
   /* v786 : l'aperçu suit les colonnes affichées à l'écran */
   const tb = document.querySelector(`#ach table[data-colh="achp_${achNvhKey(Lg0.t)}"]`), vis = tb ? sviColhVis(tb) : null, vf = a => vis ? a.filter((_, i) => vis.includes(i)) : a;
   let Lg = { ...Lg0, cols: vf(Lg0.cols), rows: Lg0.rows.map(r => ({ ...r, cells: vf(r.cells) })) };
+  /* F10 (série F) : le prix standard, le PRIX ESTIMÉ et les montants estimés ou budgétés ne sont JAMAIS imprimés pour le fournisseur */
+  { const keep = Lg.cols.map((c, i) => /PRIX ESTIMÉ|PRIX STANDARD|MONTANT ESTIMÉ|BUDGÉTÉ|BUDGET HT/.test(c[0]) ? -1 : i).filter(i => i >= 0); if (keep.length < Lg.cols.length) Lg = { ...Lg, cols: keep.map(i => Lg.cols[i]), rows: Lg.rows.map(r => ({ ...r, cells: keep.map(i => r.cells[i]) })) }; }
   if (o.noPrice) { const keep = Lg.cols.map((c, i) => /PU|PRIX|MONTANT|TVA/.test(c[0]) ? -1 : i).filter(i => i >= 0); Lg = { ...Lg, cols: keep.map(i => Lg.cols[i]), rows: Lg.rows.map(r => ({ ...r, cells: keep.map(i => r.cells[i]) })) }; }
   const K = cfg.list.k, pr = achPrm(), lettres = P.ttc && !o.noPrice ? "ARRÊTÉ(E) À LA SOMME DE : " + frMoney(P.ttc) + " TTC." : "";
   const mention = K === "cmf" ? "N° " + (P.ref || P.code) + " À REPORTER SUR LE BON DE LIVRAISON ET LA FACTURE." : K === "caf" ? "MERCI DE RAPPELER LA RÉFÉRENCE " + (P.ref || P.code) + " DANS VOTRE DEVIS." : "";
@@ -450,7 +472,7 @@ function achArtNvMod(ctx) {
   const same = (l, a) => achKey(l.des, l.u) === achKey(a.des, a.u);
   const artWhy = a => achArtWhy(a).concat(a.cat ? [] : ["CATÉGORIE MANQUANTE"]).concat(a.bloq ? ["BLOQUÉ : " + (a.bloq.why || "")] : []);
   return achNvMod(ctx, {
-    list: { k: "art", t: "ach_art2", id: "achArtT", name: "ARTICLES", one: "ARTICLE", stKeys: ["instance", "valide", "bloque", "archive", "annule", "alerte"], all: achArts, save: achArtsSave, code: a => achRefSvi(a, achArts(), "ARA"), nom: a => a.des, why: artWhy,
+    list: { k: "art", t: "ach_art2", id: "achArtT", name: "ARTICLES", one: "ARTICLE", stKeys: ["instance", "valide", "bloque", "archive", "annule", "alerte"], edit: { cat: { lab: "CATÉGORIE" }, pref: { lab: "PRIX RÉF. HT", type: "num" } }, all: achArts, save: achArtsSave, code: a => achRefSvi(a, achArts(), "ARA"), nom: a => a.des, why: artWhy,
       newRow: "CRÉER UN ARTICLE ICI…", add: done => achArtFiche(null, done),
       w: { ref: 110, nom: 360, u: 70, cat: 200, pref: 110, pmax: 110, nfr: 120, freq: 120, val: 110, cree: 110 },
       cols: mode => [["ref", "RÉFÉRENCE", a => achRefSvi(a, achArts(), "ARA"), ""], ["nom", "DÉSIGNATION", a => a.des, ""], ["u", "UNT", a => a.u, "center"], ["cat", "CATÉGORIE", a => a.cat || "", ""],
@@ -486,7 +508,7 @@ function achArtNvMod(ctx) {
 function achFrsNvMod(ctx) {
   const frsWhy = f => achFrsWhy(f, achFrsRO());
   return achNvMod(ctx, {
-    list: { k: "frs", t: "ach_frs2", id: "achFrsT", name: "FOURNISSEURS", one: "FOURNISSEUR", stKeys: ["instance", "valide", "expire", "bloque", "archive", "annule", "alerte"], all: () => { achFrsMigActif(); return achFrs(); }, save: achFrsSave, code: f => achFrsRef(f), nom: f => f.nom, why: frsWhy,
+    list: { k: "frs", t: "ach_frs2", id: "achFrsT", name: "FOURNISSEURS", one: "FOURNISSEUR", stKeys: ["instance", "valide", "expire", "bloque", "archive", "annule", "alerte"], edit: { ville: { lab: "VILLE" } }, all: () => { achFrsMigActif(); return achFrs(); }, save: achFrsSave, code: f => achFrsRef(f), nom: f => f.nom, why: frsWhy,
       newRow: "CRÉER UN FOURNISSEUR ICI…",
       add: async done => { const nom = await achAsk("NOUVEAU FOURNISSEUR", "NOM"); if (!nom) { done(null); return; } const L = achFrs(), dn = achFrsDupNom(L, nom, "");
         if (dn) svToast("UN FOURNISSEUR DU MÊME NOM EXISTE : " + dn.code + ".", 3500);
