@@ -4019,6 +4019,19 @@ def main():
   const x = document.querySelector('#svConf .svc-close'), r = x ? [getComputedStyle(x).color, getComputedStyle(x).webkitTextFillColor].join('|') : 'absente';
   document.querySelector('#svConf [data-r="0"]')?.click(); document.querySelectorAll('#svConf').forEach(e => e.remove()); document.documentElement.classList.remove('svi-nuit'); sviPalApply(); return r; }""")
         check('SÉRIE D, D5 (document unique 10.2) : la ✕ des fenêtres reste bien visible en palette NUIT', d5 == 'rgb(248, 250, 252)|rgb(248, 250, 252)', d5)
+        d6 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_pal_v1', 'svi_format_v1', 'svi_colors_v1', 'svi_pg_v1'], keep = K.map(k => localStorage.getItem(k));
+  const m = sviTzMin(), hh = x => String(Math.floor(((x % 1440) + 1440) % 1440 / 60)).padStart(2, '0') + ':' + String(((x % 1440) + 1440) % 1440 % 60).padStart(2, '0');
+  const P0 = sviPal(); P0.mode = 'jour'; P0.auto = { on: false, deb: hh(m - 60), fin: hh(m + 60) }; delete P0.man; sviPalSave(P0);
+  sviFmtWin(); await w(200); document.querySelector('.fmw-card [data-pal="auto"]').click(); await w(300);
+  r.nuit = sviPal().mode === 'nuit' && document.documentElement.classList.contains('svi-nuit'); r.inputs = document.querySelectorAll('.fmw-card .svc-t .fmw-palt').length;
+  const i = document.querySelector('.fmw-card .fmw-palt[data-palt="deb"]'); i.value = '25:00'; i.dispatchEvent(new Event('change', { bubbles: true })); await w(100); r.refused = i.value === hh(m - 60) && sviPalAuto().deb === hh(m - 60);
+  i.value = sviPalAuto().fin; i.dispatchEvent(new Event('change', { bubbles: true })); await w(100); r.same = sviPalAuto().deb === hh(m - 60);
+  document.querySelector('.fmw-card [data-pal="jour"]').click(); await w(300); r.man = sviPal().mode === 'jour' && !!sviPal().man;
+  document.querySelector('.fmw-card [data-x]').click(); await w(100);
+  const P = sviPal(); P.man.until = Date.now() - 1; sviPalSave(P); sviPalTick(); await w(100); r.back = sviPal().mode === 'nuit' && !sviPal().man;
+  const P2 = sviPal(); P2.auto.deb = hh(m + 60); P2.auto.fin = hh(m + 120); sviPalSave(P2); sviPalTick(); await w(100); r.day = sviPal().mode === 'jour';
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); sviFmtApply(); sviColorsApply(); sviPalApply(); return r; }""")
+        check("SÉRIE D, D4 D6 (document unique 1.9) : PALETTE AUTOMATIQUE dans le bandeau — NUIT entre le début et la fin (heure du fuseau), heures HH:MM contrôlées, début ≠ fin ; choix à la main valable jusqu'au prochain changement d'heure", all(d6.get(k) for k in ['nuit', 'refused', 'same', 'man', 'back', 'day']) and d6.get('inputs') == 2, d6)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

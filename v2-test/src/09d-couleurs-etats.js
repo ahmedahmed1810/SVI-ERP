@@ -191,7 +191,29 @@ const SVI_NUIT = { el: { top: { bg: "#0f172a", c: "#e2e8f0" }, blk: { bg: "#1f29
 const sviPalApply = () => { try { document.documentElement.classList.toggle("svi-nuit", sviPal().mode === "nuit"); } catch (e) {} };
 try { sviPalApply(); } catch (e) {}
 /* C10, D4 (document unique 1.9) : choix PALETTE en haut, dans le bandeau du titre de RÉGLAGES COMMUNS et de MODIFIER LE FORMAT */
-const sviPalBtns = () => `<span class="fmw-pal">PALETTE <button type="button" class="svc-b${sviPal().mode !== "nuit" ? " on" : ""}" data-pal="jour">☀ JOUR</button><button type="button" class="svc-b${sviPal().mode === "nuit" ? " on" : ""}" data-pal="nuit">☾ NUIT</button></span>`;
+/* D4, D6 (série D, document unique 1.9) : PALETTE — JOUR, NUIT ou AUTOMATIQUE (DÉBUT et FIN DE LA NUIT, heure du FUSEAU HORAIRE de la société) ;
+   en AUTOMATIQUE, un choix JOUR ou NUIT fait à la main vaut jusqu'au prochain changement d'heure, puis AUTOMATIQUE reprend */
+const SVI_PAL_AUTO = { deb: "19:00", fin: "07:00" };
+const sviPalAuto = P => ({ on: false, ...SVI_PAL_AUTO, ...((P || sviPal()).auto || {}) });
+const sviHm = v => { const m = /^(\d{2}):(\d{2})$/.exec(String(v || "")); return m && +m[1] <= 23 && +m[2] <= 59 ? +m[1] * 60 + +m[2] : null; };
+const sviTzMin = () => { let tz = 1; try { tz = parseFloat(((typeof sviPg === "function" ? sviPg() : {}).gen || {}).tz || "+1") || 0; } catch (e) {} const d = new Date(); return ((d.getUTCHours() * 60 + d.getUTCMinutes() + Math.round(tz * 60)) % 1440 + 1440) % 1440; };
+const sviPalNight = (A, m) => { const a = sviHm(A.deb), b = sviHm(A.fin); if (a === null || b === null || a === b) return false; return a < b ? m >= a && m < b : m >= a || m < b; };
+const sviPalAutoMode = P => sviPalNight(sviPalAuto(P), sviTzMin()) ? "nuit" : "jour";
+/* minutes jusqu'au prochain changement d'heure (début ou fin de la nuit) */
+const sviPalNextMs = P => { const A = sviPalAuto(P), m = sviTzMin(), d = x => { const v = sviHm(x); return v === null ? 1440 : ((v - m) % 1440 + 1440) % 1440 || 1440; }; return Math.min(d(A.deb), d(A.fin)) * 60000; };
+function sviPalSwitch(to) { const P = sviPal(), cur = P.mode === "nuit" ? "nuit" : "jour"; if (to === cur) return false;
+  P[cur] = { F: JSON.parse(JSON.stringify(sviFmt())), CD: { ...sviColors() } };
+  const nx = P[to] || (to === "nuit" ? { F: JSON.parse(JSON.stringify(SVI_NUIT)), CD: { ...sviColors() } } : { F: { el: {}, blk: {}, to: null, by: {} }, CD: { ...SVI_COL_DEF } });
+  P.mode = to; sviPalSave(P); sviFmtSave(JSON.parse(JSON.stringify(nx.F))); sviColorsSave({ ...nx.CD }); sviPalApply(); return true; }
+function sviPalTick() { try { const P = sviPal(), A = sviPalAuto(P); if (!A.on) return;
+  if (P.man && Date.now() < P.man.until) return; if (P.man) { delete P.man; sviPalSave(P); }
+  if (document.querySelector(".fmw-card")) return;   /* fenêtre du format ouverte : elle suit son propre état */
+  sviPalSwitch(sviPalAutoMode(P)); } catch (e) {} }
+setInterval(sviPalTick, 30000); document.addEventListener("visibilitychange", () => { if (!document.hidden) sviPalTick(); }); setTimeout(sviPalTick, 500);
+const sviPalBtns = () => { const P = sviPal(), A = sviPalAuto(P), nuit = P.mode === "nuit";
+  return `<span class="fmw-pal">PALETTE <button type="button" class="svc-b${!nuit ? " on" : ""}" data-pal="jour">☀ JOUR</button><button type="button" class="svc-b${nuit ? " on" : ""}" data-pal="nuit">☾ NUIT</button>`
+    + `<button type="button" class="svc-b${A.on ? " on" : ""}" data-pal="auto" title="AUTOMATIQUE : NUIT ENTRE LE DÉBUT ET LA FIN DE LA NUIT (HEURE DU FUSEAU HORAIRE DE LA SOCIÉTÉ)">◐ AUTOMATIQUE</button>`
+    + (A.on ? `<label class="fmw-palt-l">DÉBUT DE LA NUIT <input class="fmw-palt" data-palt="deb" value="${esc(A.deb)}" inputmode="numeric" maxlength="5" autocomplete="off"></label><label class="fmw-palt-l">FIN DE LA NUIT <input class="fmw-palt" data-palt="fin" value="${esc(A.fin)}" inputmode="numeric" maxlength="5" autocomplete="off"></label>` : "") + `</span>`; };
 function sviFmtWin(ifk) {
   const D = JSON.parse(JSON.stringify(sviFmt())); D.by = D.by || {}; D.cat = D.cat || {}; const OPEN = new Set();
   const CD = { ...sviColors() };
@@ -240,13 +262,26 @@ function sviFmtWin(ifk) {
     if (i.matches(".fmw-col")) { CD[i.dataset.col] = i.value; preview(); return; }
     if (i.matches(".fmw-in") && i.type !== "checkbox") { const tr = i.closest("tr"), k = tr.dataset.el, f = i.dataset.f, T = tr.dataset.cat ? ((D.cat[tr.dataset.cat] = D.cat[tr.dataset.cat] || { el: {} }).el) : S.el; T[k] = T[k] || {};
       if (f === "fs" || f === "h") { const n = f === "fs" ? num(i.value, 8, 40) : num(i.value, 10, 120); if (n === null) return; T[k][f] = n; } else T[k][f] = i.value; preview(); } });
+  /* D6 : heures de la nuit — HH:MM seulement (chiffres, deux-points posé d'office), de 00:00 à 23:59, début et fin différents ;
+     une heure refusée est signalée près du champ, qui reprend sa valeur précédente */
+  d.addEventListener("input", e => { const i = e.target; if (!i.matches(".fmw-palt")) return; const g = String(i.value).replace(/\D/g, "").slice(0, 4); const v = g.length > 2 ? g.slice(0, 2) + ":" + g.slice(2) : g; if (v !== i.value) i.value = v; });
+  d.addEventListener("change", e => { const i = e.target; if (!i.matches(".fmw-palt")) return; const P = sviPal(), A = sviPalAuto(P), k = i.dataset.palt, v = String(i.value).trim();
+    const bad = sviHm(v) === null ? "HEURE NON VALIDE : HH:MM, DE 00:00 À 23:59." : v === A[k === "deb" ? "fin" : "deb"] ? "LE DÉBUT ET LA FIN DE LA NUIT DOIVENT ÊTRE DIFFÉRENTS." : "";
+    if (bad) { svToast(bad, 3500, i); i.value = A[k]; return; }
+    A[k] = v; P.auto = A; delete P.man; sviPalSave(P); const to = sviPalAutoMode(P);
+    if (A.on && to !== (P.mode === "nuit" ? "nuit" : "jour")) { const b = document.createElement("button"); b.dataset.pal = to; b.hidden = true; d.querySelector(".svc-card").appendChild(b); b.click(); } }, true);
   d.addEventListener("change", e => { const i = e.target;
     if (i.matches(".fmw-in") && i.type === "checkbox") { const tr = i.closest("tr"), k = tr.dataset.el, T = tr.dataset.cat ? ((D.cat[tr.dataset.cat] = D.cat[tr.dataset.cat] || { el: {} }).el) : S.el; T[k] = T[k] || {}; T[k][i.dataset.f] = i.checked ? 1 : 0; preview(); }
     if (i.matches(".fmw-blk")) { const n = num(i.value, 1, 30); if (n === null) { svToast("ENTRE 1 ET 30 LIGNES.", 2500, i); return; } D.blk = { ...sviBlkRows(D), [i.dataset.b]: n }; D.blk = sviBlkRows(D); } });
   d.addEventListener("click", e => {
     if (e.target === d || e.target.closest("[data-x]")) { d.remove(); sviFmtApply(); sviColorsApply(); return; }
     const cf = e.target.closest("[data-catf]"); if (cf) { const c = cf.dataset.catf; if (OPEN.has(c)) OPEN.delete(c); else OPEN.add(c); draw(); return; }
-    const pb = e.target.closest("[data-pal]"); if (pb) { const P = sviPal(), cur = P.mode === "nuit" ? "nuit" : "jour", to = pb.dataset.pal; if (to === cur) return;
+    const pb = e.target.closest("[data-pal]"); if (pb && pb.dataset.pal === "auto") { const P = sviPal(), A = sviPalAuto(P); A.on = !A.on; P.auto = A; delete P.man; sviPalSave(P);
+      const to = A.on ? sviPalAutoMode(P) : (P.mode === "nuit" ? "nuit" : "jour"); svToast(A.on ? "PALETTE AUTOMATIQUE : NUIT DE " + A.deb + " À " + A.fin + "." : "PALETTE AUTOMATIQUE ARRÊTÉE.", 2500);
+      if (to === (P.mode === "nuit" ? "nuit" : "jour")) { draw(); return; } pb.dataset.pal = to; }
+    if (pb && pb.dataset.pal !== "auto") { const P = sviPal(), cur = P.mode === "nuit" ? "nuit" : "jour", to = pb.dataset.pal;
+      if (sviPalAuto(P).on && pb.isConnected && !pb.matches('[data-pal="auto"]') && to !== sviPalAutoMode(P)) { P.man = { until: Date.now() + sviPalNextMs(P) }; sviPalSave(P); }
+      if (to === cur) { draw(); return; }
       P[cur] = { F: JSON.parse(JSON.stringify(D)), CD: { ...CD } }; const nx = P[to] || (to === "nuit" ? { F: JSON.parse(JSON.stringify(SVI_NUIT)), CD: { ...CD } } : { F: { el: {}, blk: {}, to: null, by: {} }, CD: { ...SVI_COL_DEF } });
       Object.keys(D).forEach(k => delete D[k]); Object.assign(D, JSON.parse(JSON.stringify(nx.F))); Object.keys(CD).forEach(k => delete CD[k]); Object.assign(CD, nx.CD); P.mode = to; sviPalSave(P);
       sviFmtSave(D); sviColorsSave(CD); sviPalApply(); preview(); draw(); svToast("PALETTE " + (to === "nuit" ? "DE NUIT" : "DE JOUR") + ".", 2000); return; }

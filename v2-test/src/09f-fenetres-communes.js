@@ -170,7 +170,7 @@ function sviFldFam(el) {
 }
 function sviFamUp(root) {
   root.querySelectorAll("input, select, textarea").forEach(el => {
-    if (el.closest("table, .mkp-f, #svMaskPop") || ["checkbox", "radio", "file", "color", "hidden", "range"].includes(String(el.type || "").toLowerCase())) return;
+    if (el.closest("table, .mkp-f, #svMaskPop, .fmw-pal") || ["checkbox", "radio", "file", "color", "hidden", "range"].includes(String(el.type || "").toLowerCase())) return;
     if (!el.closest(".frs-f, .doc-cell, .svc-card label, #docPop label")) return;
     const box = el.closest(".fld-wrap") || (el.tagName === "SELECT" && el.__svBtn) || el;
     const f = sviFldFam(el); if (el.dataset.fam !== f) el.dataset.fam = f; if (box.dataset.fam !== f) box.dataset.fam = f; if (box !== el && el.dataset.fam !== f) el.dataset.fam = f; });

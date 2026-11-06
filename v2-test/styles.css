@@ -3580,3 +3580,8 @@ html.svi-nuit #chs .pg-grps .prm-grp.on, html.svi-nuit #chs .pg-tabs.bdg-d-tabs 
 /* D5 (série D, document unique 10.2) : la ✕ des fenêtres reste bien visible dans les deux palettes */
 html.svi-nuit :is(#svConf, #dlyAddW, #docPop, #svMaskPop) :is(.svc-close, .doc-x) { color: #f8fafc !important; -webkit-text-fill-color: #f8fafc !important; background: rgba(255,255,255,.14) !important; border: 1px solid rgba(255,255,255,.4) !important; border-radius: 8px; opacity: 1 !important; }
 :is(#svConf, #dlyAddW) .svc-close { opacity: 1; font-weight: 800; }
+
+/* D6 : heures de la palette AUTOMATIQUE dans le bandeau */
+.fmw-card .svc-t .fmw-pal { flex-wrap: wrap; justify-content: flex-end; }
+.fmw-card .svc-t .fmw-palt-l { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 800; }
+.fmw-card .svc-t .fmw-palt { width: 62px; height: 30px; text-align: center; border: 1px solid #c8d0da; border-radius: 6px; font-weight: 800; font-size: 12px; }
