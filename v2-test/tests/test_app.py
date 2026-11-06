@@ -3998,6 +3998,15 @@ def main():
   sviFmtWin('bdg'); await w(200); r.topIf = !!document.querySelector('.fmw-card .svc-t [data-pal="jour"]'); document.querySelector('.fmw-card [data-x]').click(); await w(100);
   return r; }""")
         check('SÉRIE C, C9 C10 (document unique 5.4 et 1.9) : ONGLETS DE MODULE et SOUS-ONGLETS réglables séparément ; choix PALETTE JOUR / NUIT dans le bandeau du titre (RÉGLAGES COMMUNS et MODIFIER LE FORMAT)', c910.get('els') and c910.get('css') and c910.get('top') and c910.get('topIf'), c910)
+        c6 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_prm_v1', 'svi_ach_dvf_v1'], keep = K.map(k => localStorage.getItem(k)); await sviAchLoad();
+  achDvfSave([{ id: 'VL', ref: 'DVF 26-0101/001', state: 'instance', date: '2026-01-01', lignes: [{ des: 'A', u: 'U', q: 1, pu: 1 }, { des: 'B', u: 'U', q: 1, pu: 1 }] }]);
+  r.def = achDocPage('dvf', achDvf()[0]).links.find(l => l.cols[0][0] === 'RÉFÉRENCE').rows.map(x => x.cells[0]).join(',');
+  const P = achPrm(); P.refs = { ...P.refs, DVF: { ...P.refs.DVF, l: '{PARENT}.{LL}' } }; achPrmSave(P);
+  r.mod = achDocPage('dvf', achDvf()[0]).links.find(l => l.cols[0][0] === 'RÉFÉRENCE').rows.map(x => x.cells[0]).join(',');
+  document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300); document.querySelector('#chs [data-pgg="gen"]').click(); await w(200); document.querySelector('#chs .prm-tab[data-prm="ref"]').click(); await w(1200);
+  r.col = [...document.querySelectorAll('#chs .ach-pref thead th')].map(t => t.textContent.trim()).includes('MODÈLE DES LIGNES');
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("SÉRIE C, C6 (document unique 6.14) : lignes d'une pièce = {PARENT}-{LLL} par défaut (DVF …/001-001, -002) ; modèle des lignes réglable dans RÉFÉRENCES", c6.get('def') == 'DVF 26-0101/001-001,DVF 26-0101/001-002' and c6.get('mod') == 'DVF 26-0101/001.01,DVF 26-0101/001.02' and c6.get('col'), c6)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
