@@ -3528,16 +3528,34 @@ input.sv-rmcb { width: 18px; height: 18px; cursor: pointer; }
 
 /* C3 (série C, document unique 10.6) : même hauteur pour tous les champs des fenêtres ; même largeur par famille (data-fam) */
 :root { --fh: 34px; }
-:is(#svConf, #docPop) :is(input, select, textarea, .sv-sel, .doc-in)[data-fam]:not(textarea), :is(#svConf, #docPop) .fld-wrap[data-fam] > :is(input, .dt-show) { min-height: var(--fh); }
-:is(#svConf, #docPop) :is(input, .sv-sel, select)[data-fam]:not(.fld-wrap *) , :is(#svConf, #docPop) .fld-wrap[data-fam]:not(.sized) > input { height: var(--fh); box-sizing: border-box; }
-:is(#svConf, #docPop) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="date"] { width: min(132px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
-:is(#svConf, #docPop) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="dt"] { width: min(196px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
-:is(#svConf, #docPop) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="mt"] { width: min(150px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
-:is(#svConf, #docPop) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="pct"] { width: min(96px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
-:is(#svConf, #docPop) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="nb"] { width: min(96px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
-:is(#svConf, #docPop) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="code"] { width: min(196px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
-:is(#svConf, #docPop) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="rib"] { width: min(290px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
-:is(#svConf, #docPop) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="tel"] { width: min(164px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
-:is(#svConf, #docPop) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="mail"] { width: min(270px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
-:is(#svConf, #docPop) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="court"] { width: min(220px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
-:is(#svConf, #docPop) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="long"] { width: 100% !important; max-width: 100%; flex: none; justify-self: start; }
+:is(#svConf, #docPop, #chs .pg-soc-card) :is(input, select, textarea, .sv-sel, .doc-in)[data-fam]:not(textarea), :is(#svConf, #docPop, #chs .pg-soc-card) .fld-wrap[data-fam] > :is(input, .dt-show) { min-height: var(--fh); }
+:is(#svConf, #docPop, #chs .pg-soc-card) :is(input, .sv-sel, select)[data-fam]:not(.fld-wrap *) , :is(#svConf, #docPop, #chs .pg-soc-card) .fld-wrap[data-fam]:not(.sized) > input { height: var(--fh); box-sizing: border-box; }
+:is(#svConf, #docPop, #chs .pg-soc-card) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="date"] { width: min(132px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
+:is(#svConf, #docPop, #chs .pg-soc-card) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="dt"] { width: min(196px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
+:is(#svConf, #docPop, #chs .pg-soc-card) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="mt"] { width: min(150px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
+:is(#svConf, #docPop, #chs .pg-soc-card) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="pct"] { width: min(96px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
+:is(#svConf, #docPop, #chs .pg-soc-card) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="nb"] { width: min(96px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
+:is(#svConf, #docPop, #chs .pg-soc-card) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="code"] { width: min(196px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
+:is(#svConf, #docPop, #chs .pg-soc-card) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="rib"] { width: min(290px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
+:is(#svConf, #docPop, #chs .pg-soc-card) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="tel"] { width: min(164px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
+:is(#svConf, #docPop, #chs .pg-soc-card) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="mail"] { width: min(270px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
+:is(#svConf, #docPop, #chs .pg-soc-card) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="court"] { width: min(220px, 100%) !important; max-width: 100%; flex: none; justify-self: start; }
+:is(#svConf, #docPop, #chs .pg-soc-card) :is(.fld-wrap:not(.sized), input:not(.fld-wrap *), select:not(.fld-wrap *), .sv-sel, textarea:not(.fld-wrap *))[data-fam="long"] { width: 100% !important; max-width: 100%; flex: none; justify-self: start; }
+
+/* C7 : barre du haut commune à droite du titre du PARAMÉTRAGE */
+#chs > .section-head > .svi-hdr { flex: none; margin-left: auto; }
+
+/* C8 : SOCIÉTÉ au format des fiches (sans être une .frs-card) */
+.pg-soc-card .frs-g { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 12px; }
+.pg-soc-card .frs-f { display: flex; flex-direction: column; gap: 3px; font-size: 10px; font-weight: 800; color: #6b7480; min-width: 0; }
+.pg-soc-card .frs-f.frs-w { grid-column: span 2; }
+.pg-soc-card .frs-f b { color: #b91c1c; }
+.pg-soc-card .frs-f input { height: 30px; border: 1px solid #d6dbe3; border-radius: 6px; padding: 0 8px; font-size: 12px; font-weight: 700; color: #172033; background: #fff; }
+.pg-soc-card .frs-cs { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.pg-soc-card .frs-c { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #172033; cursor: pointer; }
+.pg-soc-card .frs-fam { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.pg-soc-card .frs-sub { width: 100%; margin-bottom: 6px; }
+.pg-soc-card .frs-sub td input, .pg-soc-card .frs-sub td select { width: 100%; height: 28px; border: 1px solid #d6dbe3; border-radius: 6px; padding: 0 6px; font-size: 12px; font-weight: 700; background: #fff; }
+.pg-soc-card .frs-evl { font-size: 12px; font-weight: 700; padding: 4px 0; }
+.pg-soc-card .frs-add { margin-top: 2px; }
+.pg-soc-card .frs-g { grid-template-columns: repeat(4, minmax(min-content, 1fr)); }

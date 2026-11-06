@@ -3528,7 +3528,7 @@ def main():
   document.querySelector('.prm-tab[data-prm="cpt"]').click(); await w(150); const c = document.querySelector('#chs .pg-new input[data-f="code"]'); c.value = '4411'; c.dispatchEvent(new Event('change', { bubbles: true })); await w(100); r.cpt = sviPgL('cpt').map(x => x.code).join(',');
   document.querySelector('.prm-tab[data-prm="cal"]').click(); await w(150); const o = sviPg(); o.cal = [{ id: 'c1', a: '2030-01-01', b: '2030-01-02', m: 'FÉRIÉ' }]; sviPgSave(o); r.cal = sviCalOf({}).off.join(',') + '|' + sviCalOf({ cal: { off: [] } }).off.length;
   if (keep === null) localStorage.removeItem('svi_pg_v1'); else localStorage.setItem('svi_pg_v1', keep); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
-        check("SÉRIE B, B6 B2 B7 B8 B9 B20 B22 B24 B31 B38 B41 : PARAMÉTRAGE GÉNÉRAL — une rangée d'onglets (GÉNÉRAL en premier), TVA et transport dans GÉNÉRAL, BANQUES pliables (agences, code banque 3 chiffres), COMPTABILITÉ, CALENDRIER de la société repris par les budgets sans calendrier propre", b6.get("tabs", "").startswith("GÉNÉRAL|UNITÉS|BIBLIOTHÈQUE") and b6.get("gen") and b6.get("banq") == "BANQUE POPULAIRE,>AGENCE CENTRE|1" and b6.get("code") and b6.get("cpt") == "4411" and b6.get("cal") == "2030-01-01,2030-01-02|0", b6)
+        check("SÉRIE B, B6 B2 B7 B8 B9 B20 B22 B24 B31 B38 B41 : PARAMÉTRAGE GÉNÉRAL — une rangée d'onglets (GÉNÉRAL en premier), TVA et transport dans GÉNÉRAL, BANQUES pliables (agences, code banque 3 chiffres), COMPTABILITÉ, CALENDRIER de la société repris par les budgets sans calendrier propre", b6.get("tabs", "").startswith("GÉNÉRAL|SOCIÉTÉ|UNITÉS|BIBLIOTHÈQUE") and b6.get("gen") and b6.get("banq") == "BANQUE POPULAIRE,>AGENCE CENTRE|1" and b6.get("code") and b6.get("cpt") == "4411" and b6.get("cal") == "2030-01-01,2030-01-02|0", b6)
         b10 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_ach_prm_v1'), kt = localStorage.getItem('svi_achprm_tab_v1');
   const pgo = async k => { document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(200); document.querySelector('#chs .prm-tab[data-prm="' + k + '"]').click(); await w(1200); }; await pgo('aalr'); const v = document.getElementById('chs');
   r.tabs = [...v.querySelectorAll('.pg-tabs .prm-tab:not([hidden])')].map(b => b.textContent.trim()).join('|');
@@ -3858,7 +3858,7 @@ def main():
         f1 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1'], keep = K.map(k => localStorage.getItem(k));
   document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300); const c = document.getElementById('chs');
   c.querySelector('[data-pgg="gen"]').click(); await w(200); r.gen = [...c.querySelectorAll('.pg-tabs .prm-tab:not([hidden])')].map(b => b.textContent.trim()).join('|');
-  c.querySelector('.prm-tab[data-prm="gen"]').click(); await w(200); r.soc = !!c.querySelector('.prm-pg .pg-soc-in') && !!c.querySelector('.prm-pg .pg-gen');
+  c.querySelector('.prm-tab[data-prm="gen"]').click(); await w(200); r.soc = !c.querySelector('.prm-pg:not([hidden]) .pg-soc-in') && !!c.querySelector('.prm-pg .pg-gen'); c.querySelector('.prm-tab[data-prm="soc"]').click(); await w(200); r.soc = r.soc && !!c.querySelector('.prm-pg .pg-soc-in');   /* C8 : SOCIÉTÉ dans son onglet */
   c.querySelector('[data-pgg="art"]').click(); await w(200); r.art = [...c.querySelectorAll('.pg-tabs .prm-tab:not([hidden])')].map(b => b.textContent.trim()).join('|');
   await sviAchLoad(); const L = achFrs(); const f = achFrsNew(L, { nom: 'COND LIBRE' }); achFrsSave(L);
   document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(300); achFrsFiche(f.id, 'cond'); await w(400);
@@ -3866,7 +3866,7 @@ def main():
   r.cond = achFrs().find(x => x.id === f.id).cond; document.querySelectorAll('#svConf').forEach(x => x.remove());
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300);
   if (window.__sviAvOpen) { window.__sviAvOpen('TEST-1'); await w(2500); r.valid = !!document.getElementById('instValid') && !document.getElementById('instLock'); document.getElementById('budgetBackBtn')?.click(); await w(300); } return r; }""")
-        check("05/11 (réponses) : plus de FIGER dans le budget (EN INSTANCE → ✓ VALIDER, mêmes contrôles) ; SOCIÉTÉ dans l'onglet GÉNÉRAL ; BIBLIOTHÈQUE DE PRIX dans ARTICLES ; délai de paiement en valeur libre", f1.get('gen') == 'GÉNÉRAL|CALENDRIER|LIEUX|BANQUES|COMPTABILITÉ|DEVISES|RÉFÉRENCES' and f1.get('soc') and f1.get('art', '').startswith('UNITÉS|BIBLIOTHÈQUE DE PRIX') and f1.get('cond') == '75 JOURS FIN DE MOIS' and f1.get('valid'), f1)
+        check("05/11 (réponses) : plus de FIGER dans le budget (EN INSTANCE → ✓ VALIDER, mêmes contrôles) ; SOCIÉTÉ dans son onglet (C8) ; BIBLIOTHÈQUE DE PRIX dans ARTICLES ; délai de paiement en valeur libre", f1.get('gen') == 'GÉNÉRAL|SOCIÉTÉ|CALENDRIER|LIEUX|BANQUES|COMPTABILITÉ|DEVISES|RÉFÉRENCES' and f1.get('soc') and f1.get('art', '').startswith('UNITÉS|BIBLIOTHÈQUE DE PRIX') and f1.get('cond') == '75 JOURS FIN DE MOIS' and f1.get('valid'), f1)
         f2 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_nvh_v1'], keep = K.map(k => localStorage.getItem(k));
   const L = achFrs(); const f = achFrsNew(L, { nom: 'SCROLL' }); achFrsSave(L); localStorage.setItem('svi_ach_nvh_v1', JSON.stringify({ rec: 70 }));
   document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(300); achGo('frs', f.id); await w(600);
@@ -3979,6 +3979,16 @@ def main():
     R.forEach(r => { if (!r) seenOwn = true; else { if (seenOwn || r < last) bad++; last = r; } }); m.remove(); }
   return { n, bad }; }""")
         check("SÉRIE C, C5 (document unique 10.1) : tous les menus ⋯ — actions communes en haut dans l'ordre AGRANDIR, COPIER/COUPER/COLLER, MODIFIER LE FORMAT, IMPORTER/EXPORTER/APERÇU, SUPPRIMER ; actions propres en bas", c5t.get('n', 0) >= 3 and c5t.get('bad') == 0, c5t)
+        c78 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {};
+  document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(800);
+  document.querySelector('.prm-tab[data-prm="gen"]').click(); await w(400); r.h1 = document.querySelector('#chs h1').textContent.trim();
+  const tz = document.querySelector('#chs select[data-g="tz"]'); r.tz = !!(tz && tz.__svBtn && tz.__svBtn.offsetWidth); r.socInGen = !!document.querySelector('#chs .pg-soc:not([hidden])') && document.querySelector('#chs .pg-soc').offsetWidth > 0;
+  document.querySelector('.prm-tab[data-prm="soc"]').click(); await w(400); r.soc = document.querySelector('#chs h1').textContent.trim(); r.logo = !!document.querySelector('#chs .sv-file-b'); r.labTop = (() => { const l = document.querySelector('#chs .pg-soc .frs-f'); const s = l.querySelector('span').getBoundingClientRect(), i = l.querySelector('input').getBoundingClientRect(); return s.bottom <= i.top + 1; })();
+  r.hdr = [...document.querySelectorAll('#chs .svi-hdr [data-prmh]')].map(b => b.dataset.prmh).join(',');
+  document.querySelector('#chs .svi-hdr [data-prmh="more"]').click(); await w(150); r.menu = [...document.querySelectorAll('#blkMenu button')].map(b => b.textContent.trim()).join('|'); document.getElementById('blkMenu')?.remove();
+  document.querySelector('.prm-tab[data-prm="cal"]').click(); await w(400); r.cal = [...document.querySelectorAll('#chs table select')].every(s => !!s.__svBtn);
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
+        check("SÉRIE C, C7 C8 : PARAMÉTRAGE — barre du haut commune (⋯ MODIFIER LE FORMAT, ⚠, ✕) ; plus de titre GÉNÉRAL — GÉNÉRAL ; SOCIÉTÉ dans son onglet, intitulés au-dessus ; logo et FUSEAU HORAIRE avec les boutons et listes de l'application", c78.get('h1') == 'PARAMÉTRAGE — GÉNÉRAL' and c78.get('tz') and not c78.get('socInGen') and c78.get('soc') == 'PARAMÉTRAGE — GÉNÉRAL — SOCIÉTÉ' and c78.get('logo') and c78.get('labTop') and c78.get('hdr') == 'undo,redo,prev,next,todo,close,more' and c78.get('menu') == 'MODIFIER LE FORMAT' and c78.get('cal'), c78)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

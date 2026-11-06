@@ -222,6 +222,13 @@ function sviParamTabs() {
   const view = document.getElementById("chs");
   if (!view || view.querySelector(".prm-tabs")) return;
   const head = view.querySelector(".section-head");
+  /* C7 (série C, document unique 3.1) : PARAMÉTRAGE reçoit la barre du haut commune — ⋯ (MODIFIER LE FORMAT), ⚠ et ✕ */
+  if (head && !head.querySelector(".svi-hdr")) {
+    head.insertAdjacentHTML("beforeend", sviHdrBar({ attr: "prmh", why: { undo: "RIEN À ANNULER DANS LE PARAMÉTRAGE.", redo: "RIEN À RÉTABLIR DANS LE PARAMÉTRAGE.", prev: "PARAMÉTRAGE : PAS D'ÉCRAN PRÉCÉDENT.", next: "PARAMÉTRAGE : PAS D'ÉCRAN SUIVANT." } }));
+    head.addEventListener("click", e => { const b = e.target.closest("[data-prmh]"); if (!b || b.dataset.why) return; const a = b.dataset.prmh;
+      if (a === "todo") { svToast("AUCUNE ALERTE.", 2000, b); return; }
+      if (a === "close") { document.querySelector('#navMenu .nav-btn[data-view="home"]')?.click(); return; }
+      if (a === "more") sviHdrMenu(b, [[{ k: "__fmt", lab: "MODIFIER LE FORMAT" }]], k => { if (k === "__fmt") sviFmtCurWin(); }); }); }
   const bar = document.createElement("div");
   bar.className = "prm-tabs pg-tabs bdg-d-tabs";
   /* B6 (série B, 04/11/2026) : PARAMÉTRAGE GÉNÉRAL — une seule rangée d'onglets pour toute l'application (forme des onglets du budget,
@@ -271,7 +278,8 @@ function sviParamTabs() {
     bar.querySelectorAll(".prm-tab").forEach(b => { const t = SVI_PG_TABS.find(x => x.k === b.dataset.prm); b.hidden = !t || t.g !== grp; b.classList.toggle("on", b.dataset.prm === which); b.classList.toggle("active", b.dataset.prm === which); });
     pane.hidden = which !== "unit"; lpane.hidden = which !== "lib"; apane.hidden = !T.ach; gpane.hidden = which === "unit" || which === "lib" || !!T.ach;
     if (T.ach) { apane.innerHTML = apane.innerHTML || ""; (window.sviAchLoad ? sviAchLoad() : Promise.resolve()).then(() => { const v = document.getElementById("ach"); if (v && v.__prmMount && !apane.hidden) v.__prmMount(apane, T.ach); }).catch(() => svToast("ACHATS : CHARGEMENT IMPOSSIBLE.", 3000)); }
-    if (h1) h1.textContent = "PARAMÉTRAGE — " + (SVI_PG_GRP.find(g => g[0] === grp) || ["", ""])[1] + " — " + T.lab;
+    { const gl = (SVI_PG_GRP.find(g => g[0] === grp) || ["", ""])[1];   /* C8 : pas de doublon « GÉNÉRAL — GÉNÉRAL » */
+      if (h1) h1.textContent = "PARAMÉTRAGE — " + gl + (T.lab === gl ? "" : " — " + T.lab); }
     if (sub) sub.textContent = which === "lib" ? "RECETTES PAR ACTIVITÉ SECONDAIRE : CHARGES, UNITÉ, PRIX ET QUANTITÉ POUR UNE UNITÉ DE PRODUIT" : T.sub || "";
     if (which === "unit") draw();
     if (which === "lib") libDraw();

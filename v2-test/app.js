@@ -4503,6 +4503,8 @@ function sviFamUp(root) {
     const f = sviFldFam(el); if (el.dataset.fam !== f) el.dataset.fam = f; if (box.dataset.fam !== f) box.dataset.fam = f; if (box !== el && el.dataset.fam !== f) el.dataset.fam = f; });
 }
 function sviUpAll() {
+  /* C8, D2 : PARAMÉTRAGE — listes (FUSEAU HORAIRE, MOTIF du calendrier…) et choix de fichier (logo) de l'application, jamais ceux de l'iPad */
+  { const c = document.getElementById("chs"); if (c) { c.querySelectorAll("select").forEach(sviSelUp); c.querySelectorAll('input[type="file"]').forEach(sviFileUp); } }
   document.querySelectorAll(SVI_UP_SC).forEach(root => {
     root.querySelectorAll("select").forEach(sviSelUp);
     root.querySelectorAll('input[type="file"]').forEach(sviFileUp);
@@ -4512,6 +4514,7 @@ function sviUpAll() {
     root.querySelectorAll(".doc-grid").forEach(sviGridTop);
     if (root.id === "svConf") root.querySelectorAll(".frs-f > input.ins-in, .frs-f > textarea.ins-in").forEach(sviFldRszUp);
     if (root.id === "svConf" || root.id === "docPop") sviFamUp(root);
+    { const sc = document.querySelector("#chs .pg-soc-card"); if (sc) sviFamUp(sc); }
     if (typeof sviFldApply === "function") sviFldApply(root);
     if (root.id === "svConf") root.querySelectorAll(".svc-card").forEach(sviWhyUp);   /* B11, B17 : réglages des champs */
   });
@@ -5529,6 +5532,13 @@ function sviParamTabs() {
   const view = document.getElementById("chs");
   if (!view || view.querySelector(".prm-tabs")) return;
   const head = view.querySelector(".section-head");
+  /* C7 (série C, document unique 3.1) : PARAMÉTRAGE reçoit la barre du haut commune — ⋯ (MODIFIER LE FORMAT), ⚠ et ✕ */
+  if (head && !head.querySelector(".svi-hdr")) {
+    head.insertAdjacentHTML("beforeend", sviHdrBar({ attr: "prmh", why: { undo: "RIEN À ANNULER DANS LE PARAMÉTRAGE.", redo: "RIEN À RÉTABLIR DANS LE PARAMÉTRAGE.", prev: "PARAMÉTRAGE : PAS D'ÉCRAN PRÉCÉDENT.", next: "PARAMÉTRAGE : PAS D'ÉCRAN SUIVANT." } }));
+    head.addEventListener("click", e => { const b = e.target.closest("[data-prmh]"); if (!b || b.dataset.why) return; const a = b.dataset.prmh;
+      if (a === "todo") { svToast("AUCUNE ALERTE.", 2000, b); return; }
+      if (a === "close") { document.querySelector('#navMenu .nav-btn[data-view="home"]')?.click(); return; }
+      if (a === "more") sviHdrMenu(b, [[{ k: "__fmt", lab: "MODIFIER LE FORMAT" }]], k => { if (k === "__fmt") sviFmtCurWin(); }); }); }
   const bar = document.createElement("div");
   bar.className = "prm-tabs pg-tabs bdg-d-tabs";
   /* B6 (série B, 04/11/2026) : PARAMÉTRAGE GÉNÉRAL — une seule rangée d'onglets pour toute l'application (forme des onglets du budget,
@@ -5578,7 +5588,8 @@ function sviParamTabs() {
     bar.querySelectorAll(".prm-tab").forEach(b => { const t = SVI_PG_TABS.find(x => x.k === b.dataset.prm); b.hidden = !t || t.g !== grp; b.classList.toggle("on", b.dataset.prm === which); b.classList.toggle("active", b.dataset.prm === which); });
     pane.hidden = which !== "unit"; lpane.hidden = which !== "lib"; apane.hidden = !T.ach; gpane.hidden = which === "unit" || which === "lib" || !!T.ach;
     if (T.ach) { apane.innerHTML = apane.innerHTML || ""; (window.sviAchLoad ? sviAchLoad() : Promise.resolve()).then(() => { const v = document.getElementById("ach"); if (v && v.__prmMount && !apane.hidden) v.__prmMount(apane, T.ach); }).catch(() => svToast("ACHATS : CHARGEMENT IMPOSSIBLE.", 3000)); }
-    if (h1) h1.textContent = "PARAMÉTRAGE — " + (SVI_PG_GRP.find(g => g[0] === grp) || ["", ""])[1] + " — " + T.lab;
+    { const gl = (SVI_PG_GRP.find(g => g[0] === grp) || ["", ""])[1];   /* C8 : pas de doublon « GÉNÉRAL — GÉNÉRAL » */
+      if (h1) h1.textContent = "PARAMÉTRAGE — " + gl + (T.lab === gl ? "" : " — " + T.lab); }
     if (sub) sub.textContent = which === "lib" ? "RECETTES PAR ACTIVITÉ SECONDAIRE : CHARGES, UNITÉ, PRIX ET QUANTITÉ POUR UNE UNITÉ DE PRODUIT" : T.sub || "";
     if (which === "unit") draw();
     if (which === "lib") libDraw();
@@ -5930,6 +5941,7 @@ function sviPgTree(pane, c) {
 const SVI_PG_GRP = [["gen", "GÉNÉRAL"], ["ach", "ACHATS"], ["art", "ARTICLES"], ["pers", "PERSONNEL"]];
 const SVI_PG_TABS = [
   { k: "gen", lab: "GÉNÉRAL", sub: "RÉGLAGES PONCTUELS DE TOUTE L'APPLICATION" },
+  { k: "soc", lab: "SOCIÉTÉ", sub: "IDENTITÉ DE LA SOCIÉTÉ (EN-TÊTE DES PIÈCES IMPRIMÉES)" },   /* C8 : SOCIÉTÉ dans son propre onglet, après GÉNÉRAL (B6) */
   { k: "unit", g: "art", lab: "UNITÉS", sub: "" }, { k: "lib", g: "art", lab: "BIBLIOTHÈQUE DE PRIX", sub: "" },
   { k: "cal", lab: "CALENDRIER", sub: "JOURS NON TRAVAILLÉS DE TOUTE LA SOCIÉTÉ (FÉRIÉS, GRÈVE, DEUIL NATIONAL, ÉVÉNEMENT…)" },
   { k: "lieux", lab: "LIEUX", sub: "PAYS › RÉGION › VILLE (ADRESSES, TRANSPORT, AGENCES BANCAIRES)" },
@@ -5958,15 +5970,14 @@ function sviPgDraw(k, pane) {
       <tr><td>FUSEAU HORAIRE</td><td class="center"><select class="pg-gv" data-g="tz">${["-1", "0", "+1", "+2"].map(z => `<option value="${z}"${(G.tz || "+1") === z ? " selected" : ""}>GMT ${z === "0" ? "" : z}</option>`).join("")}</select></td></tr>
       <tr><td>DEVISE PAR DÉFAUT</td><td class="center">${esc((D.find(x => x.def) || D[0] || {}).code || "MAD")}</td></tr></tbody></table>`;
     pane.querySelectorAll(".pg-gv").forEach(i => i.closest("tr").cells[0].dataset.tip = { tva: "COMMUNE AU BUDGET ET AUX ACHATS ; VIDE : UNE DÉSIGNATION SANS TVA NE PEUT PAS ÊTRE ENREGISTRÉE", km: "DISTANCE À VOL D'OISEAU ENTRE LE DÉPÔT DU FOURNISSEUR ET LE CHANTIER", tz: "DÉCALAGE PAR RAPPORT À GMT : HEURE AFFICHÉE ET ENREGISTRÉE PAR L'APPLICATION" }[i.dataset.g] || "");
-    pane.insertAdjacentHTML("beforeend", sviPgSocHTML());   /* 05/11 : SOCIÉTÉ dans GÉNÉRAL */
     return; }
   if (k === "soc") { pane.innerHTML = sviPgSocHTML(); return; }
   return sviPgDraw2(k, pane);
 }
-/* 05/11 : SOCIÉTÉ n'est plus un onglet — ses champs sont dans GÉNÉRAL, sous les réglages */
+/* C8 (série C) : SOCIÉTÉ dans son propre onglet (B6, B7), au format des fiches : intitulés au-dessus des champs */
 function sviPgSocHTML() { const S = sviSoc();
-  return `<div class="pg-ttl pg-soc-t">SOCIÉTÉ</div><div class="frs-g pg-soc">${SVI_SOC_F.map(([f, l]) => `<label class="frs-f${f === "rs" || f === "adr" ? " frs-w" : ""}"><span>${l}</span><input class="ins-in pg-soc-in" data-f="${f}" value="${esc(S[f] || "")}" autocomplete="off"${f === "mail" ? " data-keepcase" : ""}></label>`).join("")}
-      <div class="frs-f frs-w"><span>LOGO</span><div class="pg-logo">${S.logo ? `<img src="${esc(S.logo)}" alt="">` : ""}<input type="file" accept="image/*" class="pg-logo-in"></div></div></div>`; }
+  return `<div class="pg-soc-card"><div class="frs-g pg-soc">${SVI_SOC_F.map(([f, l]) => `<label class="frs-f${f === "rs" || f === "adr" ? " frs-w" : ""}"><span>${l}</span><input class="ins-in pg-soc-in" data-f="${f}" value="${esc(S[f] || "")}" autocomplete="off"${f === "mail" ? " data-keepcase" : ""}></label>`).join("")}
+      <div class="frs-f frs-w"><span>LOGO</span><div class="pg-logo">${S.logo ? `<img src="${esc(S.logo)}" alt="">` : ""}<input type="file" accept="image/*" class="pg-logo-in"></div></div></div></div>`; }
 function sviPgDraw2(k, pane) {
   if (k === "cal") { sviPgCalPrev = sviPgOffDays(); pane.__pgc = { k: "cal", newLab: "AJOUTER UN JOUR ICI… (DATE)", cols: [["a", "DU", 160, "date"], ["b", "AU (FACULTATIF)", 160, "date"], ["m", "MOTIF", 200, "sel", () => SVI_PG_CAL_M], ["lab", "INTITULÉ", 320, ""]],
       after: () => sviPgCalImpact() }; sviPgTable(pane, pane.__pgc); pane.insertAdjacentHTML("afterbegin", `<div class="pg-ttl">JOURS NON TRAVAILLÉS DE LA SOCIÉTÉ</div>`);   /* 05/11 : titre du tableau */ return; }

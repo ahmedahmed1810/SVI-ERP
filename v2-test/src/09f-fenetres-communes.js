@@ -176,6 +176,8 @@ function sviFamUp(root) {
     const f = sviFldFam(el); if (el.dataset.fam !== f) el.dataset.fam = f; if (box.dataset.fam !== f) box.dataset.fam = f; if (box !== el && el.dataset.fam !== f) el.dataset.fam = f; });
 }
 function sviUpAll() {
+  /* C8, D2 : PARAMÉTRAGE — listes (FUSEAU HORAIRE, MOTIF du calendrier…) et choix de fichier (logo) de l'application, jamais ceux de l'iPad */
+  { const c = document.getElementById("chs"); if (c) { c.querySelectorAll("select").forEach(sviSelUp); c.querySelectorAll('input[type="file"]').forEach(sviFileUp); } }
   document.querySelectorAll(SVI_UP_SC).forEach(root => {
     root.querySelectorAll("select").forEach(sviSelUp);
     root.querySelectorAll('input[type="file"]').forEach(sviFileUp);
@@ -185,6 +187,7 @@ function sviUpAll() {
     root.querySelectorAll(".doc-grid").forEach(sviGridTop);
     if (root.id === "svConf") root.querySelectorAll(".frs-f > input.ins-in, .frs-f > textarea.ins-in").forEach(sviFldRszUp);
     if (root.id === "svConf" || root.id === "docPop") sviFamUp(root);
+    { const sc = document.querySelector("#chs .pg-soc-card"); if (sc) sviFamUp(sc); }
     if (typeof sviFldApply === "function") sviFldApply(root);
     if (root.id === "svConf") root.querySelectorAll(".svc-card").forEach(sviWhyUp);   /* B11, B17 : réglages des champs */
   });
