@@ -84,7 +84,7 @@ function achRecBlock(code) {
     try { await sviFiles.put(k, new File([blob], name, { type: "application/pdf" })); } catch (e) {}
     const x = { ref: "ACH DOC " + code + "/" + String(n).padStart(3, "0"), date: new Date().toISOString(), title: name.replace(/\.pdf$/i, ""), fk: k, fname: name };
     L.push(x); achW(K.doc, L); achHist(code, "DOCUMENT", x.title); return x.ref; };
-  return { html, click, change, savePdf };
+  return { html, click, change, savePdf, addTab: t => { tab = t; return add(); }, list: get };
 }
 
 /* ---------- LISTE au format du budget ----------
@@ -259,19 +259,23 @@ const achBlkTools = k => `<span class="blk-tools"><button type="button" class="b
 function achNvPageHTML(p, rec, ctx) {
   const blk = L => { const k = achNvhKey(L.t), t = "achp_" + k, n = L.cols.length;
     /* B47 (05/11) : ordre des colonnes gardé (glisser un titre, moteur commun coOrder, comme le budget) */
-    const C = coOrder(t, L.cols.map((c, j) => ["c" + j, c[0], r => r.cells[j], c[1] || ""])), J = C.map(c => +c[0].slice(1));
+    /* F3 (série F) : une case peut porter du HTML (champ de saisie, bouton) — { h: html, t: texte pour le tri et le filtre } */
+    const tv = v => v && typeof v === "object" && v.h !== undefined ? v.t ?? "" : v;
+    const C = coOrder(t, L.cols.map((c, j) => ["c" + j, c[0], r => tv(r.cells[j]), c[1] || ""])), J = C.map(c => +c[0].slice(1));
+    /* F3 : RONDS à gauche (liaisons, règle 2.5) — r.rd = { k, st : "" | "lie" | "choisi" } */
+    const RD = L.rows.some(r => r.rd);
     const R0 = L.rows.map((r, i) => ({ ...r, __i: i })), R = ctx && ctx.cfApply ? ctx.cfApply(t, C, R0) : R0;
     const head = C.map(c => ctx && ctx.cfHead ? ctx.cfHead(t, c[0], c[1], c[3]) : `<th class="${c[3]}">${esc(c[1])}</th>`).join("");
     /* v793 : largeur des colonnes réglable et gardée (moteur commun sviCwCols / data-svcw) */
-    const CG = sviCwCols(t, C.map((c, j) => [c[0], j === 0 ? 170 : /number/.test(c[3]) ? 110 : /center/.test(c[3]) ? 90 : 150]), [["_cb", 40]]);
+    const CG = sviCwCols(t, (L.rows.some(r => r.rd) ? [["_rd", 28]] : []).concat(C.map((c, j) => [c[0], j === 0 ? 170 : /number/.test(c[3]) ? 110 : /center/.test(c[3]) ? 90 : 150])), [["_cb", 40]]);
     const iM = L.cols.findIndex(c => /^MONTANT/.test(c[0])), isL = /^DÉTAIL (?!FACTURE STANDARD)/.test(L.t) && iM >= 0;   /* F11 : TOTAL des DÉTAILS (TOTAL PARTIEL si filtre) */
     /* B3 (série B, 04/11/2026) : toute la ligne d'une pièce liée prend la couleur de son état (rouge, vert, bleu, orange, noir) */
     const iE = L.cols.findIndex(c => /^ÉTAT|^RÉPONSE/.test(c[0])), stOf = r => r.st !== undefined ? r.st : iE < 0 ? "" : achStTxt(r.cells[iE]);
-    const tot = isL ? R.reduce((s2, r) => s2 + (typeof r.cells[iM] === "number" ? r.cells[iM] : achN(r.cells[iM]) || 0), 0) : 0;
+    const tot = isL ? R.reduce((s2, r) => s2 + (typeof tv(r.cells[iM]) === "number" ? tv(r.cells[iM]) : achN(tv(r.cells[iM])) || 0), 0) : 0;
     return `<div class="bdg-d-block nvp-blk" data-nvb="${k}"><div class="bdg-d-block-title blk-head"><span class="ttl">${esc(L.t)} ${svCnt(R.length, L.rows.length)}</span>${achBlkTools(k)}</div>
-      <div class="rec-scroll" style="max-height:var(--nvh-${k}, var(--svi-hdef-a, 200px))"><table class="bdg-d-table rec-table" data-colh="${esc(t)}" data-svcw="${esc(t)}" style="${CG.style}">${CG.cg}<thead><tr>${head}<th class="center nvp-cbh"><input type="checkbox" class="nvp-all" aria-label="Tout cocher"></th></tr></thead>
-      <tbody>${R.map(r => `<tr class="${r.cls || ""}${stOf(r) ? " nvr-" + stOf(r) : ""}">${J.map(j => { const v = r.cells[j], g = (r.go || []).find(z => z[0] === j); return `<td class="${L.cols[j][1] || ""}">${j === 0 && r.open ? `<button type="button" class="ach-link" data-nvl="${esc(L.t)}|${r.__i}">${esc(v)}</button>` : g ? `<button type="button" class="ach-link" data-nvgo="${esc(g[1] + "|" + g[2])}">${esc(v)}</button>` : esc(typeof v === "number" ? achF2(v) : v)}</td>`; }).join("")}<td class="center"><input type="checkbox" class="nvp-cb"></td></tr>`).join("")}${L.add ? `<tr class="rec-new" data-nvadd="${k}"><td colspan="${n + 1}">${esc(L.add)}</td></tr>` : ""}</tbody>
-      ${isL ? `<tfoot><tr class="bdg-d-total-row">${J.map((j, jj) => j === iM ? `<td class="number">${achF2(tot)}</td>` : jj === J.indexOf(iM) - 1 ? `<td class="number">${R.length < L.rows.length ? "TOTAL PARTIEL" : "TOTAL"}</td>` : "<td></td>").join("")}<td></td></tr></tfoot>` : ""}</table></div>
+      <div class="rec-scroll" style="max-height:var(--nvh-${k}, var(--svi-hdef-a, 200px))"><table class="bdg-d-table rec-table" data-colh="${esc(t)}" data-svcw="${esc(t)}" style="${CG.style}">${CG.cg}<thead><tr>${RD ? '<th class="nvp-rdh"></th>' : ""}${head}<th class="center nvp-cbh"><input type="checkbox" class="nvp-all" aria-label="Tout cocher"></th></tr></thead>
+      <tbody>${R.map(r => `<tr class="${r.cls || ""}${stOf(r) ? " nvr-" + stOf(r) : ""}" data-ri="${r.__i}">${RD ? `<td class="nvp-rdc">${r.rd ? `<button type="button" class="nvp-rd${r.rd.st ? " rd-" + r.rd.st : ""}" data-rd="${esc(r.rd.k)}" aria-label="Liaison"></button>` : ""}</td>` : ""}${J.map(j => { const v = r.cells[j], g = (r.go || []).find(z => z[0] === j); if (v && typeof v === "object" && v.h !== undefined) return `<td class="${L.cols[j][1] || ""}">${v.h}</td>`; return `<td class="${L.cols[j][1] || ""}">${j === 0 && r.open ? `<button type="button" class="ach-link" data-nvl="${esc(L.t)}|${r.__i}">${esc(v)}</button>` : g ? `<button type="button" class="ach-link" data-nvgo="${esc(g[1] + "|" + g[2])}">${esc(v)}</button>` : esc(typeof v === "number" ? achF2(v) : v)}</td>`; }).join("")}<td class="center"><input type="checkbox" class="nvp-cb"></td></tr>`).join("")}${L.add ? `<tr class="rec-new" data-nvadd="${k}"><td colspan="${n + 1 + (RD ? 1 : 0)}">${esc(L.add)}</td></tr>` : ""}</tbody>
+      ${isL ? `<tfoot><tr class="bdg-d-total-row">${RD ? "<td></td>" : ""}${J.map((j, jj) => j === iM ? `<td class="number">${achF2(tot)}</td>` : jj === J.indexOf(iM) - 1 ? `<td class="number">${R.length < L.rows.length ? "TOTAL PARTIEL" : "TOTAL"}</td>` : "<td></td>").join("")}<td></td></tr></tfoot>` : ""}</table></div>
       <div class="blk-rsz nvp-rsz" data-nvh="${k}" title="Glisser pour changer la hauteur"></div></div>`; };
   /* 06/11 (décision) : un seul type de fiche, colorée selon l'état de la pièce (palette : en instance, remise, en cours de validation, en partie, validée…) */
   const pst = p.del ? "annule" : p.st || "valide", pcl = pst === "instance" ? "bdg-inst-instance" : pst === "valide" ? "nvp-valide" : pst === "fige" ? "bdg-inst-fige" : "bdg-inst-fige nvp-stc";
@@ -331,6 +335,7 @@ function achNvMod(ctx, cfg) {
   const click = async e => {
     if (!pid) return LST.click(e);
     if (await rec.click(e, () => ctx.draw())) return true;
+    if (P && P.click && await P.click(e, () => ctx.draw())) return true;   /* F3 : gestes propres à la page (ronds, boutons des blocs) */
     const b = e.target.closest("[data-nvp]");
     if (b) { const k = b.dataset.nvp, ord = LST.order(), i = ord.indexOf(pid);
       if (k === "close") { pid = null; ctx.draw(); return true; }
@@ -351,9 +356,11 @@ function achNvMod(ctx, cfg) {
     const mo = e.target.closest("[data-nvmore]"); if (mo) { const k = mo.dataset.nvmore, bl = mo.closest(".nvp-blk"), L = P.links.find(x => achNvhKey(x.t) === k);
       const tsv = () => { const t = bl.querySelector("table"); return [...t.rows].filter(r => !r.classList.contains("rec-new")).map(r => [...r.cells].filter(c => !c.classList.contains("svi-colh")).map(c => c.textContent.trim()).join("\t")).join("\n"); };
       const bt = bl.querySelector("table"), vis = sviColhVis(bt), vf = a => a.filter((_, i) => vis.includes(i));
-      sviHdrMenu(mo, [[{ k: "max", lab: bl.classList.contains("nvp-max") ? "RÉDUIRE" : "AGRANDIR" }, { k: "hdef", lab: sviBlkRows().n + " LIGNES (PAR DÉFAUT)" }, { k: "hred", lab: "MODE RÉDUIT (" + sviBlkRows().r + " LIGNE" + (sviBlkRows().r > 1 ? "S" : "") + ")" }].concat(k === "rec" ? [{ k: "add", lab: "CRÉER" }] : []), sviColhItems(bt), [{ k: "exp", lab: "EXPORTER" }, { k: "apr", lab: "APERÇU" }]], async a => {
+      sviHdrMenu(mo, [[{ k: "max", lab: bl.classList.contains("nvp-max") ? "RÉDUIRE" : "AGRANDIR" }, { k: "hdef", lab: sviBlkRows().n + " LIGNES (PAR DÉFAUT)" }, { k: "hred", lab: "MODE RÉDUIT (" + sviBlkRows().r + " LIGNE" + (sviBlkRows().r > 1 ? "S" : "") + ")" }].concat(k === "rec" ? [{ k: "add", lab: "CRÉER" }] : []).concat(L && L.menu ? L.menu : []), sviColhItems(bt), [{ k: "exp", lab: "EXPORTER" }, { k: "apr", lab: "APERÇU" }]], async a => {
         if (sviColhPick(a, bt)) return;
         if (a === "max") { bl.querySelector("[data-nvmax]")?.click(); return; }
+        /* F2, F3 : actions propres au bloc (lignes cochées passées) */
+        if (L && L.act && (L.menu || []).some(m => m.k === a)) { const ck = [...bl.querySelectorAll("tbody tr[data-ri]")].filter(tr => tr.querySelector(".nvp-cb:checked")).map(tr => +tr.dataset.ri); await L.act(a, ck, () => ctx.draw()); return; }
         /* B4 (série B) : hauteur commune des blocs — lignes par défaut ou mode réduit (réglages communs), gardée par bloc */
         if (a === "hdef" || a === "hred") { const pg = bl.closest(".nvp"); let H = {}; try { H = JSON.parse(localStorage.getItem(ACH_NVH_K) || "{}") || {}; } catch (e) {}
           if (a === "hdef") { delete H[k]; pg && pg.style.removeProperty("--nvh-" + k); }
@@ -372,7 +379,7 @@ function achNvMod(ctx, cfg) {
     const l = e.target.closest("[data-nvl]"); if (l) { const [t, i] = l.dataset.nvl.split("|"), L = P.links.find(x => x.t === t), r = L && L.rows[+i]; if (r && r.open) r.open(() => ctx.draw()); return true; }
     return false;
   };
-  const change = e => pid && rec ? rec.change(e) : false;
+  const change = e => { if (!pid) return false; if (P && P.change && P.change(e, () => ctx.draw())) return true; return rec ? rec.change(e) : false; };
   return { html, click, change, h1, open, close: () => { pid = null; }, isPage: () => !!pid };
 }
 

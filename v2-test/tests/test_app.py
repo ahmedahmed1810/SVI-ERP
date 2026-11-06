@@ -4066,6 +4066,17 @@ def main():
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); return r; }""")
         check("06/11 et SÉRIE E (E4, E6) : une seule liste — cases des états combinables (ALERTE décochée cache, ALERTE seule montre) ; circuit de validation propre à chaque type (général proposé par défaut) ; état commun des pièces ; statuts des articles",
               e06.get('stf') == '1010110' and e06.get('seu') == '{"mt":1000,"g":["1"],"h":true,"k":"cmf"}||["2"]|false|true' and e06.get('freq') == 'frequent,dormant' and e06.get('st') == 'encours,remis,archive,annule', e06)
+        # SÉRIE F : règles de calcul — numérotation des détails (F1, F2), seuils de départ et de fin (F4), prix à choisir (F8)
+        f06 = pg.evaluate("""async () => { await sviAchLoad(); const r = {}, K = ['svi_ach_prm_v1', 'svi_ach_dvf_v1'], keep = K.map(k => localStorage.getItem(k));
+  const L = [{ id: 'a' }, { id: 'b', g: 'G1' }, { id: 'c' }, { id: 'd', g: 'G1' }]; r.num = achDetNum(L, [{ id: 'G1' }]).map(o => o.no + (o.title ? 'T' : '')).join(',') + '|' + achDetNum(L.map(x => ({ id: x.id })), []).map(o => o.no).join(',');
+  const P = achPrm(); P.seuT = { caf: [{ id: 'a', mt: 0, fin: '', g: ['3'], h: true }, { id: 'b', mt: 5000, fin: 20000, g: ['2'], h: true }] }; achPrmSave(P);
+  r.seu = [JSON.stringify(achPcSeu('caf', 100).g), JSON.stringify(achPcSeu('caf', 8000).g), JSON.stringify(achPcSeu('caf', 30000).g)].join('|');
+  const c = { id: 'C', frs: ['F'], lf: { l1: ['F'] }, lignes: [{ id: 'l1', des: 'SABLE', u: 'M3', q: 2 }] };
+  achDvfSave([{ id: 'V1', ref: 'DVF 1', caf: 'C', frs: 'F', state: 'recu', lignes: [{ des: 'SABLE', u: 'M3', q: 2, pu: 10 }] }, { id: 'V2', ref: 'DVF 2', caf: 'C', frs: 'F', state: 'recu', lignes: [{ des: 'SABLE', u: 'M3', q: 2, pu: 12 }, { des: 'GRAVIER', u: 'M3', q: 1, pu: '' }] }]);
+  const p1 = achCafPrice(c, 'F', c.lignes[0]); c.pick = { l1: { F: 'V2' } }; const p2 = achCafPrice(c, 'F', c.lignes[0]); r.pick = p1.st + p1.n + '|' + p2.st + p2.p.y.pu;
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); return r; }""")
+        check("SÉRIE F, F1 F2 F4 F8 : détails numérotés 1 à n, groupes numérotés comme les LOTS (2, 2.1, 2.2) ; niveaux de seuil (départ, fin ; 0 et vide = tout) ; un détail chiffré deux fois = prix à choisir",
+              f06.get('num') == '1,2T,2.1,2.2,3|1,2,3,4' and f06.get('seu') == '["3"]|["3","2"]|["3"]' and f06.get('pick') == 'choix2|ok12', f06)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

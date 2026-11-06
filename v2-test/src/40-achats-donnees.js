@@ -584,6 +584,8 @@ const achCafWhy = (c, D) => { const w = [], today = new Date().toISOString().sli
   else if ((c.frs || []).length < achPrm().ncons) w.push((c.frs || []).length + " FOURNISSEUR(S) CONSULTÉ(S) SUR " + achPrm().ncons + " AU MOINS");
   const att = (c.frs || []).filter(f => ((c.rep || {})[f] || {}).st !== "repondu" && ((c.rep || {})[f] || {}).st !== "decline");
   if (c.dlim && c.dlim < today && att.length) w.push("DATE LIMITE DÉPASSÉE : " + att.length + " RÉPONSE(S) EN ATTENTE");
+  /* F8 (série F) : un détail chiffré deux fois par le même fournisseur — rien n'est choisi d'office : prix à choisir (comparatif) */
+  if (typeof achCafPrices === "function") (c.frs || []).forEach(f => (c.lignes || []).forEach(l => { if (!l.id || !(((c.lf || {})[l.id] || []).includes(f))) return; const p = achCafPrice(c, f, l, D); if (p.st === "choix") w.push(l.des + " CHIFFRÉ " + p.n + " FOIS PAR " + achFrsNom(f) + " : PRIX À CHOISIR (COMPARATIF)"); }));
   const nd = (D || achDvf()).filter(v => v.caf === c.id && v.state !== "annule").length;
   { const n = Math.min(achPrm().nfrs, (c.frs || []).length); if ((c.frs || []).length && nd < n) w.push("MOINS DE " + n + " DEVIS"); }
   return w; };

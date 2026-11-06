@@ -3649,3 +3649,12 @@ table.svi-bdgl .nv-reflink { border: 0; background: none; padding: 0; font: inhe
 table.svi-bdgl td.nv-ed { cursor: text; } table.svi-bdgl td.nv-ed.nv-sel { box-shadow: inset 0 0 0 2px var(--svst, #172033); }
 table.svi-bdgl td.nv-ed input.nv-edin { width: 100%; height: 100%; min-height: 19px; box-sizing: border-box; border: 0; padding: 0 4px; font: inherit; background: #fff; }
 table.svi-bdgl td.nv-lk { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* F3 (série F) : ronds de liaison des blocs de la consultation (règle 2.5) — blanc = non lié, bleu clair = lié à ce qui est choisi, plein = choisi */
+.nvp-blk td.nvp-rdc, .nvp-blk th.nvp-rdh { width: 26px; text-align: center; padding: 0 !important; }
+.nvp-rd { width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid #94a3b8; background: #fff; padding: 0; cursor: pointer; vertical-align: middle; }
+.nvp-rd.rd-lie { background: #bfdbfe; border-color: #3b82f6; } .nvp-rd.rd-choisi { background: #1d4ed8; border-color: #1d4ed8; }
+.nvp-blk td select.ins-in, .nvp-blk td input.ins-in { width: 100%; min-width: 60px; height: 19px; padding: 0 4px; border: 0; background: transparent; font: inherit; color: inherit; -webkit-text-fill-color: currentColor; box-sizing: border-box; }
+.nvp-blk td .ach-b { height: 18px; padding: 0 6px; font-size: 10px; }
+.nvp-blk tr.nvp-gt td { font-weight: 800; }
+.nvp-blk td .sv-sel { height: 19px !important; min-height: 0 !important; padding: 0 4px !important; border: 0 !important; background: transparent !important; font: inherit !important; color: inherit !important; width: 100%; box-shadow: none !important; }
+.nvp-blk td .sv-sel .sv-sel-t { font: inherit; }
