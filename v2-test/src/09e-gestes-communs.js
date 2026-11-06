@@ -178,3 +178,43 @@ document.addEventListener("contextmenu", e => {
   tg.dispatchEvent(new PointerEvent("pointerdown", { ...o, buttons: 1 }));
   setTimeout(() => { (tg.isConnected ? tg : document).dispatchEvent(new PointerEvent("pointerup", { ...o, buttons: 0 })); }, SVI_G.lp + 80);
 });
+/* 06/11/2026 (soir, décision d'Ahmed) : RÉGLAGE D'UNE COLONNE — appui long (clic droit sur ordinateur) sur le titre d'une colonne :
+   on change son NOM et son ALIGNEMENT (À GAUCHE, CENTRÉ, À DROITE), pour ce tableau, dans toutes ses listes et fiches.
+   Réglages gardés (svi_colset_v1, clé « tableau|colonne ») ; appliqués par tout l'écran (titres et cases de la colonne). */
+const SVI_COLSET_K = "svi_colset_v1";
+const sviColSet = () => { try { const o = JSON.parse(localStorage.getItem(SVI_COLSET_K) || "{}"); return o && typeof o === "object" ? o : {}; } catch (e) { return {}; } };
+const sviColSetSave = o => { try { localStorage.setItem(SVI_COLSET_K, JSON.stringify(o)); } catch (e) {} sviColSetRun(); };
+const sviColAl = (t, k) => ({ g: "left", c: "center", d: "number" }[(sviColSet()[t + "|" + k] || {}).al] || "");
+const sviColLab = (t, k, def) => (sviColSet()[t + "|" + k] || {}).lab || def;
+function sviColSetRun() { const S = sviColSet(); if (!Object.keys(S).length && !document.querySelector("[data-svcol-al]")) return;
+  document.querySelectorAll("table thead th .cf-btn[data-cf][data-col]").forEach(b => { const th = b.closest("th"), tr = th && th.parentNode, tb = th && th.closest("table"); if (!tb || !tr) return;
+    const o = S[b.dataset.cf + "|" + b.dataset.col] || {}, lab = th.querySelector(".cf-lab");
+    if (lab && lab.lastChild && lab.lastChild.nodeType === 3 && th.dataset.svcolDef === undefined) th.dataset.svcolDef = lab.lastChild.textContent;
+    if (lab && lab.lastChild && lab.lastChild.nodeType === 3 && !o.lab && th.dataset.svcolDef && lab.lastChild.textContent !== th.dataset.svcolDef) lab.lastChild.textContent = th.dataset.svcolDef;
+    if (o.lab && lab && lab.lastChild && lab.lastChild.nodeType === 3 && lab.lastChild.textContent !== o.lab) lab.lastChild.textContent = o.lab;
+    const al = { g: "left", c: "center", d: "right" }[o.al] || "", i = [...tr.cells].indexOf(th); if (i < 0) return;
+    if ((th.dataset.svcolAl || "") === al && th.dataset.svcolN === String(tb.tBodies[0] ? tb.tBodies[0].rows.length : 0)) return;
+    th.dataset.svcolAl = al; th.dataset.svcolN = String(tb.tBodies[0] ? tb.tBodies[0].rows.length : 0);
+    th.style.textAlign = al; [...tb.tBodies].forEach(tbd => [...tbd.rows].forEach(r => { if (r.cells.length === tr.cells.length && r.cells[i]) r.cells[i].style.textAlign = al; })); }); }
+{ let raf = 0; const go = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; try { sviColSetRun(); } catch (e) {} }); };
+  const start = () => new MutationObserver(go).observe(document.body, { childList: true, subtree: true }); if (document.body) start(); else document.addEventListener("DOMContentLoaded", start); }
+function sviColSetWin(t, k, def) {
+  const S = sviColSet(), o = { ...(S[t + "|" + k] || {}) }, d = sviWinNew();
+  const draw = () => { d.innerHTML = sviWinCard({ cls: "frs-card colset-card", close: "data-x", title: "COLONNE — " + esc(o.lab || def),
+    body: `<div class="frs-g"><label class="frs-f frs-w"><span>NOM DE LA COLONNE</span><input class="ins-in cs-lab" value="${esc(o.lab || def)}" autocomplete="off"></label>
+      <div class="frs-f frs-w"><span>ALIGNEMENT</span><div class="cs-al">${[["g", "À GAUCHE"], ["c", "CENTRÉ"], ["d", "À DROITE"]].map(([v, l]) => `<button type="button" class="svc-b${o.al === v ? " on" : ""}" data-al="${v}">${l}</button>`).join("")}</div></div></div>`,
+    foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b" data-def>PAR DÉFAUT</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button>` });
+    if (!d.isConnected) sviWinShow(d); };
+  draw();
+  d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+    const a = e.target.closest("[data-al]"); if (a) { o.lab = String(d.querySelector(".cs-lab").value || "").trim().toUpperCase(); o.al = a.dataset.al; draw(); return; }
+    if (e.target.closest("[data-def]")) { const N = sviColSet(); delete N[t + "|" + k]; sviColSetSave(N); d.remove(); if (typeof svToast === "function") svToast("COLONNE REMISE PAR DÉFAUT.", 2000); document.dispatchEvent(new Event("svi-colset")); return; }
+    if (e.target.closest("[data-ok]")) { const lab = String(d.querySelector(".cs-lab").value || "").trim().toUpperCase(), N = sviColSet(), x = {};
+      if (lab && lab !== def) x.lab = lab; if (o.al) x.al = o.al; if (Object.keys(x).length) N[t + "|" + k] = x; else delete N[t + "|" + k]; sviColSetSave(N); d.remove(); document.dispatchEvent(new Event("svi-colset")); } });
+}
+{ let tm = 0, x0 = 0, y0 = 0;
+  document.addEventListener("pointerdown", e => { clearTimeout(tm); const th = e.target.closest && e.target.closest("thead th"); if (!th || e.target.closest(".cf-btn, .col-rs, input")) return;
+    const b = th.querySelector(".cf-btn[data-cf][data-col]"); if (!b) return; x0 = e.clientX; y0 = e.clientY;
+    tm = setTimeout(() => { tm = 0; const lab = th.querySelector(".cf-lab"), def = (th.dataset.svcolDef || (lab && lab.lastChild ? lab.lastChild.textContent : th.textContent)).trim(); sviColSetWin(b.dataset.cf, b.dataset.col, def); }, SVI_G.lp); }, true);
+  document.addEventListener("pointermove", e => { if (tm && Math.hypot(e.clientX - x0, e.clientY - y0) > SVI_G.drag) { clearTimeout(tm); tm = 0; } }, true);
+  ["pointerup", "pointercancel"].forEach(t => document.addEventListener(t, () => { clearTimeout(tm); tm = 0; }, true)); }

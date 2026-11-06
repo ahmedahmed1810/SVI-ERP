@@ -80,7 +80,7 @@ const SVI_FMT_IF = [
    fiche en instance, fiche validée) ; le budget trois (listes en instance / validés, fiche budget) ; dans l'ordre du menu ≡.
    L'interface affichée est posée sur la page (html[data-svif]) : MODIFIER LE FORMAT vise celle-là. */
 /* D1 (série D) : plus d'interfaces RETOURS DE COMMANDE, RETOURS DE RÉCEPTION, AVOIRS — ils sont dans COMMANDES, RÉCEPTIONS, FACTURES */
-const SVI_IF_ACH = [["caf", "CONSULTATION", "CONSULTATIONS"], ["dvf", "DEVIS", "DEVIS"], ["cmf", "COMMANDE", "COMMANDES"],
+const SVI_IF_ACH = [["caf", "CONSULTATION FOURNISSEURS", "CONSULTATIONS FOURNISSEURS"], ["dvf", "DEVIS", "DEVIS"], ["cmf", "COMMANDE", "COMMANDES"],
   ["rcp", "RÉCEPTION", "RÉCEPTIONS"], ["faf", "FACTURE", "FACTURES"], ["paf", "PAIEMENT", "PAIEMENTS"],
   ["frs", "FOURNISSEUR", "FOURNISSEURS"], ["art", "ARTICLE", "ARTICLES"], ["bsn", "BESOIN", "BESOINS"]];
 /* 06/11/2026 (décision) : UN SEUL TYPE DE LISTE, DE FICHE ET DE FENÊTRE par pièce, colorés selon l'état (palette) — MODIFIER LE FORMAT règle
@@ -347,14 +347,34 @@ const sviStfPick = (key, k, keys) => { const sel = sviStfGet(key);
   if (k === "tout") { sviStfSet(key, sel === null ? [] : null); return; }
   const cur = sel === null ? keys.slice() : sel.slice(), i = cur.indexOf(k); if (i >= 0) cur.splice(i, 1); else cur.push(k);
   sviStfSet(key, keys.every(x => cur.includes(x)) ? null : cur); };
-/* compteurs : { tout: n, <état>: n } ; la case TOUT est dans l'en-tête du panneau (même hauteur que les titres des colonnes) */
-const sviStfHead = (key, n) => { const sel = sviStfGet(key), on = sel === null;
-  return `<button type="button" class="novapp-date-filter svi-stf-all" data-stfk="tout" data-stf="${esc(key)}"><span><input type="checkbox" tabindex="-1"${on ? " checked" : ""}${!on && sel.length ? ' class="part"' : ""}> TOUT</span>${svCnt(n)}</button>`; };
-const sviStfHtml = (key, C, keys, L) => { const sel = sviStfGet(key), lab = k => (L && L[k]) || (SVI_STF.find(x => x[0] === k) || [k, k])[1];
-  return `<div class="svi-stf" data-stf="${esc(key)}">${keys.map(k => `<button type="button" class="novapp-date-item svi-stf-r stf-${k}" data-stfk="${k}" data-stf="${esc(key)}"><span><input type="checkbox" tabindex="-1"${sel === null || sel.includes(k) ? " checked" : ""}> ${esc(lab(k))}</span>${svCnt(C[k] || 0)}</button>`).join("")}</div>`; };
-/* la case TOUT à moitié cochée (quelques états seulement) */
-{ const up = () => document.querySelectorAll(".svi-stf-all input.part").forEach(i => { i.indeterminate = true; });
-  new MutationObserver(up).observe(document.documentElement, { childList: true, subtree: true }); }
+/* 06/11 (soir, décision) : les états ne sont plus affichés en permanence — en haut du panneau, « TOUT ▾ » (ou les états choisis) ouvre le menu des
+   états à cocher (TOUT en haut) ; à côté, l'entonnoir = le filtre commun des DATES (tri, condition, valeurs) ; les deux se cumulent (intersection) */
+const sviStfLab = (key, L) => { const s = sviStfGet(key); if (s === null) return "TOUT"; if (!s.length) return "AUCUN";
+  if (s.length === 1) return (L && L[s[0]]) || (SVI_STF.find(x => x[0] === s[0]) || [s[0], s[0]])[1]; return s.length + " ÉTATS"; };
+const SVI_CF_IC = '<svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><path d="M1 2h11M3 5h7M5 8h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>';
+const sviStfHead = (key, n, L, dcf) => `<button type="button" class="novapp-date-filter svi-stf-head" data-stfm="${esc(key)}"><span>${esc(sviStfLab(key, L))} <i class="dt-arr">▾</i></span>${svCnt(n)}</button>`
+  + (dcf ? `<span class="cf-btn svi-stf-cf" data-cf="${esc(dcf)}" data-col="_jour" role="button" aria-label="Filtrer les dates">${SVI_CF_IC}</span>` : "");
+const sviStfItems = (key, C, keys, L) => { const sel = sviStfGet(key), lab = k => (L && L[k]) || (SVI_STF.find(x => x[0] === k) || [k, k])[1], on = sel === null;
+  return `<button type="button" class="svi-stf-r svi-stf-all" data-stfk="tout"><span><input type="checkbox" tabindex="-1"${on ? " checked" : ""}${!on && sel.length ? ' class="part"' : ""}> TOUT</span>${svCnt(C.tout || 0)}</button>`
+    + keys.map(k => `<button type="button" class="svi-stf-r stf-${k}" data-stfk="${k}"><span><input type="checkbox" tabindex="-1"${on || sel.includes(k) ? " checked" : ""}> ${esc(lab(k))}</span>${svCnt(C[k] || 0)}</button>`).join(""); };
+const sviStfHtml = () => "";   /* plus de cases affichées en permanence */
+/* menu des états : chaque toucher coche / décoche et la liste suit aussitôt ; le menu reste ouvert (toucher ailleurs = fermer)
+   o = { key, keys, L, counts() → { tout, état: n }, redraw() } */
+/* registre des listes (clé → { keys, L, counts, redraw }) : un seul écouteur pour tous les boutons ▾ des états */
+const SVI_STF_REG = {};
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-stfm]"); if (!b) return; const o = SVI_STF_REG[b.dataset.stfm]; if (!o) return;
+  e.preventDefault(); e.stopPropagation(); sviStfMenu(b, { key: b.dataset.stfm, ...o }); }, true);
+function sviStfMenu(btn, o) {
+  const old = document.getElementById("sviEtatMenu"); if (old) { const same = old.__key === o.key; old.remove(); if (same) return; }
+  const m = document.createElement("div"); m.id = "sviEtatMenu"; m.className = "svi-stf-menu"; m.__key = o.key;
+  const fill = () => { m.innerHTML = sviStfItems(o.key, o.counts(), o.keys, o.L); m.querySelectorAll("input.part").forEach(i => { i.indeterminate = true; }); };
+  fill(); document.body.appendChild(m); sviPlaceMenu(m, btn.getBoundingClientRect());
+  m.addEventListener("click", e => { const b = e.target.closest("[data-stfk]"); if (!b) return; e.preventDefault(); e.stopPropagation(); sviStfPick(o.key, b.dataset.stfk, o.keys); o.redraw(); fill(); });
+  setTimeout(() => document.addEventListener("pointerdown", function off(e) {
+    if (!document.body.contains(m)) { document.removeEventListener("pointerdown", off, true); return; }
+    if (!e.target.closest("#sviEtatMenu") && !e.target.closest("[data-stfm]")) { m.remove(); document.removeEventListener("pointerdown", off, true); } }, true), 0);
+}
+
 
 /* v774 : BARRE DU HAUT COMMUNE à toutes les interfaces — ANNULER, RÉTABLIR, PRÉCÉDENT, SUIVANT, ALERTES, FERMER, ⋯
    (mêmes icônes, même ordre, mêmes classes que l'écran d'un budget) ; o = { why: { undo, redo, prev, next }, n: alertes, attr: nom de l'attribut data- } */

@@ -37,11 +37,11 @@ const achEspL = p => Array.isArray(p.espL) ? p.espL : [{ id: "e1", per: "jour", 
 const achEspJour = p => { const L = achEspL(p), j = L.find(x => x.per === "jour") || L[0]; return j ? achN(j.mt) : Infinity; };
 /* série B (B27) : RÉFÉRENCES — un modèle par type de pièce ; texte fixe tel quel, variables {AA} (année, 2 chiffres), {AAAA}, {MM}, {JJ},
    {NNN} (compteur, autant de chiffres que de N) ; compteur remis à zéro chaque jour (par défaut), mois, année ou jamais */
-const ACH_REF_T = [["BSN", "BESOIN"], ["CAF", "CONSULTATION (DEMANDE DE DEVIS)"], ["DVF", "DEVIS DU FOURNISSEUR"], ["CMF", "COMMANDE"], ["RTC", "RETOUR DE COMMANDE"], ["RCP", "RÉCEPTION"],
+const ACH_REF_T = [["BSN", "BESOIN"], ["CAF", "CONSULTATION FOURNISSEUR ACHAT (CFA)"], ["DVF", "DEVIS DU FOURNISSEUR"], ["CMF", "COMMANDE"], ["RTC", "RETOUR DE COMMANDE"], ["RCP", "RÉCEPTION"],
   ["RTR", "RETOUR DE RÉCEPTION"], ["FAF", "FACTURE DU FOURNISSEUR"], ["AVF", "AVOIR DU FOURNISSEUR"], ["PAF", "PAIEMENT"]];
 const ACH_REF_RZ = [["jour", "CHAQUE JOUR"], ["mois", "CHAQUE MOIS"], ["annee", "CHAQUE ANNÉE"], ["jamais", "JAMAIS"]];
 const achRefs = p => { const r = p.refs && typeof p.refs === "object" ? p.refs : {};
-  return Object.fromEntries(ACH_REF_T.map(([k]) => { const x = r[k] || {}; return [k, { m: String(x.m || "").trim() || k + " {AA}-{MM}{JJ}/{NNN}", rz: ACH_REF_RZ.some(z => z[0] === x.rz) ? x.rz : "jour", l: String(x.l || "").trim() || ACH_REF_LDEF }]; })); };
+  return Object.fromEntries(ACH_REF_T.map(([k]) => { const x = r[k] || {}; return [k, { m: String(x.m || "").trim() || (k === "CAF" ? "CFA" : k) + " {AA}-{MM}{JJ}/{NNN}", rz: ACH_REF_RZ.some(z => z[0] === x.rz) ? x.rz : "jour", l: String(x.l || "").trim() || ACH_REF_LDEF }]; })); };
 /* C6 (série C, document unique 6.14) : RÉFÉRENCE DES LIGNES d'une pièce — modèle par type : {PARENT} = référence de la pièce,
    {LLL} = compteur des lignes (autant de chiffres que de L), qui repart à 1 dans chaque pièce — distinct du compteur {NNN} des pièces */
 const ACH_REF_LDEF = "{PARENT}-{LLL}";
@@ -319,7 +319,12 @@ const achArtPartNo = (c, f) => { if (!f) return ""; const g = achFrsRoot(f.id), 
    La commande envoyée est verrouillée ; un valideur l'accepte ou la renvoie avec ses remarques ; corrigée, elle repart dans le circuit. */
 /* 06/11/2026 (décision d'Ahmed) : CHAQUE TYPE DE PIÈCE A SON PROPRE CIRCUIT DE VALIDATION — seuils réglés type par type (PARAMÉTRAGE › ACHATS ›
    RÈGLES INTERNES › SEUILS DE VALIDATION) ; le seuil GÉNÉRAL de la société n'est que proposé par défaut : un type sans réglage propre le reprend */
-const ACH_CIRC_T = [["gen", "GÉNÉRAL (PROPOSÉ PAR DÉFAUT)"], ["cmf", "COMMANDES"], ["faf", "FACTURES"], ["paf", "PAIEMENTS"]];
+const ACH_CIRC_T = [["gen", "GÉNÉRAL (PROPOSÉ PAR DÉFAUT)"], ["bsn", "BESOINS"], ["caf", "CONSULTATIONS FOURNISSEURS"], ["dvf", "DEVIS"], ["cmf", "COMMANDES"], ["faf", "FACTURES"], ["paf", "PAIEMENTS"]];
+/* 06/11 (soir) : montant d'une pièce sans prix d'achat (besoin, consultation, devis) = quantités × PRIX STANDARD de l'article (prix de référence
+   de la liste des articles) ; une ligne hors liste prend le prix saisi sur la ligne */
+const achArtOf = (des, u) => achArts().find(a => !a.del && achKey(a.des, a.u) === achKey(des, u)) || null;
+const achStdPu = (des, u, pu) => { const a = achArtOf(des, u); return a && achN(a.pref) > 0 ? achN(a.pref) : achN(pu); };
+const achStdMt = L => (L || []).reduce((t, l) => t + achN(l.q) * achStdPu(l.des, l.u, l.pu), 0);
 const achSeuOwn = k => { const T = achPrm().seuT || {}; return !!k && k !== "gen" && Array.isArray(T[k]); };
 const achSeuL = k => achSeuOwn(k) ? achPrm().seuT[k] : achPrm().seuV;
 const achPcSeu = (k, ht) => { const S = achSeuL(k).filter(x => achN(x.mt) > 0 && ht > achN(x.mt) && (x.g || []).length).sort((a, b) => b.mt - a.mt)[0];
@@ -508,6 +513,8 @@ const achBsnWhy = (b, L) => {
   if (b.state === "annule") return w;
   if (b.centre !== "SIÈGE" && !b.bdg) w.push("BUDGET MANQUANT (OU CENTRE DE COÛT SIÈGE)");
   if (!achU(b.des)) w.push("CHARGE MANQUANTE");
+  /* 06/11 (soir) : un besoin ne vise qu'un article de la liste des articles (son prix standard donne le montant de validation) */
+  else if (!achArtOf(b.des, b.u)) w.push("ARTICLE ABSENT DE LA LISTE DES ARTICLES");
   if (!(achN(b.q) > 0)) w.push("QUANTITÉ MANQUANTE");
   if (!b.datePrevue) w.push("DATE PRÉVUE MANQUANTE");
   const c = achBsnCtl(b, L);
@@ -536,7 +543,7 @@ const achDvf = () => { const L = achJ(ACH_K.dvf, []); return Array.isArray(L) ? 
 const achDvfSave = L => achW(ACH_K.dvf, L);
 /* B27 : numéro suivant d'après le modèle du type de pièce (ACHATS › PARAMÈTRES › RÉFÉRENCES) ; le compteur ne compte que les pièces de la même
    période (jour, mois ou année de création) dont la référence suit le modèle */
-const achNextRef = (pfx, L, d) => { d = d || new Date(); const R = achPrm().refs[pfx] || { m: pfx + " {AA}-{MM}{JJ}/{NNN}", rz: "jour" }, rx = achRefRx(R.m);
+const achNextRef = (pfx, L, d) => { d = d || new Date(); const R = achPrm().refs[pfx] || { m: (pfx === "CAF" ? "CFA" : pfx) + " {AA}-{MM}{JJ}/{NNN}", rz: "jour" }, rx = achRefRx(R.m);
   const key = x => { const t = x instanceof Date ? x : new Date(x); if (isNaN(t)) return null; return R.rz === "annee" ? "" + t.getFullYear() : R.rz === "mois" ? t.getFullYear() + "-" + t.getMonth() : t.getFullYear() + "-" + t.getMonth() + "-" + t.getDate(); };
   const k0 = key(d), same = b => { if (R.rz === "jamais") return true; const v = b.cree || b.date; if (!v) return true; return key(v) === k0; };
   const n = (L || []).reduce((m, b) => { const g = String(b.ref || "").match(rx); return g && same(b) ? Math.max(m, Number(g[1]) || 0) : m; }, 0) + 1;
@@ -567,6 +574,8 @@ const achDvfWhy = v => { const w = achRepWhy(v.state === "recu" ? v.lignes : [],
 const achCafWhy = (c, D) => { const w = [], today = new Date().toISOString().slice(0, 10);
   if (c.state !== "ouverte") return w;
   if (!(c.lignes || []).length) w.push("AUCUNE LIGNE");
+  /* 06/11 (soir) : une ligne hors de la liste des articles doit avoir un prix (montant de validation) */
+  (c.lignes || []).forEach(l => { if (l.des && !achArtOf(l.des, l.u) && !(achN(l.pu) > 0)) w.push(l.des + " : HORS LISTE DES ARTICLES, PRIX À SAISIR"); });
   if (!(c.frs || []).length) w.push("AUCUN FOURNISSEUR CONSULTÉ");
   /* E6 (série E) : nombre minimum de fournisseurs consultés (PARAMÉTRAGE › ACHATS › RÈGLES INTERNES), non bloquant */
   else if ((c.frs || []).length < achPrm().ncons) w.push((c.frs || []).length + " FOURNISSEUR(S) CONSULTÉ(S) SUR " + achPrm().ncons + " AU MOINS");

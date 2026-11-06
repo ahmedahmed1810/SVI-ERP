@@ -185,6 +185,11 @@ function sviCfKit(o) {
       <button type="button" class="cf-sort" data-dir="asc">TRIER DE A À Z</button>
       <button type="button" class="cf-sort" data-dir="desc">TRIER DE Z À A</button>${shell.__cfPar ? shell.__cfPar(t, key) : ""}
       <div class="cf-sep"></div>
+      ${(() => { /* 06/11 : FILTRER PAR COULEUR — couleurs des lignes = états (palette) ; même choix que les états du panneau de gauche */
+        const tb = btn.closest("table"), sk = tb && tb.dataset.stf; if (!sk || typeof sviStfGet !== "function") return "";
+        const n = {}; tb.querySelectorAll("tbody tr[data-st]:not(.bdg-newrow)").forEach(r => { n[r.dataset.st] = (n[r.dataset.st] || 0) + 1; });
+        const ks = SVI_STF.map(x => x[0]).filter(k => n[k]), sel = sviStfGet(sk); if (!ks.length) return "";
+        return `<div class="cf-h">FILTRER PAR COULEUR</div><div class="cf-col" data-stf="${esc(sk)}">${ks.map(k => `<label class="cf-coli"><input type="checkbox" data-cfc="${k}"${sel === null || sel.includes(k) ? " checked" : ""}><i style="background:var(--st-${k}, #172033)"></i>${esc((SVI_STF.find(x => x[0] === k) || [k, k])[1])} ${svCnt(n[k])}</label>`).join("")}</div><div class="cf-sep"></div>`; })()}
       <div class="cf-h">FILTRER PAR CONDITION</div>
       <div class="cf-cond"></div>
       <div class="cf-h">FILTRER PAR VALEURS</div>
@@ -273,6 +278,10 @@ function sviCfKit(o) {
         if (cond === false) { svToast("CONDITION INCOMPLÈTE : SAISIR LA OU LES VALEURS.", 2500); return; }
         if (keep.size === all.length && !cond) delete st.f[key];
         else st.f[key] = cond ? cfMakeF(keep.size === all.length ? null : keep, cond) : keep;
+        /* 06/11 : FILTRER PAR COULEUR — les couleurs décochées sont retirées des états choisis de la liste */
+        { const cc = m.querySelector(".cf-col"); if (cc) { const sk = cc.dataset.stf, off = [...cc.querySelectorAll("[data-cfc]")].filter(i => !i.checked).map(i => i.dataset.cfc), on = [...cc.querySelectorAll("[data-cfc]:checked")].map(i => i.dataset.cfc);
+          const cur = sviStfGet(sk), base = cur === null ? SVI_STF.map(x => x[0]) : cur, nx = [...new Set(base.filter(k => !off.includes(k)).concat(on))];
+          sviStfSet(sk, SVI_STF.every(x => nx.includes(x[0])) ? null : nx); } }
         cfClose();
         keepScroll.toTop = true;
         refreshAll();

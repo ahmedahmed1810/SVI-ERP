@@ -2014,6 +2014,7 @@ function renderBudgetList() {
   /* largeurs : proportionnelles par défaut (toute la largeur), en pixels une fois réglées à la main (mémoire de la session) */
   const colW = window.__bdglW || (window.__bdglW = {});
   const renderHead = () => {
+    table.dataset.stf = "bdg";   /* 06/11 (soir) : FILTRER PAR COULEUR (loupe) = états de la liste */
     const tot = columns.reduce((t, c) => t + c.width, 0);
     let cg = table.querySelector("colgroup");
     if (!cg) { cg = document.createElement("colgroup"); table.insertBefore(cg, thead); }
@@ -2046,7 +2047,11 @@ function renderBudgetList() {
   const keysOf = f => f.arch ? ["archive"].concat(f.late ? ["alerte"] : []) : f.blk ? ["bloque"].concat(f.late ? ["alerte"] : [])
     : (f.allXp || (f.xp && !f.fam) ? ["expire"] : f.sts).concat(f.xp && f.fam && !f.allXp ? ["expire"] : []).concat(f.late ? ["alerte"] : []);
   const FLG = new Map(budgets.map(g => [g.ref, flagsOf(g)]));
-  const budgetsE = () => { const sel = sviStfGet(SK); return budgets.filter(g => sviStfOk(sel, keysOf(FLG.get(g.ref)))); };
+  /* états (menu ▾) puis filtre commun des DATES (entonnoir du panneau) : les deux se cumulent */
+  const budgetsE = () => { const sel = sviStfGet(SK); return KIT.cfApply("bdgl_d", [["_jour", "DATE", g => { const d = sviRowDate(g.ref); return d ? d.label : "SANS DATE"; }, ""]], budgets.filter(g => sviStfOk(sel, keysOf(FLG.get(g.ref))))); };
+  const BLAB = { valide: "VALIDÉ" }, bCounts = () => { const C = { tout: budgets.length }; budgets.forEach(g => keysOf(FLG.get(g.ref)).forEach(k => { C[k] = (C[k] || 0) + 1; })); return C; };
+  /* 06/11 (soir) : menu ▾ des états (TOUT, ou plusieurs états à la fois) */
+  SVI_STF_REG[SK] = { keys: BKEYS, L: BLAB, counts: bCounts, redraw: () => { dateFilter = ""; renderDatePanel(); renderRows(); } };
   const stepOf = f => !f ? "" : f.arch ? "ARCHIVÉ" : f.blk ? "BLOQUÉ" : f.allXp || (f.xp && !f.fam) ? "EXPIRÉ" : f.sts.includes("instance") ? "EN INSTANCE" : f.sts.includes("fige") ? "FIGÉ" : "VALIDÉ";
 
 
@@ -2082,7 +2087,7 @@ function renderBudgetList() {
     const keys = [...counts.keys()].sort().reverse();
 
     panel.innerHTML = `
-      <div class="novapp-date-head">${sviStfHead(SK, budgets.length)}</div>${(() => { const C = {}; budgets.forEach(g => keysOf(FLG.get(g.ref)).forEach(k => { C[k] = (C[k] || 0) + 1; })); return sviStfHtml(SK, C, BKEYS, { valide: "VALIDÉ" }); })()}
+      <div class="novapp-date-head">${sviStfHead(SK, budgetsE().length, BLAB, "bdgl_d")}</div>
       <div class="novapp-date-list">
         ${keys.map(k => `
           <button type="button" data-date="${k}"
@@ -2100,9 +2105,8 @@ function renderBudgetList() {
 
     if (item) {
       dateFilter = dateFilter === item.dataset.date ? "" : item.dataset.date;
-    } else if (event.target.closest("[data-stfk]")) {
-      /* 06/11 : cases des états (TOUT, ou plusieurs états à la fois) */
-      sviStfPick(SK, event.target.closest("[data-stfk]").dataset.stfk, BKEYS); dateFilter = "";
+    } else if (event.target.closest(".cf-btn")) {
+      event.stopPropagation(); KIT.cfOpenMenu(event.target.closest(".cf-btn")); return;
     } else {
       return;
     }
@@ -2202,7 +2206,7 @@ function renderBudgetList() {
       if (tr) pn.style.setProperty("--bdg-row-h", Math.round(tr.getBoundingClientRect().height) + "px");
     } catch (e) {} });
   }
-  window.__bdglRefresh = renderRows;
+  window.__bdglRefresh = () => { renderDatePanel(); renderRows(); };   /* 06/11 (soir) : filtre des dates et FILTRER PAR COULEUR → panneau et liste */
 
   /* -------------------------------------------------------
      EN-TÊTES : menu de tri et filtre (commun), largeur ajustable
@@ -3234,21 +3238,20 @@ function renderBudgetList() {
     const ov = document.createElement("div");
     ov.className = "av-list-ov";
     const ROWS = S.map(x => { let bd = {}; try { bd = budgetData({ ref: x.ref, project: x.project, rows: [], first: {}, inst: x, __noFam: true }); } catch (e) {}
-      return { x, ref: U_(x.project) + " " + x.ref, prj: U_(x.project), int: x.intitule || "", ttc: bd.ttc || 0, val: x.state === "valide" ? svDT(x.validated || "") : "", sai: svDT(x.created || "") }; });
-    const COLS = [["ref", "RÉFÉRENCE", 260], ["prj", "PROJET", 120], ["int", "INTITULÉ", 300], ["ttc", "MONTANT TTC", 150, "number"], ["val", "VALIDÉ LE", 190], ["sai", "SAISI LE", 190]];
+      return { x, ref: U_(x.project) + " " + x.ref, prj: U_(x.project), int: x.intitule || "", ttc: bd.ttc || 0, et: x.xp ? "EXPIRÉ" : { instance: "EN INSTANCE", fige: "FIGÉ", valide: "VALIDÉ" }[x.state || "instance"] || "", val: x.state === "valide" ? svDT(x.validated || "") : "", sai: svDT(x.created || "") }; });
+    /* 06/11 (soir, décision) : une seule liste des étapes (budget initial et avenants, tous états), colonne ÉTAT */
+    const COLS = [["ref", "RÉFÉRENCE", 260], ["prj", "PROJET", 120], ["int", "INTITULÉ", 300], ["ttc", "MONTANT TTC", 150, "number"], ["et", "ÉTAT", 130], ["val", "VALIDÉ LE", 190], ["sai", "SAISI LE", 190]];
     const ic = (a, lab, t, on) => `<button type="button" aria-label="${a}" data-avl="${a}" title="${t}"${on ? ' class="on"' : ""}>${lab}</button>`;
     const draw = () => {
-      let L = ROWS.filter(r => mode === "inst" ? live.includes(r.x) : done.includes(r.x));
+      let L = ROWS.slice();
       if (sk) L = [...L].sort((a, b) => (typeof a[sk] === "number" ? a[sk] - b[sk] : String(a[sk]).localeCompare(String(b[sk]), "fr", { numeric: true })) * sd);
       const canAdd = S[S.length - 1].state === "valide";
-      ov.innerHTML = `<div class="novapp-list-shell${mode === "inst" ? " list-inst" : ""}">
+      ov.innerHTML = `<div class="novapp-list-shell">
         <div class="novapp-list-titlebar">
           <button type="button" class="novapp-menu" data-avl="back" aria-label="Retour" title="Retour au consolidé">←</button>
-          <h1>${esc(U_(root.project) + " " + root.ref)} ${mode === "inst" ? "(AVENANTS EN INSTANCE)" : "(VALIDÉS)"} ${svCnt(L.length)}</h1>
+          <h1>${esc(U_(root.project) + " " + root.ref)} (ÉTAPES) ${svCnt(L.length)}</h1>
           <div class="novapp-list-actions">
             <span class="list-lab">AVENANTS :</span>
-            ${live.length ? ic("inst", "⌛", "Avenants en instance", mode === "inst") : ""}
-            ${done.length ? ic("valid", "≡", "Étapes validées (budget initial compris)", mode === "valid") : ""}
             <button type="button" aria-label="Ajouter" data-avl="add"${canAdd ? ' title="Nouvel avenant"' : ' disabled title="LE DERNIER AVENANT DOIT ÊTRE VALIDÉ"'}>＋</button>
           </div>
         </div>
@@ -3256,7 +3259,7 @@ function renderBudgetList() {
           <table class="novapp-budget-table av-stg-t">
             <colgroup>${COLS.map(c => `<col style="width:${c[2]}px">`).join("")}</colgroup>
             <thead><tr>${COLS.map(c => `<th class="bdg-list-head${c[3] ? " number" : ""}${sk === c[0] ? " cf-on" : ""}" data-sk="${c[0]}"><div class="bdg-head-content"><span class="bdg-head-label">${c[1]}${sk === c[0] ? (sd > 0 ? " ▲" : " ▼") : ""}</span></div></th>`).join("")}</tr></thead>
-            <tbody>${L.length ? L.map(r => `<tr data-r="${esc(r.x.ref)}" class="${r.x.state ? "inst-" + r.x.state : ""}${r.x.parent ? " row-av" : " row-bdg"}"><td>${esc(r.ref)}</td><td>${esc(r.prj)}</td><td>${esc(r.int)}</td><td class="number">${money(r.ttc)}</td><td>${esc(r.val)}</td><td>${esc(r.sai)}</td></tr>`).join("") : `<tr><td colspan="${COLS.length}" class="empty">AUCUNE ÉTAPE</td></tr>`}</tbody>
+            <tbody>${L.length ? L.map(r => `<tr data-r="${esc(r.x.ref)}" class="${r.x.state ? "inst-" + r.x.state : ""}${r.x.parent ? " row-av" : " row-bdg"}"><td>${esc(r.ref)}</td><td>${esc(r.prj)}</td><td>${esc(r.int)}</td><td class="number">${money(r.ttc)}</td><td>${esc(r.et)}</td><td>${esc(r.val)}</td><td>${esc(r.sai)}</td></tr>`).join("") : `<tr><td colspan="${COLS.length}" class="empty">AUCUNE ÉTAPE</td></tr>`}</tbody>
           </table>
         </div>
       </div>`;
@@ -11201,12 +11204,12 @@ function sviBdgDelaisDisposition(C) {
     return { fixed, rows };
   };
   /* hauteur v ramenée à des lignes entières (au moins une) ;
-     E2 (série E, 06/11) : jamais plus haut que son contenu — plus haut que toutes les lignes = ramené à la dernière ligne (AGRANDIR mis à part) */
+     plus haut que toutes les lignes : laissé tel quel (sauf « fit ») — 06/11 (soir) : la poignée est libre, même s'il reste du vide */
   const laySnap = (u, v, fit) => {
     const I = layRows(u); if (!I) return v;
     let s = I.fixed, k = 0;
     for (const h of I.rows) { if (k >= 1 && (fit ? k >= fit : s + h > v + .5)) break; s += h; k++; }
-    if (!fit && k === I.rows.length && v > s) return Math.ceil(s);
+    if (!fit && k === I.rows.length && v > s) return v;   /* 06/11 (soir) : la poignée reste libre — on peut agrandir au-delà des lignes */
     return Math.ceil(s);
   };
   /* hauteur enregistrée plus petite que le minimum de l'onglet ouvert : remontée à l'affichage (non enregistrée) */
@@ -11229,8 +11232,9 @@ function sviBdgDelaisDisposition(C) {
       if (c0 && m0 && c0 < m0) pg.style.setProperty("--h-" + u, m0 + "px"); });
     /* v774 : MODE RÉDUIT — exactement le minimum de l'onglet affiché (titres + une ligne entière), ni plus ni moins */
     { const R = layLoad().red || {}; LAY_UNITS.forEach(u => { if (!R[u] || pg.classList.contains("max-" + u)) return; const m0 = layMinOf(u); if (m0) pg.style.setProperty("--h-" + u, m0 + "px"); }); }
-    /* E2 (série E) : bloc du détail jamais plus haut que son contenu (onglet affiché), sauf AGRANDIR ; non enregistré */
-    { const a = document.activeElement, busy = a && a !== document.body && pg.contains(a);   /* pas pendant une saisie (la ligne écrite reste en place) */
+    /* E2 (série E), revu le 06/11 au soir : à l'ouverture, sans hauteur réglée à la poignée, le bloc du détail suit ses lignes (pas de vide) ;
+       une hauteur réglée à la poignée est gardée, même s'il reste du vide ; non enregistré */
+    if (!(layLoad().h || {}).detail) { const a = document.activeElement, busy = a && a !== document.body && pg.contains(a);   /* pas pendant une saisie (la ligne écrite reste en place) */
       if (!busy && !pg.classList.contains("max-detail") && !document.querySelector("td.svi-cs, #sviSelFrame:not([hidden])")) { const I = layRows("detail"), c = parseFloat(pg.style.getPropertyValue("--h-detail")) || 0;
         if (I && c) { const s = Math.ceil(I.fixed + I.rows.reduce((x, y) => x + y, 0)); if (c > s + (I.rows[0] || 21)) pg.style.setProperty("--h-detail", Math.max(s, m) + "px"); } } }
     layMinScroll();

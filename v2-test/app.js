@@ -3179,6 +3179,11 @@ function sviCfKit(o) {
       <button type="button" class="cf-sort" data-dir="asc">TRIER DE A À Z</button>
       <button type="button" class="cf-sort" data-dir="desc">TRIER DE Z À A</button>${shell.__cfPar ? shell.__cfPar(t, key) : ""}
       <div class="cf-sep"></div>
+      ${(() => { /* 06/11 : FILTRER PAR COULEUR — couleurs des lignes = états (palette) ; même choix que les états du panneau de gauche */
+        const tb = btn.closest("table"), sk = tb && tb.dataset.stf; if (!sk || typeof sviStfGet !== "function") return "";
+        const n = {}; tb.querySelectorAll("tbody tr[data-st]:not(.bdg-newrow)").forEach(r => { n[r.dataset.st] = (n[r.dataset.st] || 0) + 1; });
+        const ks = SVI_STF.map(x => x[0]).filter(k => n[k]), sel = sviStfGet(sk); if (!ks.length) return "";
+        return `<div class="cf-h">FILTRER PAR COULEUR</div><div class="cf-col" data-stf="${esc(sk)}">${ks.map(k => `<label class="cf-coli"><input type="checkbox" data-cfc="${k}"${sel === null || sel.includes(k) ? " checked" : ""}><i style="background:var(--st-${k}, #172033)"></i>${esc((SVI_STF.find(x => x[0] === k) || [k, k])[1])} ${svCnt(n[k])}</label>`).join("")}</div><div class="cf-sep"></div>`; })()}
       <div class="cf-h">FILTRER PAR CONDITION</div>
       <div class="cf-cond"></div>
       <div class="cf-h">FILTRER PAR VALEURS</div>
@@ -3267,6 +3272,10 @@ function sviCfKit(o) {
         if (cond === false) { svToast("CONDITION INCOMPLÈTE : SAISIR LA OU LES VALEURS.", 2500); return; }
         if (keep.size === all.length && !cond) delete st.f[key];
         else st.f[key] = cond ? cfMakeF(keep.size === all.length ? null : keep, cond) : keep;
+        /* 06/11 : FILTRER PAR COULEUR — les couleurs décochées sont retirées des états choisis de la liste */
+        { const cc = m.querySelector(".cf-col"); if (cc) { const sk = cc.dataset.stf, off = [...cc.querySelectorAll("[data-cfc]")].filter(i => !i.checked).map(i => i.dataset.cfc), on = [...cc.querySelectorAll("[data-cfc]:checked")].map(i => i.dataset.cfc);
+          const cur = sviStfGet(sk), base = cur === null ? SVI_STF.map(x => x[0]) : cur, nx = [...new Set(base.filter(k => !off.includes(k)).concat(on))];
+          sviStfSet(sk, SVI_STF.every(x => nx.includes(x[0])) ? null : nx); } }
         cfClose();
         keepScroll.toTop = true;
         refreshAll();
@@ -3420,7 +3429,7 @@ const SVI_FMT_IF = [
    fiche en instance, fiche validée) ; le budget trois (listes en instance / validés, fiche budget) ; dans l'ordre du menu ≡.
    L'interface affichée est posée sur la page (html[data-svif]) : MODIFIER LE FORMAT vise celle-là. */
 /* D1 (série D) : plus d'interfaces RETOURS DE COMMANDE, RETOURS DE RÉCEPTION, AVOIRS — ils sont dans COMMANDES, RÉCEPTIONS, FACTURES */
-const SVI_IF_ACH = [["caf", "CONSULTATION", "CONSULTATIONS"], ["dvf", "DEVIS", "DEVIS"], ["cmf", "COMMANDE", "COMMANDES"],
+const SVI_IF_ACH = [["caf", "CONSULTATION FOURNISSEURS", "CONSULTATIONS FOURNISSEURS"], ["dvf", "DEVIS", "DEVIS"], ["cmf", "COMMANDE", "COMMANDES"],
   ["rcp", "RÉCEPTION", "RÉCEPTIONS"], ["faf", "FACTURE", "FACTURES"], ["paf", "PAIEMENT", "PAIEMENTS"],
   ["frs", "FOURNISSEUR", "FOURNISSEURS"], ["art", "ARTICLE", "ARTICLES"], ["bsn", "BESOIN", "BESOINS"]];
 /* 06/11/2026 (décision) : UN SEUL TYPE DE LISTE, DE FICHE ET DE FENÊTRE par pièce, colorés selon l'état (palette) — MODIFIER LE FORMAT règle
@@ -3687,14 +3696,34 @@ const sviStfPick = (key, k, keys) => { const sel = sviStfGet(key);
   if (k === "tout") { sviStfSet(key, sel === null ? [] : null); return; }
   const cur = sel === null ? keys.slice() : sel.slice(), i = cur.indexOf(k); if (i >= 0) cur.splice(i, 1); else cur.push(k);
   sviStfSet(key, keys.every(x => cur.includes(x)) ? null : cur); };
-/* compteurs : { tout: n, <état>: n } ; la case TOUT est dans l'en-tête du panneau (même hauteur que les titres des colonnes) */
-const sviStfHead = (key, n) => { const sel = sviStfGet(key), on = sel === null;
-  return `<button type="button" class="novapp-date-filter svi-stf-all" data-stfk="tout" data-stf="${esc(key)}"><span><input type="checkbox" tabindex="-1"${on ? " checked" : ""}${!on && sel.length ? ' class="part"' : ""}> TOUT</span>${svCnt(n)}</button>`; };
-const sviStfHtml = (key, C, keys, L) => { const sel = sviStfGet(key), lab = k => (L && L[k]) || (SVI_STF.find(x => x[0] === k) || [k, k])[1];
-  return `<div class="svi-stf" data-stf="${esc(key)}">${keys.map(k => `<button type="button" class="novapp-date-item svi-stf-r stf-${k}" data-stfk="${k}" data-stf="${esc(key)}"><span><input type="checkbox" tabindex="-1"${sel === null || sel.includes(k) ? " checked" : ""}> ${esc(lab(k))}</span>${svCnt(C[k] || 0)}</button>`).join("")}</div>`; };
-/* la case TOUT à moitié cochée (quelques états seulement) */
-{ const up = () => document.querySelectorAll(".svi-stf-all input.part").forEach(i => { i.indeterminate = true; });
-  new MutationObserver(up).observe(document.documentElement, { childList: true, subtree: true }); }
+/* 06/11 (soir, décision) : les états ne sont plus affichés en permanence — en haut du panneau, « TOUT ▾ » (ou les états choisis) ouvre le menu des
+   états à cocher (TOUT en haut) ; à côté, l'entonnoir = le filtre commun des DATES (tri, condition, valeurs) ; les deux se cumulent (intersection) */
+const sviStfLab = (key, L) => { const s = sviStfGet(key); if (s === null) return "TOUT"; if (!s.length) return "AUCUN";
+  if (s.length === 1) return (L && L[s[0]]) || (SVI_STF.find(x => x[0] === s[0]) || [s[0], s[0]])[1]; return s.length + " ÉTATS"; };
+const SVI_CF_IC = '<svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><path d="M1 2h11M3 5h7M5 8h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>';
+const sviStfHead = (key, n, L, dcf) => `<button type="button" class="novapp-date-filter svi-stf-head" data-stfm="${esc(key)}"><span>${esc(sviStfLab(key, L))} <i class="dt-arr">▾</i></span>${svCnt(n)}</button>`
+  + (dcf ? `<span class="cf-btn svi-stf-cf" data-cf="${esc(dcf)}" data-col="_jour" role="button" aria-label="Filtrer les dates">${SVI_CF_IC}</span>` : "");
+const sviStfItems = (key, C, keys, L) => { const sel = sviStfGet(key), lab = k => (L && L[k]) || (SVI_STF.find(x => x[0] === k) || [k, k])[1], on = sel === null;
+  return `<button type="button" class="svi-stf-r svi-stf-all" data-stfk="tout"><span><input type="checkbox" tabindex="-1"${on ? " checked" : ""}${!on && sel.length ? ' class="part"' : ""}> TOUT</span>${svCnt(C.tout || 0)}</button>`
+    + keys.map(k => `<button type="button" class="svi-stf-r stf-${k}" data-stfk="${k}"><span><input type="checkbox" tabindex="-1"${on || sel.includes(k) ? " checked" : ""}> ${esc(lab(k))}</span>${svCnt(C[k] || 0)}</button>`).join(""); };
+const sviStfHtml = () => "";   /* plus de cases affichées en permanence */
+/* menu des états : chaque toucher coche / décoche et la liste suit aussitôt ; le menu reste ouvert (toucher ailleurs = fermer)
+   o = { key, keys, L, counts() → { tout, état: n }, redraw() } */
+/* registre des listes (clé → { keys, L, counts, redraw }) : un seul écouteur pour tous les boutons ▾ des états */
+const SVI_STF_REG = {};
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-stfm]"); if (!b) return; const o = SVI_STF_REG[b.dataset.stfm]; if (!o) return;
+  e.preventDefault(); e.stopPropagation(); sviStfMenu(b, { key: b.dataset.stfm, ...o }); }, true);
+function sviStfMenu(btn, o) {
+  const old = document.getElementById("sviEtatMenu"); if (old) { const same = old.__key === o.key; old.remove(); if (same) return; }
+  const m = document.createElement("div"); m.id = "sviEtatMenu"; m.className = "svi-stf-menu"; m.__key = o.key;
+  const fill = () => { m.innerHTML = sviStfItems(o.key, o.counts(), o.keys, o.L); m.querySelectorAll("input.part").forEach(i => { i.indeterminate = true; }); };
+  fill(); document.body.appendChild(m); sviPlaceMenu(m, btn.getBoundingClientRect());
+  m.addEventListener("click", e => { const b = e.target.closest("[data-stfk]"); if (!b) return; e.preventDefault(); e.stopPropagation(); sviStfPick(o.key, b.dataset.stfk, o.keys); o.redraw(); fill(); });
+  setTimeout(() => document.addEventListener("pointerdown", function off(e) {
+    if (!document.body.contains(m)) { document.removeEventListener("pointerdown", off, true); return; }
+    if (!e.target.closest("#sviEtatMenu") && !e.target.closest("[data-stfm]")) { m.remove(); document.removeEventListener("pointerdown", off, true); } }, true), 0);
+}
+
 
 /* v774 : BARRE DU HAUT COMMUNE à toutes les interfaces — ANNULER, RÉTABLIR, PRÉCÉDENT, SUIVANT, ALERTES, FERMER, ⋯
    (mêmes icônes, même ordre, mêmes classes que l'écran d'un budget) ; o = { why: { undo, redo, prev, next }, n: alertes, attr: nom de l'attribut data- } */
@@ -4143,6 +4172,46 @@ document.addEventListener("contextmenu", e => {
   tg.dispatchEvent(new PointerEvent("pointerdown", { ...o, buttons: 1 }));
   setTimeout(() => { (tg.isConnected ? tg : document).dispatchEvent(new PointerEvent("pointerup", { ...o, buttons: 0 })); }, SVI_G.lp + 80);
 });
+/* 06/11/2026 (soir, décision d'Ahmed) : RÉGLAGE D'UNE COLONNE — appui long (clic droit sur ordinateur) sur le titre d'une colonne :
+   on change son NOM et son ALIGNEMENT (À GAUCHE, CENTRÉ, À DROITE), pour ce tableau, dans toutes ses listes et fiches.
+   Réglages gardés (svi_colset_v1, clé « tableau|colonne ») ; appliqués par tout l'écran (titres et cases de la colonne). */
+const SVI_COLSET_K = "svi_colset_v1";
+const sviColSet = () => { try { const o = JSON.parse(localStorage.getItem(SVI_COLSET_K) || "{}"); return o && typeof o === "object" ? o : {}; } catch (e) { return {}; } };
+const sviColSetSave = o => { try { localStorage.setItem(SVI_COLSET_K, JSON.stringify(o)); } catch (e) {} sviColSetRun(); };
+const sviColAl = (t, k) => ({ g: "left", c: "center", d: "number" }[(sviColSet()[t + "|" + k] || {}).al] || "");
+const sviColLab = (t, k, def) => (sviColSet()[t + "|" + k] || {}).lab || def;
+function sviColSetRun() { const S = sviColSet(); if (!Object.keys(S).length && !document.querySelector("[data-svcol-al]")) return;
+  document.querySelectorAll("table thead th .cf-btn[data-cf][data-col]").forEach(b => { const th = b.closest("th"), tr = th && th.parentNode, tb = th && th.closest("table"); if (!tb || !tr) return;
+    const o = S[b.dataset.cf + "|" + b.dataset.col] || {}, lab = th.querySelector(".cf-lab");
+    if (lab && lab.lastChild && lab.lastChild.nodeType === 3 && th.dataset.svcolDef === undefined) th.dataset.svcolDef = lab.lastChild.textContent;
+    if (lab && lab.lastChild && lab.lastChild.nodeType === 3 && !o.lab && th.dataset.svcolDef && lab.lastChild.textContent !== th.dataset.svcolDef) lab.lastChild.textContent = th.dataset.svcolDef;
+    if (o.lab && lab && lab.lastChild && lab.lastChild.nodeType === 3 && lab.lastChild.textContent !== o.lab) lab.lastChild.textContent = o.lab;
+    const al = { g: "left", c: "center", d: "right" }[o.al] || "", i = [...tr.cells].indexOf(th); if (i < 0) return;
+    if ((th.dataset.svcolAl || "") === al && th.dataset.svcolN === String(tb.tBodies[0] ? tb.tBodies[0].rows.length : 0)) return;
+    th.dataset.svcolAl = al; th.dataset.svcolN = String(tb.tBodies[0] ? tb.tBodies[0].rows.length : 0);
+    th.style.textAlign = al; [...tb.tBodies].forEach(tbd => [...tbd.rows].forEach(r => { if (r.cells.length === tr.cells.length && r.cells[i]) r.cells[i].style.textAlign = al; })); }); }
+{ let raf = 0; const go = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; try { sviColSetRun(); } catch (e) {} }); };
+  const start = () => new MutationObserver(go).observe(document.body, { childList: true, subtree: true }); if (document.body) start(); else document.addEventListener("DOMContentLoaded", start); }
+function sviColSetWin(t, k, def) {
+  const S = sviColSet(), o = { ...(S[t + "|" + k] || {}) }, d = sviWinNew();
+  const draw = () => { d.innerHTML = sviWinCard({ cls: "frs-card colset-card", close: "data-x", title: "COLONNE — " + esc(o.lab || def),
+    body: `<div class="frs-g"><label class="frs-f frs-w"><span>NOM DE LA COLONNE</span><input class="ins-in cs-lab" value="${esc(o.lab || def)}" autocomplete="off"></label>
+      <div class="frs-f frs-w"><span>ALIGNEMENT</span><div class="cs-al">${[["g", "À GAUCHE"], ["c", "CENTRÉ"], ["d", "À DROITE"]].map(([v, l]) => `<button type="button" class="svc-b${o.al === v ? " on" : ""}" data-al="${v}">${l}</button>`).join("")}</div></div></div>`,
+    foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b" data-def>PAR DÉFAUT</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button>` });
+    if (!d.isConnected) sviWinShow(d); };
+  draw();
+  d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
+    const a = e.target.closest("[data-al]"); if (a) { o.lab = String(d.querySelector(".cs-lab").value || "").trim().toUpperCase(); o.al = a.dataset.al; draw(); return; }
+    if (e.target.closest("[data-def]")) { const N = sviColSet(); delete N[t + "|" + k]; sviColSetSave(N); d.remove(); if (typeof svToast === "function") svToast("COLONNE REMISE PAR DÉFAUT.", 2000); document.dispatchEvent(new Event("svi-colset")); return; }
+    if (e.target.closest("[data-ok]")) { const lab = String(d.querySelector(".cs-lab").value || "").trim().toUpperCase(), N = sviColSet(), x = {};
+      if (lab && lab !== def) x.lab = lab; if (o.al) x.al = o.al; if (Object.keys(x).length) N[t + "|" + k] = x; else delete N[t + "|" + k]; sviColSetSave(N); d.remove(); document.dispatchEvent(new Event("svi-colset")); } });
+}
+{ let tm = 0, x0 = 0, y0 = 0;
+  document.addEventListener("pointerdown", e => { clearTimeout(tm); const th = e.target.closest && e.target.closest("thead th"); if (!th || e.target.closest(".cf-btn, .col-rs, input")) return;
+    const b = th.querySelector(".cf-btn[data-cf][data-col]"); if (!b) return; x0 = e.clientX; y0 = e.clientY;
+    tm = setTimeout(() => { tm = 0; const lab = th.querySelector(".cf-lab"), def = (th.dataset.svcolDef || (lab && lab.lastChild ? lab.lastChild.textContent : th.textContent)).trim(); sviColSetWin(b.dataset.cf, b.dataset.col, def); }, SVI_G.lp); }, true);
+  document.addEventListener("pointermove", e => { if (tm && Math.hypot(e.clientX - x0, e.clientY - y0) > SVI_G.drag) { clearTimeout(tm); tm = 0; } }, true);
+  ["pointerup", "pointercancel"].forEach(t => document.addEventListener(t, () => { clearTimeout(tm); tm = 0; }, true)); }
 /* ⟪ src/09e-mise-en-page.js ⟫ */
 /* =========================================================
    v783 : APERÇU UNIQUE — éditeur MISE EN PAGE par blocs (repris d'achats.html)

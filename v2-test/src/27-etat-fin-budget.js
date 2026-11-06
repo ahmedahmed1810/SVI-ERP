@@ -313,21 +313,20 @@
     const ov = document.createElement("div");
     ov.className = "av-list-ov";
     const ROWS = S.map(x => { let bd = {}; try { bd = budgetData({ ref: x.ref, project: x.project, rows: [], first: {}, inst: x, __noFam: true }); } catch (e) {}
-      return { x, ref: U_(x.project) + " " + x.ref, prj: U_(x.project), int: x.intitule || "", ttc: bd.ttc || 0, val: x.state === "valide" ? svDT(x.validated || "") : "", sai: svDT(x.created || "") }; });
-    const COLS = [["ref", "RÉFÉRENCE", 260], ["prj", "PROJET", 120], ["int", "INTITULÉ", 300], ["ttc", "MONTANT TTC", 150, "number"], ["val", "VALIDÉ LE", 190], ["sai", "SAISI LE", 190]];
+      return { x, ref: U_(x.project) + " " + x.ref, prj: U_(x.project), int: x.intitule || "", ttc: bd.ttc || 0, et: x.xp ? "EXPIRÉ" : { instance: "EN INSTANCE", fige: "FIGÉ", valide: "VALIDÉ" }[x.state || "instance"] || "", val: x.state === "valide" ? svDT(x.validated || "") : "", sai: svDT(x.created || "") }; });
+    /* 06/11 (soir, décision) : une seule liste des étapes (budget initial et avenants, tous états), colonne ÉTAT */
+    const COLS = [["ref", "RÉFÉRENCE", 260], ["prj", "PROJET", 120], ["int", "INTITULÉ", 300], ["ttc", "MONTANT TTC", 150, "number"], ["et", "ÉTAT", 130], ["val", "VALIDÉ LE", 190], ["sai", "SAISI LE", 190]];
     const ic = (a, lab, t, on) => `<button type="button" aria-label="${a}" data-avl="${a}" title="${t}"${on ? ' class="on"' : ""}>${lab}</button>`;
     const draw = () => {
-      let L = ROWS.filter(r => mode === "inst" ? live.includes(r.x) : done.includes(r.x));
+      let L = ROWS.slice();
       if (sk) L = [...L].sort((a, b) => (typeof a[sk] === "number" ? a[sk] - b[sk] : String(a[sk]).localeCompare(String(b[sk]), "fr", { numeric: true })) * sd);
       const canAdd = S[S.length - 1].state === "valide";
-      ov.innerHTML = `<div class="novapp-list-shell${mode === "inst" ? " list-inst" : ""}">
+      ov.innerHTML = `<div class="novapp-list-shell">
         <div class="novapp-list-titlebar">
           <button type="button" class="novapp-menu" data-avl="back" aria-label="Retour" title="Retour au consolidé">←</button>
-          <h1>${esc(U_(root.project) + " " + root.ref)} ${mode === "inst" ? "(AVENANTS EN INSTANCE)" : "(VALIDÉS)"} ${svCnt(L.length)}</h1>
+          <h1>${esc(U_(root.project) + " " + root.ref)} (ÉTAPES) ${svCnt(L.length)}</h1>
           <div class="novapp-list-actions">
             <span class="list-lab">AVENANTS :</span>
-            ${live.length ? ic("inst", "⌛", "Avenants en instance", mode === "inst") : ""}
-            ${done.length ? ic("valid", "≡", "Étapes validées (budget initial compris)", mode === "valid") : ""}
             <button type="button" aria-label="Ajouter" data-avl="add"${canAdd ? ' title="Nouvel avenant"' : ' disabled title="LE DERNIER AVENANT DOIT ÊTRE VALIDÉ"'}>＋</button>
           </div>
         </div>
@@ -335,7 +334,7 @@
           <table class="novapp-budget-table av-stg-t">
             <colgroup>${COLS.map(c => `<col style="width:${c[2]}px">`).join("")}</colgroup>
             <thead><tr>${COLS.map(c => `<th class="bdg-list-head${c[3] ? " number" : ""}${sk === c[0] ? " cf-on" : ""}" data-sk="${c[0]}"><div class="bdg-head-content"><span class="bdg-head-label">${c[1]}${sk === c[0] ? (sd > 0 ? " ▲" : " ▼") : ""}</span></div></th>`).join("")}</tr></thead>
-            <tbody>${L.length ? L.map(r => `<tr data-r="${esc(r.x.ref)}" class="${r.x.state ? "inst-" + r.x.state : ""}${r.x.parent ? " row-av" : " row-bdg"}"><td>${esc(r.ref)}</td><td>${esc(r.prj)}</td><td>${esc(r.int)}</td><td class="number">${money(r.ttc)}</td><td>${esc(r.val)}</td><td>${esc(r.sai)}</td></tr>`).join("") : `<tr><td colspan="${COLS.length}" class="empty">AUCUNE ÉTAPE</td></tr>`}</tbody>
+            <tbody>${L.length ? L.map(r => `<tr data-r="${esc(r.x.ref)}" class="${r.x.state ? "inst-" + r.x.state : ""}${r.x.parent ? " row-av" : " row-bdg"}"><td>${esc(r.ref)}</td><td>${esc(r.prj)}</td><td>${esc(r.int)}</td><td class="number">${money(r.ttc)}</td><td>${esc(r.et)}</td><td>${esc(r.val)}</td><td>${esc(r.sai)}</td></tr>`).join("") : `<tr><td colspan="${COLS.length}" class="empty">AUCUNE ÉTAPE</td></tr>`}</tbody>
           </table>
         </div>
       </div>`;

@@ -1445,6 +1445,7 @@ function renderBudgetList() {
   /* largeurs : proportionnelles par défaut (toute la largeur), en pixels une fois réglées à la main (mémoire de la session) */
   const colW = window.__bdglW || (window.__bdglW = {});
   const renderHead = () => {
+    table.dataset.stf = "bdg";   /* 06/11 (soir) : FILTRER PAR COULEUR (loupe) = états de la liste */
     const tot = columns.reduce((t, c) => t + c.width, 0);
     let cg = table.querySelector("colgroup");
     if (!cg) { cg = document.createElement("colgroup"); table.insertBefore(cg, thead); }
@@ -1477,7 +1478,11 @@ function renderBudgetList() {
   const keysOf = f => f.arch ? ["archive"].concat(f.late ? ["alerte"] : []) : f.blk ? ["bloque"].concat(f.late ? ["alerte"] : [])
     : (f.allXp || (f.xp && !f.fam) ? ["expire"] : f.sts).concat(f.xp && f.fam && !f.allXp ? ["expire"] : []).concat(f.late ? ["alerte"] : []);
   const FLG = new Map(budgets.map(g => [g.ref, flagsOf(g)]));
-  const budgetsE = () => { const sel = sviStfGet(SK); return budgets.filter(g => sviStfOk(sel, keysOf(FLG.get(g.ref)))); };
+  /* états (menu ▾) puis filtre commun des DATES (entonnoir du panneau) : les deux se cumulent */
+  const budgetsE = () => { const sel = sviStfGet(SK); return KIT.cfApply("bdgl_d", [["_jour", "DATE", g => { const d = sviRowDate(g.ref); return d ? d.label : "SANS DATE"; }, ""]], budgets.filter(g => sviStfOk(sel, keysOf(FLG.get(g.ref))))); };
+  const BLAB = { valide: "VALIDÉ" }, bCounts = () => { const C = { tout: budgets.length }; budgets.forEach(g => keysOf(FLG.get(g.ref)).forEach(k => { C[k] = (C[k] || 0) + 1; })); return C; };
+  /* 06/11 (soir) : menu ▾ des états (TOUT, ou plusieurs états à la fois) */
+  SVI_STF_REG[SK] = { keys: BKEYS, L: BLAB, counts: bCounts, redraw: () => { dateFilter = ""; renderDatePanel(); renderRows(); } };
   const stepOf = f => !f ? "" : f.arch ? "ARCHIVÉ" : f.blk ? "BLOQUÉ" : f.allXp || (f.xp && !f.fam) ? "EXPIRÉ" : f.sts.includes("instance") ? "EN INSTANCE" : f.sts.includes("fige") ? "FIGÉ" : "VALIDÉ";
 
 
@@ -1513,7 +1518,7 @@ function renderBudgetList() {
     const keys = [...counts.keys()].sort().reverse();
 
     panel.innerHTML = `
-      <div class="novapp-date-head">${sviStfHead(SK, budgets.length)}</div>${(() => { const C = {}; budgets.forEach(g => keysOf(FLG.get(g.ref)).forEach(k => { C[k] = (C[k] || 0) + 1; })); return sviStfHtml(SK, C, BKEYS, { valide: "VALIDÉ" }); })()}
+      <div class="novapp-date-head">${sviStfHead(SK, budgetsE().length, BLAB, "bdgl_d")}</div>
       <div class="novapp-date-list">
         ${keys.map(k => `
           <button type="button" data-date="${k}"
@@ -1531,9 +1536,8 @@ function renderBudgetList() {
 
     if (item) {
       dateFilter = dateFilter === item.dataset.date ? "" : item.dataset.date;
-    } else if (event.target.closest("[data-stfk]")) {
-      /* 06/11 : cases des états (TOUT, ou plusieurs états à la fois) */
-      sviStfPick(SK, event.target.closest("[data-stfk]").dataset.stfk, BKEYS); dateFilter = "";
+    } else if (event.target.closest(".cf-btn")) {
+      event.stopPropagation(); KIT.cfOpenMenu(event.target.closest(".cf-btn")); return;
     } else {
       return;
     }
@@ -1633,7 +1637,7 @@ function renderBudgetList() {
       if (tr) pn.style.setProperty("--bdg-row-h", Math.round(tr.getBoundingClientRect().height) + "px");
     } catch (e) {} });
   }
-  window.__bdglRefresh = renderRows;
+  window.__bdglRefresh = () => { renderDatePanel(); renderRows(); };   /* 06/11 (soir) : filtre des dates et FILTRER PAR COULEUR → panneau et liste */
 
   /* -------------------------------------------------------
      EN-TÊTES : menu de tri et filtre (commun), largeur ajustable
