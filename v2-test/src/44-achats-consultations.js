@@ -12,10 +12,21 @@ const achFrsNom = id => { const f = achFrsOf(id); return f ? f.nom : "?"; };   /
 /* tableau générique d'une liste d'achats (consultations, devis) : même format que les articles */
 /* v765 : toutes les listes des achats au format du budget (47 : achNvList) — EN INSTANCE / VALIDÉS, dates, CRÉER… en bas,
    corbeille des lignes en instance (= ANNULER, la pièce est gardée) ; toucher une ligne ouvre sa fiche */
+/* D1 (série D) : RETOURS ET AVOIRS sans interface à part — une liste peut accueillir les pièces négatives d'une autre (o.merge) :
+   retours de commande dans COMMANDES, retours de réception dans RÉCEPTIONS, avoirs dans FACTURES. Chacun garde son nom, sa numérotation,
+   sa page et son lien avec la pièce d'origine ; les données restent où elles sont (aucune reprise, aucun doublon possible). */
+const achGoMap = { rtc: "cmf", rtrcmd: "cmf", rtr: "rcp", rtrrcp: "rcp", avf: "faf" };
 function achListMod(ctx, o) {
   const dead = x => x.state === "annule";
+  const M = o.merge || [], o0 = o;
+  if (M.length) { const base = o.list, mOf = x => x.__m === undefined ? null : M[x.__m];
+    o = { ...o, list: () => base().concat(...M.map((m, i) => m.o.list().map(x => Object.assign(x, { __m: i })))),
+      save: o.save ? L => o0.save(L.filter(x => x.__m === undefined)) : o.save,
+      inst: x => mOf(x) ? false : (o0.inst || (() => false))(x), why: (x, L) => mOf(x) ? [] : o0.why(x, (L || base()).filter(y => y.__m === undefined)),
+      cols: () => o0.cols().map(c => [c[0], c[1], x => { const m = mOf(x); return m ? (m.col[c[0]] ? m.col[c[0]](x) : "") : c[2](x); }, ...c.slice(3)]) };
+    o.mOf = mOf; }
   /* v817 : annulation d'une pièce toujours avec motif (C5.27, C6.72, C8.71), la pièce est gardée */
-  const kill = o.save ? async x => { const m = await achAsk("ANNULER " + x.ref + " (GARDÉ, VISIBLE DANS ANNULÉS)", "MOTIF DE L'ANNULATION"); if (!m) return false;
+  const kill = o.save ? async x => { if (o.mOf && o.mOf(x)) { svToast("ANNULER DEPUIS LA PAGE DE " + x.ref + ".", 3000); return false; } const m = await achAsk("ANNULER " + x.ref + " (GARDÉ, VISIBLE DANS ANNULÉS)", "MOTIF DE L'ANNULATION"); if (!m) return false;
       const L = o.list(), y = L.find(z => z.id === x.id); if (!y) return false; y.state = "annule"; y.motifAnn = m; y.mod = achNow(); o.save(L); achHist(y.ref, "ANNULÉ — " + m, ""); return true; } : null;
   /* v779 : chaque pièce a sa PAGE au format de l'écran d'un budget (référence, i = la fiche, H, barre, blocs liés, SUIVI) */
   const ONE = { bsn: "BESOIN", caf: "CONSULTATION", dvf: "DEVIS", cmf: "COMMANDE", rcp: "RÉCEPTION", rtrcmd: "RETOUR DE COMMANDE", rtrrcp: "RETOUR DE RÉCEPTION", faf: "FACTURE", avf: "AVOIR", paf: "PAIEMENT" };
@@ -31,7 +42,8 @@ function achListMod(ctx, o) {
         /* dès que la nouvelle pièce est enregistrée, sa fenêtre se ferme et sa page s'ouvre */
         const tm = setInterval(() => { const n = o.list().find(x => !before.has(x.id)); if (n) { document.getElementById("svConf")?.remove(); end(); } else if (!document.getElementById("svConf")) end(); }, 250);
         o.open(null, end); } },
-    pageOf: id => { const x = o.list().find(y => y.id === id); if (!x) return null; const D = achDocPage(o.k, x);
+    pageOf: id => { const x = o.list().find(y => y.id === id); if (!x) return null; if (o.mOf && o.mOf(x)) return achListPage(o.mOf(x).o, id);
+      const D = achDocPage(o.k, x);
       return { id, code: x.ref, ref: x.ref, title: D.title || x.ref, party: x.frs ? achFrsNom(x.frs) : "", partyGo: x.frs ? "frs|" + x.frs : "", date: achDFr(x.date || x.dFac || x.cree), tot: D.tot || [], ttc: D.ttc || 0, numFrs: x.refFrs || x.num || x.nbl || "", st: (o.inst || (() => false))(x) ? "instance" : "valide", del: dead(x), why: o.why(x, o.list()),
         info: done => (o.info || o.open)(id, () => done()),
         menu: [{ k: "fiche", lab: "OUVRIR LA FICHE" }].concat(D.menu || []).concat(kill && !dead(x) ? [{ k: "del", lab: "ANNULER" }] : []),
@@ -40,7 +52,12 @@ function achListMod(ctx, o) {
   });
 }
 /* v779 : contenu de la page d'une pièce — LIGNES puis les pièces liées (un toucher ouvre leur page) */
-function achGo(t, id) { const v = document.getElementById("ach"); if (!v || !v.__achTab) return; v.__achTab(t, !!(id && v.__achOpen)); if (v.__achOpen) v.__achOpen(t, id); }
+/* D1 : page d'une pièce venue d'une autre liste (retour, avoir) — même page que dans son ancienne interface */
+function achListPage(o, id) { const x = o.list().find(y => y.id === id); if (!x) return null; const D = achDocPage(o.k, x), inst = (o.inst || (() => false))(x);
+  return { id, code: x.ref, ref: x.ref, title: (o.one || "") + (D.title ? " — " + D.title : ""), party: x.frs ? achFrsNom(x.frs) : "", partyGo: x.frs ? "frs|" + x.frs : "", date: achDFr(x.date || x.dFac || x.cree), tot: D.tot || [], ttc: D.ttc || 0, numFrs: x.refFrs || x.num || x.nbl || "", st: inst ? "instance" : "valide", del: x.state === "annule", why: [],
+    info: done => o.open(id, () => done()), menu: [{ k: "fiche", lab: "OUVRIR LA FICHE" }].concat(D.menu || []),
+    act: async (k, redraw) => { if (k === "fiche") { o.open(id, redraw); return; } if (D.act) await D.act(k, redraw); }, links: D.links.map(L => ({ ...L, add: "" })) }; }
+function achGo(t, id) { t = achGoMap[t] || t; const v = document.getElementById("ach"); if (!v || !v.__achTab) return; v.__achTab(t, !!(id && v.__achOpen)); if (v.__achOpen) v.__achOpen(t, id); }
 function achDocPage(k, x) {
   const fr = id => id ? achFrsNom(id) : "", ref = (L, id) => ((L.find(y => y.id === id) || {}).ref) || "";
   /* v800 (document unique 3.6 – 3.7) : toucher un article ou un fournisseur dans un tableau ouvre sa page */

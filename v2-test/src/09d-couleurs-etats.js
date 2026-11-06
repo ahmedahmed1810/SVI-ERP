@@ -77,8 +77,9 @@ const SVI_FMT_IF = [
 /* v926 (remarque 10 du 04/11/2026, document unique 1.7) : LES INTERFACES — chaque pièce en a quatre (liste en instance, liste des validés,
    fiche en instance, fiche validée) ; le budget trois (listes en instance / validés, fiche budget) ; dans l'ordre du menu ≡.
    L'interface affichée est posée sur la page (html[data-svif]) : MODIFIER LE FORMAT vise celle-là. */
-const SVI_IF_ACH = [["caf", "CONSULTATION", "CONSULTATIONS"], ["dvf", "DEVIS", "DEVIS"], ["cmf", "COMMANDE", "COMMANDES"], ["rtc", "RETOUR DE COMMANDE", "RETOURS DE COMMANDE"],
-  ["rcp", "RÉCEPTION", "RÉCEPTIONS"], ["rtr", "RETOUR DE RÉCEPTION", "RETOURS DE RÉCEPTION"], ["faf", "FACTURE", "FACTURES"], ["avf", "AVOIR", "AVOIRS"], ["paf", "PAIEMENT", "PAIEMENTS"],
+/* D1 (série D) : plus d'interfaces RETOURS DE COMMANDE, RETOURS DE RÉCEPTION, AVOIRS — ils sont dans COMMANDES, RÉCEPTIONS, FACTURES */
+const SVI_IF_ACH = [["caf", "CONSULTATION", "CONSULTATIONS"], ["dvf", "DEVIS", "DEVIS"], ["cmf", "COMMANDE", "COMMANDES"],
+  ["rcp", "RÉCEPTION", "RÉCEPTIONS"], ["faf", "FACTURE", "FACTURES"], ["paf", "PAIEMENT", "PAIEMENTS"],
   ["frs", "FOURNISSEUR", "FOURNISSEURS"], ["art", "ARTICLE", "ARTICLES"], ["bsn", "BESOIN", "BESOINS"]];
 const SVI_IFS = [
   { k: "bdgl_i", grp: "BUDGET", lab: "BUDGETS EN INSTANCE (LISTE)" }, { k: "bdgl_v", grp: "BUDGET", lab: "BUDGETS VALIDÉS (LISTE)" }, { k: "bdg", grp: "BUDGET", lab: "FICHE BUDGET" },

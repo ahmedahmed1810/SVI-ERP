@@ -2834,7 +2834,7 @@ def main():
             const r = [top.join(','), sub.join(','), open, still, stay, document.getElementById('ach').classList.contains('active-view'), (document.querySelector('#ach .novapp-list-titlebar h1') || document.querySelector('#ach .section-head h1')).textContent.trim().replace(/ \(.*$/, '')];
             M.querySelector('.nav-grp').click(); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); M.classList.add('hidden'); await w(600); return r; }""")
         check("v751 / v752 : menu ☰ — ordre BDG, ACHAT, BESOIN, PARAMÉTRAGE ; ACHAT dépliable (CONSULTATIONS, DEVIS, COMMANDES, RÉCEPTIONS, FACTURES, PAIEMENTS, FOURNISSEURS, ARTICLES, ACC), BESOIN dessous ; entrées à venir grisées ; ARTICLES ouvre les achats",
-              m751 == ["ACCUEIL,BDG,ACHAT,BESOIN,PARAMÉTRAGE,DONNÉES SOURCE", "TABLEAU DE BORD,CONSULTATIONS,DEVIS,COMMANDES,RETOURS DE COMMANDE,RÉCEPTIONS,RETOURS DE RÉCEPTION,FACTURES,AVOIRS,PAIEMENTS,FOURNISSEURS,ARTICLES,ACC", True, True, True, True, "ARTICLES"], m751)
+              m751 == ["ACCUEIL,BDG,ACHAT,BESOIN,PARAMÉTRAGE,DONNÉES SOURCE", "TABLEAU DE BORD,CONSULTATIONS,DEVIS,COMMANDES,RÉCEPTIONS,FACTURES,PAIEMENTS,FOURNISSEURS,ARTICLES,ACC", True, True, True, True, "ARTICLES"], m751)
         # v752 : icône devant chaque entrée du menu ; liste des budgets en gras ; lignes du dessous décalées ; corbeille de la couleur de sa ligne
         k752 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const M = document.getElementById('navMenu');
             const ic = [...M.querySelectorAll('.nav-btn, .nav-grp, .nav-off, .nav-src')].every(b => !!b.querySelector('svg.nav-ic'));
@@ -2931,7 +2931,7 @@ def main():
             const pg800 = !!v.querySelector('.nvp-ref'); v.querySelector('[data-nvp="close"]')?.click(); await w(250); if (!pg800) return 'v800 : page du nouveau fournisseur non ouverte';
             const n1 = achFrs().filter(f => !f.del).length + (v.querySelectorAll('#achFrsT tbody tr[data-id]').length === 1 && /EN INSTANCE/.test((v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent) ? 0 : 100);
             v.querySelector('[data-nvsw]').click(); await w(200); v.querySelector(`#achFrsT [data-nvo="${a.id}"]`).click(); await w(250);
-            const pgOk = /^FOURNISSEUR — BETON SUD/.test((document.getElementById('sviScreenTag') || {}).textContent || '') && /^FRS \\d{2}-\\d{4}\\/\\d{3}$/.test(v.querySelector('.nvp-ref').textContent) && v.querySelectorAll('.nvp-blk').length === 14;   /* v921 (remarque 4) : + CONSULTATIONS, RÉCEPTIONS, RETOURS, AVOIRS */
+            const pgOk = /^FOURNISSEUR — BETON SUD/.test((document.getElementById('sviScreenTag') || {}).textContent || '') && /^FRS \\d{2}-\\d{4}\\/\\d{3}$/.test(v.querySelector('.nvp-ref').textContent) && v.querySelectorAll('.nvp-blk').length === 12;   /* D1 : plus de blocs RETOURS / AVOIRS (dans COMMANDES, RÉCEPTIONS, FACTURES) */   /* v921 (remarque 4) : + CONSULTATIONS, RÉCEPTIONS, RETOURS, AVOIRS */
             v.querySelector('[data-nvp="info"]').click(); await w(300); const fc = document.querySelector('.frs-card');
             const secs = fc ? [...fc.querySelectorAll('.frs-st')].map(x => x.textContent.replace(/\\s*\\d+$/, '').split(' ')[0]).join(',') + '|' + [...fc.querySelectorAll('.frs-tabs .rec-tab')].map(x => x.textContent.trim()).join(',') + '|' + [...fc.querySelectorAll('.frs-sec')].filter(x => !x.hidden).length : 'pas de fiche';
             const ri = fc.querySelector('.frs-sub[data-sub="ribs"] .frs-s[data-c="rib"]'); ri.value = '011780000123456789012386'; fc.querySelector('[data-save]').click(); await w(250);
@@ -3478,7 +3478,7 @@ def main():
         check("FORME 04/11, remarques 5 et 6 : blocs — lignes par défaut (5) et en mode réduit (1) réglables, hauteur par défaut recalculée ; police fixe Arial à l'écran",
               f1104["blk0"] == "5,1" and f1104["blk1"] == "8,2,211px" and f1104["font"], f1104)
         check("FORME 04/11, remarques 10 et 11 : interfaces (4 par pièce, 3 pour le budget, ordre du menu) et interface affichée connue ; MASQUER LA COLONNE dans la loupe, AFFICHER LES COLONNES MASQUÉES (compteur) dans le ⋯",
-              f1104["ifs"] == "53|bdgl_i,bdgl_v,bdg,caf_li,caf_lv,caf_fi,caf_fv" and f1104["cur"] in ("bdgl_i", "bdgl_v") and f1104["colh"] == "1,true,0,1" and f1104["loupe"], f1104)
+              f1104["ifs"] == "41|bdgl_i,bdgl_v,bdg,caf_li,caf_lv,caf_fi,caf_fv" and f1104["cur"] in ("bdgl_i", "bdgl_v") and f1104["colh"] == "1,true,0,1" and f1104["loupe"], f1104)
         check("FORME 04/11, remarques 12 et 13 : MODIFIER LE FORMAT d'une interface (ÉTAT de l'écran puis les éléments, sans les parties des fenêtres) ; écran d'ACCUEIL et RÉGLAGES COMMUNS (APPLIQUER PARTOUT remplace les réglages par interface)",
               f1104["byCss"] and f1104["win1"] == "true,12,true" and f1104["saved"] == "#112233" and f1104["win2"] == "true,24,true" and f1104["cleared"] == 0 and f1104["home"], f1104)
         check("FORME 04/11, remarques 14 et 15 : rubrique FORMAT et MASQUES DE SAISIE retirées de PARAMÉTRAGE ; masque posé sur un champ par appui long (clic droit), \"texte\" écrit d'office, autres signes placés d'office",
@@ -4032,6 +4032,24 @@ def main():
   const P2 = sviPal(); P2.auto.deb = hh(m + 60); P2.auto.fin = hh(m + 120); sviPalSave(P2); sviPalTick(); await w(100); r.day = sviPal().mode === 'jour';
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); sviFmtApply(); sviColorsApply(); sviPalApply(); return r; }""")
         check("SÉRIE D, D4 D6 (document unique 1.9) : PALETTE AUTOMATIQUE dans le bandeau — NUIT entre le début et la fin (heure du fuseau), heures HH:MM contrôlées, début ≠ fin ; choix à la main valable jusqu'au prochain changement d'heure", all(d6.get(k) for k in ['nuit', 'refused', 'same', 'man', 'back', 'day']) and d6.get('inputs') == 2, d6)
+        d1 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_cmf_v1', 'svi_ach_rtr_v1', 'svi_ach_faf_v1', 'svi_ach_avf_v1', 'svi_ach_rcp_v1', 'svi_ach_tab_v1'], keep = K.map(k => localStorage.getItem(k)); await sviAchLoad();
+  const L = achFrs(); const f = achFrsNew(L, { nom: 'RETOURS' }); f.st = 'valide'; achFrsSave(L);
+  achCmfSave([{ id: 'M1', ref: 'CMF 26-0101/001', frs: f.id, state: 'valide', cree: '2026-01-02', valide: '2026-01-02', lignes: [{ id: 'a', des: 'SABLE', u: 'M3', q: 10, pu: 100, tva: 20 }] }]);
+  achRtrSave([{ id: 'T1', ref: 'RTC 26-0105/001', kind: 'cmd', cmf: 'M1', frs: f.id, date: '2026-01-05T10:00:00', motif: 'TROP', lignes: [{ cl: 'a', des: 'SABLE', u: 'M3', q: 2 }] }]);
+  achFafSave([{ id: 'F1', ref: 'FAF 26-0110/001', frs: f.id, cmf: 'M1', state: 'bap', dFac: '2026-01-10', lignes: [{ des: 'SABLE', u: 'M3', q: 8, pu: 100, tva: 20 }] }]);
+  achAvfSave([{ id: 'V1', ref: 'AVF 26-0112/001', frs: f.id, fa: 'F1', date: '2026-01-12', ttc: 120, motif: 'REMISE' }]);
+  r.menu = ['rtc', 'rtr', 'avf'].filter(k => document.querySelector('#navMenu [data-ach="' + k + '"]')).length;
+  document.querySelector('#navMenu .nav-btn[data-ach="cmf"]').click(); await w(400);
+  const sw = document.querySelector('#ach [data-nvsw]'); if (document.querySelector('#ach table.nv-inst')) { sw.click(); await w(400); }
+  const row = document.querySelector('#ach tr[data-nvo="T1"]'); r.row = row ? [...row.cells].map(c => c.textContent.trim()).filter(Boolean).join('|') : 'absent';
+  r.cmfStore = achCmf().length === 1 && !JSON.stringify(achCmf()).includes('__m');
+  achGo('rtc', 'T1'); await w(600); r.page = (document.querySelector('#ach .nvp-ref') || {}).textContent; r.tab = localStorage.getItem('svi_ach_tab_v1');
+  document.querySelector('#navMenu .nav-btn[data-ach="faf"]').click(); await w(400); if (document.querySelector('#ach table.nv-inst')) { document.querySelector('#ach [data-nvsw]').click(); await w(400); }
+  const ra = document.querySelector('#ach tr[data-nvo="V1"]'); r.av = ra ? [...ra.cells].map(c => c.textContent.trim()).filter(Boolean).join('|') : 'absent';
+  achGo('frs', f.id); await w(700); r.blks = [...document.querySelectorAll('#ach .nvp-blk .ttl')].map(t => t.textContent.replace(/\s*\d+$/, '').trim()).join(',');
+  r.rtStore = !JSON.stringify(achRtr()).includes('__m') && !JSON.stringify(achAvf()).includes('__m');
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
+        check("SÉRIE D, D1 : plus d'interface RETOURS / AVOIRS — retour de commande dans COMMANDES (montants négatifs, sa page, son lien), avoir dans FACTURES ; page fournisseur sans blocs RETOURS / AVOIRS ; données intactes", d1.get('menu') == 0 and d1.get('row', '').startswith('RTC 26-0105/001|RETOUR DE COMMANDE') and '-200,00|-240,00' in d1.get('row', '') and d1.get('cmfStore') and d1.get('page') == 'RTC 26-0105/001' and d1.get('tab') == 'cmf' and d1.get('av', '').startswith('AVF 26-0112/001') and '-120,00' in d1.get('av', '') and 'RETOURS' not in d1.get('blks', '') and 'AVOIRS' not in d1.get('blks', '') and d1.get('rtStore'), d1)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

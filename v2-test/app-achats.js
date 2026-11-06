@@ -739,7 +739,7 @@ function sviAchInit() {
   const aOk = (a, k) => k === "tout" ? true : k === "corbeille" ? !!a.del : !a.del && (k === "inactif" ? a.actif === false : a.actif !== false);
   const setEtat = k => { aEtat = k; showDel = k === "corbeille"; try { localStorage.setItem("svi_ach_etat_v1", k); } catch (e) {} };
   showDel = aEtat === "corbeille";
-  try { const t = localStorage.getItem("svi_ach_tab_v1"); if (["art", "prm", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "rtc", "rtr", "faf", "avf", "paf"].includes(t)) tab = t; } catch (e) {}
+  try { const t = localStorage.getItem("svi_ach_tab_v1"); if (["art", "prm", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "rtc", "rtr", "faf", "avf", "paf"].includes(t)) tab = achGoMap[t] || t;   /* D1 : plus d'interface RETOURS / AVOIRS */ } catch (e) {}
   const SEL = new Set();
   const kit = sviCfKit({ key: "ach", shell: view, refresh: () => draw() });
   const { cfApply, cfHead, cfOpenMenu, cfT } = kit;
@@ -1773,10 +1773,21 @@ const achFrsNom = id => { const f = achFrsOf(id); return f ? f.nom : "?"; };   /
 /* tableau générique d'une liste d'achats (consultations, devis) : même format que les articles */
 /* v765 : toutes les listes des achats au format du budget (47 : achNvList) — EN INSTANCE / VALIDÉS, dates, CRÉER… en bas,
    corbeille des lignes en instance (= ANNULER, la pièce est gardée) ; toucher une ligne ouvre sa fiche */
+/* D1 (série D) : RETOURS ET AVOIRS sans interface à part — une liste peut accueillir les pièces négatives d'une autre (o.merge) :
+   retours de commande dans COMMANDES, retours de réception dans RÉCEPTIONS, avoirs dans FACTURES. Chacun garde son nom, sa numérotation,
+   sa page et son lien avec la pièce d'origine ; les données restent où elles sont (aucune reprise, aucun doublon possible). */
+const achGoMap = { rtc: "cmf", rtrcmd: "cmf", rtr: "rcp", rtrrcp: "rcp", avf: "faf" };
 function achListMod(ctx, o) {
   const dead = x => x.state === "annule";
+  const M = o.merge || [], o0 = o;
+  if (M.length) { const base = o.list, mOf = x => x.__m === undefined ? null : M[x.__m];
+    o = { ...o, list: () => base().concat(...M.map((m, i) => m.o.list().map(x => Object.assign(x, { __m: i })))),
+      save: o.save ? L => o0.save(L.filter(x => x.__m === undefined)) : o.save,
+      inst: x => mOf(x) ? false : (o0.inst || (() => false))(x), why: (x, L) => mOf(x) ? [] : o0.why(x, (L || base()).filter(y => y.__m === undefined)),
+      cols: () => o0.cols().map(c => [c[0], c[1], x => { const m = mOf(x); return m ? (m.col[c[0]] ? m.col[c[0]](x) : "") : c[2](x); }, ...c.slice(3)]) };
+    o.mOf = mOf; }
   /* v817 : annulation d'une pièce toujours avec motif (C5.27, C6.72, C8.71), la pièce est gardée */
-  const kill = o.save ? async x => { const m = await achAsk("ANNULER " + x.ref + " (GARDÉ, VISIBLE DANS ANNULÉS)", "MOTIF DE L'ANNULATION"); if (!m) return false;
+  const kill = o.save ? async x => { if (o.mOf && o.mOf(x)) { svToast("ANNULER DEPUIS LA PAGE DE " + x.ref + ".", 3000); return false; } const m = await achAsk("ANNULER " + x.ref + " (GARDÉ, VISIBLE DANS ANNULÉS)", "MOTIF DE L'ANNULATION"); if (!m) return false;
       const L = o.list(), y = L.find(z => z.id === x.id); if (!y) return false; y.state = "annule"; y.motifAnn = m; y.mod = achNow(); o.save(L); achHist(y.ref, "ANNULÉ — " + m, ""); return true; } : null;
   /* v779 : chaque pièce a sa PAGE au format de l'écran d'un budget (référence, i = la fiche, H, barre, blocs liés, SUIVI) */
   const ONE = { bsn: "BESOIN", caf: "CONSULTATION", dvf: "DEVIS", cmf: "COMMANDE", rcp: "RÉCEPTION", rtrcmd: "RETOUR DE COMMANDE", rtrrcp: "RETOUR DE RÉCEPTION", faf: "FACTURE", avf: "AVOIR", paf: "PAIEMENT" };
@@ -1792,7 +1803,8 @@ function achListMod(ctx, o) {
         /* dès que la nouvelle pièce est enregistrée, sa fenêtre se ferme et sa page s'ouvre */
         const tm = setInterval(() => { const n = o.list().find(x => !before.has(x.id)); if (n) { document.getElementById("svConf")?.remove(); end(); } else if (!document.getElementById("svConf")) end(); }, 250);
         o.open(null, end); } },
-    pageOf: id => { const x = o.list().find(y => y.id === id); if (!x) return null; const D = achDocPage(o.k, x);
+    pageOf: id => { const x = o.list().find(y => y.id === id); if (!x) return null; if (o.mOf && o.mOf(x)) return achListPage(o.mOf(x).o, id);
+      const D = achDocPage(o.k, x);
       return { id, code: x.ref, ref: x.ref, title: D.title || x.ref, party: x.frs ? achFrsNom(x.frs) : "", partyGo: x.frs ? "frs|" + x.frs : "", date: achDFr(x.date || x.dFac || x.cree), tot: D.tot || [], ttc: D.ttc || 0, numFrs: x.refFrs || x.num || x.nbl || "", st: (o.inst || (() => false))(x) ? "instance" : "valide", del: dead(x), why: o.why(x, o.list()),
         info: done => (o.info || o.open)(id, () => done()),
         menu: [{ k: "fiche", lab: "OUVRIR LA FICHE" }].concat(D.menu || []).concat(kill && !dead(x) ? [{ k: "del", lab: "ANNULER" }] : []),
@@ -1801,7 +1813,12 @@ function achListMod(ctx, o) {
   });
 }
 /* v779 : contenu de la page d'une pièce — LIGNES puis les pièces liées (un toucher ouvre leur page) */
-function achGo(t, id) { const v = document.getElementById("ach"); if (!v || !v.__achTab) return; v.__achTab(t, !!(id && v.__achOpen)); if (v.__achOpen) v.__achOpen(t, id); }
+/* D1 : page d'une pièce venue d'une autre liste (retour, avoir) — même page que dans son ancienne interface */
+function achListPage(o, id) { const x = o.list().find(y => y.id === id); if (!x) return null; const D = achDocPage(o.k, x), inst = (o.inst || (() => false))(x);
+  return { id, code: x.ref, ref: x.ref, title: (o.one || "") + (D.title ? " — " + D.title : ""), party: x.frs ? achFrsNom(x.frs) : "", partyGo: x.frs ? "frs|" + x.frs : "", date: achDFr(x.date || x.dFac || x.cree), tot: D.tot || [], ttc: D.ttc || 0, numFrs: x.refFrs || x.num || x.nbl || "", st: inst ? "instance" : "valide", del: x.state === "annule", why: [],
+    info: done => o.open(id, () => done()), menu: [{ k: "fiche", lab: "OUVRIR LA FICHE" }].concat(D.menu || []),
+    act: async (k, redraw) => { if (k === "fiche") { o.open(id, redraw); return; } if (D.act) await D.act(k, redraw); }, links: D.links.map(L => ({ ...L, add: "" })) }; }
+function achGo(t, id) { t = achGoMap[t] || t; const v = document.getElementById("ach"); if (!v || !v.__achTab) return; v.__achTab(t, !!(id && v.__achOpen)); if (v.__achOpen) v.__achOpen(t, id); }
 function achDocPage(k, x) {
   const fr = id => id ? achFrsNom(id) : "", ref = (L, id) => ((L.find(y => y.id === id) || {}).ref) || "";
   /* v800 (document unique 3.6 – 3.7) : toucher un article ou un fournisseur dans un tableau ouvre sa page */
@@ -2101,7 +2118,9 @@ function achPickWin(title, items) {
 const ACH_CMF_ST = { instance: "EN INSTANCE", valide: "VALIDÉE", solde: "SOLDÉE", annule: "ANNULÉE" };
 const achNow = () => new Date().toISOString();
 function achCmfMod(ctx) {
-  return achListMod(ctx, { k: "cmf", t: "ach_cmf", id: "achCmfT", list: achCmf, name: "COMMANDES", save: achCmfSave, inst: c => c.state === "instance", etatKey: "svi_ach_cmf_etat_v1", newLab: "NOUVELLE COMMANDE", newRow: "CRÉER UNE COMMANDE ICI…", open: achCmfFiche,
+  return achListMod(ctx, { k: "cmf", t: "ach_cmf", id: "achCmfT", list: achCmf, name: "COMMANDES", save: achCmfSave,
+    /* D1 : les retours de commande sont des commandes de montant négatif, rangées ici */
+    merge: [{ o: achRtrCfg("cmd"), col: { ref: x => x.ref, nat: () => "RETOUR DE COMMANDE", frs: x => x.frs ? achFrsNom(x.frs) : "", prom: x => achDFr(x.date), ht: x => achRtrMt(x), ttc: x => achRtrTtc(x), recu: x => achRtrSrc(x), etat: x => x.state === "annule" ? "ANNULÉ" : "RETOUR" } }], inst: c => c.state === "instance", etatKey: "svi_ach_cmf_etat_v1", newLab: "NOUVELLE COMMANDE", newRow: "CRÉER UNE COMMANDE ICI…", open: achCmfFiche,
     etats: [["actif", "EN COURS"], ["instance", "EN INSTANCE"], ["valide", "VALIDÉES"], ["solde", "SOLDÉES"], ["alerte", "ALERTE"], ["annule", "ANNULÉES"], ["tout", "TOUT"]],
     ok: (c, k) => k === "tout" ? true : k === "alerte" ? achCmfWhy(c).length > 0 : k === "actif" ? c.state === "instance" || c.state === "valide" : c.state === k,
     why: c => achCmfWhy(c),
@@ -2112,7 +2131,9 @@ function achCmfMod(ctx) {
       ["etat", "ÉTAT", c => ACH_CMF_ST[c.state] || "", "center"]] });
 }
 function achRcpMod(ctx) {
-  return achListMod(ctx, { k: "rcp", t: "ach_rcp", id: "achRcpT", list: achRcp, name: "RÉCEPTIONS", etatKey: "svi_ach_rcp_etat_v1", newLab: "LIVRAISON SANS COMMANDE", newRow: "CRÉER UNE RÉCEPTION SANS COMMANDE ICI… (LES AUTRES : DEPUIS LA COMMANDE, RÉCEPTIONNER)", open: (id, done) => achRcpFiche(id, null, done),
+  return achListMod(ctx, { k: "rcp", t: "ach_rcp", id: "achRcpT", list: achRcp, name: "RÉCEPTIONS",
+    /* D1 : les retours de réception sont des réceptions négatives, rangées ici */
+    merge: [{ o: achRtrCfg("rcp"), col: { ref: x => x.ref, cmf: x => ((achCmf().find(c => c.id === x.cmf) || {}).ref) || "", frs: x => x.frs ? achFrsNom(x.frs) : "", nbl: x => "RETOUR DE " + achRtrSrc(x), date: x => svDT(x.date || ""), lig: x => String((x.lignes || []).length), res: x => x.motif || "", etat: x => x.state === "annule" ? "ANNULÉ" : "RETOUR" } }], etatKey: "svi_ach_rcp_etat_v1", newLab: "LIVRAISON SANS COMMANDE", newRow: "CRÉER UNE RÉCEPTION SANS COMMANDE ICI… (LES AUTRES : DEPUIS LA COMMANDE, RÉCEPTIONNER)", open: (id, done) => achRcpFiche(id, null, done),
     etats: [["actif", "ACTIVES"], ["alerte", "ALERTE"], ["annule", "ANNULÉES"], ["tout", "TOUT"]],
     ok: (r, k) => k === "tout" ? true : k === "alerte" ? achRcpWhy(r).length > 0 : k === "annule" ? r.state === "annule" : r.state !== "annule",
     why: r => achRcpWhy(r),
@@ -2122,14 +2143,15 @@ function achRcpMod(ctx) {
       ["res", "RÉSULTAT", r => { const L = r.lignes || []; return L.some(l => l.st === "ref") ? (L.every(l => l.st === "ref") ? "REFUSÉE" : "REFUS PARTIEL") : L.some(l => l.st === "res") ? (r.resLev ? "RÉSERVES LEVÉES" : "AVEC RÉSERVES") : "ACCEPTÉE"; }, "center"],
       ["etat", "ÉTAT", r => r.state === "annule" ? "ANNULÉE" : "ENREGISTRÉE", "center"]] });
 }
-function achRtrMod(ctx, kind) {
-  return achListMod(ctx, { k: "rtr" + kind, t: "ach_rtr" + kind, id: kind === "cmd" ? "achRtcT" : "achRtrT", name: kind === "cmd" ? "RETOURS DE COMMANDE" : "RETOURS DE RÉCEPTION", list: () => achRtr().filter(x => x.kind === kind), etatKey: "svi_ach_rtr" + kind + "_etat_v1",
+function achRtrMod(ctx, kind) { return achListMod(ctx, achRtrCfg(kind)); }
+function achRtrCfg(kind) {
+  return { k: "rtr" + kind, one: kind === "cmd" ? "RETOUR DE COMMANDE" : "RETOUR DE RÉCEPTION", t: "ach_rtr" + kind, id: kind === "cmd" ? "achRtcT" : "achRtrT", name: kind === "cmd" ? "RETOURS DE COMMANDE" : "RETOURS DE RÉCEPTION", list: () => achRtr().filter(x => x.kind === kind), etatKey: "svi_ach_rtr" + kind + "_etat_v1",
     newLab: kind === "cmd" ? "RETOUR DE COMMANDE (DEPUIS LA COMMANDE)" : "RETOUR DE RÉCEPTION (DEPUIS LA RÉCEPTION)", newRow: kind === "cmd" ? "UN RETOUR DE COMMANDE SE CRÉE DEPUIS LA COMMANDE (RETOUR DE COMMANDE, SOLDER)" : "UN RETOUR DE RÉCEPTION SE CRÉE DEPUIS LA RÉCEPTION (REFUS, RETOURNER)",
     open: (id, done) => { if (id) achRtrWin(id); else svToast(kind === "cmd" ? "OUVRIR LA COMMANDE PUIS « RETOUR DE COMMANDE » OU « SOLDER »." : "OUVRIR LA RÉCEPTION PUIS « RETOURNER » (OU REFUSER DES LIGNES).", 3500); },
     etats: [["tout", "TOUS"]], ok: () => true, why: () => [],
     w: { ref: 150, src: 150, frs: 220, date: 150, lig: 260, mt: 130, motif: 260 },
     cols: () => [["ref", "RÉFÉRENCE", x => x.ref, ""], ["src", kind === "cmd" ? "COMMANDE" : "RÉCEPTION", x => kind === "cmd" ? ((achCmf().find(c => c.id === x.cmf) || {}).ref || "") : ((achRcp().find(r => r.id === x.rcp) || {}).ref || ""), ""],
-      ["frs", "FOURNISSEUR", x => x.frs ? achFrsNom(x.frs) : "", ""], ["date", "DATE", x => svDT(x.date || ""), ""], ["lig", "LIGNES", x => (x.lignes || []).map(l => l.des + " " + achF2(l.q) + " " + l.u).join(" · "), ""], ["mt", "MONTANT HT", x => achRtrMt(x), "number"], ["motif", "MOTIF", x => x.motif || "", ""]] });
+      ["frs", "FOURNISSEUR", x => x.frs ? achFrsNom(x.frs) : "", ""], ["date", "DATE", x => svDT(x.date || ""), ""], ["lig", "LIGNES", x => (x.lignes || []).map(l => l.des + " " + achF2(l.q) + " " + l.u).join(" · "), ""], ["mt", "MONTANT HT", x => achRtrMt(x), "number"], ["motif", "MOTIF", x => x.motif || "", ""]] };
 }
 function achRtrWin(id) {
   const x = achRtr().find(y => y.id === id); if (!x) return;
@@ -2143,6 +2165,11 @@ function achRtrWin(id) {
 }
 /* retour (de commande ou de réception) : enregistré et noté dans H */
 /* B37 (série B) : un retour est une pièce de montant NÉGATIF (prix des lignes de la commande d'origine) */
+/* D1 : montant TTC d'un retour (négatif), TVA des lignes de la commande */
+const achRtrTtc = x => { const c = achCmf().find(y => y.id === x.cmf), CL = (c && c.lignes) || [];
+  return -(x.lignes || []).reduce((t, l) => { const o = CL.find(y => y.id === l.cl) || CL.find(y => achKey(y.des, y.u) === achKey(l.des, l.u)) || {}, tv = o.tva === "" || o.tva === undefined ? achPrm().tva : achN(o.tva);
+    return t + achN(l.q) * achN(o.pu) * (1 - achN(c && c.rem) / 100) * (1 + tv / 100); }, 0); };
+const achRtrSrc = x => x.kind === "cmd" ? ((achCmf().find(c => c.id === x.cmf) || {}).ref || "") : ((achRcp().find(r => r.id === x.rcp) || {}).ref || "");
 const achRtrMt = x => { const c = achCmf().find(y => y.id === x.cmf), CL = (c && c.lignes) || [];
   return -(x.lignes || []).reduce((t, l) => { const o = CL.find(y => y.id === l.cl) || CL.find(y => achKey(y.des, y.u) === achKey(l.des, l.u)) || {}; return t + achN(l.q) * achN(o.pu) * (1 - achN(c && c.rem) / 100); }, 0); };
 const achRtrAdd = o => { const L = achRtr(); const x = { id: "T" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), ref: achNextRef(o.kind === "cmd" ? "RTC" : "RTR", L.filter(y => y.kind === o.kind)), date: achNow(), ...o }; L.push(x); achRtrSave(L);
@@ -2448,7 +2475,9 @@ const ACH_PAF_ST = { instance: "EN INSTANCE", emis: "ÉMIS", encaisse: "ENCAISS�
 const achFafEtat = f => f.state === "bap" && achFafReste(f) <= 0.005 ? "PAYÉE" : f.state === "bap" && achFafPaid(f.id) > 0 ? "PAYÉE EN PARTIE" : ACH_FAF_ST[f.state] || "";
 const achId = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 function achFafMod(ctx) {
-  return achListMod(ctx, { k: "faf", t: "ach_faf", id: "achFafT", list: achFaf, name: "FACTURES", save: achFafSave, info: achFafInfo, inst: f => f.state === "instance" || f.state === "reclame", etatKey: "svi_ach_faf_etat_v1", newLab: "NOUVELLE FACTURE", newRow: "CRÉER UNE FACTURE ICI… (OU DEPUIS LA COMMANDE : FACTURER)", open: (id, done) => achFafFiche(id, null, done),
+  return achListMod(ctx, { k: "faf", t: "ach_faf", id: "achFafT", list: achFaf, name: "FACTURES", save: achFafSave,
+    /* D1 : les avoirs sont des factures de montant négatif, rangés ici */
+    merge: [{ o: achAvfCfg(), col: { ref: a => a.ref, num: a => a.num || "", frs: a => a.frs ? achFrsNom(a.frs) : "", cmf: a => "AVOIR SUR " + (((achFaf().find(f => f.id === a.fa) || {}).ref) || "—"), dfac: a => achDFr(a.date), ttc: a => -achN(a.ttc), reste: a => a.state === "annule" ? "" : -achAvfReste(a), etat: a => a.state === "annule" ? "ANNULÉ" : "AVOIR" } }], info: achFafInfo, inst: f => f.state === "instance" || f.state === "reclame", etatKey: "svi_ach_faf_etat_v1", newLab: "NOUVELLE FACTURE", newRow: "CRÉER UNE FACTURE ICI… (OU DEPUIS LA COMMANDE : FACTURER)", open: (id, done) => achFafFiche(id, null, done),
     etats: [["actif", "À PAYER"], ["instance", "EN INSTANCE"], ["reclame", "RÉCLAMÉES"], ["bap", "BON À PAYER"], ["payee", "PAYÉES"], ["alerte", "ALERTE"], ["annule", "ANNULÉES"], ["tout", "TOUT"]],
     ok: (f, k, L) => k === "tout" ? true : k === "alerte" ? achFafWhy(f, L).length > 0 : k === "payee" ? f.state === "bap" && achFafReste(f) <= 0.005 : k === "actif" ? f.state !== "annule" && achFafReste(f) > 0.005 : f.state === k,
     why: (f, L) => achFafWhy(f, L),
@@ -2457,13 +2486,14 @@ function achFafMod(ctx) {
       ["cmf", "COMMANDE", f => f.type === "acompte" ? "ACOMPTE" : ((achCmf().find(c => c.id === f.cmf) || {}).ref) || "SANS COMMANDE", ""], ["dfac", "DATE", f => achDFr(f.dFac), ""], ["ech", "ÉCHÉANCE", f => achDFr(achFafEch(f)), ""],
       ["ttc", "MONTANT TTC", f => achFafTot(f).ttc, "number"], ["reste", "RESTE À PAYER", f => f.state === "annule" ? "" : achFafReste(f), "number"], ["etat", "ÉTAT", f => achFafEtat(f), "center"]] });
 }
-function achAvfMod(ctx) {
-  return achListMod(ctx, { k: "avf", t: "ach_avf", id: "achAvfT", list: achAvf, name: "AVOIRS", etatKey: "svi_ach_avf_etat_v1", newLab: "NOUVEL AVOIR", newRow: "CRÉER UN AVOIR ICI…", open: achAvfFiche,
+function achAvfMod(ctx) { return achListMod(ctx, achAvfCfg()); }
+function achAvfCfg() {
+  return { k: "avf", one: "AVOIR", t: "ach_avf", id: "achAvfT", list: achAvf, name: "AVOIRS", etatKey: "svi_ach_avf_etat_v1", newLab: "NOUVEL AVOIR", newRow: "CRÉER UN AVOIR ICI…", open: achAvfFiche,
     etats: [["actif", "À DÉDUIRE"], ["tout", "TOUT"], ["annule", "ANNULÉS"]],
     ok: (a, k) => k === "tout" ? true : k === "annule" ? a.state === "annule" : a.state !== "annule" && achAvfReste(a) > 0.005, why: () => [],
     w: { ref: 150, num: 130, frs: 220, fa: 150, date: 110, ttc: 130, reste: 130, motif: 220 },
     cols: () => [["ref", "RÉFÉRENCE", a => a.ref, ""], ["num", "N° AVOIR", a => a.num || "", ""], ["frs", "FOURNISSEUR", a => a.frs ? achFrsNom(a.frs) : "", ""], ["fa", "FACTURE", a => ((achFaf().find(f => f.id === a.fa) || {}).ref) || "", ""],
-      ["date", "DATE", a => achDFr(a.date), ""], ["ttc", "MONTANT TTC", a => -achN(a.ttc), "number"],   /* B37 : avoir = facture de montant négatif */ ["reste", "RESTE À DÉDUIRE", a => a.state === "annule" ? "" : achAvfReste(a), "number"], ["motif", "MOTIF", a => a.motif || "", ""]] });
+      ["date", "DATE", a => achDFr(a.date), ""], ["ttc", "MONTANT TTC", a => -achN(a.ttc), "number"],   /* B37 : avoir = facture de montant négatif */ ["reste", "RESTE À DÉDUIRE", a => a.state === "annule" ? "" : achAvfReste(a), "number"], ["motif", "MOTIF", a => a.motif || "", ""]] };
 }
 function achPafMod(ctx) {
   return achListMod(ctx, { k: "paf", t: "ach_paf", id: "achPafT", list: achPaf, name: "PAIEMENTS", save: achPafSave, inst: p => p.state === "instance", etatKey: "svi_ach_paf_etat_v1", newLab: "NOUVEAU PAIEMENT", newRow: "CRÉER UN PAIEMENT ICI… (OU DEPUIS LA FACTURE : PAYER)", open: (id, done) => achPafFiche(id, null, done),
@@ -3312,11 +3342,13 @@ function achFrsNvMod(ctx) {
           ...(twins.length ? [{ t: "AUTRES FICHES DU MÊME NOM", cols: [["RÉFÉRENCE"], ["NOM"], ["VILLE"], ["ÉTAT", "center"]], rows: twins.map(x => ({ cells: [achFrsRef(x), x.nom, x.ville || "", achStF(x) === "fige" ? "FIGÉ" : achSt(x) === "instance" ? "EN INSTANCE" : "VALIDÉ"], open: () => achGo("frs", x.id) })) }] : []),
           { t: "CONSULTATIONS", cols: [["RÉFÉRENCE"], ["OBJET"], ["RÉPONSE", "center"], ["ÉTAT", "center"]], rows: CA.map(c => { const k = (c.frs || []).find(me), rp = (c.rep || {})[k] || {}; return { cells: [c.ref, c.objet || "", rp.st === "repondu" ? "RÉPONDU" : "EN ATTENTE", { ouverte: "OUVERTE", close: "CLOSE", annule: "ANNULÉE" }[c.state] || ""], open: () => achGo("caf", c.id), cls: c.state === "annule" ? "nv-strike" : "" }; }) },
           { t: "DEVIS", cols: [["RÉFÉRENCE"], ["ARTICLES"], ["MONTANT TTC", "number"]], rows: D.map(v => ({ cells: [v.ref, (v.lignes || []).map(l => l.des).join("; "), achDvfTot(v).ttc], open: () => achGo("dvf", v.id), st: v.state === "retenu" ? "valide" : v.state === "rejete" || v.state === "annule" ? "" : "instance", cls: v.state === "rejete" || v.state === "annule" ? "nv-strike" : "" })) },
-          { t: "COMMANDES", cols: [["RÉFÉRENCE"], ["ARTICLES"], ["MONTANT TTC", "number"], ["ÉTAT", "center"]], rows: M.map(c => ({ cells: [c.ref, (c.lignes || []).map(l => l.des).join("; "), achCmfTot(c).ttc, ACH_CMF_ST[c.state] || ""], open: () => achGo("cmf", c.id), cls: c.state === "annule" ? "nv-strike" : "" })) },
-          { t: "RÉCEPTIONS", cols: [["RÉFÉRENCE"], ["COMMANDE"], ["N° BL"], ["REÇU LE", "center"], ["ÉTAT", "center"]], rows: RC.map(r => ({ cells: [r.ref, ((achCmf().find(c => c.id === r.cmf) || {}).ref) || "SANS COMMANDE", r.pv ? "PV DE SERVICE FAIT" : r.nbl || "", achDFr(r.date), r.state === "annule" ? "ANNULÉE" : "ENREGISTRÉE"], open: () => achGo("rcp", r.id), cls: r.state === "annule" ? "nv-strike" : "" })) },
-          { t: "RETOURS", cols: [["RÉFÉRENCE"], ["ORIGINE"], ["DATE", "center"], ["MOTIF"]], rows: RT.map(x => ({ cells: [x.ref, x.kind === "cmd" ? ((achCmf().find(c => c.id === x.cmf) || {}).ref || "") : ((achRcp().find(r => r.id === x.rcp) || {}).ref || ""), achDFr(x.date), x.motif || ""], open: () => achGo(x.kind === "cmd" ? "rtc" : "rtr", x.id) })) },
-          { t: "FACTURES", cols: [["RÉFÉRENCE"], ["N°"], ["MONTANT TTC", "number"], ["RESTE À PAYER", "number"], ["ÉTAT", "center"]], rows: FA.map(x => ({ cells: [x.ref, x.num || "", achFafTot(x).ttc, x.state === "annule" ? "" : achFafReste(x), achFafEtat(x)], open: () => achGo("faf", x.id), cls: x.state === "annule" ? "nv-strike" : "" })) },
-          { t: "AVOIRS", cols: [["RÉFÉRENCE"], ["N°"], ["FACTURE"], ["MONTANT TTC", "number"]], rows: AV.map(x => ({ cells: [x.ref, x.num || "", ((achFaf().find(y => y.id === x.fa) || {}).ref) || "", achN(x.ttc)], open: () => achGo("avf", x.id), cls: x.state === "annule" ? "nv-strike" : "" })) },
+          /* D1 : retours de commande dans COMMANDES, retours de réception dans RÉCEPTIONS, avoirs dans FACTURES (montants négatifs) */
+          { t: "COMMANDES", cols: [["RÉFÉRENCE"], ["ARTICLES"], ["MONTANT TTC", "number"], ["ÉTAT", "center"]], rows: M.map(c => ({ cells: [c.ref, (c.lignes || []).map(l => l.des).join("; "), achCmfTot(c).ttc, ACH_CMF_ST[c.state] || ""], open: () => achGo("cmf", c.id), cls: c.state === "annule" ? "nv-strike" : "" }))
+            .concat(RT.filter(x => x.kind === "cmd").map(x => ({ cells: [x.ref, "RETOUR DE COMMANDE — " + achRtrSrc(x), achRtrTtc(x), x.state === "annule" ? "ANNULÉ" : "RETOUR"], open: () => achGo("cmf", x.id), cls: x.state === "annule" ? "nv-strike" : "" }))) },
+          { t: "RÉCEPTIONS", cols: [["RÉFÉRENCE"], ["COMMANDE"], ["N° BL"], ["REÇU LE", "center"], ["ÉTAT", "center"]], rows: RC.map(r => ({ cells: [r.ref, ((achCmf().find(c => c.id === r.cmf) || {}).ref) || "SANS COMMANDE", r.pv ? "PV DE SERVICE FAIT" : r.nbl || "", achDFr(r.date), r.state === "annule" ? "ANNULÉE" : "ENREGISTRÉE"], open: () => achGo("rcp", r.id), cls: r.state === "annule" ? "nv-strike" : "" }))
+            .concat(RT.filter(x => x.kind === "rcp").map(x => ({ cells: [x.ref, ((achCmf().find(c => c.id === x.cmf) || {}).ref) || "", "RETOUR DE " + achRtrSrc(x), achDFr(x.date), x.state === "annule" ? "ANNULÉ" : "RETOUR"], open: () => achGo("rcp", x.id), cls: x.state === "annule" ? "nv-strike" : "" }))) },
+          { t: "FACTURES", cols: [["RÉFÉRENCE"], ["N°"], ["MONTANT TTC", "number"], ["RESTE À PAYER", "number"], ["ÉTAT", "center"]], rows: FA.map(x => ({ cells: [x.ref, x.num || "", achFafTot(x).ttc, x.state === "annule" ? "" : achFafReste(x), achFafEtat(x)], open: () => achGo("faf", x.id), cls: x.state === "annule" ? "nv-strike" : "" }))
+            .concat(AV.map(x => ({ cells: [x.ref, x.num || "", -achN(x.ttc), x.state === "annule" ? "" : -achAvfReste(x), x.state === "annule" ? "ANNULÉ" : "AVOIR"], open: () => achGo("faf", x.id), cls: x.state === "annule" ? "nv-strike" : "" }))) },
           { t: "PAIEMENTS", cols: [["RÉFÉRENCE"], ["MODE"], ["MONTANT", "number"], ["ÉTAT", "center"]], rows: PA.map(p => ({ cells: [p.ref, p.mode, achN(p.mt), ACH_PAF_ST[p.state] || ""], open: () => achGo("paf", p.id), cls: p.state === "annule" || p.state === "rejete" ? "nv-strike" : "" })) },
           /* v808 : blocs de la page du fournisseur (checklist, hors du i) — encours et solde, litiges, évaluations, dépendance */
           (() => { const fa = FA.filter(x => !x.del && x.state !== "annule"), fac = fa.reduce((t, x) => t + achFafTot(x).ttc, 0), enc = achFrsEnc(id),
