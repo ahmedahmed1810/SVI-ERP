@@ -1319,12 +1319,13 @@ def main():
         pl = pg.evaluate("() => { const g = document.querySelector('.dlyg-foot .gplaf'); const h = document.querySelector('#dlyGantt'); if (!g) return null; const x0 = h.__d0; const r = g.getBoundingClientRect(); return [r.left, r.top, r.width, x0]; }")
         cutok = False
         if pl:
-            dw = pg.evaluate("() => parseFloat(getComputedStyle(document.querySelector('#dlyGantt')).getPropertyValue('--dw')) || 22")
-            n = pg.evaluate("d0 => Math.round((new Date('2026-11-04T00:00:00') - new Date(d0 + 'T00:00:00')) / 864e5)", pl[3])
+            dw = pg.evaluate("() => (typeof ECR !== 'undefined' && ECR.DLY_DW) || parseFloat(getComputedStyle(document.querySelector('#dlyGantt')).getPropertyValue('--dw')) || 22")
+            n = pg.evaluate("d0 => Math.round((new Date('2026-11-04T00:00:00') - new Date(((document.querySelector('#dlyGantt') || {}).__d0 || d0) + 'T00:00:00')) / 864e5)", pl[3])   # 06/11 : origine réelle du Gantt
             hx = pg.evaluate("() => document.querySelector('.dlyg-foot .ghist').getBoundingClientRect().left")
             x = hx + n * dw + dw / 2
             # v628 : Gantt ajusté à l'ouverture (jours plus larges) — le jour visé est amené dans la partie visible
-            pg.evaluate("x => { const h = document.querySelector('#dlyGantt'); h.scrollLeft = Math.max(0, h.scrollLeft + x - h.getBoundingClientRect().left - Math.min(200, h.clientWidth / 2)); }", x)   # v748 : défilement de départ compté; pg.wait_for_timeout(200)
+            pg.evaluate("x => { const h = document.querySelector('#dlyGantt'); h.scrollLeft = Math.max(0, h.scrollLeft + x - h.getBoundingClientRect().left - Math.min(200, h.clientWidth / 2)); }", x)   # v748 : défilement de départ compté
+            pg.wait_for_timeout(400)   # 06/11 : laisser finir le défilement avant de mesurer
             hx = pg.evaluate("() => document.querySelector('.dlyg-foot .ghist').getBoundingClientRect().left"); x = hx + n * dw + dw / 2
             y = pg.evaluate("() => { const r = document.querySelector('.dlyg-foot .gplaf').getBoundingClientRect(); return r.top + 1; }")
             # v542 (R2) : appui long = « / » et bulle COUPER ICI qui suivent le doigt ; lâcher = couper à ce jour
@@ -3479,7 +3480,7 @@ def main():
         check("FORME 04/11, remarques 10 et 11 : interfaces (4 par pièce, 3 pour le budget, ordre du menu) et interface affichée connue ; MASQUER LA COLONNE dans la loupe, AFFICHER LES COLONNES MASQUÉES (compteur) dans le ⋯",
               f1104["ifs"] == "53|bdgl_i,bdgl_v,bdg,caf_li,caf_lv,caf_fi,caf_fv" and f1104["cur"] in ("bdgl_i", "bdgl_v") and f1104["colh"] == "1,true,0,1" and f1104["loupe"], f1104)
         check("FORME 04/11, remarques 12 et 13 : MODIFIER LE FORMAT d'une interface (ÉTAT de l'écran puis les éléments, sans les parties des fenêtres) ; écran d'ACCUEIL et RÉGLAGES COMMUNS (APPLIQUER PARTOUT remplace les réglages par interface)",
-              f1104["byCss"] and f1104["win1"] == "true,10,true" and f1104["saved"] == "#112233" and f1104["win2"] == "true,22,true" and f1104["cleared"] == 0 and f1104["home"], f1104)
+              f1104["byCss"] and f1104["win1"] == "true,12,true" and f1104["saved"] == "#112233" and f1104["win2"] == "true,24,true" and f1104["cleared"] == 0 and f1104["home"], f1104)
         check("FORME 04/11, remarques 14 et 15 : rubrique FORMAT et MASQUES DE SAISIE retirées de PARAMÉTRAGE ; masque posé sur un champ par appui long (clic droit), \"texte\" écrit d'office, autres signes placés d'office",
               f1104["noFmt"] and f1104["tok"] == "+212 6 12 34 56 78|ABC-123|123-AB" and f1104["pop"] and f1104["applied"] == "12345-B-67|99999-A-99", f1104)
         # remarque 16 : gestes sur ordinateur (Ctrl / Cmd + molette = hauteur des lignes, Option + molette = échelle du temps, clic droit = appui long)
@@ -3989,6 +3990,14 @@ def main():
   document.querySelector('.prm-tab[data-prm="cal"]').click(); await w(400); r.cal = [...document.querySelectorAll('#chs table select')].every(s => !!s.__svBtn);
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("SÉRIE C, C7 C8 : PARAMÉTRAGE — barre du haut commune (⋯ MODIFIER LE FORMAT, ⚠, ✕) ; plus de titre GÉNÉRAL — GÉNÉRAL ; SOCIÉTÉ dans son onglet, intitulés au-dessus ; logo et FUSEAU HORAIRE avec les boutons et listes de l'application", c78.get('h1') == 'PARAMÉTRAGE — GÉNÉRAL' and c78.get('tz') and not c78.get('socInGen') and c78.get('soc') == 'PARAMÉTRAGE — GÉNÉRAL — SOCIÉTÉ' and c78.get('logo') and c78.get('labTop') and c78.get('hdr') == 'undo,redo,prev,next,todo,close,more' and c78.get('menu') == 'MODIFIER LE FORMAT' and c78.get('cal'), c78)
+        c910 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {};
+  r.els = ['tabm', 'tabsub'].every(k => SVI_FMT_EL.some(E => E.k === k));
+  const css = sviFmtCss({ el: { tabm: { c: '#010203' }, tabsub: { c: '#040506' }, tab: { c: '#070809' } }, to: null, by: {}, cat: {} });
+  r.css = /\.pg-grps \.prm-grp:not\(\.on\)[^{]*\{[^}]*#010203/.test(css) && /\.pg-tabs > \.prm-tab[^{]*\{[^}]*#040506/.test(css) && /:not\(\.prm-grp\):not\(\.prm-tab\)[^{]*\{[^}]*#070809/.test(css);
+  sviFmtWin(); await w(200); r.top = !!document.querySelector('.fmw-card .svc-t [data-pal="nuit"]') && !document.querySelector('.fmw-card .svc-f [data-pal]'); document.querySelector('.fmw-card [data-x]').click(); await w(100);
+  sviFmtWin('bdg'); await w(200); r.topIf = !!document.querySelector('.fmw-card .svc-t [data-pal="jour"]'); document.querySelector('.fmw-card [data-x]').click(); await w(100);
+  return r; }""")
+        check('SÉRIE C, C9 C10 (document unique 5.4 et 1.9) : ONGLETS DE MODULE et SOUS-ONGLETS réglables séparément ; choix PALETTE JOUR / NUIT dans le bandeau du titre (RÉGLAGES COMMUNS et MODIFIER LE FORMAT)', c910.get('els') and c910.get('css') and c910.get('top') and c910.get('topIf'), c910)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

@@ -40,9 +40,13 @@ const SVI_FMT_EL = [
   /* 05/11 : l'en-tête DÉTAIL du budget (hors .bdg-d-block) et l'onglet actif des blocs SUIVI / RÉVISIONS (.active) suivent aussi le format */
   { k: "blk", lab: "EN-TÊTE DE BLOC", sel: [".bdg-d-block > .bdg-d-block-title", "#bdgDetailHead.bdg-d-block-title"], def: { bg: "#dde2e9", c: "#b91c1c", fs: 11, b: 1, h: 29 } },
   /* v923 (remarque 2) : FOND DES ONGLETS — seule la couleur du fond a un sens (f = réglages permis) */
-  { k: "tabs", lab: "FOND DES ONGLETS", sel: [".bdg-d-tabs", "#bdgTabs", ".rec-tabs"], def: { bg: "#eceff3" }, f: ["bg"] },
-  { k: "tab", lab: "ONGLET", sel: [".bdg-d-tab:not(.active):not(.on)", ".rec-tab:not(.on):not(.active)"], def: { bg: "#eceff3", c: "#6b7280", fs: 12, b: 1, h: 33 } },
-  { k: "taba", lab: "ONGLET ACTIF", sel: [".bdg-d-tab.active", ".bdg-d-tab.on", ".rec-tab.on", ".rec-tab.active"], def: { bg: "#ffffff", c: "#b91c1c", fs: 12, b: 1, h: 33 } },
+  { k: "tabs", lab: "FOND DES ONGLETS", sel: [".bdg-d-tabs:not(.pg-grps):not(.pg-tabs)", "#bdgTabs", ".rec-tabs"], def: { bg: "#eceff3" }, f: ["bg"] },
+  { k: "tab", lab: "ONGLET", sel: [".bdg-d-tab:not(.active):not(.on):not(.prm-grp):not(.prm-tab)", ".rec-tab:not(.on):not(.active)"], def: { bg: "#eceff3", c: "#6b7280", fs: 12, b: 1, h: 33 } },
+  { k: "taba", lab: "ONGLET ACTIF", sel: [".bdg-d-tab.active:not(.prm-grp):not(.prm-tab)", ".bdg-d-tab.on:not(.prm-grp):not(.prm-tab)", ".rec-tab.on", ".rec-tab.active"], def: { bg: "#ffffff", c: "#b91c1c", fs: 12, b: 1, h: 33 } },
+  /* C9 (série C, document unique 5.4) : PARAMÉTRAGE — deux rangées d'onglets, réglées séparément : ONGLETS DE MODULE (onglets de classeur
+     sur une bande gris-vert, l'actif clair et raccordé à la rangée du dessous) et SOUS-ONGLETS (légers, l'actif marqué d'un trait dessous) */
+  { k: "tabm", lab: "ONGLETS DE MODULE", sel: [".pg-grps .prm-grp:not(.on)"], def: { bg: "#cfd9d2", c: "#3f4d44", fs: 12, b: 1, h: 32 } },
+  { k: "tabsub", lab: "SOUS-ONGLETS", sel: [".pg-tabs > .prm-tab"], def: { bg: "#f7f9f8", c: "#5b6670", fs: 11, b: 1, h: 30 } },
   { k: "th", lab: "TITRES DES COLONNES (EN-TÊTE DE TABLEAU)", sel: ["table thead th", ".ins-hcol .bdg-h-head"], def: { bg: "#f6f7f9", c: "#6b7480", fs: 11, b: 1, h: 22 } },
   { k: "ttl", lab: "LIGNES DE TITRE DANS UN TABLEAU", sel: ["tr.ins-title td", "tr.ins-gtitle td", ".dly-grp td", ".ins-hcol .ins-li.lot-grp"], def: { bg: "#ece8e1", c: "#2f2a24", fs: 12, b: 1, h: 21 } },
   { k: "row", lab: "LIGNES D'UN TABLEAU", sel: ["table tbody td"], def: { bg: "#ffffff", c: "#172033", fs: 12, b: 0, h: 21 } },
@@ -181,11 +185,13 @@ function sviFmtApply() {
 const SVI_PAL_K = "svi_pal_v1";
 const sviPal = () => { let o = null; try { o = JSON.parse(localStorage.getItem(SVI_PAL_K) || "null"); } catch (e) {} return o && typeof o === "object" ? o : { mode: "jour" }; };
 const sviPalSave = o => { try { localStorage.setItem(SVI_PAL_K, JSON.stringify(o)); } catch (e) {} };
-const SVI_NUIT = { el: { top: { bg: "#0f172a", c: "#e2e8f0" }, blk: { bg: "#1f2937", c: "#e5e7eb" }, tabs: { bg: "#111827" }, tab: { bg: "#1f2937", c: "#cbd5e1" }, taba: { bg: "#334155", c: "#ffffff" },
+const SVI_NUIT = { el: { top: { bg: "#0f172a", c: "#e2e8f0" }, blk: { bg: "#1f2937", c: "#e5e7eb" }, tabs: { bg: "#111827" }, tab: { bg: "#1f2937", c: "#cbd5e1" }, taba: { bg: "#334155", c: "#ffffff" }, tabm: { bg: "#1f2a24", c: "#cbd5e1" }, tabsub: { bg: "#111827", c: "#cbd5e1" },
   th: { bg: "#1f2937", c: "#e5e7eb" }, ttl: { bg: "#1e293b", c: "#e5e7eb" }, row: { bg: "#0b1220", c: "#e5e7eb" }, new: { bg: "#3f1d1d", c: "#fecaca" }, tot: { bg: "#1e293b", c: "#ffffff" },
   win: { bg: "#0f172a", c: "#e2e8f0" }, winbg: { bg: "#111827" }, winlab: { c: "#cbd5e1" }, winin: { bg: "#1f2937", c: "#f8fafc" } }, blk: {}, to: null, by: {} };
 const sviPalApply = () => { try { document.documentElement.classList.toggle("svi-nuit", sviPal().mode === "nuit"); } catch (e) {} };
 try { sviPalApply(); } catch (e) {}
+/* C10, D4 (document unique 1.9) : choix PALETTE en haut, dans le bandeau du titre de RÉGLAGES COMMUNS et de MODIFIER LE FORMAT */
+const sviPalBtns = () => `<span class="fmw-pal">PALETTE <button type="button" class="svc-b${sviPal().mode !== "nuit" ? " on" : ""}" data-pal="jour">☀ JOUR</button><button type="button" class="svc-b${sviPal().mode === "nuit" ? " on" : ""}" data-pal="nuit">☾ NUIT</button></span>`;
 function sviFmtWin(ifk) {
   const D = JSON.parse(JSON.stringify(sviFmt())); D.by = D.by || {}; D.cat = D.cat || {}; const OPEN = new Set();
   const CD = { ...sviColors() };
@@ -223,9 +229,9 @@ function sviFmtWin(ifk) {
         <thead><tr><th>PAR ÉTAT (LISTE, FICHE, FENÊTRE)</th><th class="center">FOND</th><th class="center">TEXTE</th><th class="center">TAILLE</th><th class="center">GRAS</th><th class="center">ITALIQUE</th><th class="center">SOULIGNÉ</th><th class="center"></th></tr></thead>
         <tbody>${SVI_FMT_CAT.map(([c, l]) => `<tr class="fmt-catg" data-catg="${c}"><td colspan="8"><button type="button" class="pg-fold" data-catf="${c}">${OPEN.has(c) ? "⌄" : "›"}</button> <b>${l}</b>${Object.keys((D.cat[c] || {}).el || {}).length ? ` <span class="svi-cnt">${Object.keys(D.cat[c].el).length}</span>` : ""}</td></tr>`
           + (OPEN.has(c) ? sviFmtCatEls(c).map(E => catRow(c, E)).join("") : "")).join("")}</tbody></table>`;
-    d.innerHTML = sviWinCard({ cls: "fmw-card", close: "data-x", title: ifk ? "MODIFIER LE FORMAT — " + esc(IF.lab) : "RÉGLAGES COMMUNS — TOUT LE PROGRAMME",
+    d.innerHTML = sviWinCard({ cls: "fmw-card", close: "data-x", title: `<span class="fmw-ttl">${ifk ? "MODIFIER LE FORMAT — " + esc(IF.lab) : "RÉGLAGES COMMUNS — TOUT LE PROGRAMME"}</span>${sviPalBtns()}`,   /* C10, D4 : choix de la palette dans le bandeau */
       body: `<div class="fmw-scroll">${stRow}${elT}${catT}${blkT}</div>`,
-      foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${ifk ? "" : `<span class="fmw-pal">PALETTE <button type="button" class="svc-b${sviPal().mode !== "nuit" ? " on" : ""}" data-pal="jour">☀ JOUR</button><button type="button" class="svc-b${sviPal().mode === "nuit" ? " on" : ""}" data-pal="nuit">☾ NUIT</button></span><button type="button" class="svc-b" data-setdef>DÉFINIR COMME PAR DÉFAUT</button>`}<button type="button" class="svc-b" data-def>PAR DÉFAUT</button><button type="button" class="svc-b svc-ok svc-neutral" data-save>${ifk ? "ENREGISTRER" : "APPLIQUER PARTOUT"}</button>` });
+      foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${ifk ? "" : `<button type="button" class="svc-b" data-setdef>DÉFINIR COMME PAR DÉFAUT</button>`}<button type="button" class="svc-b" data-def>PAR DÉFAUT</button><button type="button" class="svc-b svc-ok svc-neutral" data-save>${ifk ? "ENREGISTRER" : "APPLIQUER PARTOUT"}</button>` });
   };
   draw(); sviWinShow(d);
   const num = (v, a, b) => { const n = parseInt(String(v).replace(/\D/g, ""), 10); return n >= a && n <= b ? n : null; };
@@ -240,7 +246,7 @@ function sviFmtWin(ifk) {
   d.addEventListener("click", e => {
     if (e.target === d || e.target.closest("[data-x]")) { d.remove(); sviFmtApply(); sviColorsApply(); return; }
     const cf = e.target.closest("[data-catf]"); if (cf) { const c = cf.dataset.catf; if (OPEN.has(c)) OPEN.delete(c); else OPEN.add(c); draw(); return; }
-    const pb = e.target.closest("[data-pal]"); if (pb && !ifk) { const P = sviPal(), cur = P.mode === "nuit" ? "nuit" : "jour", to = pb.dataset.pal; if (to === cur) return;
+    const pb = e.target.closest("[data-pal]"); if (pb) { const P = sviPal(), cur = P.mode === "nuit" ? "nuit" : "jour", to = pb.dataset.pal; if (to === cur) return;
       P[cur] = { F: JSON.parse(JSON.stringify(D)), CD: { ...CD } }; const nx = P[to] || (to === "nuit" ? { F: JSON.parse(JSON.stringify(SVI_NUIT)), CD: { ...CD } } : { F: { el: {}, blk: {}, to: null, by: {} }, CD: { ...SVI_COL_DEF } });
       Object.keys(D).forEach(k => delete D[k]); Object.assign(D, JSON.parse(JSON.stringify(nx.F))); Object.keys(CD).forEach(k => delete CD[k]); Object.assign(CD, nx.CD); P.mode = to; sviPalSave(P);
       sviFmtSave(D); sviColorsSave(CD); sviPalApply(); preview(); draw(); svToast("PALETTE " + (to === "nuit" ? "DE NUIT" : "DE JOUR") + ".", 2000); return; }
