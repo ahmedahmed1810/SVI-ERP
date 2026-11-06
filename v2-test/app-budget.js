@@ -1763,49 +1763,22 @@ function renderBudgetList() {
       if (L.length > 1) groups.set("CUMUL", { ref: "CUMUL", project: "", rows: [], first: {}, inst: { ref: "CUMUL", project: "", intitule: L.map(x => x.ref).join(" + "), state: "valide", virtual: true, parent: "__CUMUL", vname: "CUMUL — " + L.length + " BUDGETS", data: sviCumMerge(L) } }); } catch (e) {}
   }
 
-  /* liste affichée : VALIDÉS (noir) ou EN INSTANCE (rouge / vert si figé) */
-  let listMode = "valid";
-  try { if (localStorage.getItem("svi_listmode_v1") === "inst") listMode = "inst"; } catch (e) {}
-
+  /* 06/11/2026 (décision, document unique 3.9) : UNE SEULE LISTE DES BUDGETS — plus de listes EN INSTANCE / VALIDÉS ; les cases à cocher
+     des états (à gauche, TOUT en haut) choisissent ce qui est affiché ; chaque ligne garde la couleur de son état */
   bdgGroups = groups;
 
-  /* v679 : pas d'icône EN INSTANCE s'il n'y a que des budgets validés, et inversement ; la liste affichée suit */
-  /* v681 : un budget à avenants est une famille (marché initial + avenants) : elle figure dans chaque liste où l'un d'eux figure */
-  const famLive = g => { const L = [g.inst, ...instLoad().filter(x => g.inst && x.parent === g.ref && !x.rclOf)].filter(Boolean); return { live: L.some(x => x.state !== "valide"), done: !g.inst || L.some(x => x.state === "valide") }; };
-  const LIST_N = { inst: 0, valid: 0 };
-  groups.forEach(g => { if (g.inst && (g.inst.parent || g.inst.rclOf)) return; const f = famLive(g); if (f.live) LIST_N.inst++; if (f.done) LIST_N.valid++; });
-  if (listMode === "inst" && !LIST_N.inst && LIST_N.valid) listMode = "valid";
-  if (listMode === "valid" && !LIST_N.valid && LIST_N.inst) listMode = "inst";
-
+  /* v681 : un budget à avenants est une famille (marché initial + avenants) : elle figure dès que l'une de ses étapes passe le filtre */
   const budgets =
-    [...groups.values()].filter(g => {
-      if (g.inst && (g.inst.parent || g.inst.rclOf)) return false;   /* avenants, GLOBAL et recalages (v693) : sous leur budget / étape */
-      const f = famLive(g);
-      return listMode === "inst" ? f.live : f.done;
-    });
+    [...groups.values()].filter(g => !(g.inst && (g.inst.parent || g.inst.rclOf)));   /* avenants, GLOBAL et recalages (v693) : sous leur budget / étape */
 
   /* titre, couleur et boutons de la barre de la liste */
-  shell.classList.remove("bdg-inst-instance", "bdg-inst-fige", "bdg-av");
+  shell.classList.remove("bdg-inst-instance", "bdg-inst-fige", "bdg-av", "list-inst");
   document.body.classList.remove("bdg-screen"); document.getElementById("sviScreenTag")?.remove();   /* v698 */
-  shell.classList.toggle("list-inst", listMode === "inst");
   sviWatchState(shell);
   {
-    /* v750 (point 3) : une seule icône de bascule EN INSTANCE ⇄ VALIDÉS, juste à côté du titre (grisée s'il n'y a rien dans l'autre liste) */
     const h1 = shell.querySelector(".novapp-list-titlebar h1");
     { const lb = shell.querySelector(".novapp-list-titlebar .svi-listbar"); if (lb && !lb.firstChild) lb.innerHTML = sviListBar(); }   /* v785 : barre commune */
-    const other = listMode === "inst" ? "valid" : "inst", can = LIST_N[other] > 0;
-    const why = other === "inst" ? "AUCUN BUDGET EN INSTANCE." : "AUCUN BUDGET VALIDÉ.";
-    if (h1) {
-      h1.innerHTML = (listMode === "inst" ? "BUDGETS (EN INSTANCE)" : "BUDGETS (VALIDÉS)") + ' <span id="bdgListCount"></span>'
-        + `<button type="button" id="bdgModeSw" class="bdg-mode-sw${can ? "" : " off"}" title="${can ? (other === "inst" ? "Voir les budgets en instance" : "Voir les budgets validés") : why}" aria-label="Basculer entre budgets en instance et budgets validés">`
-        + '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h14M14 4l4 4-4 4M20 16H6M10 12l-4 4 4 4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
-      const sw = h1.querySelector("#bdgModeSw");
-      sw.onclick = () => {
-        if (!can) { svToast(why, 2500, sw); return; }
-        try { localStorage.setItem("svi_listmode_v1", other); } catch (err) {}
-        renderBudgetList();
-      };
-    }
+    if (h1) h1.innerHTML = 'BUDGETS <span id="bdgListCount"></span>';
     shell.querySelector(".novapp-list-actions")?.remove();
   }
 
@@ -2016,8 +1989,9 @@ function renderBudgetList() {
     { key: "budget", title: "PROJET", width: 100 },
     { key: "intitule", title: "INTITULÉ", width: 220 },
     { key: "ttc", title: "MONTANT TTC", width: 135, number: true },
+    { key: "etat", title: "ÉTAT", width: 130, center: true },   /* E3 (série E) : étape exacte */
     { key: "entered", title: "SAISI LE", width: 150 },
-    ...(listMode === "inst" ? [] : [{ key: "validated", title: "VALIDÉ LE", width: 150 }])
+    { key: "validated", title: "VALIDÉ LE", width: 150 }
   ];
   const NCOL = columns.length + 2;   /* v754 : plus de colonne de pliage (la flèche est dans RÉFÉRENCE) ; v793 : + colonne des cases (à droite) */
 
@@ -2060,17 +2034,20 @@ function renderBudgetList() {
       return "VALIDÉ " + (j >= 2 ? j + " J" : Math.round(h) + " H") + " APRÈS LA SAISIE (PLUS DE 24 H)."; };
   const stLate = st => st && st.state === "valide" ? lateOf(st.created, st.validated) : "";
   const isFam = r => { try { return sviAvStages(r).length > 1; } catch (e) { return false; } };
-  /* v755 : FILTRE PAR ÉTAT (bouton du petit tableau de gauche, comme NovApp) — ACTIF (par défaut) = tout sauf bloqué, archivé, expiré */
-  const ETATS = [["actif", "ACTIF"], ["alerte", "ALERTE"], ["expire", "EXPIRÉ"], ["bloque", "BLOQUÉ"], ["archive", "ARCHIVÉ"], ["tout", "TOUT"]];
-  let etatF = "actif"; try { const e0 = localStorage.getItem("svi_bdgetat_v1"); if (ETATS.some(x => x[0] === e0)) etatF = e0; } catch (e) {}
+  /* 06/11 : ÉTATS des budgets (cases à cocher à gauche, combinables, choix gardé) — EN INSTANCE, FIGÉ, VALIDÉ, EXPIRÉ, BLOQUÉ, ARCHIVÉ, ALERTE */
+  const BKEYS = ["instance", "fige", "valide", "expire", "bloque", "archive", "alerte"], SK = "bdg";
   const flagsOf = g => {
     const bi = g && g.inst, fam = !!bi && isFam(g.ref), S = !bi ? [] : fam ? sviAvStages(g.ref) : [bi];
-    /* v820 (cahier, à coder) : un budget dont toutes les étapes sont expirées passe dans EXPIRÉ (il quitte ACTIF) */
-    return { fam, arch: !!(bi && bi.arch), blk: !!(bi && bi.blk), xp: fam ? S.some(st => st.xp) : !!(bi && bi.xp), allXp: S.length > 0 && S.every(st => st.xp), late: S.some(st => stLate(st)) };
+    /* v820 (cahier, à coder) : un budget dont toutes les étapes sont expirées passe dans EXPIRÉ */
+    return { fam, arch: !!(bi && bi.arch), blk: !!(bi && bi.blk), xp: fam ? S.some(st => st.xp) : !!(bi && bi.xp), allXp: S.length > 0 && S.every(st => st.xp), late: S.some(st => stLate(st)),
+      sts: !bi ? ["valide"] : [...new Set(S.map(st => st.state || "instance"))] };
   };
-  const etatOk = (f, k) => k === "tout" ? true : k === "alerte" ? f.late : k === "expire" ? f.xp : k === "bloque" ? f.blk : k === "archive" ? f.arch : !f.arch && !f.blk && !(f.xp && !f.fam) && !f.allXp;
+  /* états d'une ligne (budget ou famille) : ceux de ses étapes, puis EXPIRÉ, BLOQUÉ, ARCHIVÉ, ALERTE */
+  const keysOf = f => f.arch ? ["archive"].concat(f.late ? ["alerte"] : []) : f.blk ? ["bloque"].concat(f.late ? ["alerte"] : [])
+    : (f.allXp || (f.xp && !f.fam) ? ["expire"] : f.sts).concat(f.xp && f.fam && !f.allXp ? ["expire"] : []).concat(f.late ? ["alerte"] : []);
   const FLG = new Map(budgets.map(g => [g.ref, flagsOf(g)]));
-  const budgetsE = () => budgets.filter(g => etatOk(FLG.get(g.ref), etatF));
+  const budgetsE = () => { const sel = sviStfGet(SK); return budgets.filter(g => sviStfOk(sel, keysOf(FLG.get(g.ref)))); };
+  const stepOf = f => !f ? "" : f.arch ? "ARCHIVÉ" : f.blk ? "BLOQUÉ" : f.allXp || (f.xp && !f.fam) ? "EXPIRÉ" : f.sts.includes("instance") ? "EN INSTANCE" : f.sts.includes("fige") ? "FIGÉ" : "VALIDÉ";
 
 
   let panel = $("bdgDatePanel");
@@ -2105,9 +2082,7 @@ function renderBudgetList() {
     const keys = [...counts.keys()].sort().reverse();
 
     panel.innerHTML = `
-      <div class="novapp-date-head">
-        <button type="button" class="novapp-date-filter"><span>${(ETATS.find(x => x[0] === etatF) || ETATS[0])[1]} <i class="dt-arr">▾</i></span>${svCnt(budgetsE().length)}</button>
-      </div>
+      <div class="novapp-date-head">${sviStfHead(SK, budgets.length)}</div>${(() => { const C = {}; budgets.forEach(g => keysOf(FLG.get(g.ref)).forEach(k => { C[k] = (C[k] || 0) + 1; })); return sviStfHtml(SK, C, BKEYS, { valide: "VALIDÉ" }); })()}
       <div class="novapp-date-list">
         ${keys.map(k => `
           <button type="button" data-date="${k}"
@@ -2125,14 +2100,9 @@ function renderBudgetList() {
 
     if (item) {
       dateFilter = dateFilter === item.dataset.date ? "" : item.dataset.date;
-    } else if (event.target.closest(".novapp-date-filter")) {
-      /* v755 : liste des états, chacun avec son nombre de budgets */
-      const btn = event.target.closest(".novapp-date-filter");
-      sviEtatMenu(btn, ETATS.map(([k, lab]) => ({ k, lab, n: budgets.filter(g => etatOk(FLG.get(g.ref), k)).length })), etatF, k => {
-        etatF = k; dateFilter = ""; try { localStorage.setItem("svi_bdgetat_v1", k); } catch (e) {}
-        renderDatePanel(); renderRows();
-      });
-      return;
+    } else if (event.target.closest("[data-stfk]")) {
+      /* 06/11 : cases des états (TOUT, ou plusieurs états à la fois) */
+      sviStfPick(SK, event.target.closest("[data-stfk]").dataset.stfk, BKEYS); dateFilter = "";
     } else {
       return;
     }
@@ -2159,7 +2129,7 @@ function renderBudgetList() {
     }
 
     /* v750 : NATURE — CONSOLIDÉ (budget à avenants), sinon INITIAL */
-    data.forEach(x => { const f = FLG.get(x.ref) || {}; x.fam = isFam(x.ref); x.flg = f; x.nat = x.fam ? "CONSOLIDÉ" : "INITIAL" + (f.xp ? " (EXPIRÉ)" : ""); });
+    data.forEach(x => { const f = FLG.get(x.ref) || {}; x.fam = isFam(x.ref); x.flg = f; x.nat = x.fam ? "CONSOLIDÉ" : "INITIAL" + (f.xp ? " (EXPIRÉ)" : ""); x.etat = stepOf(f) + (x.fam ? " (CONSOLIDÉ)" : ""); });
 
     /* TRI ET FILTRES (menu commun) */
     data = KIT.cfApply(BL, cfCols(), data);
@@ -2170,7 +2140,7 @@ function renderBudgetList() {
 
     /* v698 : plus de bouton + — dernière ligne « SAISIR ICI… » (fenêtre INF du nouveau budget) */
     /* v699 : lignes SAISIR ICI seulement dans la liste EN INSTANCE, en rouge */
-    const NEWROW = listMode === "inst" ? `<tr class="bdg-newrow" data-newbdg="1"><td colspan="${NCOL}">CRÉER UN BUDGET ICI…</td></tr>` : "";
+    const NEWROW = `<tr class="bdg-newrow" data-newbdg="1" data-st="instance"><td colspan="${NCOL}">CRÉER UN BUDGET ICI…</td></tr>`;   /* 06/11 : une seule liste, ligne CRÉER toujours là */
     /* v705 : ordre de la liste affichée (tri et filtres) — balayage d'un budget à l'autre dans l'écran du budget */
     window.__sviBdgOrder = data.map(x => x.ref);
     if (!data.length) {
@@ -2185,10 +2155,12 @@ function renderBudgetList() {
     const kidsOf = item => {
       const S = sviAvStages(item.ref), last = S[S.length - 1];
       /* v755 : ACTIF — étapes expirées cachées ; autres états : toutes les étapes de la liste affichée */
-      return S.filter(st => (listMode === "inst" ? st.state !== "valide" : st.state === "valide") && (etatF !== "actif" || !st.xp)).map(st => {
+      const sel = sviStfGet(SK), F0 = FLG.get(item.ref) || {};
+      return S.filter(st => sviStfOk(sel, (F0.arch ? ["archive"] : F0.blk ? ["bloque"] : st.xp ? ["expire"] : [st.state || "instance"]).concat(stLate(st) ? ["alerte"] : []))).map(st => {
         let bd = {}; try { bd = budgetData({ ref: st.ref, project: st.project, rows: [], first: {}, inst: st, __noFam: true }); } catch (e) {}
         return { ref: st.ref, xp: !!st.xp, nat: (st.parent ? "AVENANT " + (st.avn || 1) : "INITIAL") + (st.xp ? " (EXPIRÉ)" : ""), budget: U_(st.project), intitule: st.intitule || "", ttc: bd.ttc || 0,
           validated: st.state === "valide" ? svDT(st.validated || "") : "", entered: svDT(st.created || ""), state: st.state || "instance", kind: st.parent ? "av" : "bdg",
+          etat: st.xp ? "EXPIRÉ" : { instance: "EN INSTANCE", fige: "FIGÉ", valide: "VALIDÉ" }[st.state || "instance"] || "",
           del: st.state === "instance" && st === last, late: stLate(st) };
       });
     };
@@ -2214,10 +2186,10 @@ function renderBudgetList() {
     tbody.innerHTML =
       data.map(item => { const fam = item.fam, open = fam && FO.has(item.ref), kids = open ? kidsOf(item) : []; item.open = open;
         const ec = item.flg && item.flg.arch ? " etat-archive" : item.flg && item.flg.blk ? " etat-bloque" : item.flg && item.flg.xp && (!fam || item.flg.allXp) ? " etat-expire" : "";
-        return `<tr data-budget-ref="${esc(item.ref)}" class="${item.state ? "inst-" + item.state : ""}${fam ? " bdg-fam" : ""}${ec}"${fam ? ' data-fam="1"' : ""}>`
+        return `<tr data-budget-ref="${esc(item.ref)}" data-st="${esc(keysOf(item.flg || {})[0] || item.state || "valide")}" class="${item.state ? "inst-" + item.state : ""}${fam ? " bdg-fam" : ""}${ec}"${fam ? ' data-fam="1"' : ""}>`
           + columns.map(c => cell(c.key, item)).join("")
           + `<td class="bdg-action-cell">${item.state === "instance" ? delBtn(item.ref) : ""}</td>${sviListCbTd()}</tr>`
-          + kids.map(k => `<tr data-budget-ref="${esc(k.ref)}" data-kid="${k.kind}" class="bdg-kid${k.state ? " inst-" + k.state : ""}${k.kind === "av" ? " row-av" : " row-bdg"}${k.xp ? " etat-expire" : ""}${ec}">`
+          + kids.map(k => `<tr data-budget-ref="${esc(k.ref)}" data-kid="${k.kind}" data-st="${esc(k.xp ? "expire" : k.state)}" class="bdg-kid${k.state ? " inst-" + k.state : ""}${k.kind === "av" ? " row-av" : " row-bdg"}${k.xp ? " etat-expire" : ""}${ec}">`
             + columns.map(c => cell(c.key, k)).join("") + `<td class="bdg-action-cell">${k.del ? delBtn(k.ref) : ""}</td>${sviListCbTd()}</tr>`).join("")
           + (open ? (() => { const S = sviAvStages(item.ref), ok = S.length && S[S.length - 1].state === "valide";
             return `<tr class="bdg-newrow bdg-kid${ok ? "" : " off"}" data-newav="${esc(item.ref)}"${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="${NCOL}">CRÉER UN AVENANT ICI…</td></tr>`; })() : "");
@@ -11228,12 +11200,13 @@ function sviBdgDelaisDisposition(C) {
     const fixed = cur - el.clientHeight + head + foot;
     return { fixed, rows };
   };
-  /* hauteur v ramenée à des lignes entières (au moins une) ; plus haut que toutes les lignes : laissé tel quel (sauf « fit ») */
+  /* hauteur v ramenée à des lignes entières (au moins une) ;
+     E2 (série E, 06/11) : jamais plus haut que son contenu — plus haut que toutes les lignes = ramené à la dernière ligne (AGRANDIR mis à part) */
   const laySnap = (u, v, fit) => {
     const I = layRows(u); if (!I) return v;
     let s = I.fixed, k = 0;
     for (const h of I.rows) { if (k >= 1 && (fit ? k >= fit : s + h > v + .5)) break; s += h; k++; }
-    if (!fit && k === I.rows.length && v > s) return v;
+    if (!fit && k === I.rows.length && v > s) return Math.ceil(s);
     return Math.ceil(s);
   };
   /* hauteur enregistrée plus petite que le minimum de l'onglet ouvert : remontée à l'affichage (non enregistrée) */
@@ -11256,6 +11229,10 @@ function sviBdgDelaisDisposition(C) {
       if (c0 && m0 && c0 < m0) pg.style.setProperty("--h-" + u, m0 + "px"); });
     /* v774 : MODE RÉDUIT — exactement le minimum de l'onglet affiché (titres + une ligne entière), ni plus ni moins */
     { const R = layLoad().red || {}; LAY_UNITS.forEach(u => { if (!R[u] || pg.classList.contains("max-" + u)) return; const m0 = layMinOf(u); if (m0) pg.style.setProperty("--h-" + u, m0 + "px"); }); }
+    /* E2 (série E) : bloc du détail jamais plus haut que son contenu (onglet affiché), sauf AGRANDIR ; non enregistré */
+    { const a = document.activeElement, busy = a && a !== document.body && pg.contains(a);   /* pas pendant une saisie (la ligne écrite reste en place) */
+      if (!busy && !pg.classList.contains("max-detail") && !document.querySelector("td.svi-cs, #sviSelFrame:not([hidden])")) { const I = layRows("detail"), c = parseFloat(pg.style.getPropertyValue("--h-detail")) || 0;
+        if (I && c) { const s = Math.ceil(I.fixed + I.rows.reduce((x, y) => x + y, 0)); if (c > s + (I.rows[0] || 21)) pg.style.setProperty("--h-detail", Math.max(s, m) + "px"); } } }
     layMinScroll();
   };
   const layOrder = () => {
@@ -19692,7 +19669,7 @@ function sviBdgInstanceSaisie(C) {
     /* délier en attente de ✓ VALIDER : l'état enregistré garde les liaisons d'avant */
     /* v899 (cahier) : TVA manquante (désignation sans TVA et TVA PAR DÉFAUT vide) = enregistrement refusé */
     if (sviTvaDef() === null && (INS.des || []).some(r => !r.t && (r.tva === "" || r.tva === undefined))) {
-      clearTimeout(shell.__tvaT); shell.__tvaT = setTimeout(() => svToast("TVA MANQUANTE : SAISIR LA TVA DE LA DÉSIGNATION, OU LA TVA PAR DÉFAUT (PARAMÉTRAGE › BUDGET › TVA). RIEN N'EST ENREGISTRÉ.", 5000), 50);
+      clearTimeout(shell.__tvaT); shell.__tvaT = setTimeout(() => svToast("TVA MANQUANTE : SAISIR LA TVA DE LA DÉSIGNATION, OU LA TVA PAR DÉFAUT (PARAMÉTRAGE › GÉNÉRAL › SOCIÉTÉ). RIEN N'EST ENREGISTRÉ.", 5000), 50);
       return;
     }
     sviBudgetStore(budget.inst.ref, () => { let lb = null; try { lb = ECR.LK.linksBak; } catch (e) {} return lb ? { ...INS, links: lb } : INS; });
@@ -20074,7 +20051,7 @@ function sviBdgInstanceSaisie(C) {
       if (z(r.p)) return { f: "p", m: "SAISIR LE PCB." };
     }
     /* v905 (principe du 03/11/2026) : TVA MANQUANTE signalée sur sa case (désignation sans TVA, TVA PAR DÉFAUT vide) */
-    if (k === "des" && (r.tva === "" || r.tva === undefined) && sviTvaDef() === null) return { f: "tva", m: "TVA MANQUANTE : SAISIR LA TVA, OU LA TVA PAR DÉFAUT (PARAMÉTRAGE › BUDGET › TVA)." };
+    if (k === "des" && (r.tva === "" || r.tva === undefined) && sviTvaDef() === null) return { f: "tva", m: "TVA MANQUANTE : SAISIR LA TVA, OU LA TVA PAR DÉFAUT (PARAMÉTRAGE › GÉNÉRAL › SOCIÉTÉ)." };
     return null;
   };
   shell.__prdSyncU = () => { if (INS && INS_EDIT && actUnitSync()) { insSave(); return true; } return false; };

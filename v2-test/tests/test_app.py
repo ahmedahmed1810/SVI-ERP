@@ -2076,7 +2076,7 @@ def main():
         r3 = pg.evaluate("() => { const i = document.querySelector('.dlyg-hd i'), p = document.querySelector('.dlyhh-pill'), h = document.querySelector('.dlyg-hd'); return [!!i && getComputedStyle(i).transform !== 'none', Math.round(h.getBoundingClientRect().width) === Math.round(p.getBoundingClientRect().width)]; }")
         # remarque 4 : petit glissement (4 px vers le haut) = hauteur gardée là où on lâche
         pq = pg.evaluate("() => { const p = document.querySelector('.dlyhh-pill'), r = p.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, document.querySelector('.dlyg-foot .ghist').offsetHeight]; }")
-        pg.mouse.move(pq[0], pq[1]); pg.mouse.down(); pg.mouse.move(pq[0], pq[1] - 4, steps=2); pg.mouse.up(); pg.wait_for_timeout(500)
+        pg.mouse.move(pq[0], pq[1]); pg.mouse.down(); pg.mouse.move(pq[0], pq[1] + 4, steps=2); pg.mouse.up(); pg.wait_for_timeout(500)   # E2 (06/11) : vers le bas (le bloc ne dépasse plus son contenu, la place au-dessus peut manquer)
         r4 = pg.evaluate("() => [localStorage.getItem('svi_dlyhh_v1'), document.querySelector('.dlyg-foot .ghist').offsetHeight, !!document.querySelector('.dlyg.dly-hfull')]")
         pg.evaluate("() => localStorage.removeItem('svi_dlyhh_v1')")
         pg.evaluate(f"""() => {{ const X = {ins}; const I = X.INS; I.links = I.__lk5; I.dlp = I.__dlp5; I.dpred = I.__dp5; I.dord = I.__ord5;
@@ -2086,7 +2086,7 @@ def main():
         check("v545 remarques 2 et 3 : histogramme dans la hauteur visible de l'écran ; poignée verticale « ‖ » = la poignée « = » tournée, même taille",
               r2 and r2[0] <= r2[1] + 1 and r3 == [True, True], [r2, r3])
         check("v545 remarque 4 : poignée « = » glissée de 4 px = hauteur gardée là où on la lâche (ni plein écran, ni miniaturisé)",
-              r4[0] not in ("full", "28") and abs(int(r4[0]) - (pq[2] + 4)) <= 2 and abs(r4[1] - int(r4[0])) <= 2 and r4[2] is False, [pq, r4])
+              r4[0] not in ("full", "28") and abs(int(r4[0]) - (pq[2] - 4)) <= 2 and abs(r4[1] - int(r4[0])) <= 2 and r4[2] is False, [pq, r4])
         check("v545 remarque 5 : capacité jamais réglée = barre rouge au-dessus du jour le plus chargé (CAPACITÉ 4), avec l'échelle des valeurs à gauche",
               r5[0] and "CAPACITÉ 4" in r5[1] and r5[2] >= 2 and "180, 35, 24" in r5[3], r5)
 
@@ -2795,7 +2795,7 @@ def main():
               T.querySelectorAll('tr[data-kid="glob"]').length, cells('X-1')[1], !!row('F-1').querySelector('td.bdg-ref-c [data-fold-bdg]'), !T.querySelector('td.bdg-fold-c, th.bdg-fold-h'),
               cs.backgroundColor === 'rgba(0, 0, 0, 0)' && cs.fontWeight === getComputedStyle(it).fontWeight && cs.textDecorationLine === 'underline', wr.scrollWidth <= wr.clientWidth + 1]; }""")
         check("v750 / v793 : liste — colonnes dans l'ordre (sans VALIDÉ LE en instance), icône de bascule, ni case CUMUL ni impression (cases de sélection à droite, v793), CONSOLIDÉ en titre, AVENANT 1 dessous (lien PROJET, corbeille), INITIAL, marge de pliage, PROJET souligné sans fond, toute la largeur",
-              l750 == ["RÉFÉRENCE|PROJET|INTITULÉ|MONTANT TTC|SAISI LE||", True, True, 0, "⌄FAM F-1 CNS|FAM|VILLA", "FAM F-1 AV1|FAM|VILLA", True, True, 0, "XA", True, True, True, True], l750)   # v780 : plus de NATURE, nature au bout de la référence
+              l750 == ["RÉFÉRENCE|PROJET|INTITULÉ|MONTANT TTC|ÉTAT|SAISI LE|VALIDÉ LE||", False, True, 0, "⌄FAM F-1 CNS|FAM|VILLA", "FAM F-1 AV1|FAM|VILLA", True, True, 0, "XA", True, True, True, True], l750)   # v780 : plus de NATURE, nature au bout de la référence
         f750 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), T = document.getElementById('budgetListTable');
             T.querySelector('.cf-btn[data-col="budget"]').click(); await w(200); const m = document.getElementById('cfMenu'); if (!m) return 'pas de menu';
             const ord = [...m.children].map(e => e.className.split(' ')[0]).filter(c => /cf-(sort|search|cond|list|foot)/.test(c)).join(',');
@@ -2807,12 +2807,11 @@ def main():
             const n = [...T.tBodies[0].rows].filter(r => r.dataset.budgetRef).length;
             T.querySelector('[data-fold-bdg="F-1"]').click(); await w(150); const folded = !T.querySelector('tr[data-budget-ref="F-1-AV1"]');
             T.querySelector('[data-fold-bdg="F-1"]').click(); await w(150);
-            document.getElementById('bdgModeSw').click(); await w(300); const T2 = document.getElementById('budgetListTable');
-            const val = [document.querySelector('.novapp-list-titlebar h1').textContent.includes('VALIDÉS'), [...T2.tHead.querySelectorAll('th')].some(th => th.textContent.includes('VALIDÉ LE'))];
-            document.getElementById('bdgModeSw').click(); await w(300);
+            const T2 = document.getElementById('budgetListTable');   /* 06/11 : une seule liste — F-1 (validé) et X-1 (en instance) ensemble, VALIDÉ LE toujours là */
+            const val = [!!T2.querySelector('tr[data-budget-ref="F-1"]') && !!T2.querySelector('tr[data-budget-ref="X-1"]'), [...T2.tHead.querySelectorAll('th')].some(th => th.textContent.includes('VALIDÉ LE'))];
             return [ord, refs, ops, n, folded, val]; }""")
         check("v750 / v789 : filtre commun sur la liste (tri, puis condition, puis recherche et cases — ordre Google Sheets, EFFACER), conditions des dates complètes, pliage par la flèche, bascule vers les validés (avec VALIDÉ LE)",
-              f750[0] == "cf-sort,cf-sort,cf-cond,cf-search,cf-list,cf-foot" and f750[1].startswith("F-1,F-1-AV1") and f750[2] == ",eq,ne,gt,ge,lt,le,bt" and f750[3] >= 4 and f750[4] and f750[5] == [True, True], f750)
+              f750[0] == "cf-sort,cf-sort,cf-cond,cf-search,cf-list,cf-foot" and f750[1].startswith("F-1,F-1,F-1-AV1") and f750[2] == ",eq,ne,gt,ge,lt,le,bt" and f750[3] >= 4 and f750[4] and f750[5] == [True, True], f750)
         d750 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms));
             document.querySelector('#budgetListTable tr[data-budget-ref="X-2"] td:nth-child(5)').click(); await w(900);
             document.getElementById('bdgMore')?.click(); await w(200); const mn = ['prt', 'cmp'].map(a => !!document.querySelector(`#blkMenu [data-a="${a}"]`));
@@ -2831,7 +2830,7 @@ def main():
             M.classList.remove('hidden'); M.querySelector('.nav-grp').click(); await w(100); const open = !M.querySelector('.nav-sub').hidden, still = !M.classList.contains('hidden');
             M.querySelector('.nav-sub .nav-off').click(); await w(100); const stay = !M.classList.contains('hidden');
             M.querySelector('.nav-sub .nav-btn[data-ach="art"]').click(); await w(400);
-            const r = [top.join(','), sub.join(','), open, still, stay, document.getElementById('ach').classList.contains('active-view'), (document.querySelector('#ach .novapp-list-titlebar h1') || document.querySelector('#ach .section-head h1')).textContent.trim().replace(/ \(.*$/, '')];
+            const r = [top.join(','), sub.join(','), open, still, stay, document.getElementById('ach').classList.contains('active-view'), (document.querySelector('#ach .novapp-list-titlebar h1') || document.querySelector('#ach .section-head h1')).textContent.trim().replace(/ \(.*$| \d+$/, '')];
             M.querySelector('.nav-grp').click(); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); M.classList.add('hidden'); await w(600); return r; }""")
         check("v751 / v752 : menu ☰ — ordre BDG, ACHAT, BESOIN, PARAMÉTRAGE ; ACHAT dépliable (CONSULTATIONS, DEVIS, COMMANDES, RÉCEPTIONS, FACTURES, PAIEMENTS, FOURNISSEURS, ARTICLES, ACC), BESOIN dessous ; entrées à venir grisées ; ARTICLES ouvre les achats",
               m751 == ["ACCUEIL,BDG,ACHAT,BESOIN,PARAMÉTRAGE,DONNÉES SOURCE", "TABLEAU DE BORD,CONSULTATIONS,DEVIS,COMMANDES,RÉCEPTIONS,FACTURES,PAIEMENTS,FOURNISSEURS,ARTICLES,ACC", True, True, True, True, "ARTICLES"], m751)
@@ -2863,7 +2862,7 @@ def main():
             res.push(/APRÈS LA SAISIE/.test(t), !document.getElementById('budgetBackBtn'));
             const tot = document.querySelector('#bdgDatePanel .novapp-date-filter'); res.push(!!tot.querySelector('.svi-cnt') && tot.querySelector('.svi-cnt').textContent.trim() !== '');
             /* v928 : couleurs des états dans les RÉGLAGES COMMUNS (accueil), plus dans PARAMÉTRAGE › FORMAT */
-            sviFmtWin(null); await w(200); const ci = document.querySelector('#svConf .fmw-col[data-col="valide"]'); res.push(!!ci && document.querySelectorAll('#svConf .fmt-cols tbody tr').length === 9);
+            sviFmtWin(null); await w(200); const ci = document.querySelector('#svConf .fmw-col[data-col="valide"]'); res.push(!!ci && document.querySelectorAll('#svConf .fmt-cols tbody tr').length === 11);   /* 06/11 : + EN COURS DE VALIDATION, ANNULÉ */
             ci.value = '#123456'; ci.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('#svConf [data-save]').click(); await w(100);
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(400);
             res.push(getComputedStyle(document.querySelector('#budgetListTable tr[data-budget-ref="L-2"]').cells[3]).color);
@@ -2879,42 +2878,43 @@ def main():
               { ref: 'G-1', project: 'GEL', state: 'instance', created: '2026-10-30T10:00', data: d(1) }, { ref: 'H-1', project: 'HIS', state: 'valide', created: '2026-10-20T10:00', validated: '2026-10-20T11:00', data: d(1) }]));
             const keepE = localStorage.getItem('svi_bdgetat_v1'); localStorage.removeItem('svi_bdgetat_v1');
             localStorage.setItem('svi_listmode_v1', 'valid'); localStorage.setItem('svi_bdgfold_v1', JSON.stringify(['F-1'])); renderBudgetList(); await w(300);
-            const lab = () => document.querySelector('#bdgDatePanel .novapp-date-filter span').textContent.trim();
+            /* 06/11 : une seule liste, cases à cocher des états (TOUT en haut) — sviStfSet('bdg', [...]) = cocher ces états seulement */
+            localStorage.removeItem('svi_stf_v1:bdg'); const pick = L => { sviStfSet('bdg', L); renderBudgetList(); return w(250); };
+            const lab = () => { const s = sviStfGet('bdg'); return s === null ? 'TOUT' : s.join(','); };
             const refs = () => [...document.querySelectorAll('#budgetListTable tbody tr[data-budget-ref]')].map(r => r.dataset.budgetRef);
             const r = [lab()];
             const sumBefore = sviAvMerge('F-1', true).des.reduce((t, x) => t + (+x.q || 0), 0);
             sviInstSet(sviInstGet().map(x => x.ref === 'F-1-AV1' ? { ...x, xp: '2026-11-01' } : x.ref === 'H-1' ? { ...x, arch: '2026-11-01' } : x)); renderBudgetList(); await w(300);
             const sumAfter = sviAvMerge('F-1', true).des.reduce((t, x) => t + (+x.q || 0), 0);
             r.push(refs().includes('H-1'), refs().includes('F-1-AV1'), sumBefore, sumAfter);
-            document.querySelector('#bdgDatePanel .novapp-date-filter').click(); await w(150); const M = document.getElementById('sviEtatMenu');
-            r.push(M ? [...M.querySelectorAll('button')].map(b => b.textContent.replace(/\\s+/g, ' ').trim()).join('|') : 'pas de menu');
-            M.querySelector('[data-k="archive"]').click(); await w(200); r.push(lab(), refs().join(','));
-            document.querySelector('#bdgDatePanel .novapp-date-filter').click(); await w(150); document.querySelector('#sviEtatMenu [data-k="expire"]').click(); await w(200);
+            r.push([...document.querySelectorAll('#bdgDatePanel .svi-stf-all, #bdgDatePanel .svi-stf-r')].map(b => b.textContent.replace(/\\s+/g, ' ').trim()).join('|'));
+            document.querySelector('#bdgDatePanel [data-stfk="tout"]').click(); await w(150); document.querySelector('#bdgDatePanel [data-stfk="archive"]').click(); await w(200); r.push(lab(), refs().join(','));
+            await pick(['expire']);
             r.push(refs().join(','), (document.querySelector('#budgetListTable tr[data-budget-ref="F-1-AV1"]') || {}).className || '');
-            document.querySelector('#bdgDatePanel .novapp-date-filter').click(); await w(150); document.querySelector('#sviEtatMenu [data-k="actif"]').click(); await w(200);
-            localStorage.setItem('svi_listmode_v1', 'inst'); renderBudgetList(); await w(200);
+            await pick(null);
             document.querySelector('#budgetListTable tr[data-budget-ref="G-1"] td:nth-child(4)').click(); await w(900);
             document.getElementById('bdgMore').click(); await w(200); const acts = ['blk', 'arch'].map(a => !!document.querySelector(`#blkMenu [data-a="${a}"]`));
             document.querySelector('#blkMenu [data-a="blk"]').click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(900);
             r.push(acts, !!(sviInstGet().find(x => x.ref === 'G-1') || {}).blk, window.__sviRO || '');
-            document.getElementById('budgetBackBtn')?.click(); await w(400); r.push(refs().includes('G-1'));
+            document.getElementById('budgetBackBtn')?.click(); await w(400); await pick(['instance', 'fige', 'valide']); r.push(refs().includes('G-1')); await pick(null);
             if (keepE === null) localStorage.removeItem('svi_bdgetat_v1'); else localStorage.setItem('svi_bdgetat_v1', keepE);
             sviInstSet(JSON.parse(window.__kp755)); localStorage.removeItem('svi_bdgfold_v1'); renderBudgetList(); await w(200);
             document.querySelector('#navMenu .nav-btn[data-ach="art"]').click(); await w(400);
             const keepA = localStorage.getItem('svi_ach_art_v1'), keepAE = localStorage.getItem('svi_ach_etat_v1'); localStorage.removeItem('svi_ach_art_etat2_v1'); const L = [];
             achArtNew(L, { des: 'SABLE', u: 'M3' }); const b2 = achArtNew(L, { des: 'GRAVIER', u: 'M3' }); b2.actif = false; const b3 = achArtNew(L, { des: 'CHAUX', u: 'T' }); b3.del = '2026-11-01'; achArtsSave(L);
             localStorage.removeItem('svi_ach_etat_v1'); const v = document.getElementById('ach'); v.__achTab('art'); await w(200);
-            const eb = v.querySelector('.novapp-date-filter'), aRows = () => [...v.querySelectorAll('#achArtT tbody tr[data-id]')].length;
-            const a = [eb ? eb.textContent.replace(/\\s+/g, ' ').trim() : '', aRows()]; eb.click(); await w(150);
-            a.push([...document.querySelectorAll('#sviEtatMenu button')].map(b => b.textContent.replace(/\\s+/g, ' ').trim()).join('|'));
-            document.querySelector('#sviEtatMenu [data-k="tout"]').click(); await w(200); a.push(aRows()); localStorage.removeItem('svi_ach_art_etat2_v1');
+            localStorage.removeItem('svi_stf_v1:ach_art'); v.__achTab('art'); await w(200);
+            const eb = v.querySelector('.svi-stf-all'), aRows = () => [...v.querySelectorAll('#achArtT tbody tr[data-id]')].length;
+            const a = [eb ? eb.textContent.replace(/\\s+/g, ' ').trim() : '', aRows()];
+            a.push([...v.querySelectorAll('.svi-stf-r')].map(b => b.textContent.replace(/\\s+/g, ' ').trim()).join('|'));
+            v.querySelector('[data-stfk="annule"]').click(); await w(200); a.push(aRows()); localStorage.removeItem('svi_stf_v1:ach_art');
             if (keepA === null) localStorage.removeItem('svi_ach_art_v1'); else localStorage.setItem('svi_ach_art_v1', keepA);
             if (keepAE === null) localStorage.removeItem('svi_ach_etat_v1'); else localStorage.setItem('svi_ach_etat_v1', keepAE);
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(400); return [r, a]; }""")
-        check("v755 : états — ACTIF par défaut (archivé et étape expirée cachés), étape EXPIRÉE hors consolidé, liste des états avec nombres, ARCHIVÉ / EXPIRÉ, BLOQUER (lecture seule, hors ACTIF) ; ARTICLES : ACTIF / INACTIF / CORBEILLE / TOUT",
-              k755[0][:5] == ["ACTIF ▾", False, False, 3, 1] and k755[0][5].startswith("✓ACTIF") and "ARCHIVÉ1" in k755[0][5] and k755[0][6:8] == ["ARCHIVÉ ▾", "H-1"]
-              and k755[0][8] == "F-1,F-1,F-1-AV1" and "etat-expire" in k755[0][9] and k755[0][10] == [True, True] and k755[0][11] is True and "BLOQUÉ" in k755[0][12] and k755[0][13] is False
-              and k755[1][0].startswith("ACTIF ▾") and k755[1][1] == 1 and k755[1][2].startswith("✓ACTIF") and k755[1][3] == 3, k755)
+        check("v755 / 06/11 : états — TOUT par défaut, étape EXPIRÉE hors consolidé, cases des états avec nombres, ARCHIVÉ / EXPIRÉ seuls, BLOQUER (lecture seule, hors des états actifs) ; ARTICLES : cases des états (ANNULÉ décoché)",
+              k755[0][:5] == ["TOUT", True, True, 3, 1] and k755[0][5].startswith("TOUT") and "ARCHIVÉ1" in k755[0][5] and k755[0][6:8] == ["archive", "H-1"]
+              and k755[0][8] == "F-1,F-1-AV1" and "etat-expire" in k755[0][9] and k755[0][10] == [True, True] and k755[0][11] is True and "BLOQUÉ" in k755[0][12] and k755[0][13] is False
+              and k755[1][0].startswith("TOUT") and k755[1][1] == 3 and "ANNULÉ1" in k755[1][2] and k755[1][3] == 2, k755)   # 06/11 : une seule liste, cases des états (TOUT par défaut)
         # v759 : ACHATS — FOURNISSEURS : règles (ICE 15 chiffres et unique, RIB 24 chiffres, principal, document expiré, occasionnel) ; onglet,
         # création par la ligne CRÉER…, fiche (code souligné), changement de RIB confirmé et signalé jusqu'à « RIB VÉRIFIÉ »
         f759 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const keepF = localStorage.getItem('svi_ach_frs_v1'), keepE = localStorage.getItem('svi_ach_frs_etat_v1'); localStorage.removeItem('svi_ach_frs_v1'); localStorage.removeItem('svi_ach_frs_etat_v1');
@@ -2925,12 +2925,12 @@ def main():
             achFrsSave(L);
             document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(400); const v = document.getElementById('ach');
             const h1 = (v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim(), n0 = v.querySelectorAll('#achFrsT tbody tr[data-id]').length;
-            v.querySelector('[data-nvsw]').click(); await w(150); v.querySelector('#achFrsT [data-nvnew]').click(); await w(250); document.querySelector('#svConf .ask-v').value = 'NOUVEAU FRS'; document.querySelector('#svConf [data-ok]').click(); await w(300);
+            v.querySelector('#achFrsT [data-nvnew]').click(); await w(250); document.querySelector('#svConf .ask-v').value = 'NOUVEAU FRS';   /* 06/11 : une seule liste, CRÉER toujours là */ document.querySelector('#svConf [data-ok]').click(); await w(300);
             document.querySelector('.frs-card [data-x]').click(); await w(300);
             /* v800 (document unique 3.6) : le nouveau fournisseur s'ouvre sur sa page ; on revient à la liste */
             const pg800 = !!v.querySelector('.nvp-ref'); v.querySelector('[data-nvp="close"]')?.click(); await w(250); if (!pg800) return 'v800 : page du nouveau fournisseur non ouverte';
-            const n1 = achFrs().filter(f => !f.del).length + (v.querySelectorAll('#achFrsT tbody tr[data-id]').length === 1 && /EN INSTANCE/.test((v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent) ? 0 : 100);
-            v.querySelector('[data-nvsw]').click(); await w(200); v.querySelector(`#achFrsT [data-nvo="${a.id}"]`).click(); await w(250);
+            const n1 = achFrs().filter(f => !f.del).length + (v.querySelectorAll('#achFrsT tbody tr[data-id]').length === 4 ? 0 : 100);
+            v.querySelector(`#achFrsT [data-nvo="${a.id}"]`).click(); await w(250);
             const pgOk = /^FOURNISSEUR — BETON SUD/.test((document.getElementById('sviScreenTag') || {}).textContent || '') && /^FRS \\d{2}-\\d{4}\\/\\d{3}$/.test(v.querySelector('.nvp-ref').textContent) && v.querySelectorAll('.nvp-blk').length === 12;   /* D1 : plus de blocs RETOURS / AVOIRS (dans COMMANDES, RÉCEPTIONS, FACTURES) */   /* v921 (remarque 4) : + CONSULTATIONS, RÉCEPTIONS, RETOURS, AVOIRS */
             v.querySelector('[data-nvp="info"]').click(); await w(300); const fc = document.querySelector('.frs-card');
             const secs = fc ? [...fc.querySelectorAll('.frs-st')].map(x => x.textContent.replace(/\\s*\\d+$/, '').split(' ')[0]).join(',') + '|' + [...fc.querySelectorAll('.frs-tabs .rec-tab')].map(x => x.textContent.trim()).join(',') + '|' + [...fc.querySelectorAll('.frs-sec')].filter(x => !x.hidden).length : 'pas de fiche';
@@ -2945,7 +2945,7 @@ def main():
             return [r1, wc.length, wa.join('|'), h1, n0, n1, secs, conf, sig, hist, ok && pgOk]; }""")
         check("v759 : FOURNISSEURS — ICE (15 chiffres, unique), RIB 24 chiffres, occasionnel sans ICE ni RIB, document expiré ; onglet, création, fiche ; changement de RIB confirmé, signalé, noté dans H, puis RIB VÉRIFIÉ",
               f759[0] == ["FRS-0001", "FRS-0002", False, True, "FRS-0001", True] and f759[1] == 0 and "DOCUMENT EXPIRÉ : ATTESTATION CNSS" in f759[2] and "ICE EN DOUBLE" in f759[2]
-              and f759[3] == "FOURNISSEURS (VALIDÉS) 2" and f759[4] == 2 and f759[5] == 3 and f759[6] == "IDENTITÉ,FISCAL,QUALIFICATION,ASSURANCES,,COMPTE,RIB,ENCOURS,CAUTIONS,CONDITIONS,COMMANDE,IMPORT,FERMETURES,GARANTIE,TARIFS,FAMILLES,DOCUMENTS,CONTACTS,RISQUE,MOYENS,RÉFÉRENCES,ÉVALUATIONS,CONTRATS,SPÉCIALITÉ,FOURNISSEURS,STATISTIQUES,PARTS,CLAUSES|IDENTITÉ,FISCAL ET LÉGAL,BANQUE ET PAIEMENT,CONDITIONS D'ACHAT,RISQUE ET MOYENS,FOURNISSEURS SIMILAIRES,STATISTIQUES|2"
+              and f759[3] == "FOURNISSEURS 3" and f759[4] == 3 and f759[5] == 3 and f759[6] == "IDENTITÉ,FISCAL,QUALIFICATION,ASSURANCES,,COMPTE,RIB,ENCOURS,CAUTIONS,CONDITIONS,COMMANDE,IMPORT,FERMETURES,GARANTIE,TARIFS,FAMILLES,DOCUMENTS,CONTACTS,RISQUE,MOYENS,RÉFÉRENCES,ÉVALUATIONS,CONTRATS,SPÉCIALITÉ,FOURNISSEURS,STATISTIQUES,PARTS,CLAUSES|IDENTITÉ,FISCAL ET LÉGAL,BANQUE ET PAIEMENT,CONDITIONS D'ACHAT,RISQUE ET MOYENS,FOURNISSEURS SIMILAIRES,STATISTIQUES|2"
               and f759[7] == "CHANGEMENT DE RIB" and f759[8] and f759[9] and f759[10], f759)
         # v760 : BESOINS — charges du budget avec leurs tâches, contrôle prévu / déjà demandé, dépassement BLOQUÉ (justifier puis DÉBLOQUER),
         # seuil 90 %, centre SIÈGE hors budget ; menu ☰ › BESOIN, fiche de création (budget › charge › tâche), validation
@@ -2958,7 +2958,7 @@ def main():
             b2.deb = { u: 'T', t: '2026-11-01', why: 'X' }; const w2b = achBsnWhy(b2, L), s0 = achBsnCtl({ centre: 'SIÈGE', des: 'PAPIER', q: 1 }, L);
             const r = [C.length, C[0].des, C[0].tasks.join(','), Math.round(C[0].p), Math.round(c1.pct), w2.some(m => /BLOQUÉ/.test(m)), w3.some(m => /SEUIL/.test(m)), w2b.length, s0, achBsnNextRef([b1], new Date(2026, 10, 2))];
             document.querySelector('#navMenu .nav-btn[data-ach="bsn"]').click(); await w(400); const v = document.getElementById('ach');
-            r.push((v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim().replace(/ \\(.*$/, ''));
+            r.push((v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim().replace(/ \\(.*$| \\d+$/, ''));
             achBsnFiche(null, () => v.__achDraw()); await w(200);
             const set = (k, val) => { const i = document.querySelector(`.bsn-card .bsn-x[data-k="${k}"]`); i.value = val; i.dispatchEvent(new Event('change', { bubbles: true })); };
             set('bdg', 'BSN-T1'); await w(50); set('chg', achKey('CIMENT', 'T')); await w(50);
@@ -3073,14 +3073,14 @@ def main():
             const L = []; const s1 = achArtNew(L, { des: 'SABLE', u: 'M3', cat: 'MATERIAUX STOCKABLE' }); s1.cree = '2026-10-13T08:00:00Z'; const s2 = achArtNew(L, { des: 'GRAVIER', u: 'M3', cat: 'MATERIAUX STOCKABLE' }); s2.cree = '2026-10-14T08:00:00Z'; achArtsSave(L);
             const F = []; const f1 = achFrsNew(F, { nom: 'AFRA' }); achFrsSave(F); achDvfSave([{ id: 'v1', ref: 'DVF 1', frs: f1.id, state: 'recu', lignes: [{ des: 'SABLE', u: 'M3', q: 5, pu: 100, tva: 20 }] }]);
             const v = document.getElementById('ach'); document.querySelector('#navMenu .nav-btn[data-ach="art"]').click(); await w(300);
-            const r = [(v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim(), v.querySelectorAll('#achArtT tbody tr[data-id]').length, v.querySelectorAll('.novapp-date-item').length];
-            v.querySelector('.novapp-date-item').click(); await w(150); r.push(v.querySelectorAll('#achArtT tbody tr[data-id]').length); v.querySelector('.novapp-date-item').click(); await w(150);
-            v.querySelector('[data-nvsw]').click(); await w(150); v.querySelector('#achArtT [data-nvnew]').click(); await w(200); const c = document.querySelector('#svConf');
+            const r = [(v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim(), v.querySelectorAll('#achArtT tbody tr[data-id]').length, v.querySelectorAll('.novapp-date-list .novapp-date-item').length];
+            v.querySelector('.novapp-date-list .novapp-date-item').click(); await w(150); r.push(v.querySelectorAll('#achArtT tbody tr[data-id]').length); v.querySelector('.novapp-date-list .novapp-date-item').click(); await w(150);
+            v.querySelector('#achArtT [data-nvnew]').click(); await w(200); const c = document.querySelector('#svConf');   /* 06/11 : une seule liste */
             c.querySelector('.art-x[data-k="des"]').value = 'CIMENT CPJ45'; c.querySelector('.art-x[data-k="u"]').value = 'T'; c.querySelector('.art-x[data-k="cat"]').value = 'MATERIAUX STOCKABLE'; c.querySelector('[data-save]').click(); await w(300);
             /* v800 (document unique 3.6) : le nouvel article s'ouvre sur sa page ; on revient à la liste */
             if (!v.querySelector('.nvp-ref')) return 'v800 : page du nouvel article non ouverte'; document.querySelector('#svConf')?.remove(); v.querySelector('[data-nvp="close"]')?.click(); await w(250);
             const A = achArts().find(a => a.des === 'CIMENT CPJ45');
-            r.push(!!A && A.st, (v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim(), v.querySelectorAll('#achArtT tbody tr[data-id]').length, !!v.querySelector('.nv-inst [data-nvdel]'), !!v.querySelector('[data-nvnew]'));
+            r.push(!!A && A.st, (v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim(), v.querySelectorAll('#achArtT tbody tr[data-id]').length, !!v.querySelector('table.nv-one [data-nvdel]'), !!v.querySelector('[data-nvnew]'));
             v.querySelector(`[data-nvo="${A.id}"]`).click(); await w(250);
             r.push(/^ARA \\d{2}-\\d{4}\\/0\\d[1-9]$/.test(v.querySelector('.nvp-ref').textContent) ? 'ART-0003' : v.querySelector('.nvp-ref').textContent, !!v.querySelector('.nvp.bdg-inst-instance'), v.querySelectorAll('.nvp-rec .rec-tab').length);
             v.querySelector('[data-nvr="obs"]').click(); await w(100); v.querySelector('[data-nvradd]').click(); await w(200);
@@ -3102,22 +3102,22 @@ def main():
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); });
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v764 : ARTICLES au format du budget — listes EN INSTANCE / VALIDÉS, dates, création par fenêtre (en instance, corbeille), page : bloc DOC / TAF / OBS, ⋯ VALIDER et UNITÉ DE CONVERSION, devis liés, ‹ ›",
-              a764 == ["ARTICLES (VALIDÉS) 2", 2, 2, 1, "instance", "ARTICLES (EN INSTANCE) 1", 1, True, True, "ART-0003", True, 3, 1, True,
-                       "MODIFIER LE FORMAT|APERÇU|SUPPRIMER CET ARTICLE|VALIDER|UNITÉ DE CONVERSION|BUDGETS (0)|BLOQUER|DISPOSITION PAR DÉFAUT|FERMER", '[{"u":"SAC","r":20}]', "instance", True, "valide", True, "ARTICLES (VALIDÉS) 3", True, True, True], a764)
+              a764 == ["ARTICLES 2", 2, 2, 1, "instance", "ARTICLES 3", 3, True, True, "ART-0003", True, 3, 1, True,
+                       "MODIFIER LE FORMAT|APERÇU|SUPPRIMER CET ARTICLE|VALIDER|UNITÉ DE CONVERSION|BUDGETS (0)|BLOQUER|DISPOSITION PAR DÉFAUT|FERMER", '[{"u":"SAC","r":20}]', "instance", True, "valide", True, "ARTICLES 3", True, True, True], a764)   # 06/11 : une seule liste
         # v765 : toutes les listes des achats au format du budget — pas d'onglets, titre EN INSTANCE / VALIDÉS + bascule, dates, corbeille = ANNULER
         l765 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_caf_v1', 'svi_ach_caf_mode_v1', 'svi_ach_caf_etat2_v1'], keep = K.map(k => localStorage.getItem(k)); K.forEach(k => localStorage.removeItem(k));
             achCafSave([{ id: 'c1', ref: 'CAF 1', state: 'ouverte', cree: '2026-10-30T10:00:00Z', lignes: [], frs: [] }, { id: 'c2', ref: 'CAF 2', state: 'close', cree: '2026-10-20T10:00:00Z', valide: '2026-10-25T10:00:00Z', lignes: [], frs: [] }]);
             const v = document.getElementById('ach'); document.querySelector('#navMenu .nav-btn[data-ach="caf"]').click(); await w(300);
             const h = () => (v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.replace(/\\s+/g, ' ').trim();
             const r = [getComputedStyle(v.querySelector('.ach-tabs')).display, h(), v.querySelectorAll('#achCafT tbody tr[data-id]').length, !!v.querySelector('.novapp-date-item'), !v.querySelector('.ach-hh'), !!document.getElementById('sviScreenTag')];
-            v.querySelector('[data-nvsw]').click(); await w(200); r.push(h(), !!v.querySelector('.nv-inst [data-nvdel]'));
+            r.push(h(), !!v.querySelector('table.nv-one [data-nvdel]'));   /* 06/11 : une seule liste (plus de bascule) */
             v.querySelector('[data-nvdel]').click(); await w(200); { const q = document.querySelector('#svConf .ask-v'); if (q) { q.value = 'ERREUR'; document.querySelector('#svConf [data-ok]').click(); } else document.querySelector('#svConf [data-r="1"]')?.click(); } await w(250);
             r.push(achCaf().find(c => c.id === 'c1').state);
             v.querySelector('[data-nvo]').click(); await w(250); v.querySelector('[data-nvp="info"]')?.click(); await w(200); r.push(!!document.querySelector('.caf-card') && !!v.querySelector('.nvp-ref')); document.querySelector('.caf-card [data-x]')?.click(); await w(150); v.querySelector('[data-nvp="close"]')?.click(); await w(150);
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); });
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v765 : listes des achats au format du budget — sans onglets, titre EN INSTANCE / VALIDÉS avec nombre et bascule, dates, sans H, sans étiquette du budget ; corbeille = ANNULÉ ; ligne → fiche",
-              l765[0] == "none" and l765[1].startswith("CONSULTATIONS (VALIDÉS) 1") and l765[2:6] == [1, True, True, False] and l765[6].startswith("CONSULTATIONS (EN INSTANCE) 1") and l765[7] is True and l765[8:] == ["annule", True], l765)
+              l765[0] == "none" and l765[1].startswith("CONSULTATIONS 2") and l765[2:6] == [2, True, True, False] and l765[6].startswith("CONSULTATIONS 2") and l765[7] is True and l765[8:] == ["annule", True], l765)
         # B15 (série B) : plus d'import NovApp (bouton et procédure retirés)
         check("SÉRIE B, B15 : bouton et procédure d'import NovApp retirés", pg.evaluate("() => typeof achNovImport === 'undefined' && typeof achHistNov === 'function'"))
         # v786 / v788 → v796 (document unique 6.8) : MASQUER / AFFICHER LES COLONNES dans PARAMÉTRAGE › FORMAT › COLONNES, plus dans les ⋯ ;
@@ -3315,7 +3315,7 @@ def main():
             for (let i = 0; i < 1500; i++) PA.push({ id: 'pa' + i, ref: 'PAF ' + i, frs: F[i % 500].id, state: 'encaisse', mode: 'VIREMENT', mt: 240, aff: [{ fa: 'fa' + i, m: 240 }], ded: [] });
             achFafSave(FA); achPafSave(PA); localStorage.removeItem('svi_ach_frs_etat_v1');
             const v = document.getElementById('ach'); let t = performance.now(); document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(0); const ms = performance.now() - t;
-            if (!v.querySelector('#achFrsT tbody tr[data-id]')) { v.querySelector('[data-nvsw]').click(); await w(0); }
+            if (!v.querySelector('#achFrsT tbody tr[data-id]')) { v.querySelector('[data-nvsw]')?.click(); await w(0); }
             const r = [ms < 2000, v.querySelectorAll('#achFrsT tbody tr[data-id]').length,
               achFrsRO().every(f => achFrsRef(f) === achRefSvi(f, achFrsRO().filter(y => achFrsPfx(y) === achFrsPfx(f)), achFrsPfx(f))),
               achFrsRO().every(f => Math.abs(achFrsEnc(f.id) - achFaf().filter(x => x.frs === f.id && x.state !== 'annule').reduce((s, x) => s + Math.max(0, achFafReste(x)), 0)) < 0.01)];
@@ -3451,10 +3451,10 @@ def main():
             r.colh = [n1, /1 COLONNE MASQUÉE/.test(lab), n2, n3].join(','); if (keepH === null) localStorage.removeItem('svi_colh_v1'); else localStorage.setItem('svi_colh_v1', keepH);
             /* remarques 12 et 13 : MODIFIER LE FORMAT (une interface, ÉTAT de l'écran puis les éléments) ; RÉGLAGES COMMUNS de l'accueil (APPLIQUER PARTOUT remplace les réglages par interface) */
             const keepC = localStorage.getItem('svi_colors_v1'); const w = ms => new Promise(z => setTimeout(z, ms));
-            r.byCss = /html\[data-svif="dvf_fi"\] body table tbody td[^{]*\{[^}]*height:30px/.test(sviFmtCss({ el: {}, by: { dvf_fi: { el: { row: { h: 30 } }, st: {} } } }));
-            sviFmtWin('frs_fi'); await w(150); r.win1 = [!!document.querySelector('#svConf .fmt-st'), document.querySelectorAll('#svConf .fmt-el tbody tr').length, /FICHE FOURNISSEUR EN INSTANCE/.test(document.querySelector('#svConf .svc-t').textContent)].join(',');
-            const c = document.querySelector('#svConf .fmw-st[data-f="c"]'); c.value = '#112233'; c.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('#svConf [data-save]').click(); await w(150);
-            r.saved = (sviFmt().by.frs_fi || { st: {} }).st.c;
+            r.byCss = /html\[data-svif="dvf_f"\] body table tbody td[^{]*\{[^}]*height:30px/.test(sviFmtCss({ el: {}, by: { dvf_f: { el: { row: { h: 30 } }, st: {} } } }));   /* 06/11 : FICHE (plus d'EN INSTANCE / VALIDÉE) */
+            sviFmtWin('frs_f'); await w(150); r.win1 = [!!document.querySelector('#svConf .fmt-st'), document.querySelectorAll('#svConf .fmt-el tbody tr').length, /FICHE FOURNISSEUR/.test(document.querySelector('#svConf .svc-t').textContent)].join(',');
+            const c = document.querySelector('#svConf .fmw-st[data-f="bg"]'); c.value = '#112233'; c.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('#svConf [data-save]').click(); await w(150);
+            r.saved = (sviFmt().by.frs_f || { st: {} }).st.bg;
             sviFmtWin(null); await w(150); r.win2 = [!!document.querySelector('#svConf .fmt-cols'), document.querySelectorAll('#svConf .fmt-el tbody tr').length, !!document.querySelector('#svConf .fmt-blk')].join(',');
             document.querySelector('#svConf [data-save]').click(); await w(150); r.cleared = Object.keys(sviFmt().by).length;
             r.home = !!document.querySelector('#home') && !!document.querySelector('.nav-btn[data-view="home"]');
@@ -3471,16 +3471,16 @@ def main():
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(250);
             if (keepF === null) localStorage.removeItem('svi_format_v1'); else localStorage.setItem('svi_format_v1', keepF); sviFmtApply(); return r; }""")
         check("FORME 04/11, remarques 1 et 2 : états REMIS (orange) et NON LETTRÉ (violet) dans la palette ; FOND DES ONGLETS = couleur du fond seulement",
-              f1104["etats"] == "EN INSTANCE,FIGÉ,PARTIELLEMENT ACHEVÉ,REMIS,VALIDÉ,NON LETTRÉ,EXPIRÉ,BLOQUÉ,ARCHIVÉ" and f1104["vars"] == "#ea580c,#a21caf"
+              f1104["etats"] == "EN INSTANCE,FIGÉ,PARTIELLEMENT ACHEVÉ,REMIS,VALIDÉ,NON LETTRÉ,EXPIRÉ,BLOQUÉ,ARCHIVÉ,EN COURS DE VALIDATION,ANNULÉ" and f1104["vars"] == "#ea580c,#a21caf"
               and f1104["tabs"] == "FOND DES ONGLETS|bg" and f1104["tabsCss"], f1104)
         check("FORME 04/11, remarques 3 et 4 : parties des fenêtres réglées une fois pour toutes ; HAUTEUR de chaque élément (lignes 21 px, titres des colonnes 22 px au départ)",
               f1104["h"] == "21,22" and f1104["win"] and f1104["hCss"], f1104)
         check("FORME 04/11, remarques 5 et 6 : blocs — lignes par défaut (5) et en mode réduit (1) réglables, hauteur par défaut recalculée ; police fixe Arial à l'écran",
               f1104["blk0"] == "5,1" and f1104["blk1"] == "8,2,211px" and f1104["font"], f1104)
         check("FORME 04/11, remarques 10 et 11 : interfaces (4 par pièce, 3 pour le budget, ordre du menu) et interface affichée connue ; MASQUER LA COLONNE dans la loupe, AFFICHER LES COLONNES MASQUÉES (compteur) dans le ⋯",
-              f1104["ifs"] == "41|bdgl_i,bdgl_v,bdg,caf_li,caf_lv,caf_fi,caf_fv" and f1104["cur"] in ("bdgl_i", "bdgl_v") and f1104["colh"] == "1,true,0,1" and f1104["loupe"], f1104)
+              f1104["ifs"] == "32|bdgl,bdg,bdg_w,caf_l,caf_f,caf_w,dvf_l" and f1104["cur"] == "bdgl" and f1104["colh"] == "1,true,0,1" and f1104["loupe"], f1104)
         check("FORME 04/11, remarques 12 et 13 : MODIFIER LE FORMAT d'une interface (ÉTAT de l'écran puis les éléments, sans les parties des fenêtres) ; écran d'ACCUEIL et RÉGLAGES COMMUNS (APPLIQUER PARTOUT remplace les réglages par interface)",
-              f1104["byCss"] and f1104["win1"] == "true,12,true" and f1104["saved"] == "#112233" and f1104["win2"] == "true,24,true" and f1104["cleared"] == 0 and f1104["home"], f1104)
+              f1104["byCss"] and f1104["win1"] == "true,13,true" and f1104["saved"] == "#112233" and f1104["win2"] == "true,25,true" and f1104["cleared"] == 0 and f1104["home"], f1104)
         check("FORME 04/11, remarques 14 et 15 : rubrique FORMAT et MASQUES DE SAISIE retirées de PARAMÉTRAGE ; masque posé sur un champ par appui long (clic droit), \"texte\" écrit d'office, autres signes placés d'office",
               f1104["noFmt"] and f1104["tok"] == "+212 6 12 34 56 78|ABC-123|123-AB" and f1104["pop"] and f1104["applied"] == "12345-B-67|99999-A-99", f1104)
         # remarque 16 : gestes sur ordinateur (Ctrl / Cmd + molette = hauteur des lignes, Option + molette = échelle du temps, clic droit = appui long)
@@ -3520,7 +3520,8 @@ def main():
         b6 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_pg_v1'); { const o0 = sviPg(); o0.banques = []; sviPgSave(o0); }
   document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300);
   r.tabs = [...document.querySelectorAll('#chs .pg-tabs .prm-tab')].map(b => b.textContent.trim()).join('|'); r.first = (document.querySelector('#chs .prm-tab.on') || {}).dataset?.prm;
-  r.gen = !!document.querySelector('#chs .prm-pg .tva-def') && !!document.querySelector('#chs .prm-pg .trk-km') && !document.querySelector('.prm-tab[data-prm="tva"]');
+  r.gen = !document.querySelector('#chs .prm-pg .tva-def') && !!document.querySelector('#chs .prm-pg .trk-km') && !document.querySelector('.prm-tab[data-prm="tva"]');   /* E5 (06/11) : TVA PAR DÉFAUT dans SOCIÉTÉ */
+  document.querySelector('.prm-tab[data-prm="soc"]').click(); await w(150); r.gen = r.gen && !!document.querySelector('#chs .prm-pg .pg-soc .tva-def'); document.querySelector('.prm-tab[data-prm="gen"]').click(); await w(100);
   document.querySelector('.prm-tab[data-prm="banq"]').click(); await w(150);
   const nb = document.querySelector('#chs .pg-tree tr.pg-tnew[data-lv="0"] input'); nb.value = 'banque populaire'; nb.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
   const ab = document.querySelector('#chs .pg-tree tr.pg-tnew[data-lv="1"] input'); ab.value = 'agence centre'; ab.dispatchEvent(new Event('change', { bubbles: true })); await w(100);
@@ -3688,7 +3689,7 @@ def main():
   const D = achDocPage('cmf', achCmf().find(x => x.id === c.id)); r.link = (D.links.find(l => l.t === 'RETOURS DE COMMANDE') || { rows: [] }).rows.length;
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i]));
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
-        check('SÉRIE B, B25 B45 B37 : CIRCUIT DE VALIDATION (seuil → grades, hiérarchie du plus bas au plus haut, commande verrouillée, RENVOYER avec remarques puis repart, VALIDER à la fin) ; retours = montant négatif, liés dans les deux sens', b25.get('seu') == '{"mt":1000,"g":["3","1"],"h":true}' and b25.get('btn') and b25.get('locked') and b25.get('next') == '3' and b25.get('renv') == 1 and b25.get('unlocked') and b25.get('next2') == '1' and b25.get('state') == 'valide' and b25.get('rtMt') == -400 and b25.get('link') == 1, b25)
+        check('SÉRIE B, B25 B45 B37 : CIRCUIT DE VALIDATION (seuil → grades, hiérarchie du plus bas au plus haut, commande verrouillée, RENVOYER avec remarques puis repart, VALIDER à la fin) ; retours = montant négatif, liés dans les deux sens', b25.get('seu') == '{"mt":1000,"g":["3","1"],"h":true,"k":"cmf"}' and b25.get('btn') and b25.get('locked') and b25.get('next') == '3' and b25.get('renv') == 1 and b25.get('unlocked') and b25.get('next2') == '1' and b25.get('state') == 'valide' and b25.get('rtMt') == -400 and b25.get('link') == 1, b25)
         b11 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_cmf_v1', 'svi_fld_v1', 'svi_masks_v1'], keep = K.map(k => localStorage.getItem(k));
   localStorage.removeItem('svi_fld_v1');
   const L = achFrs(); const f = achFrsNew(L, { nom: 'CHAMP' }); f.ville = ''; f.grp = 'loc'; achFrsSave(L);
@@ -3835,17 +3836,17 @@ def main():
         c15 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_format_v1', 'svi_pal_v1', 'svi_colors_v1'], keep = K.map(k => localStorage.getItem(k));
   sviFmtWin(null); await w(200); const d = document.querySelector('#svConf');
   r.cats = [...d.querySelectorAll('.fmt-catg')].map(x => x.textContent.replace(/[›⌄]/g, '').trim()).join('|');
-  d.querySelector('[data-catf="lv"]').click(); await w(100); r.lv = [...document.querySelectorAll('#svConf .fmt-catr[data-cat="lv"]')].map(x => x.dataset.el).join(',');
-  document.querySelector('[data-catf="fi"]').click(); await w(100); r.fi = document.querySelectorAll('#svConf .fmt-catr[data-cat="fi"]').length;
-  document.querySelector('[data-catf="wi"]').click(); await w(100); r.wi = document.querySelectorAll('#svConf .fmt-catr[data-cat="wi"]').length;
-  const c = document.querySelector('#svConf .fmt-catr[data-cat="lv"][data-el="row"] input[data-f="bg"]'); c.value = '#123456'; c.dispatchEvent(new Event('input', { bubbles: true })); await w(50);
-  r.css = /html\[data-svif\$="_lv"\] body table tbody td[^{]*\{[^}]*#123456/.test(document.getElementById('sviFmtStyle').textContent);
+  d.querySelector('[data-catf="l"]').click(); await w(100); r.lv = [...document.querySelectorAll('#svConf .fmt-catr[data-cat="l"]')].map(x => x.dataset.el).join(',');
+  document.querySelector('[data-catf="f"]').click(); await w(100); r.fi = document.querySelectorAll('#svConf .fmt-catr[data-cat="f"]').length;
+  document.querySelector('[data-catf="w"]').click(); await w(100); r.wi = document.querySelectorAll('#svConf .fmt-catr[data-cat="w"]').length;
+  const c = document.querySelector('#svConf .fmt-catr[data-cat="l"][data-el="row"] input[data-f="bg"]'); c.value = '#123456'; c.dispatchEvent(new Event('input', { bubbles: true })); await w(50);
+  r.css = /html\[data-svif\$="_l"\] body table tbody td[^{]*\{[^}]*#123456/.test(document.getElementById('sviFmtStyle').textContent);
   document.querySelector('#svConf [data-pal="nuit"]').click(); await w(200); r.nuit = document.documentElement.classList.contains('svi-nuit') && sviPal().mode === 'nuit' && !!(sviFmt().el.top || {}).bg;
   document.querySelector('#svConf [data-setdef]').click(); await w(100); r.def = !!(sviPal().def || {}).nuit;
   document.querySelector('#svConf [data-pal="jour"]').click(); await w(200); r.jour = !document.documentElement.classList.contains('svi-nuit') && !!(sviPal().nuit || {}).F;
   document.querySelectorAll('#svConf').forEach(x => x.remove());
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); sviFmtApply(); sviPalApply(); return r; }""")
-        check('05/11 : RÉGLAGES COMMUNS en arbre pliable (LISTE, FICHE, FENÊTRE — EN INSTANCE / VALIDÉE, seuls les éléments qui existent ; nouvelles parties des fenêtres) ; palettes JOUR et NUIT ; DÉFINIR COMME PAR DÉFAUT', c15.get('cats') == 'LISTE EN INSTANCE|LISTE VALIDÉE|FICHE EN INSTANCE|FICHE VALIDÉE|FENÊTRE EN INSTANCE|FENÊTRE VALIDÉE' and c15.get('lv') == 'top,th,row,tot' and c15.get('fi') == 10 and c15.get('wi') == 12 and c15.get('css') and c15.get('nuit') and c15.get('def') and c15.get('jour'), c15)
+        check('05/11 : RÉGLAGES COMMUNS en arbre pliable (LISTE, FICHE, FENÊTRE — EN INSTANCE / VALIDÉE, seuls les éléments qui existent ; nouvelles parties des fenêtres) ; palettes JOUR et NUIT ; DÉFINIR COMME PAR DÉFAUT', c15.get('cats') == 'LISTE|FICHE|FENÊTRE' and c15.get('lv') == 'top,th,row,new,grid,tot' and c15.get('fi') == 11 and c15.get('wi') == 12 and c15.get('css') and c15.get('nuit') and c15.get('def') and c15.get('jour'), c15)
         c10 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = sviLibGet();
   sviLibSet([{ id: 'ra', act: 'BÉTON', nom: 'R1', u: 'M3', q: 10, src: 'TEST-1', chg: [{ des: 'CIMENT', u: 'T', k: 0.3, p: 1000 }] }, { id: 'rb', act: 'BÉTON', nom: 'R2', u: 'M3', q: 30, src: 'TEST-2', chg: [{ des: 'CIMENT', u: 'T', k: 0.4, p: 1100 }] }]);
   document.querySelector('#navMenu .nav-btn[data-view="chs"]').click(); await w(300); document.querySelector('#chs .prm-tab[data-prm="lib"]').click(); await w(300);
@@ -3925,14 +3926,14 @@ def main():
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("DOCUMENT UNIQUE 2.10 : sur une ligne en instance, le fournisseur validé reste noir et le devis partiel bleu (couleurs de la palette, même si le format de l'interface ou des lignes change) ; les champs simples prennent la couleur de la pièce de la ligne", b210.get('frs') == 'rgb(23, 32, 51)/rgb(23, 32, 51)' and b210.get('dvf') == 'rgb(29, 78, 216)/rgb(29, 78, 216)' and b210.get('q') == 'rgb(0, 255, 0)', b210)
         c613 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_dvf_v1'], keep = K.map(k => localStorage.getItem(k));
-  await sviAchLoad(); achDvfSave([{ id: 'VA', ref: 'DVF A', state: 'valide', date: '2026-10-31', lignes: [{ des: 'X', u: 'U', q: 1, pu: 1 }] }, { id: 'VB', ref: 'DVF B', state: 'instance', date: '2026-10-31', lignes: [] }]);
+  await sviAchLoad(); achDvfSave([{ id: 'VA', ref: 'DVF A', state: 'valide', date: '2026-10-31', lignes: [{ des: 'X', u: 'U', q: 1, pu: 1 }] }, { id: 'VB', ref: 'DVF B', state: 'recu', date: '2026-10-31', lignes: [] }]);
   document.querySelector('#navMenu .nav-btn[data-ach="dvf"]').click(); await w(400);
-  const sw = () => document.querySelector('#ach [data-nvsw]'), t = () => document.querySelector('#ach table.svi-bdgl');
-  const st = () => ({ inst: t().classList.contains('nv-inst'), act: t().querySelectorAll('.bdg-act-h, .bdg-action-cell').length, cols: t().querySelectorAll('colgroup col').length, ths: t().querySelectorAll('thead th').length });
-  const a = st(); for (let k = 0; k < 4 && st().inst === a.inst; k++) { sw().click(); await w(400); } const b = st(); r.v = a.inst ? b : a; r.i = a.inst ? a : b;
+  /* 06/11 : une seule liste — la colonne de corbeille n'apparaît que s'il y a une ligne à supprimer (en instance) */
+  const t = () => document.querySelector('#ach table.svi-bdgl'), st = () => ({ act: t().querySelectorAll('.bdg-act-h, .bdg-action-cell').length, cols: t().querySelectorAll('colgroup col').length, ths: t().querySelectorAll('thead th').length });
+  r.i = st(); sviStfSet('ach_dvf', ['valide']); document.getElementById('ach').__achTab('dvf'); await w(400); r.v = st(); sviStfSet('ach_dvf', null);
   const p = document.querySelector('#ach .svi-bdgp'); r.pw = Math.round(p.getBoundingClientRect().width);
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
-        check('DOCUMENT UNIQUE 6.13 : liste validée des achats sans colonne de corbeille (la liste en instance la garde) ; panneau des dates resserré', c613.get('v', {}).get('act') == 0 and c613['v']['cols'] == c613['v']['ths'] and c613.get('i', {}).get('act', 0) > 0 and c613['i']['cols'] == c613['i']['ths'] and c613.get('pw', 999) < 165, c613)
+        check('DOCUMENT UNIQUE 6.13 : liste validée des achats sans colonne de corbeille (la liste en instance la garde) ; panneau des dates resserré', c613.get('v', {}).get('act') == 0 and c613['v']['cols'] == c613['v']['ths'] and c613.get('i', {}).get('act', 0) > 0 and c613['i']['cols'] == c613['i']['ths'] and c613.get('pw', 999) < 240, c613)   # 06/11 : le panneau porte aussi les cases des états
         fmtu = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_format_v1');
   const F = sviFmt(); F.el = F.el || {}; F.el.blk = Object.assign({}, F.el.blk, { b: 0 }); F.el.taba = Object.assign({}, F.el.taba, { c: '#0000a3' }); F.el.ttl = Object.assign({}, F.el.ttl, { c: '#0000a5' }); F.el.top = Object.assign({}, F.el.top, { bg: '#0000a9' }); F.to = null; sviFmtSave(F); await w(200); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(800); if (!document.getElementById('bdgDetailHead')) { document.querySelector('#budgetListTable tbody tr[data-budget-ref] .budget-link, #budgetListTable tbody tr[data-budget-ref] td')?.click(); await w(1500); }
   const d = document.getElementById('bdgDetailHead'); r.det = d ? getComputedStyle(d).fontWeight : 'absent';
@@ -4010,11 +4011,12 @@ def main():
         d3 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_frs_etat2_v1'], keep = K.map(k => localStorage.getItem(k)); await sviAchLoad(); localStorage.removeItem('svi_ach_frs_etat2_v1');
   const L = achFrs(); const a = achFrsNew(L, { nom: 'ANCIEN INACTIF' }); a.actif = false; a.st = 'valide'; achFrsSave(L);
   document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(500);
-  const b = document.querySelector('#ach .novapp-date-filter'); r.lab = b.textContent.replace(/\s+/g, ' ').trim(); b.click(); await w(200);
-  r.menu = [...document.querySelectorAll('#sviEtatMenu button')].map(x => x.textContent.replace(/[\d✓]/g, '').trim()).filter(Boolean).join('|');
+  /* 06/11 : cases à cocher des états communs (TOUT en haut) ; la fréquence est une colonne (loupe) */
+  const b = document.querySelector('#ach .svi-stf-all'); r.lab = b.textContent.replace(/\s+/g, ' ').trim();
+  r.menu = [...document.querySelectorAll('#ach .svi-stf-r')].map(x => x.textContent.replace(/[\d✓]/g, '').trim()).filter(Boolean).join('|');
   document.getElementById('sviEtatMenu')?.remove(); const f = achFrs().find(x => x.id === a.id); r.mig = f.actif === undefined && !!f.bloq; r.newNoActif = !('actif' in achFrsNew([], { nom: 'X' }));
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
-        check('SÉRIE D, D3 : filtre des fournisseurs = statuts (FRÉQUENTS, NORMAUX, OCCASIONNELS, DORMANTS, BLOQUÉS, ARCHIVÉS) + CORBEILLE et TOUT, TOUT par défaut ; plus de case ACTIF (ancienne fiche inactive → bloquée)', d3.get('lab', '').startswith('TOUT') and d3.get('menu') == 'FRÉQUENTS|NORMAUX|OCCASIONNELS|DORMANTS|BLOQUÉS|ARCHIVÉS|CORBEILLE|TOUT' and d3.get('mig') and d3.get('newNoActif'), d3)
+        check('SÉRIE D, D3 : filtre des fournisseurs = statuts (FRÉQUENTS, NORMAUX, OCCASIONNELS, DORMANTS, BLOQUÉS, ARCHIVÉS) + CORBEILLE et TOUT, TOUT par défaut ; plus de case ACTIF (ancienne fiche inactive → bloquée)', d3.get('lab', '').startswith('TOUT') and d3.get('menu') == 'EN INSTANCE|VALIDÉ / CLÔTURÉ|EXPIRÉ|BLOQUÉ|ARCHIVÉ|ANNULÉ|ALERTE' and d3.get('mig') and d3.get('newNoActif'), d3)
         d5 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); document.documentElement.classList.add('svi-nuit'); svConfirm({ title: 'TEST', text: 'X', ok: 'OK' }); await w(200);
   const x = document.querySelector('#svConf .svc-close'), r = x ? [getComputedStyle(x).color, getComputedStyle(x).webkitTextFillColor].join('|') : 'absente';
   document.querySelector('#svConf [data-r="0"]')?.click(); document.querySelectorAll('#svConf').forEach(e => e.remove()); document.documentElement.classList.remove('svi-nuit'); sviPalApply(); return r; }""")
@@ -4050,6 +4052,19 @@ def main():
   r.rtStore = !JSON.stringify(achRtr()).includes('__m') && !JSON.stringify(achAvf()).includes('__m');
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("SÉRIE D, D1 : plus d'interface RETOURS / AVOIRS — retour de commande dans COMMANDES (montants négatifs, sa page, son lien), avoir dans FACTURES ; page fournisseur sans blocs RETOURS / AVOIRS ; données intactes", d1.get('menu') == 0 and d1.get('row', '').startswith('RTC 26-0105/001|RETOUR DE COMMANDE') and '-200,00|-240,00' in d1.get('row', '') and d1.get('cmfStore') and d1.get('page') == 'RTC 26-0105/001' and d1.get('tab') == 'cmf' and d1.get('av', '').startswith('AVF 26-0112/001') and '-120,00' in d1.get('av', '') and 'RETOURS' not in d1.get('blks', '') and 'AVOIRS' not in d1.get('blks', '') and d1.get('rtStore'), d1)
+        # 06/11 (décisions) et série E : règles de calcul — filtre par états combinables, circuit propre à chaque type de pièce, statuts des articles
+        e06 = pg.evaluate("""async () => { await sviAchLoad(); const r = {}, K = ['svi_ach_prm_v1', 'svi_ach_cmf_v1'], keep = K.map(k => localStorage.getItem(k));
+  r.stf = [sviStfOk(null, ['valide']), sviStfOk(['instance'], ['valide']), sviStfOk(['instance', 'valide'], ['valide']), sviStfOk(['valide'], ['valide', 'alerte']),
+    sviStfOk(['valide', 'alerte'], ['valide', 'alerte']), sviStfOk(['alerte'], ['instance', 'alerte']), sviStfOk(['alerte'], ['instance'])].map(x => x ? 1 : 0).join('');
+  const P = achPrm(); P.seuV = [{ id: 'g', mt: 1000, g: ['1'], h: true }]; P.seuT = { faf: [{ id: 'f', mt: 5000, g: ['2'], h: true }] }; achPrmSave(P);
+  r.seu = [JSON.stringify(achPcSeu('cmf', 2000)), achPcSeu('faf', 2000), JSON.stringify(achPcSeu('faf', 6000).g), achSeuOwn('paf'), achSeuOwn('faf')].join('|');
+  const d = n => { const x = new Date(); x.setMonth(x.getMonth() - n); return x.toISOString().slice(0, 10); };
+  achCmfSave([{ id: 'a', state: 'valide', valide: d(3), lignes: [{ des: 'SABLE', u: 'M3' }] }, { id: 'b', state: 'valide', valide: d(2), lignes: [{ des: 'SABLE', u: 'M3' }] }, { id: 'c', state: 'valide', valide: d(1), lignes: [{ des: 'SABLE', u: 'M3' }] }]);
+  r.freq = [achArtFreq({ des: 'SABLE', u: 'M3' }).k, achArtFreq({ des: 'GRAVIER', u: 'M3', cree: d(40) }).k].join(',');
+  r.st = [achPcSt('cmf', { state: 'instance', circ: { g: ['1'], ok: [], h: true } }), achPcSt('paf', { state: 'emis' }), achPcSt('frs', { st: 'valide', arch: 1 }), achPcSt('dvf', { state: 'annule' })].join(',');
+  K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); return r; }""")
+        check("06/11 et SÉRIE E (E4, E6) : une seule liste — cases des états combinables (ALERTE décochée cache, ALERTE seule montre) ; circuit de validation propre à chaque type (général proposé par défaut) ; état commun des pièces ; statuts des articles",
+              e06.get('stf') == '1010110' and e06.get('seu') == '{"mt":1000,"g":["1"],"h":true,"k":"cmf"}||["2"]|false|true' and e06.get('freq') == 'frequent,dormant' and e06.get('st') == 'encours,remis,archive,annule', e06)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

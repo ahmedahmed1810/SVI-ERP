@@ -1426,7 +1426,7 @@ détail technique en petit */
 .frs-st.cla-inst { color: var(--svi-col-instance, #dc2626); }
 /* 05/11 : palette de NUIT — fond de page sombre (les éléments réglables viennent de la palette) ; bascule dans les RÉGLAGES COMMUNS */
 html.svi-nuit body, html.svi-nuit .content, html.svi-nuit section { background: #0b1220 !important; color: #e5e7eb; }
-html.svi-nuit .prm-table td, html.svi-nuit .bdg-d-table td { border-color: #334155; }
+/* E1 (série E) : traits des tableaux de nuit — réglés dans la palette (élément TRAITS DES TABLEAUX), plus écrits ici */
 .fmw-pal { display: inline-flex; align-items: center; gap: 4px; margin-right: auto; font-weight: 800; font-size: 12px; }
 .fmw-pal .svc-b.on { outline: 2px solid currentColor; }
 /* 05/11 : réglages communs en arbre pliable */
@@ -3585,3 +3585,35 @@ html.svi-nuit :is(#svConf, #dlyAddW, #docPop, #svMaskPop) :is(.svc-close, .doc-x
 .fmw-card .svc-t .fmw-pal { flex-wrap: wrap; justify-content: flex-end; }
 .fmw-card .svc-t .fmw-palt-l { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 800; }
 .fmw-card .svc-t .fmw-palt { width: 62px; height: 30px; text-align: center; border: 1px solid #c8d0da; border-radius: 6px; font-weight: 800; font-size: 12px; }
+
+/* ===== 06/11/2026 (décisions) : UNE SEULE LISTE par type de pièce, cases à cocher des états à gauche ; fiche et fenêtre colorées selon l'état ===== */
+.svi-stf { border-bottom: 2px solid #d9dee6; }
+.novapp-date-panel .svi-stf-r, .novapp-date-panel .svi-stf-all { cursor: pointer; }
+.novapp-date-panel .svi-stf-r > span, .novapp-date-panel .svi-stf-all > span { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.novapp-date-panel .svi-stf-r input, .novapp-date-panel .svi-stf-all input { width: 15px; height: 15px; margin: 0; flex: none; pointer-events: none; accent-color: var(--svst, #172033); }
+.novapp-date-panel .svi-stf-all > span { font-weight: 800; }
+.svi-stf-r.stf-instance { color: var(--st-instance, #b91c1c); } .svi-stf-r.stf-fige { color: var(--st-fige, #15803d); }
+.svi-stf-r.stf-remis { color: var(--st-remis, #ea580c); } .svi-stf-r.stf-encours { color: var(--st-encours, #0e7490); }
+.svi-stf-r.stf-partiel { color: var(--st-partiel, #1d4ed8); } .svi-stf-r.stf-valide { color: var(--st-valide, #172033); }
+.svi-stf-r.stf-expire { color: var(--st-expire, #b45309); } .svi-stf-r.stf-bloque { color: var(--st-bloque, #6b7280); }
+.svi-stf-r.stf-archive { color: var(--st-archive, #6d28d9); } .svi-stf-r.stf-annule { color: var(--st-annule, #9ca3af); } .svi-stf-r.stf-alerte { color: #c2410c; }
+html.svi-nuit .svi-stf-r.stf-valide { color: #e5e7eb; }
+/* lignes de la liste unique : chaque ligne dans la couleur de son état (palette) */
+table.svi-bdgl tr.st-remis td { color: var(--st-remis, #ea580c) !important; } table.svi-bdgl tr.st-encours td { color: var(--st-encours, #0e7490) !important; }
+table.svi-bdgl tr.st-partiel td { color: var(--st-partiel, #1d4ed8) !important; } table.svi-bdgl tr.st-expire td { color: var(--st-expire, #b45309) !important; }
+table.svi-bdgl tr.st-bloque td { color: var(--st-bloque, #6b7280) !important; } table.svi-bdgl tr.st-archive td { color: var(--st-archive, #6d28d9) !important; }
+table.svi-bdgl tr.st-annule td { color: var(--st-annule, #9ca3af) !important; text-decoration: line-through; }
+#ach .nvp .nvp-blk tr.nvr-encours td { color: var(--st-encours, #0e7490) !important; } #ach .nvp .nvp-blk tr.nvr-expire td { color: var(--st-expire, #b45309) !important; }
+#ach .nvp .nvp-blk tr.nvr-bloque td { color: var(--st-bloque, #6b7280) !important; } #ach .nvp .nvp-blk tr.nvr-archive td { color: var(--st-archive, #6d28d9) !important; }
+html body .ach-link[data-nvgo].lk-encours { color: var(--stg-encours, #0e7490) !important; -webkit-text-fill-color: currentColor !important; }
+html body .ach-link[data-nvgo].lk-expire { color: var(--stg-expire, #b45309) !important; -webkit-text-fill-color: currentColor !important; }
+html body .ach-link[data-nvgo].lk-archive { color: var(--stg-archive, #6d28d9) !important; -webkit-text-fill-color: currentColor !important; }
+/* fenêtre : couleur de l'état de la pièce (celle de la ligne touchée ou de la fiche ouverte) — trait de gauche et titre */
+:root[data-svst="remis"] { --svst: var(--st-remis); } :root[data-svst="encours"] { --svst: var(--st-encours); } :root[data-svst="partiel"] { --svst: var(--st-partiel); }
+:root[data-svst="expire"] { --svst: var(--st-expire); } :root[data-svst="bloque"] { --svst: var(--st-bloque); } :root[data-svst="archive"] { --svst: var(--st-archive); }
+:root[data-svst="annule"] { --svst: var(--st-annule); } :root[data-svst="valide"] { --svst: var(--st-valide); }
+:root[data-svst="instance"] { --svst: var(--st-instance, #b91c1c); } :root[data-svst="fige"] { --svst: var(--st-fige, #15803d); }
+:root[data-svst] #svConf .svc-card:not(.fmw-card), :root[data-svst] #docPop .doc-card { border-left: 4px solid var(--svst) !important; }
+:root[data-svst] #svConf .svc-card:not(.fmw-card) > .svc-t, :root[data-svst] #docPop .doc-head .doc-title { color: var(--svst); -webkit-text-fill-color: var(--svst); }
+.novapp-date-panel .svi-stf-r > span, .novapp-date-panel .svi-stf-all > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10.5px; }
+.novapp-date-panel .svi-stf-r { gap: 6px; }

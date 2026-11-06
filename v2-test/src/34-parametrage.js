@@ -268,9 +268,10 @@ function sviParamTabs() {
     if (i.matches(".pg-logo-in")) { const f = i.files && i.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { const o = sviPg(); o.soc = { ...sviSoc(), logo: rd.result }; sviPgSave(o); sviPgDraw("gen", gpane); }; rd.readAsDataURL(f); return; }
     if (!i.matches(".pg-gv")) return; const g = i.dataset.g, s = String(i.value).trim();
     if (g === "tz") { const o = sviPg(); o.gen = { ...(o.gen || {}), tz: s }; sviPgSave(o); return; }
-    if (s === "") { if (g === "tva") sviTvaSave(null); else sviTrKmSave(null); sviPgDraw("gen", gpane); return; }
-    const v = num(s); if (!sviNumOk(s) || v < 0 || (g === "tva" && v > 100)) { svToast(g === "tva" ? "TVA NON VALIDE (0 À 100)." : "PRIX AU KM NON VALIDE.", 3000, i); sviPgDraw("gen", gpane); return; }
-    if (g === "tva") sviTvaSave(v); else sviTrKmSave(v); sviPgDraw("gen", gpane); });
+    const tab = g === "tva" ? "soc" : "gen";   /* E5 : la TVA PAR DÉFAUT est dans SOCIÉTÉ */
+    if (s === "") { if (g === "tva") sviTvaSave(null); else sviTrKmSave(null); sviPgDraw(tab, gpane); return; }
+    const v = num(s); if (!sviNumOk(s) || v < 0 || (g === "tva" && v > 100)) { svToast(g === "tva" ? "TVA NON VALIDE (0 À 100)." : "PRIX AU KM NON VALIDE.", 3000, i); sviPgDraw(tab, gpane); return; }
+    if (g === "tva") sviTvaSave(v); else sviTrKmSave(v); sviPgDraw(tab, gpane); });
   const show = which => {
     if (!SVI_PG_TABS.some(T => T.k === which)) which = which === "tva" || which === "trk" ? "gen" : "gen";   /* anciens onglets (TVA, TRANSPORT, FORMAT) */
     const T = SVI_PG_TABS.find(x => x.k === which), h1 = head.querySelector("h1"), sub = head.querySelector("p");

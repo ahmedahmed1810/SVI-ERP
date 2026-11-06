@@ -402,7 +402,7 @@ const insPrdPrice = (data, id) => {
   const d = (data.des || []).find(x => x.id === l.des);
   return d && d.p !== "" && d.p !== undefined ? num(d.p) : "";
 };
-/* v899 (cahier, décision du 03/11/2026) : TVA PAR DÉFAUT — un seul réglage, dans PARAMÉTRAGE › BUDGET › TVA, commun au budget et aux achats.
+/* v899 (cahier, décision du 03/11/2026) : TVA PAR DÉFAUT — un seul réglage, dans PARAMÉTRAGE › GÉNÉRAL › SOCIÉTÉ, commun au budget et aux achats.
    Plus de 20 % écrit dans le code : une désignation sans TVA prend ce réglage ; s'il est vide aussi, la TVA manque (enregistrement refusé).
    Première lecture : reprend la TVA déjà réglée dans les paramètres des achats, si elle l'avait été. */
 const SVI_TVA_KEY = "svi_tva_def_v1";
@@ -3346,8 +3346,8 @@ function sviCfKit(o) {
    ========================================================= */
 const SVI_COL_KEY = "svi_colors_v1";
 /* v923 (remarque 1 du 04/11/2026) : REMIS orange (commande remise au fournisseur, paiement remis) ; NON LETTRÉ violet (banque, pour plus tard — distinct du violet d'ARCHIVÉ) */
-const SVI_COL_DEF = { instance: "#b91c1c", fige: "#15803d", partiel: "#1d4ed8", remis: "#ea580c", valide: "#172033", nonlettre: "#a21caf", expire: "#b45309", bloque: "#6b7280", archive: "#6d28d9" };
-const SVI_COL_LAB = [["instance", "EN INSTANCE"], ["fige", "FIGÉ"], ["partiel", "PARTIELLEMENT ACHEVÉ"], ["remis", "REMIS"], ["valide", "VALIDÉ"], ["nonlettre", "NON LETTRÉ"], ["expire", "EXPIRÉ"], ["bloque", "BLOQUÉ"], ["archive", "ARCHIVÉ"]];   /* v790 : PARTIELLEMENT ACHEVÉ (bleu) */
+const SVI_COL_DEF = { instance: "#b91c1c", fige: "#15803d", partiel: "#1d4ed8", remis: "#ea580c", valide: "#172033", nonlettre: "#a21caf", expire: "#b45309", bloque: "#6b7280", archive: "#6d28d9", encours: "#0e7490", annule: "#9ca3af" };
+const SVI_COL_LAB = [["instance", "EN INSTANCE"], ["fige", "FIGÉ"], ["partiel", "PARTIELLEMENT ACHEVÉ"], ["remis", "REMIS"], ["valide", "VALIDÉ"], ["nonlettre", "NON LETTRÉ"], ["expire", "EXPIRÉ"], ["bloque", "BLOQUÉ"], ["archive", "ARCHIVÉ"], ["encours", "EN COURS DE VALIDATION"], ["annule", "ANNULÉ"]];   /* 06/11 : EN COURS DE VALIDATION, ANNULÉ ; v790 : PARTIELLEMENT ACHEVÉ (bleu) */
 function sviColors() {
   let v = null; try { v = JSON.parse(localStorage.getItem(SVI_COL_KEY) || "null"); } catch (e) {}
   const o = { ...SVI_COL_DEF };
@@ -3391,6 +3391,8 @@ const SVI_FMT_EL = [
   { k: "ttl", lab: "LIGNES DE TITRE DANS UN TABLEAU", sel: ["tr.ins-title td", "tr.ins-gtitle td", ".dly-grp td", ".ins-hcol .ins-li.lot-grp"], def: { bg: "#ece8e1", c: "#2f2a24", fs: 12, b: 1, h: 21 } },
   { k: "row", lab: "LIGNES D'UN TABLEAU", sel: ["table tbody td"], def: { bg: "#ffffff", c: "#172033", fs: 12, b: 0, h: 21 } },
   { k: "new", lab: "LIGNE CRÉER … ICI", sel: ["tbody tr.ins-new td", "tbody tr.rec-new td", "tbody tr.scn-new td", "tbody tr.dly-new td", "tbody tr.bdg-newrow td", ".ins-hcol .ins-li.ins-new"], def: { bg: "#fdf0f0", c: "#b91c1c", fs: 12, b: 0, h: 21 } },
+  /* E1 (série E, 06/11) : TRAITS DES TABLEAUX — couleur des traits entre les cases, réglée dans chaque palette (JOUR et NUIT indépendantes) */
+  { k: "grid", lab: "TRAITS DES TABLEAUX", sel: ["table td", "table th"], def: { c: "#e5e8ed" }, f: ["c"], bd: 1 },
   { k: "tot", lab: "LIGNE TOTAL", sel: ["tfoot td", "tr.bdg-d-total-row td"], def: { bg: "#fdf0f0", c: "#b91c1c", fs: 12, b: 1, h: 21 } },
   { k: "win", lab: "BANDEAU DES FENÊTRES", sel: ["#svConf .svc-card > .svc-t", "#docPop .doc-head"], def: { bg: "#dde2e9", c: "#172033", fs: 15, b: 1, h: 41 }, win: 1 },
   { k: "winbg", lab: "FENÊTRES — FOND DE LA FENÊTRE", sel: ["#svConf .svc-card", "#docPop .doc-card"], def: { bg: "#ffffff" }, f: ["bg"], win: 1 },
@@ -3421,18 +3423,22 @@ const SVI_FMT_IF = [
 const SVI_IF_ACH = [["caf", "CONSULTATION", "CONSULTATIONS"], ["dvf", "DEVIS", "DEVIS"], ["cmf", "COMMANDE", "COMMANDES"],
   ["rcp", "RÉCEPTION", "RÉCEPTIONS"], ["faf", "FACTURE", "FACTURES"], ["paf", "PAIEMENT", "PAIEMENTS"],
   ["frs", "FOURNISSEUR", "FOURNISSEURS"], ["art", "ARTICLE", "ARTICLES"], ["bsn", "BESOIN", "BESOINS"]];
+/* 06/11/2026 (décision) : UN SEUL TYPE DE LISTE, DE FICHE ET DE FENÊTRE par pièce, colorés selon l'état (palette) — MODIFIER LE FORMAT règle
+   la LISTE, la FICHE et la FENÊTRE de chaque pièce (plus d'interfaces EN INSTANCE / VALIDÉES séparées) ; les anciens réglages sont repris */
 const SVI_IFS = [
-  { k: "bdgl_i", grp: "BUDGET", lab: "BUDGETS EN INSTANCE (LISTE)" }, { k: "bdgl_v", grp: "BUDGET", lab: "BUDGETS VALIDÉS (LISTE)" }, { k: "bdg", grp: "BUDGET", lab: "FICHE BUDGET" },
-  ...SVI_IF_ACH.flatMap(([k, one, many]) => [{ k: k + "_li", grp: "ACHATS", lab: many + " EN INSTANCE (LISTE)" }, { k: k + "_lv", grp: "ACHATS", lab: many + " VALIDÉS (LISTE)" },
-    { k: k + "_fi", grp: "ACHATS", lab: "FICHE " + one + " EN INSTANCE" }, { k: k + "_fv", grp: "ACHATS", lab: "FICHE " + one + " VALIDÉE" }]),
+  { k: "bdgl", grp: "BUDGET", lab: "BUDGETS (LISTE)" }, { k: "bdg", grp: "BUDGET", lab: "FICHE BUDGET" }, { k: "bdg_w", grp: "BUDGET", lab: "FENÊTRE BUDGET", win: 1 },
+  ...SVI_IF_ACH.flatMap(([k, one, many]) => [{ k: k + "_l", grp: "ACHATS", lab: many + " (LISTE)" }, { k: k + "_f", grp: "ACHATS", lab: "FICHE " + one }, { k: k + "_w", grp: "ACHATS", lab: "FENÊTRE " + one, win: 1 }]),
   { k: "achprm", grp: "ACHATS", lab: "PARAMÈTRES ACHATS" }, { k: "prm", grp: "PARAMÉTRAGE", lab: "PARAMÉTRAGE" }
 ];
+/* ancienne clé d'interface → nouvelle (bdgl_i / bdgl_v → bdgl ; caf_li / caf_lv → caf_l ; caf_fi / caf_fv → caf_f) */
+const sviIfNew = k => k === "bdgl_i" || k === "bdgl_v" ? "bdgl" : String(k).replace(/_(l|f)[iv]$/, "_$1");
+/* interface de base d'une fenêtre (caf_w → caf_l et caf_f ; bdg_w → bdgl et bdg) */
+const sviIfWinOf = k => k === "bdg_w" ? ["bdgl", "bdg"] : [k.replace(/_w$/, "_l"), k.replace(/_w$/, "_f")];
 function sviIfCur() {
   const on = id => { const v = document.getElementById(id); return !!v && v.classList.contains("active-view"); };
-  if (on("bdg")) { if (document.querySelector("#bdg .bdg-d-page")) return "bdg"; let m = "inst"; try { m = localStorage.getItem("svi_listmode_v1") || "inst"; } catch (e) {} return m === "valid" ? "bdgl_v" : "bdgl_i"; }
+  if (on("bdg")) return document.querySelector("#bdg .bdg-d-page") ? "bdg" : "bdgl";
   if (on("ach")) { let t = "art"; try { t = localStorage.getItem("svi_ach_tab_v1") || "art"; } catch (e) {} if (t === "prm") return "achprm";
-    const pg = document.querySelector("#ach .nvp"); if (pg) return t + (pg.matches(".bdg-inst-instance, .bdg-inst-fige") ? "_fi" : "_fv");
-    return t + (document.querySelector("#ach table.nv-inst") ? "_li" : "_lv"); }
+    return t + (document.querySelector("#ach .nvp") ? "_f" : "_l"); }
   if (on("chs")) return "prm";
   return "";
 }
@@ -3442,13 +3448,20 @@ function sviIfCur() {
   if (document.body) start(); else document.addEventListener("DOMContentLoaded", start); }
 function sviFmt() {
   let v = null; try { v = JSON.parse(localStorage.getItem(SVI_FMT_KEY) || "null"); } catch (e) {}
-  return v && typeof v === "object" ? { el: v.el || {}, to: Array.isArray(v.to) ? v.to : null, blk: v.blk || {}, by: v.by && typeof v.by === "object" ? v.by : {}, cat: v.cat && typeof v.cat === "object" ? v.cat : {} } : { el: {}, to: null, blk: {}, by: {}, cat: {} };
+  if (!(v && typeof v === "object")) return { el: {}, to: null, blk: {}, by: {}, cat: {} };
+  /* 06/11 : anciens réglages EN INSTANCE / VALIDÉ repris dans la LISTE, la FICHE, la FENÊTRE de la pièce (le réglage EN INSTANCE passe devant) */
+  const by = {}, B = v.by && typeof v.by === "object" ? v.by : {};
+  Object.keys(B).sort((a, b) => /_lv$|_fv$|bdgl_v/.test(a) - /_lv$|_fv$|bdgl_v/.test(b)).forEach(k => { const n = sviIfNew(k); if (!by[n]) by[n] = B[k]; });
+  const cat = {}, CA = v.cat && typeof v.cat === "object" ? v.cat : {}, CM = { li: "l", lv: "l", fi: "f", fv: "f", wi: "w", wv: "w" };
+  ["li", "fi", "wi", "lv", "fv", "wv", "l", "f", "w"].forEach(k => { if (!CA[k]) return; const n = CM[k] || k; if (!cat[n]) cat[n] = CA[k]; });
+  return { el: v.el || {}, to: Array.isArray(v.to) ? v.to : null, blk: v.blk || {}, by, cat };
 }
 /* v927 (remarque 12 du 04/11/2026) : réglage propre à une interface (MODIFIER LE FORMAT) — F.by[interface] = { el, st: { c, bg } } ;
    il passe devant le réglage commun, seulement quand cette interface est affichée (html[data-svif]) */
 /* 05/11 : les LIGNES DE TITRE ont leurs propres règles de couleur (variables --ttl-c / --ttl-bg) — le format règle aussi ces variables */
 const sviFmtVars = (E, o) => E.k !== "ttl" ? "" : [o.c ? `--ttl-c:${o.c}` : "", o.bg ? `--ttl-bg:${o.bg}` : ""].filter(Boolean).join(";");
-const sviFmtDecl = o => { const d = [];
+const sviFmtDecl = (o, E) => { const d = [];
+  if (E && E.bd) { if (o.c) d.push(`border-color:${o.c}!important`); return d; }   /* E1 : traits des tableaux */
   if (o.bg) d.push(`background:${o.bg}!important`);
   if (o.c) d.push(`color:${o.c}!important;-webkit-text-fill-color:${o.c}!important`);
   if (o.fs) d.push(`font-size:${+o.fs}px!important`);
@@ -3460,44 +3473,38 @@ const sviFmtDecl = o => { const d = [];
 /* 05/11 : RÉGLAGES COMMUNS en arbre — LISTE / FICHE / FENÊTRE, chacune EN INSTANCE et VALIDÉE ; seuls les éléments qui existent dans chacune
    (une liste validée n'a pas de ligne CRÉER … ICI) ; ils passent devant le réglage de tout le programme, derrière celui d'une interface */
 const SVI_FMT_CAT = [
-  ["li", "LISTE EN INSTANCE", ['html[data-svif$="_li"]', 'html[data-svif="bdgl_i"]'], ["top", "th", "row", "new", "tot"]],
-  ["lv", "LISTE VALIDÉE", ['html[data-svif$="_lv"]', 'html[data-svif="bdgl_v"]'], ["top", "th", "row", "tot"]],
-  ["fi", "FICHE EN INSTANCE", ['html[data-svif$="_fi"]', 'html[data-svif="bdg"]'], ["top", "blk", "tabs", "tab", "taba", "th", "ttl", "row", "new", "tot"]],
-  ["fv", "FICHE VALIDÉE", ['html[data-svif$="_fv"]'], ["top", "blk", "tabs", "tab", "taba", "th", "ttl", "row", "tot"]],
-  ["wi", "FENÊTRE EN INSTANCE", ['html[data-svif$="_li"]', 'html[data-svif$="_fi"]', 'html[data-svif="bdgl_i"]', 'html[data-svif="bdg"]'], null],
-  ["wv", "FENÊTRE VALIDÉE", ['html[data-svif$="_lv"]', 'html[data-svif$="_fv"]', 'html[data-svif="bdgl_v"]'], null]];
+  ["l", "LISTE", ['html[data-svif$="_l"]', 'html[data-svif="bdgl"]'], ["top", "th", "row", "new", "tot", "grid"]],
+  ["f", "FICHE", ['html[data-svif$="_f"]', 'html[data-svif="bdg"]'], ["top", "blk", "tabs", "tab", "taba", "th", "ttl", "row", "new", "tot", "grid"]],
+  ["w", "FENÊTRE", ['html[data-svif$="_l"]', 'html[data-svif$="_f"]', 'html[data-svif="bdgl"]', 'html[data-svif="bdg"]'], null]];
 const sviFmtCatEls = c => { const C = SVI_FMT_CAT.find(x => x[0] === c); return !C ? [] : C[3] ? SVI_FMT_EL.filter(E => C[3].includes(E.k)) : SVI_FMT_EL.filter(E => E.win); };
 function sviFmtCssCat(F) { const out = [];
   SVI_FMT_CAT.forEach(([c, , pre]) => { const el = ((F.cat || {})[c] || {}).el || {};
-    sviFmtCatEls(c).forEach(E => { const o0 = el[E.k]; if (!o0) return; const o = E.f ? Object.fromEntries(Object.entries(o0).filter(([f]) => E.f.includes(f))) : o0, d = sviFmtDecl(o); if (!d.length) return;
+    sviFmtCatEls(c).forEach(E => { const o0 = el[E.k]; if (!o0) return; const o = E.f ? Object.fromEntries(Object.entries(o0).filter(([f]) => E.f.includes(f))) : o0, d = sviFmtDecl(o, E); if (!d.length) return;
       out.push(pre.flatMap(p => E.sel.map(s => p + " body " + s)).join(", ") + " { " + d.join("; ") + " }");
       const vv = sviFmtVars(E, o); if (vv) out.push(pre.map(p => p + " body").join(", ") + " { " + vv + " }"); }); });
   return out.join("\n"); }
 function sviFmtCssBy(F) {
   const out = [];
-  Object.keys(F.by || {}).forEach(k => { const B = F.by[k] || {}, P = `html[data-svif="${k}"] body `;
-    SVI_FMT_EL.forEach(E => { if (E.win) return; const o0 = (B.el || {})[E.k]; if (!o0) return;
-      const o = E.f ? Object.fromEntries(Object.entries(o0).filter(([f]) => E.f.includes(f))) : o0, d = sviFmtDecl(o); if (!d.length) return;
-      out.push(E.sel.map(x => P + x).join(", ") + " { " + d.join("; ") + " }"); const vv = sviFmtVars(E, o); if (vv) out.push(P.trim() + " { " + vv + " }"); });
+  Object.keys(F.by || {}).forEach(k => { const B = F.by[k] || {}, W = /_w$/.test(k), PP = W ? sviIfWinOf(k).map(x => `html[data-svif="${x}"] body `) : [`html[data-svif="${k}"] body `], P = PP[0];
+    /* 06/11 : FENÊTRE d'une pièce (k_w) — seulement les parties des fenêtres, quand la liste ou la fiche de cette pièce est affichée */
+    SVI_FMT_EL.forEach(E => { if (!!E.win !== W) return; const o0 = (B.el || {})[E.k]; if (!o0) return;
+      const o = E.f ? Object.fromEntries(Object.entries(o0).filter(([f]) => E.f.includes(f))) : o0, d = sviFmtDecl(o, E); if (!d.length) return;
+      out.push(PP.flatMap(p => E.sel.map(x => p + x)).join(", ") + " { " + d.join("; ") + " }"); const vv = sviFmtVars(E, o); if (vv) out.push(PP.map(p => p.trim()).join(", ") + " { " + vv + " }"); });
+    if (W) return;
     const st = B.st || {};
-    if (st.c) out.push(`${P}.bdg-d-page, ${P}.nvp, ${P}.novapp-list-shell { --inst: ${st.c}; --st-instance: ${st.c}; --st-valide: ${st.c}; }`);
+    /* 06/11 : plus de couleur d'écran forcée par interface — elle suit l'état de la pièce (palette) */
     if (st.bg) out.push(`html[data-svif="${k}"] body, ${P}.view, ${P}.bdg-d-page, ${P}.nvp { background: ${st.bg} !important; }`); });
   return out.join("\n");
 }
 function sviFmtCss(F) {
   const out = [], all = !F.to || F.to.length >= SVI_FMT_IF.length;
   const SC = all ? null : SVI_FMT_IF.filter(x => F.to.includes(x.k)).flatMap(x => x.sc);
+  /* E1 : palette NUIT sans réglage des traits — traits sombres de la nuit (plus de règle écrite en dur dans la feuille de styles) */
+  const EL = { ...F.el }; try { if (!EL.grid && document.documentElement.classList.contains("svi-nuit")) EL.grid = { c: "#334155" }; } catch (e) {}
   SVI_FMT_EL.forEach(E => {
-    const o0 = F.el[E.k]; if (!o0) return;
+    const o0 = EL[E.k]; if (!o0) return;
     const o = E.f ? Object.fromEntries(Object.entries(o0).filter(([f]) => E.f.includes(f))) : o0;   /* v923 : seulement les réglages permis */
-    const d = [];
-    if (o.bg) d.push(`background:${o.bg}!important`);
-    if (o.c) d.push(`color:${o.c}!important;-webkit-text-fill-color:${o.c}!important`);
-    if (o.fs) d.push(`font-size:${+o.fs}px!important`);
-    if (o.b !== undefined) d.push(`font-weight:${o.b ? 800 : 400}!important`);
-    if (o.i !== undefined) d.push(`font-style:${o.i ? "italic" : "normal"}!important`);
-    if (o.u !== undefined) d.push(`text-decoration:${o.u ? "underline" : "none"}!important`);
-    if (+o.h >= 10 && +o.h <= 120) d.push(`height:${+o.h}px!important;min-height:0!important;box-sizing:border-box!important`);   /* v924 : hauteur */
+    const d = sviFmtDecl(o, E);   /* v924 : hauteur ; E1 : traits */
     if (!d.length) return;
     const sels = SC && !E.win ? SC.flatMap(sc => E.sel.map(x => x.startsWith(sc) ? x : sc + " " + x)).filter(x => !(x.startsWith("#svConf ") && x.indexOf(" #svConf") > 0)) : E.sel;
     if (!sels.length) return;
@@ -3528,8 +3535,8 @@ const sviPal = () => { let o = null; try { o = JSON.parse(localStorage.getItem(S
 const sviPalSave = o => { try { localStorage.setItem(SVI_PAL_K, JSON.stringify(o)); } catch (e) {} };
 const SVI_NUIT = { el: { top: { bg: "#0f172a", c: "#e2e8f0" }, blk: { bg: "#1f2937", c: "#e5e7eb" }, tabs: { bg: "#111827" }, tab: { bg: "#1f2937", c: "#cbd5e1" }, taba: { bg: "#334155", c: "#ffffff" }, tabm: { bg: "#1f2a24", c: "#cbd5e1" }, tabsub: { bg: "#111827", c: "#cbd5e1" },
   th: { bg: "#1f2937", c: "#e5e7eb" }, ttl: { bg: "#1e293b", c: "#e5e7eb" }, row: { bg: "#0b1220", c: "#e5e7eb" }, new: { bg: "#3f1d1d", c: "#fecaca" }, tot: { bg: "#1e293b", c: "#ffffff" },
-  win: { bg: "#0f172a", c: "#e2e8f0" }, winbg: { bg: "#111827" }, winlab: { c: "#cbd5e1" }, winin: { bg: "#1f2937", c: "#f8fafc" } }, blk: {}, to: null, by: {} };
-const sviPalApply = () => { try { document.documentElement.classList.toggle("svi-nuit", sviPal().mode === "nuit"); } catch (e) {} };
+  win: { bg: "#0f172a", c: "#e2e8f0" }, winbg: { bg: "#111827" }, winlab: { c: "#cbd5e1" }, winin: { bg: "#1f2937", c: "#f8fafc" }, grid: { c: "#334155" } }, blk: {}, to: null, by: {} };
+const sviPalApply = () => { try { document.documentElement.classList.toggle("svi-nuit", sviPal().mode === "nuit"); sviFmtApply(); } catch (e) {} };
 try { sviPalApply(); } catch (e) {}
 /* C10, D4 (document unique 1.9) : choix PALETTE en haut, dans le bandeau du titre de RÉGLAGES COMMUNS et de MODIFIER LE FORMAT */
 /* D4, D6 (série D, document unique 1.9) : PALETTE — JOUR, NUIT ou AUTOMATIQUE (DÉBUT et FIN DE LA NUIT, heure du FUSEAU HORAIRE de la société) ;
@@ -3559,15 +3566,16 @@ function sviFmtWin(ifk) {
   const D = JSON.parse(JSON.stringify(sviFmt())); D.by = D.by || {}; D.cat = D.cat || {}; const OPEN = new Set();
   const CD = { ...sviColors() };
   const S = ifk ? (D.by[ifk] = D.by[ifk] || { el: {}, st: {} }) : D; S.el = S.el || {}; if (ifk) S.st = S.st || {};
-  const IF = ifk ? (SVI_IFS.find(x => x.k === ifk) || { lab: ifk }) : null, valid = ifk && /_(lv|fv)$|bdgl_v/.test(ifk);
-  const ELS = SVI_FMT_EL.filter(E => !ifk || !E.win);
+  const IF = ifk ? (SVI_IFS.find(x => x.k === ifk) || { lab: ifk }) : null, WIN = !!(IF && IF.win);
+  const ELS = SVI_FMT_EL.filter(E => !ifk || !!E.win === WIN);
   const val = (E, f) => { const o = S.el[E.k] || {}; if (o[f] !== undefined) return o[f]; if (ifk && (D.el[E.k] || {})[f] !== undefined) return D.el[E.k][f]; return E.def[f]; };
   const ok = (E, f) => !E.f || E.f.includes(f), NA = '<td class="center fmt-na">—</td>';
   const preview = () => { const st = document.getElementById("sviFmtStyle"); if (st) st.textContent = sviFmtCss(D); const r = document.documentElement; Object.keys(CD).forEach(k => r.style.setProperty("--st-" + k, CD[k])); };
   const d = sviWinNew();
   const draw = () => { D.cat = D.cat || {}; D.by = D.by || {};
-    const stRow = ifk ? `<table class="prm-table fmt-t fmt-st"><colgroup><col style="width:300px"><col style="width:110px"><col style="width:110px"></colgroup><thead><tr><th>ÉTAT DE L'ÉCRAN</th><th class="center">TEXTE</th><th class="center">FOND</th></tr></thead>
-        <tbody><tr><td>${valid ? "VALIDÉ" : "EN INSTANCE"}</td><td class="center"><input type="color" class="fmw-st" data-f="c" value="${esc(S.st.c || (valid ? CD.valide : CD.instance))}"></td><td class="center"><input type="color" class="fmw-st" data-f="bg" value="${esc(S.st.bg || "#f4f7fb")}"></td></tr></tbody></table>`
+    /* 06/11 : la couleur de l'écran suit l'état de la pièce (palette des états) ; ici, seulement le FOND de l'écran ; FENÊTRE : rien */
+    const stRow = ifk ? (WIN ? "" : `<table class="prm-table fmt-t fmt-st"><colgroup><col style="width:300px"><col style="width:110px"></colgroup><thead><tr><th>ÉCRAN (COULEUR DU TEXTE : CELLE DE L'ÉTAT)</th><th class="center">FOND</th></tr></thead>
+        <tbody><tr><td>FOND DE L'ÉCRAN</td><td class="center"><input type="color" class="fmw-st" data-f="bg" value="${esc(S.st.bg || "#f4f7fb")}"></td></tr></tbody></table>`)
       : `<table class="prm-table fmt-t fmt-cols"><colgroup><col style="width:300px"><col style="width:110px"></colgroup><thead><tr><th>ÉTATS</th><th class="center">COULEUR</th></tr></thead>
         <tbody>${SVI_COL_LAB.map(([k, l]) => `<tr><td style="color:${esc(CD[k])}">${l}</td><td class="center"><input type="color" class="fmw-col" data-col="${k}" value="${esc(CD[k])}"></td></tr>`).join("")}</tbody></table>`;
     const elT = `<table class="prm-table fmt-t fmt-el"><colgroup><col style="width:300px"><col style="width:70px"><col style="width:70px"><col style="width:70px"><col style="width:60px"><col style="width:70px"><col style="width:76px"><col style="width:76px"></colgroup>
@@ -3594,7 +3602,7 @@ function sviFmtWin(ifk) {
           + (OPEN.has(c) ? sviFmtCatEls(c).map(E => catRow(c, E)).join("") : "")).join("")}</tbody></table>`;
     d.innerHTML = sviWinCard({ cls: "fmw-card", close: "data-x", title: `<span class="fmw-ttl">${ifk ? "MODIFIER LE FORMAT — " + esc(IF.lab) : "RÉGLAGES COMMUNS — TOUT LE PROGRAMME"}</span>${sviPalBtns()}`,   /* C10, D4 : choix de la palette dans le bandeau */
       body: `<div class="fmw-scroll">${stRow}${elT}${catT}${blkT}</div>`,
-      foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${ifk ? "" : `<button type="button" class="svc-b" data-setdef>DÉFINIR COMME PAR DÉFAUT</button>`}<button type="button" class="svc-b" data-def>PAR DÉFAUT</button><button type="button" class="svc-b svc-ok svc-neutral" data-save>${ifk ? "ENREGISTRER" : "APPLIQUER PARTOUT"}</button>` });
+      foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${ifk && !WIN && SVI_IFS.some(x => x.win && sviIfWinOf(x.k).includes(ifk)) ? `<button type="button" class="svc-b" data-fwin="${esc(SVI_IFS.find(x => x.win && sviIfWinOf(x.k).includes(ifk)).k)}">FENÊTRE DE CETTE PIÈCE</button>` : ""}${ifk ? "" : `<button type="button" class="svc-b" data-setdef>DÉFINIR COMME PAR DÉFAUT</button>`}<button type="button" class="svc-b" data-def>PAR DÉFAUT</button><button type="button" class="svc-b svc-ok svc-neutral" data-save>${ifk ? "ENREGISTRER" : "APPLIQUER PARTOUT"}</button>` });
   };
   draw(); sviWinShow(d);
   const num = (v, a, b) => { const n = parseInt(String(v).replace(/\D/g, ""), 10); return n >= a && n <= b ? n : null; };
@@ -3616,6 +3624,7 @@ function sviFmtWin(ifk) {
     if (i.matches(".fmw-blk")) { const n = num(i.value, 1, 30); if (n === null) { svToast("ENTRE 1 ET 30 LIGNES.", 2500, i); return; } D.blk = { ...sviBlkRows(D), [i.dataset.b]: n }; D.blk = sviBlkRows(D); } });
   d.addEventListener("click", e => {
     if (e.target === d || e.target.closest("[data-x]")) { d.remove(); sviFmtApply(); sviColorsApply(); return; }
+    const fw = e.target.closest("[data-fwin]"); if (fw) { d.remove(); sviFmtApply(); sviColorsApply(); sviFmtWin(fw.dataset.fwin); return; }
     const cf = e.target.closest("[data-catf]"); if (cf) { const c = cf.dataset.catf; if (OPEN.has(c)) OPEN.delete(c); else OPEN.add(c); draw(); return; }
     const pb = e.target.closest("[data-pal]"); if (pb && pb.dataset.pal === "auto") { const P = sviPal(), A = sviPalAuto(P); A.on = !A.on; P.auto = A; delete P.man; sviPalSave(P);
       const to = A.on ? sviPalAutoMode(P) : (P.mode === "nuit" ? "nuit" : "jour"); svToast(A.on ? "PALETTE AUTOMATIQUE : NUIT DE " + A.deb + " À " + A.fin + "." : "PALETTE AUTOMATIQUE ARRÊTÉE.", 2500);
@@ -3659,6 +3668,33 @@ function sviEtatMenu(btn, items, cur, pick) {
     if (!document.body.contains(m)) document.removeEventListener("pointerdown", off, true);
   }, true), 0);
 }
+
+/* =========================================================
+   06/11/2026 (décision d'Ahmed, document unique 3.9) : UNE SEULE LISTE PAR TYPE DE PIÈCE, budgets compris (plus de listes EN INSTANCE /
+   VALIDÉS séparées). À gauche, des cases à cocher combinables selon l'état : TOUT tout en haut, puis chaque état avec son nombre ;
+   le choix est gardé par liste. Une ligne passe si l'un de ses états est coché ; ALERTE décochée cache les lignes en alerte, ALERTE seule les montre toutes.
+   sviStfGet(clé) → null (TOUT) ou la liste des états cochés ; sviStfHtml(clé, compteurs, états) ; sviStfPick(clé, état, états) ; sviStfOk(choix, états de la ligne)
+   ========================================================= */
+const SVI_STF = [["instance", "EN INSTANCE"], ["fige", "FIGÉ"], ["remis", "REMISE"], ["encours", "EN COURS DE VALIDATION"], ["partiel", "PARTIELLEMENT ACHEVÉ"],
+  ["valide", "VALIDÉ / CLÔTURÉ"], ["expire", "EXPIRÉ"], ["bloque", "BLOQUÉ"], ["archive", "ARCHIVÉ"], ["annule", "ANNULÉ"], ["alerte", "ALERTE"]];
+const SVI_STF_PIECE = SVI_STF.map(x => x[0]).filter(k => k !== "fige");   /* pièces d'achat : plus de FIGÉ (document unique 2.9) */
+const sviStfGet = key => { try { const v = JSON.parse(localStorage.getItem("svi_stf_v1:" + key) || "null"); if (Array.isArray(v)) return v.filter(k => SVI_STF.some(x => x[0] === k)); } catch (e) {} return null; };
+const sviStfSet = (key, v) => { try { if (v === null) localStorage.removeItem("svi_stf_v1:" + key); else localStorage.setItem("svi_stf_v1:" + key, JSON.stringify(v)); } catch (e) {} };
+/* une ligne passe si l'un de ses états est coché ; ALERTE décochée = lignes en alerte cachées ; ALERTE seule = toutes les lignes en alerte */
+const sviStfOk = (sel, S) => { if (!sel) return true; S = S || []; const al = S.includes("alerte"), M = sel.filter(k => k !== "alerte");
+  if (!M.length) return al && sel.includes("alerte"); return S.some(k => k !== "alerte" && M.includes(k)) && (!al || sel.includes("alerte")); };
+const sviStfPick = (key, k, keys) => { const sel = sviStfGet(key);
+  if (k === "tout") { sviStfSet(key, sel === null ? [] : null); return; }
+  const cur = sel === null ? keys.slice() : sel.slice(), i = cur.indexOf(k); if (i >= 0) cur.splice(i, 1); else cur.push(k);
+  sviStfSet(key, keys.every(x => cur.includes(x)) ? null : cur); };
+/* compteurs : { tout: n, <état>: n } ; la case TOUT est dans l'en-tête du panneau (même hauteur que les titres des colonnes) */
+const sviStfHead = (key, n) => { const sel = sviStfGet(key), on = sel === null;
+  return `<button type="button" class="novapp-date-filter svi-stf-all" data-stfk="tout" data-stf="${esc(key)}"><span><input type="checkbox" tabindex="-1"${on ? " checked" : ""}${!on && sel.length ? ' class="part"' : ""}> TOUT</span>${svCnt(n)}</button>`; };
+const sviStfHtml = (key, C, keys, L) => { const sel = sviStfGet(key), lab = k => (L && L[k]) || (SVI_STF.find(x => x[0] === k) || [k, k])[1];
+  return `<div class="svi-stf" data-stf="${esc(key)}">${keys.map(k => `<button type="button" class="novapp-date-item svi-stf-r stf-${k}" data-stfk="${k}" data-stf="${esc(key)}"><span><input type="checkbox" tabindex="-1"${sel === null || sel.includes(k) ? " checked" : ""}> ${esc(lab(k))}</span>${svCnt(C[k] || 0)}</button>`).join("")}</div>`; };
+/* la case TOUT à moitié cochée (quelques états seulement) */
+{ const up = () => document.querySelectorAll(".svi-stf-all input.part").forEach(i => { i.indeterminate = true; });
+  new MutationObserver(up).observe(document.documentElement, { childList: true, subtree: true }); }
 
 /* v774 : BARRE DU HAUT COMMUNE à toutes les interfaces — ANNULER, RÉTABLIR, PRÉCÉDENT, SUIVANT, ALERTES, FERMER, ⋯
    (mêmes icônes, même ordre, mêmes classes que l'écran d'un budget) ; o = { why: { undo, redo, prev, next }, n: alertes, attr: nom de l'attribut data- } */
@@ -5077,10 +5113,16 @@ function svImportFail({ source = "", tries = [], found = null, hint = "" } = {})
 }
 /* couleur d'état reportée sur toute la page (cases, fenêtres) : rouge en instance, vert figé, noir sinon */
 const SVI_ST_WATCH = new WeakSet();
+/* 06/11 (décision) : une fenêtre prend la couleur de l'état de SA pièce — celle de la fiche ouverte, sinon celle de la ligne touchée dans la liste
+   (CRÉER … ICI = en instance) */
+let sviRowSt = "";
+document.addEventListener("pointerdown", e => { const r = e.target.closest && e.target.closest("tr[data-st]"); if (r && r.closest(".novapp-list-shell")) { sviRowSt = r.dataset.st || ""; sviSyncState(); } }, true);
 function sviSyncState() {
   const sh = [...document.querySelectorAll(".novapp-list-shell")].find(x => x.offsetParent !== null) || document.querySelector(".novapp-list-shell");
   let st = "";
-  if (sh) st = sh.classList.contains("bdg-inst-fige") ? "fige" : (sh.classList.contains("bdg-inst-instance") || sh.classList.contains("list-inst")) ? "instance" : "";
+  const pg = [...document.querySelectorAll(".nvp[data-st]")].find(x => x.offsetParent !== null);
+  if (pg) st = pg.dataset.st;
+  else if (sh) st = sh.classList.contains("bdg-inst-fige") ? "fige" : sh.classList.contains("bdg-inst-instance") ? "instance" : sviRowSt;
   if (document.documentElement.dataset.svst !== st) document.documentElement.dataset.svst = st;
 }
 function sviWatchState(shell) {
@@ -5620,9 +5662,10 @@ function sviParamTabs() {
     if (i.matches(".pg-logo-in")) { const f = i.files && i.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { const o = sviPg(); o.soc = { ...sviSoc(), logo: rd.result }; sviPgSave(o); sviPgDraw("gen", gpane); }; rd.readAsDataURL(f); return; }
     if (!i.matches(".pg-gv")) return; const g = i.dataset.g, s = String(i.value).trim();
     if (g === "tz") { const o = sviPg(); o.gen = { ...(o.gen || {}), tz: s }; sviPgSave(o); return; }
-    if (s === "") { if (g === "tva") sviTvaSave(null); else sviTrKmSave(null); sviPgDraw("gen", gpane); return; }
-    const v = num(s); if (!sviNumOk(s) || v < 0 || (g === "tva" && v > 100)) { svToast(g === "tva" ? "TVA NON VALIDE (0 À 100)." : "PRIX AU KM NON VALIDE.", 3000, i); sviPgDraw("gen", gpane); return; }
-    if (g === "tva") sviTvaSave(v); else sviTrKmSave(v); sviPgDraw("gen", gpane); });
+    const tab = g === "tva" ? "soc" : "gen";   /* E5 : la TVA PAR DÉFAUT est dans SOCIÉTÉ */
+    if (s === "") { if (g === "tva") sviTvaSave(null); else sviTrKmSave(null); sviPgDraw(tab, gpane); return; }
+    const v = num(s); if (!sviNumOk(s) || v < 0 || (g === "tva" && v > 100)) { svToast(g === "tva" ? "TVA NON VALIDE (0 À 100)." : "PRIX AU KM NON VALIDE.", 3000, i); sviPgDraw(tab, gpane); return; }
+    if (g === "tva") sviTvaSave(v); else sviTrKmSave(v); sviPgDraw(tab, gpane); });
   const show = which => {
     if (!SVI_PG_TABS.some(T => T.k === which)) which = which === "tva" || which === "trk" ? "gen" : "gen";   /* anciens onglets (TVA, TRANSPORT, FORMAT) */
     const T = SVI_PG_TABS.find(x => x.k === which), h1 = head.querySelector("h1"), sub = head.querySelector("p");
@@ -6007,7 +6050,6 @@ function sviPgDraw(k, pane) {
   pane.__pgc = null;
   if (k === "gen") { const tv = sviTvaDef(), km = sviTrKm(), G = sviPg().gen || {}, D = sviPgL("devises");
     pane.innerHTML = `<table class="prm-table pg-gen"><colgroup><col style="width:440px"><col style="width:200px"></colgroup><thead><tr><th>RÉGLAGE</th><th class="center">VALEUR</th></tr></thead><tbody>
-      <tr><td>TVA PAR DÉFAUT (%)</td><td class="center"><input class="ins-in tva-def pg-gv number" data-g="tva" inputmode="decimal" value="${tv === null ? "" : esc(String(tv).replace(".", ","))}"></td></tr>
       <tr><td>PRIX DU TRANSPORT AU KILOMÈTRE (DH / KM)</td><td class="center"><input class="ins-in trk-km pg-gv number" data-g="km" inputmode="decimal" value="${km === null ? "" : esc(String(km).replace(".", ","))}"></td></tr>
       <tr><td>FUSEAU HORAIRE</td><td class="center"><select class="pg-gv" data-g="tz">${["-1", "0", "+1", "+2"].map(z => `<option value="${z}"${(G.tz || "+1") === z ? " selected" : ""}>GMT ${z === "0" ? "" : z}</option>`).join("")}</select></td></tr>
       <tr><td>DEVISE PAR DÉFAUT</td><td class="center">${esc((D.find(x => x.def) || D[0] || {}).code || "MAD")}</td></tr></tbody></table>`;
@@ -6016,9 +6058,11 @@ function sviPgDraw(k, pane) {
   if (k === "soc") { pane.innerHTML = sviPgSocHTML(); return; }
   return sviPgDraw2(k, pane);
 }
+/* E5 (série E, 06/11) : TVA PAR DÉFAUT dans SOCIÉTÉ (plus dans GÉNÉRAL) — toujours commune au budget et aux achats */
 /* C8 (série C) : SOCIÉTÉ dans son propre onglet (B6, B7), au format des fiches : intitulés au-dessus des champs */
 function sviPgSocHTML() { const S = sviSoc();
   return `<div class="pg-soc-card"><div class="frs-g pg-soc">${SVI_SOC_F.map(([f, l]) => `<label class="frs-f${f === "rs" || f === "adr" ? " frs-w" : ""}"><span>${l}</span><input class="ins-in pg-soc-in" data-f="${f}" value="${esc(S[f] || "")}" autocomplete="off"${f === "mail" ? " data-keepcase" : ""}></label>`).join("")}
+      <label class="frs-f"><span data-tip="COMMUNE AU BUDGET ET AUX ACHATS ; VIDE : UNE DÉSIGNATION SANS TVA NE PEUT PAS ÊTRE ENREGISTRÉE">TVA PAR DÉFAUT (%)</span><input class="ins-in tva-def pg-gv number" data-g="tva" data-fam="pct" inputmode="decimal" value="${(() => { const tv = sviTvaDef(); return tv === null ? "" : esc(String(tv).replace(".", ",")); })()}" autocomplete="off"></label>
       <div class="frs-f frs-w"><span>LOGO</span><div class="pg-logo">${S.logo ? `<img src="${esc(S.logo)}" alt="">` : ""}<input type="file" accept="image/*" class="pg-logo-in"></div></div></div></div>`; }
 function sviPgDraw2(k, pane) {
   if (k === "cal") { sviPgCalPrev = sviPgOffDays(); pane.__pgc = { k: "cal", newLab: "AJOUTER UN JOUR ICI… (DATE)", cols: [["a", "DU", 160, "date"], ["b", "AU (FACULTATIF)", 160, "date"], ["m", "MOTIF", 200, "sel", () => SVI_PG_CAL_M], ["lab", "INTITULÉ", 320, ""]],

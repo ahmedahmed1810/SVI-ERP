@@ -104,6 +104,9 @@ function sviAchInit() {
   let prmSub = "regl"; const prmTab = () => prmSub;
   const bodyHome = document.createComment("ach-body"); body.before(bodyHome);
   view.__prmMount = (host, s) => { prmSub = s; if (body.parentNode !== host) { host.innerHTML = ""; host.appendChild(body); } tab = "prm"; draw(); };
+  /* 06/11 : type de pièce dont on règle les seuils (GÉNÉRAL = proposé par défaut aux types sans réglage propre) */
+  let seuK = "gen";
+  const seuEdit = P => { if (seuK === "gen") return P.seuV; P.seuT = P.seuT || {}; if (!Array.isArray(P.seuT[seuK])) P.seuT[seuK] = JSON.parse(JSON.stringify(P.seuV)); return P.seuT[seuK]; };
   const prmHTML = () => {
     const P = achPrm(), T = prmTab();
     const catRows = cfApply("ach_cat", [["cat1", "CATÉGORIE (FAMILLE D'ARTICLES)", x => x, ""]], P.cat);
@@ -147,8 +150,8 @@ function sviAchInit() {
     const R = [["direct", "SEUIL DE L'ACHAT DIRECT (SANS CONSULTATION), MONTANT HT", "DH", "ach-pdirect"], ["directJ", "ACHAT DIRECT — PÉRIODE DE CUMUL (J)", "JOURS"], ["tol", "TOLÉRANCE DE QUANTITÉ À LA RÉCEPTION", "%", "ach-ptol"],
       ["ecart", "ÉCART TOLÉRÉ ENTRE LA FACTURE ET LE CALCUL, TTC", "DH"], ["rasT", "RETENUE À LA SOURCE SUR LA TVA, TAUX PAR DÉFAUT", "% DE LA TVA"], ["avMax", "AVANCE SUR COMMANDE : ALERTE AU-DELÀ DE", "%"],
       ["dorm", "FOURNISSEUR DORMANT : SANS ACHAT DEPUIS", "MOIS"], ["freqA", "FRÉQUENCE : FRÉQUENT JUSQU'À", "MOIS ENTRE DEUX COMMANDES"], ["freqB", "FRÉQUENCE : NORMAL JUSQU'À (OCCASIONNEL AU-DELÀ)", "MOIS"],
-      ["plafT", "PLAFOND DE TRANSACTIONS PAR FOURNISSEUR (PAR DÉFAUT), MONTANT SUR 12 MOIS", "DH HT"], ["plafP", "PLAFOND DE TRANSACTIONS PAR FOURNISSEUR (PAR DÉFAUT), PART DES ACHATS", "%"], ["nfrs", "NOMBRE MINIMUM DE DEVIS PAR CONSULTATION", "DEVIS"], ["nrep", "RÉPARTITION : NOMBRE DE FOURNISSEURS PAR ARTICLE", "FOURNISSEURS"], ["mrep", "RÉPARTITION : MARGE AUTOUR DE LA PART CIBLE", "± POINTS DE %"], ["exFin", "MOIS DE CLÔTURE DE L'EXERCICE (ARCHIVAGE JAMAIS AVANT 12 MOIS)", "MOIS (1 À 12)"]];
-    const tip = { directJ: "LE JOUR EST TOUJOURS CUMULÉ ; PAR ARTICLE ET PAR FOURNISSEUR", tol: "AU-DESSUS DU RESTE À RECEVOIR", ecart: "ARRONDIS", nfrs: "NON BLOQUANT : MOINS DE DEVIS = ! DEVANT LE PRIX RETENU", plafT: "REPRIS À LA CRÉATION DE CHAQUE FOURNISSEUR, MODIFIABLE SUR SA FICHE ; ATTEINT = FOURNISSEUR BLOQUÉ" };
+      ["plafT", "PLAFOND DE TRANSACTIONS PAR FOURNISSEUR (PAR DÉFAUT), MONTANT SUR 12 MOIS", "DH HT"], ["plafP", "PLAFOND DE TRANSACTIONS PAR FOURNISSEUR (PAR DÉFAUT), PART DES ACHATS", "%"], ["ncons", "NOMBRE MINIMUM DE FOURNISSEURS CONSULTÉS", "FOURNISSEURS"], ["nfrs", "NOMBRE MINIMUM DE DEVIS PAR CONSULTATION", "DEVIS"], ["nrep", "RÉPARTITION : NOMBRE DE FOURNISSEURS PAR ARTICLE", "FOURNISSEURS"], ["mrep", "RÉPARTITION : MARGE AUTOUR DE LA PART CIBLE", "± POINTS DE %"], ["exFin", "MOIS DE CLÔTURE DE L'EXERCICE (ARCHIVAGE JAMAIS AVANT 12 MOIS)", "MOIS (1 À 12)"]];
+    const tip = { directJ: "LE JOUR EST TOUJOURS CUMULÉ ; PAR ARTICLE ET PAR FOURNISSEUR", tol: "AU-DESSUS DU RESTE À RECEVOIR", ecart: "ARRONDIS", nfrs: "NON BLOQUANT : MOINS DE DEVIS = ! DEVANT LE PRIX RETENU", ncons: "NON BLOQUANT : MOINS DE FOURNISSEURS CONSULTÉS = ALERTE ⚠ SUR LA CONSULTATION", plafT: "REPRIS À LA CRÉATION DE CHAQUE FOURNISSEUR, MODIFIABLE SUR SA FICHE ; ATTEINT = FOURNISSEUR BLOQUÉ" };
     const G = sviPgL("grades"), gl = s => String(s || "").split(/[,;\s]+/).filter(Boolean);
     const keep = { regl: ["ach-pgen", "ach-pesp", "ach-pseu"], alr: ["ach-palr"], ment: ["ach-pment"] }[T] || ["ach-pgen", "ach-pesp", "ach-pseu"];
     const tpl = document.createElement("template"); tpl.innerHTML = `<div class="ach-prm">
@@ -167,9 +170,12 @@ function sviAchInit() {
         <div class="prm-foot"><button type="button" class="prm-del ach-pdel" data-pdel="esp" disabled>SUPPRIMER LES LIGNES COCHÉES <span class="svi-cnt">0</span></button></div></div>
       <div class="ach-pbox"><div class="ach-pt">MENTIONS IMPRIMÉES SUR LES PIÈCES D'ACHAT</div><table class="bdg-d-table prm-table ach-pment"><colgroup><col style="width:520px"><col style="width:140px"></colgroup>
         <thead><tr><th>MENTION (PARAMÉTRAGE GÉNÉRAL › SOCIÉTÉ)</th><th class="center">IMPRIMÉE</th></tr></thead><tbody>${SVI_SOC_F.filter(([f]) => f !== "rs" && f !== "adr").map(([f, l]) => `<tr><td>${l}${sviSoc()[f] ? " : " + esc(sviSoc()[f]) : ""}</td><td class="center"><input type="checkbox" class="ach-ment" data-f="${f}"${P.ment[f] ? " checked" : ""}></td></tr>`).join("")}</tbody></table></div>
-      <div class="ach-pbox"><div class="ach-pt">SEUILS DE VALIDATION DES COMMANDES</div><table class="bdg-d-table prm-table ach-pseu"><colgroup><col style="width:200px"><col style="width:260px"><col style="width:200px"><col style="width:44px"></colgroup>
+      <div class="ach-pbox"><div class="ach-pt">SEUILS DE VALIDATION — CIRCUIT PROPRE À CHAQUE TYPE DE PIÈCE</div>
+        <div class="rec-tabs ach-seut">${ACH_CIRC_T.map(([k, l]) => `<button type="button" class="rec-tab${k === seuK ? " active on" : ""}" data-seut="${k}">${l}${k !== "gen" && !achSeuOwn(k) ? " · GÉNÉRAL" : ""}</button>`).join("")}</div>
+        ${seuK !== "gen" ? `<div class="ach-seuinfo">${achSeuOwn(seuK) ? `RÉGLAGE PROPRE À CE TYPE. <button type="button" class="ach-link" data-seugen>REPRENDRE LE SEUIL GÉNÉRAL</button>` : "SEUIL GÉNÉRAL PROPOSÉ PAR DÉFAUT : LE MODIFIER ICI LE RÈGLE POUR CE TYPE SEULEMENT."}</div>` : ""}
+        <table class="bdg-d-table prm-table ach-pseu"><colgroup><col style="width:200px"><col style="width:260px"><col style="width:200px"><col style="width:44px"></colgroup>
         <thead><tr><th class="center">AU-DELÀ DE (DH HT)</th><th>GRADES QUI VALIDENT (N°, SÉPARÉS PAR ,)</th><th class="center">RESPECTER LA HIÉRARCHIE</th><th class="center"><input type="checkbox" class="ach-pall" aria-label="Tout cocher"></th></tr></thead>
-        <tbody>${P.seuV.map(x => `<tr data-sid="${esc(x.id)}"><td class="center"><input class="ins-in ach-seu number" data-f="mt" inputmode="decimal" value="${esc(F2(x.mt))}"></td>
+        <tbody>${achSeuL(seuK).map(x => `<tr data-sid="${esc(x.id)}"><td class="center"><input class="ins-in ach-seu number" data-f="mt" inputmode="decimal" value="${esc(F2(x.mt))}"></td>
           <td><input class="ins-in ach-seu" data-f="g" value="${esc((x.g || []).join(", "))}" title="${esc(G.map(g => g.n + " = " + (g.lab || "GRADE " + g.n)).join(" ; "))}"></td>
           <td class="center"><input type="checkbox" class="ach-seu" data-f="h"${x.h ? " checked" : ""}></td><td class="center"><input type="checkbox" class="ach-pcb" data-xseu="${esc(x.id)}"></td></tr>`).join("")}
           <tr class="ach-new"><td colspan="3"><input class="ins-in ach-seunew number" inputmode="decimal" placeholder="CRÉER UN SEUIL ICI… (MONTANT)" autocomplete="off"></td><td></td></tr></tbody></table>
@@ -251,6 +257,8 @@ function sviAchInit() {
     if (MODS[tab] && await MODS[tab].click(e)) return;
     const bb = e.target.closest(".ach-bdg"); if (bb) { const L = achArts(), a = L.find(x => x.id === bb.dataset.bdg); if (a) achBdgWin(a); return; }
     /* v793 (DOCUMENT UNIQUE §6.4) : cases à droite + SUPPRIMER LES LIGNES COCHÉES (plus de ✕ par ligne) */
+    const sk = e.target.closest("[data-seut]"); if (sk) { seuK = sk.dataset.seut; draw(); return; }
+    if (e.target.closest("[data-seugen]")) { const P = achPrm(); if (P.seuT) delete P.seuT[seuK]; achPrmSave(P); draw(); return; }
     const pd = e.target.closest("[data-pdel]");
     if (pd) { if (pd.disabled) return; const tb = pd.closest(".ach-pbox").querySelector("table"), ck = [...tb.querySelectorAll(".ach-pcb:checked")];
       const xg = new Set(ck.map(c => c.dataset.xgrp).filter(Boolean));
@@ -260,7 +268,7 @@ function sviAchInit() {
       if (!ck.length || !(await svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES", html: `<ul class="svc-list">${labs.map(l => `<li>${esc(l)}</li>`).join("")}</ul>`, ok: "SUPPRIMER" }))) return;
       const P = achPrm(), xc = new Set(ck.map(c => c.dataset.xcat).filter(Boolean)), xb = new Set(ck.map(c => c.dataset.xbq).filter(Boolean));
       const xe = new Set(ck.map(c => c.dataset.xesp).filter(Boolean)), xs = new Set(ck.map(c => c.dataset.xseu).filter(Boolean));
-      P.cat = P.cat.filter(c => !xc.has(c)); P.grp = P.grp.filter(g => !xg.has(g.id)); P.espL = P.espL.filter(x => !xe.has(x.id)); P.seuV = P.seuV.filter(x => !xs.has(x.id));
+      P.cat = P.cat.filter(c => !xc.has(c)); P.grp = P.grp.filter(g => !xg.has(g.id)); P.espL = P.espL.filter(x => !xe.has(x.id)); if (xs.size) { const SL = seuEdit(P); SL.splice(0, SL.length, ...SL.filter(x => !xs.has(x.id))); }
       const xl = new Set(ck.map(c => c.dataset.xcl).filter(Boolean)); P.clG = P.clG.filter(x => !xl.has("G|" + x.id)); P.clP = P.clP.filter(x => !xl.has("P|" + x.id)); achPrmSave(P); draw(); return; }
     /* v810 : champs obligatoires d'un groupe de fournisseurs */
     const gq = e.target.closest(".ach-greq");
@@ -327,15 +335,16 @@ function sviAchInit() {
       if (f === "per") x.per = t.value; else { const v = achN(t.value); if (v < 0 || (f === "n" && !(v >= 1))) { svToast("VALEUR NON VALIDE.", 3000, t); draw(); return; } x[f] = v; } achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-ment")) { const P = achPrm(); P.ment = { ...P.ment, [t.dataset.f]: t.checked }; achPrmSave(P); return; }
     if (t.classList.contains("ach-seu") || t.classList.contains("ach-seunew")) { const P = achPrm(), gr = sviPgL("grades").map(g => String(g.n));
-      if (t.classList.contains("ach-seunew")) { const v = achN(t.value); if (!(v > 0)) return; P.seuV = P.seuV.concat([{ id: "s" + Date.now().toString(36), mt: v, g: [], h: true }]).sort((a, b) => a.mt - b.mt); achPrmSave(P); draw(); return; }
-      const x = P.seuV.find(y => y.id === t.closest("tr").dataset.sid); if (!x) return; const f = t.dataset.f;
+      const SL = seuEdit(P);
+      if (t.classList.contains("ach-seunew")) { const v = achN(t.value); if (!(v > 0)) return; SL.push({ id: "s" + Date.now().toString(36), mt: v, g: [], h: true }); SL.sort((a, b) => a.mt - b.mt); achPrmSave(P); draw(); return; }
+      const x = SL.find(y => y.id === t.closest("tr").dataset.sid); if (!x) return; const f = t.dataset.f;
       if (f === "h") x.h = t.checked; else if (f === "mt") { const v = achN(t.value); if (!(v > 0)) { svToast("MONTANT NON VALIDE.", 3000, t); draw(); return; } x.mt = v; }
       else { const L = String(t.value).split(/[,;\s]+/).filter(Boolean), bad = L.filter(g => !gr.includes(g)); if (bad.length) { svToast("GRADE INCONNU : " + bad.join(", ") + " (PARAMÉTRAGE GÉNÉRAL › GRADES).", 3500, t); draw(); return; } x.g = [...new Set(L)].sort((a, b) => b - a); }
-      P.seuV.sort((a, b) => a.mt - b.mt); achPrmSave(P); draw(); return; }
+      SL.sort((a, b) => a.mt - b.mt); achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-ptol")) { const P = achPrm(), v = achN(t.value); if (v < 0 || v > 100) { svToast("TOLÉRANCE NON VALIDE (0 À 100 %).", 3000, t); draw(); return; } P.tol = v; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-pdirect")) { const P = achPrm(), v = achN(t.value); if (v < 0) { svToast("SEUIL NON VALIDE.", 3000, t); draw(); return; } P.direct = v; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-pnum") && (t.dataset.pk === "plafT" || t.dataset.pk === "plafP") && String(t.value).trim() === "") { const P = achPrm(); P[t.dataset.pk] = ""; achPrmSave(P); draw(); return; }
-    if (t.classList.contains("ach-pnum")) { const P = achPrm(), v = achN(t.value), k = t.dataset.pk; if (v < 0 || ((k === "rasT" || k === "seuilBdg") && v > 100) || (["directJ", "nfrs", "nrep", "seuilBdg", "exFin"].includes(k) && v < 1) || (k === "mrep" && v > 100) || (k === "exFin" && v > 12)) { svToast("VALEUR NON VALIDE.", 3000, t); draw(); return; } P[k] = v; achPrmSave(P); draw(); return; }
+    if (t.classList.contains("ach-pnum")) { const P = achPrm(), v = achN(t.value), k = t.dataset.pk; if (v < 0 || ((k === "rasT" || k === "seuilBdg") && v > 100) || (["directJ", "nfrs", "ncons", "nrep", "seuilBdg", "exFin"].includes(k) && v < 1) || (k === "mrep" && v > 100) || (k === "exFin" && v > 12)) { svToast("VALEUR NON VALIDE.", 3000, t); draw(); return; } P[k] = v; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-ptxt")) { const P = achPrm(), k = t.dataset.pk, v = achDig(t.value); if (k === "socIce" && v && !achIceOk(v)) { svToast(achIceMsg() + ".", 3500, t); draw(); return; } P[k] = v; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-pnew") || t.classList.contains("ach-pin")) {
       const P = achPrm(), v = achU(t.value), old = t.closest("tr").dataset.cat;

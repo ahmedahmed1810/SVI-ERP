@@ -401,7 +401,7 @@ const insPrdPrice = (data, id) => {
   const d = (data.des || []).find(x => x.id === l.des);
   return d && d.p !== "" && d.p !== undefined ? num(d.p) : "";
 };
-/* v899 (cahier, décision du 03/11/2026) : TVA PAR DÉFAUT — un seul réglage, dans PARAMÉTRAGE › BUDGET › TVA, commun au budget et aux achats.
+/* v899 (cahier, décision du 03/11/2026) : TVA PAR DÉFAUT — un seul réglage, dans PARAMÉTRAGE › GÉNÉRAL › SOCIÉTÉ, commun au budget et aux achats.
    Plus de 20 % écrit dans le code : une désignation sans TVA prend ce réglage ; s'il est vide aussi, la TVA manque (enregistrement refusé).
    Première lecture : reprend la TVA déjà réglée dans les paramètres des achats, si elle l'avait été. */
 const SVI_TVA_KEY = "svi_tva_def_v1";

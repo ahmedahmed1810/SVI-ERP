@@ -299,12 +299,13 @@ function sviBdgDelaisDisposition(C) {
     const fixed = cur - el.clientHeight + head + foot;
     return { fixed, rows };
   };
-  /* hauteur v ramenée à des lignes entières (au moins une) ; plus haut que toutes les lignes : laissé tel quel (sauf « fit ») */
+  /* hauteur v ramenée à des lignes entières (au moins une) ;
+     E2 (série E, 06/11) : jamais plus haut que son contenu — plus haut que toutes les lignes = ramené à la dernière ligne (AGRANDIR mis à part) */
   const laySnap = (u, v, fit) => {
     const I = layRows(u); if (!I) return v;
     let s = I.fixed, k = 0;
     for (const h of I.rows) { if (k >= 1 && (fit ? k >= fit : s + h > v + .5)) break; s += h; k++; }
-    if (!fit && k === I.rows.length && v > s) return v;
+    if (!fit && k === I.rows.length && v > s) return Math.ceil(s);
     return Math.ceil(s);
   };
   /* hauteur enregistrée plus petite que le minimum de l'onglet ouvert : remontée à l'affichage (non enregistrée) */
@@ -327,6 +328,10 @@ function sviBdgDelaisDisposition(C) {
       if (c0 && m0 && c0 < m0) pg.style.setProperty("--h-" + u, m0 + "px"); });
     /* v774 : MODE RÉDUIT — exactement le minimum de l'onglet affiché (titres + une ligne entière), ni plus ni moins */
     { const R = layLoad().red || {}; LAY_UNITS.forEach(u => { if (!R[u] || pg.classList.contains("max-" + u)) return; const m0 = layMinOf(u); if (m0) pg.style.setProperty("--h-" + u, m0 + "px"); }); }
+    /* E2 (série E) : bloc du détail jamais plus haut que son contenu (onglet affiché), sauf AGRANDIR ; non enregistré */
+    { const a = document.activeElement, busy = a && a !== document.body && pg.contains(a);   /* pas pendant une saisie (la ligne écrite reste en place) */
+      if (!busy && !pg.classList.contains("max-detail") && !document.querySelector("td.svi-cs, #sviSelFrame:not([hidden])")) { const I = layRows("detail"), c = parseFloat(pg.style.getPropertyValue("--h-detail")) || 0;
+        if (I && c) { const s = Math.ceil(I.fixed + I.rows.reduce((x, y) => x + y, 0)); if (c > s + (I.rows[0] || 21)) pg.style.setProperty("--h-detail", Math.max(s, m) + "px"); } } }
     layMinScroll();
   };
   const layOrder = () => {

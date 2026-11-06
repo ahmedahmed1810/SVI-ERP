@@ -116,10 +116,16 @@ function svImportFail({ source = "", tries = [], found = null, hint = "" } = {})
 }
 /* couleur d'état reportée sur toute la page (cases, fenêtres) : rouge en instance, vert figé, noir sinon */
 const SVI_ST_WATCH = new WeakSet();
+/* 06/11 (décision) : une fenêtre prend la couleur de l'état de SA pièce — celle de la fiche ouverte, sinon celle de la ligne touchée dans la liste
+   (CRÉER … ICI = en instance) */
+let sviRowSt = "";
+document.addEventListener("pointerdown", e => { const r = e.target.closest && e.target.closest("tr[data-st]"); if (r && r.closest(".novapp-list-shell")) { sviRowSt = r.dataset.st || ""; sviSyncState(); } }, true);
 function sviSyncState() {
   const sh = [...document.querySelectorAll(".novapp-list-shell")].find(x => x.offsetParent !== null) || document.querySelector(".novapp-list-shell");
   let st = "";
-  if (sh) st = sh.classList.contains("bdg-inst-fige") ? "fige" : (sh.classList.contains("bdg-inst-instance") || sh.classList.contains("list-inst")) ? "instance" : "";
+  const pg = [...document.querySelectorAll(".nvp[data-st]")].find(x => x.offsetParent !== null);
+  if (pg) st = pg.dataset.st;
+  else if (sh) st = sh.classList.contains("bdg-inst-fige") ? "fige" : sh.classList.contains("bdg-inst-instance") ? "instance" : sviRowSt;
   if (document.documentElement.dataset.svst !== st) document.documentElement.dataset.svst = st;
 }
 function sviWatchState(shell) {

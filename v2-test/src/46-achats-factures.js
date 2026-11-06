@@ -160,6 +160,8 @@ function achFafFiche(id, o, done) {
       if (isNew && await achFrsStop(achFrs().find(f => f.id === P.frs), "ENREGISTRER UNE FACTURE")) return; await store(isNew ? "CRÉATION" : "MODIFICATION"); draw(); return; }
     if (e.target.closest("[data-bap]")) { pull(); if (!check()) return; if (await achFrsStop(achFrs().find(f => f.id === P.frs), "BON À PAYER")) return;
       const stop = achFafStop(P); if (stop.length) { svToast("BON À PAYER IMPOSSIBLE : " + stop.join(" · "), 5000); return; }
+      /* 06/11 : circuit de validation propre aux FACTURES (seuils de ce type, sinon le seuil général) */
+      if (await achCircGate("faf", P, achFafTot(P).ht, async lab => { await store(lab); draw(); })) return;
       if (!(await svConfirm({ title: "BON À PAYER", text: (P.ref || "LA FACTURE") + " : NET À PAYER " + achF2(achFafTot(P).net) + " (ÉCHÉANCE " + achDFr(achFafEch(P)) + ").", ok: "BON À PAYER", tone: "neutral" }))) return;
       P.state = "bap"; P.bap = achNow(); await store("BON À PAYER"); draw(); return; }
     if (e.target.closest("[data-pay]")) { achPafFiche(null, { frs: P.frs, fa: P.id }, () => { draw(); }); return; }
@@ -308,6 +310,8 @@ function achPafFiche(id, o, done) {
       if ((P.mode === "VIREMENT" || P.mode === "PRÉLÈVEMENT") && fr && !achFrsRibP(fr)) { svToast("AUCUN RIB POUR CE FOURNISSEUR.", 3500); return; }
       if ((P.mode === "CHÈQUE" || P.mode === "LCN") && !P.num) { svToast("N° DU " + P.mode + " OBLIGATOIRE.", 3000); return; }
       if (P.mode === "LCN" && !P.echL) { svToast("ÉCHÉANCE DE LA LCN OBLIGATOIRE.", 3000); return; }
+      /* 06/11 : circuit de validation propre aux PAIEMENTS (seuils de ce type, sinon le seuil général) */
+      if (await achCircGate("paf", P, achN(P.mt), async lab => { store(lab); draw(); })) return;
       const esp = P.mode === "ESPÈCES" && P.mt > achPrm().esp ? " ATTENTION : ESPÈCES AU-DELÀ DU PLAFOND (" + achF2(achPrm().esp) + ")." : "";
       if (!(await svConfirm({ title: "VALIDER LE PAIEMENT", text: P.mode + " DE " + achF2(P.mt) + " (" + frMoney(P.mt) + ") À " + achFrsNom(P.frs) + "." + esp, ok: "VALIDER", tone: esp ? "" : "neutral" }))) return;
       P.state = P.mode === "CHÈQUE" || P.mode === "LCN" ? "emis" : "encaisse"; P.valide = achNow(); store(P.state === "emis" ? "ÉMIS" : "PAYÉ"); draw(); return; }

@@ -142,7 +142,7 @@ function sviBdgInstanceSaisie(C) {
     /* délier en attente de ✓ VALIDER : l'état enregistré garde les liaisons d'avant */
     /* v899 (cahier) : TVA manquante (désignation sans TVA et TVA PAR DÉFAUT vide) = enregistrement refusé */
     if (sviTvaDef() === null && (INS.des || []).some(r => !r.t && (r.tva === "" || r.tva === undefined))) {
-      clearTimeout(shell.__tvaT); shell.__tvaT = setTimeout(() => svToast("TVA MANQUANTE : SAISIR LA TVA DE LA DÉSIGNATION, OU LA TVA PAR DÉFAUT (PARAMÉTRAGE › BUDGET › TVA). RIEN N'EST ENREGISTRÉ.", 5000), 50);
+      clearTimeout(shell.__tvaT); shell.__tvaT = setTimeout(() => svToast("TVA MANQUANTE : SAISIR LA TVA DE LA DÉSIGNATION, OU LA TVA PAR DÉFAUT (PARAMÉTRAGE › GÉNÉRAL › SOCIÉTÉ). RIEN N'EST ENREGISTRÉ.", 5000), 50);
       return;
     }
     sviBudgetStore(budget.inst.ref, () => { let lb = null; try { lb = ECR.LK.linksBak; } catch (e) {} return lb ? { ...INS, links: lb } : INS; });
@@ -524,7 +524,7 @@ function sviBdgInstanceSaisie(C) {
       if (z(r.p)) return { f: "p", m: "SAISIR LE PCB." };
     }
     /* v905 (principe du 03/11/2026) : TVA MANQUANTE signalée sur sa case (désignation sans TVA, TVA PAR DÉFAUT vide) */
-    if (k === "des" && (r.tva === "" || r.tva === undefined) && sviTvaDef() === null) return { f: "tva", m: "TVA MANQUANTE : SAISIR LA TVA, OU LA TVA PAR DÉFAUT (PARAMÉTRAGE › BUDGET › TVA)." };
+    if (k === "des" && (r.tva === "" || r.tva === undefined) && sviTvaDef() === null) return { f: "tva", m: "TVA MANQUANTE : SAISIR LA TVA, OU LA TVA PAR DÉFAUT (PARAMÉTRAGE › GÉNÉRAL › SOCIÉTÉ)." };
     return null;
   };
   shell.__prdSyncU = () => { if (INS && INS_EDIT && actUnitSync()) { insSave(); return true; } return false; };
