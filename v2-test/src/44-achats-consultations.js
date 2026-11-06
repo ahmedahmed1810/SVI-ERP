@@ -75,10 +75,11 @@ function achDocPage(k, x) {
   const lig = (t, withPu, withSt) => { const nC = 5 + (withPu ? 3 : 0) + (withSt ? 1 : 0), N = achDetNum(x.lignes || [], x.grp), ed = ST && ST[2](x);
     return { t, add: "CRÉER UN DÉTAIL ICI…", cols: [["ARTICLE", "center"], ["RÉFÉRENCE"], ["DÉSIGNATION"], ["U", "center"], ["QUANTITÉ", "number"]].concat(withPu ? [["PU HT", "number"], ["TVA %", "number"], ["MONTANT HT", "number"]] : []).concat(withSt ? [["RÉSULTAT", "center"]] : []),
     rows: N.map(o => o.title ? { cls: "ins-title nvp-gt", cells: [o.no, "", o.lab].concat(Array(nC - 3).fill("")) } : (l => ({ li: o.i, go: AK.get(achKey(l.des, l.u)) ? [[2, "art", AK.get(achKey(l.des, l.u))]] : [], cells: [o.no, lref(o.i), l.des || "", l.u || "", achN(l.q)].concat(withPu ? [achN(l.pu), tv(l), achN(l.q) * achN(l.pu)] : []).concat(withSt ? [{ ok: "ACCEPTÉE", res: "RÉSERVES", ref: "REFUSÉE" }[l.st] || ""] : []) }))(o.l)),
-    menu: ed ? [{ k: "grp", lab: "GROUPER LES COCHÉS" }, { k: "ungrp", lab: "SORTIR LES COCHÉS DE LEUR GROUPE" }] : [],
+    menu: ed ? [{ k: "up", lab: "MONTER LES COCHÉS" }, { k: "down", lab: "DESCENDRE LES COCHÉS" }, { k: "grp", lab: "GROUPER LES COCHÉS" }, { k: "ungrp", lab: "SORTIR LES COCHÉS DE LEUR GROUPE" }] : [],
     act: async (a, ck, redraw) => { const idx = ck.map(i => (N[i] || {}).i).filter(i => i !== undefined); if (!idx.length) { svToast("COCHER D'ABORD DES DÉTAILS.", 2500); return; }
       const L = ST[0](), y = L.find(z => z.id === x.id); if (!y) return;
-      if (a === "grp") { y.grp = y.grp || []; const g = { id: "G" + Date.now().toString(36) }; y.grp.push(g); idx.forEach(i => { if (y.lignes[i]) y.lignes[i].g = g.id; }); }
+      if (a === "up" || a === "down") y.lignes = achDetMove(y.lignes, idx.map(i => (y.lignes[i] || {}).id || i), a === "up" ? -1 : 1);
+      else if (a === "grp") { y.grp = y.grp || []; const g = { id: "G" + Date.now().toString(36) }; y.grp.push(g); idx.forEach(i => { if (y.lignes[i]) y.lignes[i].g = g.id; }); }
       else idx.forEach(i => { if (y.lignes[i]) delete y.lignes[i].g; });
       y.mod = achNow(); ST[1](L); achHist(y.ref, a === "grp" ? "GROUPE CRÉÉ" : "SORTIS DU GROUPE", ""); redraw(); } }; };
   const docs = (t, L, cols, cells, kk) => ({ t, cols, rows: L.map(y => ({ cells: cells(y), open: () => achGo(kk, y.id), go: y.frs && cols[1] && cols[1][0] === "FOURNISSEUR" ? [[1, "frs", y.frs]] : [], cls: ["annule", "rejete"].includes(y.state) ? "nv-strike" : "" })) });
