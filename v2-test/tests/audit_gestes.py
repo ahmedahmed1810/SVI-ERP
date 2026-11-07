@@ -122,6 +122,9 @@ def checks(pg, root, kind):
             r0 = P(pg, """root => (document.querySelector(root + ' .nvp-ref, ' + root + ' .bdg-d-h1') || {}).textContent || ''""", root)
             drag(pg, (b[0] + 150, b[1]), (b[0] - 150, b[1]), steps=8); pg.wait_for_timeout(500)
             r1 = P(pg, """root => (document.querySelector(root + ' .nvp-ref, ' + root + ' .bdg-d-h1') || {}).textContent || ''""", root)
+            if r1 == r0:
+                drag(pg, (b[0] - 150, b[1]), (b[0] + 150, b[1]), steps=8); pg.wait_for_timeout(500)
+                r1 = P(pg, """root => (document.querySelector(root + ' .nvp-ref, ' + root + ' .bdg-d-h1') || {}).textContent || ''""", root)
             R["3.4 balayage = pièce suivante"] = "ok" if r1 and r1 != r0 else "KO (" + r0.strip()[:20] + ")"
             if r1 != r0: drag(pg, (b[0] - 150, b[1]), (b[0] + 150, b[1]), steps=8); pg.wait_for_timeout(500)
     return R

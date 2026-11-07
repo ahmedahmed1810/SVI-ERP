@@ -241,3 +241,25 @@ function sviColSetWin(t, k, def) {
       [...tr.cells].forEach((th, i) => { if (th.querySelector("input[type=checkbox]") && !th.textContent.trim()) return; th.insertAdjacentHTML("beforeend", `<span class="col-rs" data-col="c${i}"></span>`); }); }); };
   const go = () => { if (!raf) raf = requestAnimationFrame(run); };
   const start = () => new MutationObserver(go).observe(document.body, { childList: true, subtree: true }); if (document.body) start(); else document.addEventListener("DOMContentLoaded", start); }
+/* 07/11 (vérification des gestes, document unique 3.4 et 9.4) : BALAYAGE COMMUN de la barre du haut = pièce précédente / suivante —
+   posé dès le chargement pour TOUS les écrans (achats compris, même sans budget ouvert avant), au doigt et à la souris (cliquer-glisser).
+   Budget : écrans voisins du même budget (consolidé › initial › avenants, décision v694, window.__sviBdgNav) ; achats : ‹ › de leur barre.
+   Remplace les écouteurs qui n'étaient posés qu'à l'ouverture d'un budget (11-budget-ouverture : window.__sviSwipe déjà vrai). */
+window.__sviSwipe = true; window.__sviNoWrap = 0;
+{ let st = null, eat = false;
+  const begin = (t, x, y) => { const hdr = t && t.closest && t.closest(".bdg-d-sticky"), ach = hdr && hdr.closest(".nvp");
+    const nav = ach ? { go: d => ach.querySelector(`[data-nvp="${d > 0 ? "next" : "prev"}"]`)?.click() } : window.__sviBdgNav;
+    if (!hdr || !nav || !document.querySelector(".bdg-d-page")) return null;
+    if (t.closest("#docPop, #blkPop, #blkMenu, #svConf, #svCal, .av-list-ov, input, textarea, select")) return null;
+    for (let el = t; el && el !== document.body; el = el.parentElement) { const cs = getComputedStyle(el); if (el.scrollWidth > el.clientWidth + 2 && /(auto|scroll)/.test(cs.overflowX)) return null; }
+    const pg = document.querySelector(".bdg-d-page"), mx = pg && [...pg.classList].find(c => /^max-/.test(c));
+    return { x, y, t: Date.now(), max: mx ? mx.slice(4) : "", nav }; };
+  const end = (x, y) => { const s0 = st; st = null; if (!s0) return false; const dx = x - s0.x, dy = y - s0.y;
+    if (Date.now() - s0.t >= 700 || Math.abs(dx) < 90 || Math.abs(dy) > Math.abs(dx) * 0.5) return false;
+    if (s0.max) window.__sviPendingMax = s0.max; if (s0.nav && s0.nav.go) s0.nav.go(dx < 0 ? 1 : -1); return true; };
+  document.addEventListener("touchstart", e => { st = e.touches.length === 1 ? begin(e.target, e.touches[0].clientX, e.touches[0].clientY) : null; }, { passive: true });
+  document.addEventListener("touchend", e => { if (st && st.m) return; end(e.changedTouches[0].clientX, e.changedTouches[0].clientY); }, { passive: true });
+  document.addEventListener("pointerdown", e => { if (e.pointerType === "touch" || e.button) return; st = begin(e.target, e.clientX, e.clientY); if (st) st.m = 1; }, true);
+  document.addEventListener("pointerup", e => { if (e.pointerType === "touch" || !st || !st.m) return; if (end(e.clientX, e.clientY)) { eat = true; setTimeout(() => { eat = false; }, 400); } }, true);
+  document.addEventListener("click", e => { if (eat) { eat = false; e.preventDefault(); e.stopPropagation(); } }, true);
+}
