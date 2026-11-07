@@ -73,6 +73,9 @@ function achDocPage(k, x) {
   /* F2 (série F) : groupes dans les DÉTAILS (titres GROUPE n, numérotation comme les LOTS : 2, puis 2.1, 2.2) — GROUPER LES COCHÉS dans le ⋯ du bloc */
   const ST = { dvf: [achDvf, achDvfSave, y => y.state === "recu" || !y.state], cmf: [achCmf, achCmfSave, y => y.state === "instance"], faf: [achFaf, achFafSave, y => y.state === "instance" || y.state === "recu" || y.state === "reclame"] }[k];
   const lig = (t, withPu, withSt) => { const nC = 5 + (withPu ? 3 : 0) + (withSt ? 1 : 0), N = achDetNum(x.lignes || [], x.grp), ed = ST && ST[2](x);
+    /* 07/11 (9.3) : glisser une ligne au doigt, comme dans le budget et la consultation */
+    if (typeof ACH_DET_DRAG === "object") ACH_DET_DRAG[achNvhKey(t)] = { open: !!ed, rows: N.map(o => o.title ? { g: o.title.id } : { l: o.l.id || "#" + o.i }),
+      apply: f => { const L = ST[0](), y = L.find(z => z.id === x.id); if (!y) return; if (f(y) === false) return; y.mod = achNow(); ST[1](L); achHist(y.ref, "DÉTAIL DÉPLACÉ", ""); } };
     return { t, add: "CRÉER UN DÉTAIL ICI…", cols: [["ARTICLE", "center"], ["RÉFÉRENCE"], ["DÉSIGNATION"], ["U", "center"], ["QUANTITÉ", "number"]].concat(withPu ? [["PU HT", "number"], ["TVA %", "number"], ["MONTANT HT", "number"]] : []).concat(withSt ? [["RÉSULTAT", "center"]] : []),
     rows: N.map(o => o.title ? { cls: "ins-title nvp-gt", cells: [o.no, "", o.lab].concat(Array(nC - 3).fill("")) } : (l => ({ li: o.i, go: AK.get(achKey(l.des, l.u)) ? [[2, "art", AK.get(achKey(l.des, l.u))]] : [], cells: [o.no, lref(o.i), l.des || "", l.u || "", achN(l.q)].concat(withPu ? [achN(l.pu), tv(l), achN(l.q) * achN(l.pu)] : []).concat(withSt ? [{ ok: "ACCEPTÉE", res: "RÉSERVES", ref: "REFUSÉE" }[l.st] || ""] : []) }))(o.l)),
     menu: ed ? [{ k: "up", lab: "MONTER LES COCHÉS" }, { k: "down", lab: "DESCENDRE LES COCHÉS" }, { k: "grp", lab: "GROUPER LES COCHÉS" }, { k: "ungrp", lab: "SORTIR LES COCHÉS DE LEUR GROUPE" }] : [],

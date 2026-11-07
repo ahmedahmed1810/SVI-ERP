@@ -64,7 +64,7 @@ function achCafPage(x, B) {
       { h: `<input class="ins-in cafp-l number" data-li="${esc(l.id)}" data-c="q" inputmode="decimal" value="${esc(String(l.q ?? "").replace(".", ","))}"${dis}>`, t: achN(l.q) },
       a ? pe : { h: `<input class="ins-in cafp-l number" data-li="${esc(l.id)}" data-c="pu" inputmode="decimal" value="${esc(String(l.pu ?? "").replace(".", ","))}" placeholder="À SAISIR"${dis}>`, t: achN(l.pu) },
       achN(l.q) * pe, b ? achN(l.q) * achN(b.pu) : "", String(nF)] }; });
-  ACH_CAF_DRAG = { id: x.id, open, rows: det.map(r => r.rd ? { l: r.rd.k.slice(2) } : { g: r.gid }) };
+  ACH_DET_DRAG[achNvhKey("DÉTAIL CONSULTATION")] = { open, rows: det.map(r => r.rd ? { l: r.rd.k.slice(2) } : { g: r.gid }), apply: f => achCafSaveOne(x.id, c => f(c), "DÉTAIL DÉPLACÉ") };
   const DET = { t: "DÉTAIL CONSULTATION", add: open ? "CRÉER UN DÉTAIL ICI…" : "", cols: [["ARTICLE", "center"], ["BESOIN"], ["CODE ARTICLE"], ["DÉSIGNATION"], ["U", "center"], ["QUANTITÉ", "number"], ["PRIX ESTIMÉ", "number"], ["MONTANT ESTIMÉ", "number"], ["MONTANT BUDGÉTÉ (NON ENVOYÉ)", "number"], ["FOURNISSEURS", "center"]],
     rows: det, addFn: redraw => { achCafSaveOne(x.id, c => { const id = achCafId(); c.lignes.push({ id, des: "", u: "", q: "" }); c.lf[id] = (c.frs || []).slice(); }, "DÉTAIL AJOUTÉ"); redraw(); },
     menu: open ? [{ k: "imp", lab: "IMPORTER (EXCEL, GOOGLE SHEETS, CSV, PDF)" }].concat((x.lignes || []).some(l => l.imp) ? [{ k: "impok", lab: "CONFIRMER LES COCHÉS (VÉRIFIÉS)" }] : []).concat([{ k: "bsn", lab: "AJOUTER LES BESOINS VALIDÉS NON COUVERTS" }, { k: "libre", lab: "AJOUTER UN ARTICLE HORS LISTE" }, { k: "up", lab: "MONTER LES COCHÉS" }, { k: "down", lab: "DESCENDRE LES COCHÉS" }, { k: "grp", lab: "GROUPER LES COCHÉS" }, { k: "ungrp", lab: "SORTIR LES COCHÉS DE LEUR GROUPE" }, { k: "rm", lab: "SUPPRIMER LES COCHÉS" }]) : [],
@@ -323,7 +323,11 @@ async function achCafImport(x, redraw) { const code = x.ref || x.code, DOCS = ac
    - au-dessus d'un titre de groupe : avant le groupe, hors du groupe ; au-dessous : en tête du groupe ;
    - sur une ligne : nouveau groupe avec elle (ou dans son groupe) ; sur un titre : à la fin du groupe ;
    un groupe devenu vide disparaît */
-let ACH_CAF_DRAG = null;
+/* 07/11 (vérification des gestes, 9.3) : le glisser vaut pour TOUS les DÉTAILS des pages d'achat — chaque bloc DÉTAIL s'inscrit ici
+   (clé = son bloc) avec ses lignes affichées et la façon d'enregistrer ; une ligne sans identifiant est repérée par sa place (#n) */
+const ACH_DET_DRAG = {};
+const achDetDropIn = (c, ids, tgt, mode) => { const L0 = c.lignes || [], tmp = L0.map((l, i) => ({ ...l, id: l.id || "#" + i, __t: !l.id }));
+  const r = achDetDrop(tmp, c.grp, ids, tgt, mode); if (!r) return false; c.lignes = r.L.map(l => { const y = { ...l }; if (y.__t) delete y.id; delete y.__t; return y; }); c.grp = r.G; return true; };
 function achDetDrop(L, G, ids, tgt, mode) { L = L.map(l => ({ ...l })); G = (G || []).map(g => ({ ...g })); const S = new Set(ids);
   if (tgt.l && S.has(tgt.l)) return null; const mv = L.filter(l => S.has(l.id)), rest = L.filter(l => !S.has(l.id)); if (!mv.length) return null;
   const setG = gid => mv.forEach(l => { if (gid) l.g = gid; else delete l.g; }); let at;
@@ -335,21 +339,22 @@ function achDetDrop(L, G, ids, tgt, mode) { L = L.map(l => ({ ...l })); G = (G |
     else if (mode === "before") { setG(""); at = I[0]; } else if (mode === "after") { setG(tgt.g); at = I[0]; } else { setG(tgt.g); at = I[I.length - 1] + 1; } }
   rest.splice(at, 0, ...mv); const used = new Set(rest.map(l => l.g).filter(Boolean)); return { L: rest, G: G.filter(g => used.has(g.id)) }; }
 { let T = null, D = null;
-  const blkOf = el => { const b = el && el.closest && el.closest("#ach .nvp-blk"); const h = b && b.querySelector("[data-nvh]"); return h && h.dataset.nvh === achNvhKey("DÉTAIL CONSULTATION") ? b : null; };
+  const keyOf = el => { const b = el && el.closest && el.closest("#ach .nvp-blk"); const h = b && b.querySelector("[data-nvh]"); return h && ACH_DET_DRAG[h.dataset.nvh] ? h.dataset.nvh : ""; };
+  const blkOf = el => keyOf(el) ? el.closest("#ach .nvp-blk") : null;
   const clr = () => document.querySelectorAll("#ach tr.cafp-dg, #ach tr.cafp-db, #ach tr.cafp-da, #ach tr.cafp-do").forEach(t => t.classList.remove("cafp-dg", "cafp-db", "cafp-da", "cafp-do"));
   const stop = () => { if (T) clearTimeout(T.h); T = null; D = null; clr(); document.documentElement.classList.remove("cafp-dragging"); };
   const at = (x, y) => { const el = document.elementFromPoint(x, y), tr = el && el.closest && el.closest("tr[data-ri]"); if (!tr || !D || !blkOf(tr) || tr === D.tr) return null;
     const r = tr.getBoundingClientRect(), f = (y - r.top) / Math.max(1, r.height); return { tr, mode: f < 0.3 ? "before" : f > 0.7 ? "after" : "on" }; };
-  document.addEventListener("pointerdown", e => { const tr = e.target.closest && e.target.closest("tr[data-ri]"); if (!tr || !ACH_CAF_DRAG || !ACH_CAF_DRAG.open || !blkOf(tr)) return;
-    if (e.target.closest("input, select, button, textarea, .nvp-rd, a")) return; const R = ACH_CAF_DRAG.rows[+tr.dataset.ri]; if (!R || !R.l) return;
+  document.addEventListener("pointerdown", e => { const tr = e.target.closest && e.target.closest("tr[data-ri]"), K = tr && keyOf(tr), G = K && ACH_DET_DRAG[K]; if (!G || !G.open) return;
+    if (e.target.closest("input, select, button, textarea, .nvp-rd, a")) return; const R = G.rows[+tr.dataset.ri]; if (!R || !R.l) return;
     T = { x: e.clientX, y: e.clientY, tr, h: setTimeout(() => { if (!T) return; const cb = tr.querySelector(".nvp-cb");
-      const ids = cb && cb.checked ? [...blkOf(tr).querySelectorAll("tbody tr[data-ri]")].filter(t => t.querySelector(".nvp-cb:checked")).map(t => ACH_CAF_DRAG.rows[+t.dataset.ri]).filter(r => r && r.l).map(r => r.l) : [R.l];
-      D = { tr, ids, id: ACH_CAF_DRAG.id }; tr.classList.add("cafp-dg"); document.documentElement.classList.add("cafp-dragging"); try { navigator.vibrate && navigator.vibrate(15); } catch (err) {} }, 450) }; }, true);
+      const ids = cb && cb.checked ? [...blkOf(tr).querySelectorAll("tbody tr[data-ri]")].filter(t => t.querySelector(".nvp-cb:checked")).map(t => G.rows[+t.dataset.ri]).filter(r => r && r.l).map(r => r.l) : [R.l];
+      D = { tr, ids, G }; tr.classList.add("cafp-dg"); document.documentElement.classList.add("cafp-dragging"); try { navigator.vibrate && navigator.vibrate(15); } catch (err) {} }, 450) }; }, true);
   document.addEventListener("pointermove", e => { if (T && !D && Math.hypot(e.clientX - T.x, e.clientY - T.y) > 8) { stop(); return; } if (!D) return;
     clr(); D.tr.classList.add("cafp-dg"); const a = at(e.clientX, e.clientY); D.a = a; if (a) a.tr.classList.add({ before: "cafp-db", after: "cafp-da", on: "cafp-do" }[a.mode]); }, true);
   document.addEventListener("touchmove", e => { if (D) e.preventDefault(); }, { passive: false, capture: true });
-  document.addEventListener("pointerup", () => { if (!D) { stop(); return; } const d = D, a = D.a; stop(); if (!a) return; const R = ACH_CAF_DRAG && ACH_CAF_DRAG.rows[+a.tr.dataset.ri]; if (!R) return;
-    let ok = false; achCafSaveOne(d.id, c => { const r = achDetDrop(c.lignes, c.grp, d.ids, R, a.mode); if (r) { c.lignes = r.L; c.grp = r.G; ok = true; } }, "DÉTAIL DÉPLACÉ");
+  document.addEventListener("pointerup", () => { if (!D) { stop(); return; } const d = D, a = D.a; stop(); if (!a) return; const R = d.G.rows[+a.tr.dataset.ri]; if (!R) return;
+    let ok = false; d.G.apply(c => { ok = achDetDropIn(c, d.ids, R, a.mode); });
     if (ok && ACH_NV_REDRAW) ACH_NV_REDRAW(); }, true);
   document.addEventListener("pointercancel", stop, true);
   document.addEventListener("click", e => { if (document.documentElement.classList.contains("cafp-dragging")) { e.preventDefault(); e.stopPropagation(); } }, true);

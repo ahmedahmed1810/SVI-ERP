@@ -4118,6 +4118,11 @@ def main():
   r.push(/nvl-inf/.test(sviListIH()) && /nvl-h/.test(sviListIH())); return r.join(','); }""")
         check("07/11 (document unique 3.1) : i et H aussi dans la barre du haut des listes — i = informations de la liste, H = historique de ses pièces",
               f11 == 'true,true,true,true,true', f11)
+        f12 = pg.evaluate("""async () => { await sviAchLoad(); const c = { lignes: [{ des: 'A' }, { des: 'B' }, { des: 'C' }], grp: [] };
+  const ok = achDetDropIn(c, ['#2'], { l: '#0' }, 'before'); const r1 = c.lignes.map(l => l.des + (l.id ? '*' : '')).join(',');
+  achDetDropIn(c, ['#1'], { l: '#0' }, 'on'); return [ok, r1, c.lignes.map(l => l.des + (l.g ? ':g' : '')).join(','), c.grp.length, typeof ACH_DET_DRAG].join('|'); }""")
+        check("07/11 (9.3) : glisser une ligne dans tous les DÉTAILS des achats (devis, commande, facture…), même sans identifiant de ligne",
+              f12 == 'true|C,A,B|C:g,A:g,B|1|object', f12)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
