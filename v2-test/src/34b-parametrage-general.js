@@ -127,10 +127,15 @@ const SVI_PG_CAL_M = [["FÉRIÉ", "FÉRIÉ"], ["GRÈVE", "GRÈVE"], ["DEUIL NATI
 function sviPgDraw(k, pane) {
   pane.__pgc = null;
   if (k === "gen") { const tv = sviTvaDef(), km = sviTrKm(), G = sviPg().gen || {}, D = sviPgL("devises");
-    pane.innerHTML = `<table class="prm-table pg-gen"><colgroup><col style="width:440px"><col style="width:200px"></colgroup><thead><tr><th>RÉGLAGE</th><th class="center">VALEUR</th></tr></thead><tbody>
-      <tr><td>PRIX DU TRANSPORT AU KILOMÈTRE (DH / KM)</td><td class="center"><input class="ins-in trk-km pg-gv number" data-g="km" inputmode="decimal" value="${km === null ? "" : esc(String(km).replace(".", ","))}"></td></tr>
-      <tr><td>FUSEAU HORAIRE</td><td class="center"><select class="pg-gv" data-g="tz">${["-1", "0", "+1", "+2"].map(z => `<option value="${z}"${(G.tz || "+1") === z ? " selected" : ""}>GMT ${z === "0" ? "" : z}</option>`).join("")}</select></td></tr>
-      <tr><td>DEVISE PAR DÉFAUT</td><td class="center">${esc((D.find(x => x.def) || D[0] || {}).code || "MAD")}</td></tr></tbody></table>`;
+    /* 07/11 (document unique 6.1, vérification) : le tableau GÉNÉRAL a aussi la loupe de tri / filtre sur chaque colonne */
+    const R = [{ c0: "PRIX DU TRANSPORT AU KILOMÈTRE (DH / KM)", c1: km === null ? "" : String(km).replace(".", ","), h: `<td class="center"><input class="ins-in trk-km pg-gv number" data-g="km" inputmode="decimal" value="${km === null ? "" : esc(String(km).replace(".", ","))}"></td>` },
+      { c0: "FUSEAU HORAIRE", c1: "GMT " + (G.tz || "+1"), h: `<td class="center"><select class="pg-gv" data-g="tz">${["-1", "0", "+1", "+2"].map(z => `<option value="${z}"${(G.tz || "+1") === z ? " selected" : ""}>GMT ${z === "0" ? "" : z}</option>`).join("")}</select></td>` },
+      { c0: "DEVISE PAR DÉFAUT", c1: (D.find(x => x.def) || D[0] || {}).code || "MAD", h: `<td class="center">${esc((D.find(x => x.def) || D[0] || {}).code || "MAD")}</td>` }];
+    const K = pane.__genKit || (pane.__genKit = sviCfKit({ key: "prm_gen", shell: {}, refresh: () => sviPgDraw("gen", pane) }));
+    if (!pane.__genCf) { pane.__genCf = 1; pane.addEventListener("click", e => { const cf = e.target.closest && e.target.closest('.pg-gen .cf-btn'); if (cf) { e.preventDefault(); e.stopPropagation(); K.cfOpenMenu(cf); } }, true); }
+    const RR = K.cfApply("prm_gen", [["c0", "RÉGLAGE", r => r.c0, ""], ["c1", "VALEUR", r => r.c1, "center"]], R);
+    pane.innerHTML = `<table class="prm-table pg-gen"><colgroup><col style="width:440px"><col style="width:200px"></colgroup><thead><tr>${K.cfHead("prm_gen", "c0", "RÉGLAGE")}${K.cfHead("prm_gen", "c1", "VALEUR", "center")}</tr></thead><tbody>
+      ${RR.map(r => `<tr><td>${esc(r.c0)}</td>${r.h}</tr>`).join("")}</tbody></table>`;
     pane.querySelectorAll(".pg-gv").forEach(i => i.closest("tr").cells[0].dataset.tip = { tva: "COMMUNE AU BUDGET ET AUX ACHATS ; VIDE : UNE DÉSIGNATION SANS TVA NE PEUT PAS ÊTRE ENREGISTRÉE", km: "DISTANCE À VOL D'OISEAU ENTRE LE DÉPÔT DU FOURNISSEUR ET LE CHANTIER", tz: "DÉCALAGE PAR RAPPORT À GMT : HEURE AFFICHÉE ET ENREGISTRÉE PAR L'APPLICATION" }[i.dataset.g] || "");
     return; }
   if (k === "soc") { pane.innerHTML = sviPgSocHTML(); return; }

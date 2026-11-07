@@ -8,7 +8,9 @@ const SV_TABSETS = [
   { c: "#bdgTabs", t: ".bdg-d-tab", k: "tab", set: "detail" },
   { c: ".rec-tabs", t: ".rec-tab", k: "rtab", set: "suivi" },
   { c: ".imp-tabs", t: ".imp-tab", k: "tab", set: "import" },
-  { c: ".hist-filters", t: ".hist-f", k: "b", set: "hist" }
+  { c: ".hist-filters", t: ".hist-f", k: "b", set: "hist" },
+  /* 07/11 (document unique 5.1) : onglets de module du PARAMÉTRAGE, tous de la même largeur */
+  { c: "#chs .pg-grps", t: ".prm-grp", k: "pgg", set: "pgg" }
 ];
 /* onglets : dans chaque rangée (chaque bloc), tous les intercalaires ont la même largeur.
    Par défaut : celle du plus long intitulé, réduite pour que toute la rangée ET le bouton ⋯
@@ -66,6 +68,8 @@ const sviEqualTabs = () => {
     q = requestAnimationFrame(run);
   }).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
   window.addEventListener("resize", () => { if (!q) q = requestAnimationFrame(run); });
+  /* 07/11 : un écran qui s'affiche (onglets dessinés quand il était caché) — les largeurs se refont */
+  new MutationObserver(ms => { if (!q && ms.some(m => m.target.classList && m.target.classList.contains("view") && m.target.classList.contains("active-view"))) q = requestAnimationFrame(run); }).observe(document.documentElement, { attributes: true, subtree: true, attributeFilter: ["class"] });
   /* poignée : bord droit d'un onglet (12 px) ; glisser = largeur de tous les onglets du bloc */
   document.addEventListener("pointerdown", e => {
     const t = e.target.closest && e.target.closest(".tab-eq");
