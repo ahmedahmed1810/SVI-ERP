@@ -18,8 +18,8 @@ function sviBdgInf(C) {
     const P = infProj();
     const din = (f, v, extra = "") => ed ? `<input class="doc-in inf-date" type="date" data-f="${f}" value="${esc(v)}"${extra}>` : `<span class="doc-in doc-ro inf-val">${esc(dFr(v))}</span>`;
     return `<span class="doc-lab">DATE DE DÉBUT DU PROJET${STAR}</span>${din("deb", P.deb)}
-      <span class="doc-lab">DATE DE FIN DU PROJET<small class="inf-sub">(FIN DU PLANNING)</small></span><span class="inf-cell"><span class="doc-in doc-ro inf-val" data-v="pfin0">${esc(dFr(P.fin))}</span><small class="inf-sub" data-v="pfin"></small></span>
-      <span class="doc-lab">DATE OBJECTIF<small class="inf-sub">(VISÉE PAR GÉNÉRER / COMPRESSER)</small></span>${din("obj", INS.dobj || "")}
+      <span class="doc-lab" data-tip="FIN DU PLANNING">DATE DE FIN DU PROJET</span><span class="inf-cell"><span class="doc-in doc-ro inf-val" data-v="pfin0">${esc(dFr(P.fin))}</span><small class="inf-sub" data-v="pfin"></small></span>
+      <span class="doc-lab" data-tip="VISÉE PAR GÉNÉRER / COMPRESSER">DATE OBJECTIF</span>${din("obj", INS.dobj || "")}
       <span class="doc-lab">DURÉE</span><span class="doc-in doc-ro inf-val" data-v="dur">${esc(infYMD(P.deb, P.fin))}</span>
       <span class="doc-lab">DATE BUTOIR${STAR}</span>${din("but", INS.dbut || "")}`;
   };
@@ -104,7 +104,7 @@ function sviBdgInf(C) {
         <label><input type="radio" name="infAoT" value="pub"${A.pub === true ? " checked" : ""}${dis}> PUBLIC</label>
         <label><input type="radio" name="infAoT" value="prv"${A.pub === false ? " checked" : ""}${dis}> PRIVÉ</label>
         <label class="inf-ao-c"><input type="checkbox" id="infAoC"${A.cons || A.pub === true ? " checked" : ""}${A.pub === true || !ed ? " disabled" : ""}> SUR CONSULTATION</label></span>
-      <span class="doc-lab">N° D'APPEL D'OFFRES<small class="inf-sub">(OU DE CONSULTATION)</small></span>${ed ? `<input class="doc-in inf-int" id="infAoN" value="${esc(A.num || "")}" placeholder="${esc(fullRef)}" autocomplete="off">` : `<span class="doc-in doc-ro inf-val">${esc(A.num || "")}</span>`}
+      <span class="doc-lab" data-tip="OU DE CONSULTATION">N° D'APPEL D'OFFRES</span>${ed ? `<input class="doc-in inf-int" id="infAoN" value="${esc(A.num || "")}" placeholder="${esc(fullRef)}" autocomplete="off">` : `<span class="doc-in doc-ro inf-val">${esc(A.num || "")}</span>`}
       <span class="doc-lab">OBJET DU MARCHÉ</span>${ed ? `<input class="doc-in inf-int" id="infAoO" value="${esc(A.obj || "")}" autocomplete="off">` : `<span class="doc-in doc-ro inf-val">${esc(A.obj || "")}</span>`}`;
   };
   const openInfo = (focus) => {
@@ -148,7 +148,7 @@ function sviBdgInf(C) {
                 : `<span class="doc-in doc-ro inf-val">${esc(v)}</span>`}`).join("")}
             ${INS ? infAoHTML(editInt) : ""}
             ${INS ? infDatesHTML(editInt) : ""}
-            ${INS ? `<span class="doc-lab">GPS DU CHANTIER<small class="inf-sub">(DISTANCE ET TRANSPORT DES ACHATS)</small></span>${editInt ? `<input class="doc-in inf-gps" value="${esc(INS.gps || "")}" placeholder="LATITUDE, LONGITUDE" inputmode="decimal" autocomplete="off">` : `<span class="doc-in doc-ro inf-val">${esc(INS.gps || "")}</span>`}` : ""}
+            ${INS ? `<span class="doc-lab" data-tip="DISTANCE ET TRANSPORT DES ACHATS">GPS DU CHANTIER</span>${editInt ? `<input class="doc-in inf-gps" value="${esc(INS.gps || "")}" placeholder="LATITUDE, LONGITUDE" inputmode="decimal" autocomplete="off">` : `<span class="doc-in doc-ro inf-val">${esc(INS.gps || "")}</span>`}` : ""}
           </div>
         </div>
         <div class="doc-foot">

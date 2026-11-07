@@ -3667,3 +3667,6 @@ html.cafp-dragging, html.cafp-dragging * { user-select: none !important; -webkit
 #ach tr.cafp-db > td { box-shadow: inset 0 3px 0 #2563eb; }
 #ach tr.cafp-da > td { box-shadow: inset 0 -3px 0 #2563eb; }
 #ach tr.cafp-do > td { background: rgba(37, 99, 235, .15) !important; }
+/* 07/11 (document unique 6.3, vérification) : les champs posés dans les cases des pages d'achat ne grandissent pas la ligne — lignes de 21 px */
+#ach .nvp table tbody td :is(input.ins-in:not([type=checkbox]), select.ins-in, .sv-sel, button.ach-b) { height: 19px !important; min-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; line-height: 17px !important; box-sizing: border-box !important; margin-top: 0 !important; margin-bottom: 0 !important; vertical-align: middle; }
+#ach .nvp table tbody td:has(> :is(input.ins-in, select.ins-in, .sv-sel, button.ach-b)) { padding-top: 0 !important; padding-bottom: 0 !important; }
