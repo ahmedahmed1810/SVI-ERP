@@ -1,0 +1,2 @@
+    /* v883 : LIAISONS DU PLANNING sorti du grand bloc → 29d-liaisons.js (sviBdgLiaisons) */
+    const { dlyClean, dlyDeb, dlyFin, dlyKeys, dlyName, dlyDraftKey, dlyGlued, dlyLinks, dlyList, dlyMoveTo, dlyPredFin, dlyPredTxt, dlyReach, dlyRespect, dlyShift, dlySuccTxt, dlySuccs, dlyPreds, dlyShiftList, dlyNeedOf } = sviBdgLiaisons({ ECR, INS, insCal, insDlyKey, insId, insSave, lotPathDisp, lkName: () => lkName, histLog: () => histLog });

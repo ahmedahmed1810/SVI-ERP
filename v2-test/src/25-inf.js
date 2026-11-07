@@ -1,0 +1,2 @@
+    /* v869 : INF sorti du grand bloc → 28p-inf.js (sviBdgInf) */
+    const { infMissing, openInfo, chooseFormat, insBlkKinds, insDelPlan, insDelRun, insDelSplit, insOnlyChecked, insUnlPlan, openDoc, openObsAlert, openRecForm, toggleMax } = sviBdgInf({ ECR, INS, INS_EDIT, attFormHTML, attRead, budget, dlyDeb, dlyFin, dlyKeys, docsLoad, fullRef, histLog, insCal, insDlyKey, insSave, insSelIds, insUnlinked, insVis, keepScroll, lines, nextRecRef, openExportMenu, printMetre, printTasks, recLoad, recSave, recSorted, ref, refreshAll, shell, updPill });

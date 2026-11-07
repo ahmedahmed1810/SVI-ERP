@@ -1,0 +1,2 @@
+    /* v889 : VERSIONS ET SCÉNARIOS sorti du grand bloc → 29j-versions-scenarios.js (sviBdgVersionsScenarios) */
+    const { verInd, verOrig } = sviBdgVersionsScenarios({ AV_ROOT, INS, body, budget, budgetData, cfApply, cfHead, insId, insSave, openBudgetDetail, ref, refreshAll, shell, indLoad: () => indLoad, indEls: () => indEls, indCalc: () => indCalc, histLog: () => histLog, indPlusMenu: () => indPlusMenu, indDesignWin: () => indDesignWin, indWin: () => indWin });

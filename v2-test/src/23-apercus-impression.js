@@ -1,0 +1,2 @@
+    /* v871 : APERÇUS ET IMPRESSION sorti du grand bloc → 28r-apercus-impression.js (sviBdgApercus) */
+    const { printModel, metreData, interneData, printGeneric, printMetre, printTasks, doPdf } = sviBdgApercus({ ECR, INS, artOf, blkData, blkDisp, blkLabel, body, budget, detailTable, fileBase, fullRef, groups, insCalc, insHT, insHiddenFn, insQty, insSave, insSubOf, insTTC, ref, shell, docsLoad: () => docsLoad, histLog: () => histLog, openInfo: () => openInfo, recLoad: () => recLoad, recSorted: () => recSorted });

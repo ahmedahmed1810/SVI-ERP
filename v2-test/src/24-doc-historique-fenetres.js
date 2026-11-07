@@ -1,0 +1,2 @@
+    /* v870 : DOCUMENTS, HISTORIQUE ET FENÊTRES sorti du grand bloc → 28q-doc-historique-fenetres.js (sviBdgDocHistorique) */
+    const { histLog, renderRec, recTabApply, recTableData, histData, updPill, nextDocRef, docsLoad, docsSave, recLoad, recSorted, attFormHTML, attRead, nextRecRef, recSave, openDocForm, openHistory } = sviBdgDocHistorique({ AV_ROOT, ECR, INS, blkName, budget, cfApply, cfHead, cfOpenMenu, cfT, fullRef, insCheckLinks, lkName, openExportMenu, printGeneric, ref, shell });

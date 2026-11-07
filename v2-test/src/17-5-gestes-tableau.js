@@ -1,0 +1,2 @@
+    /* v879 : GESTES DU PLANNING (TABLEAU, GANTT, ÉCHELLE) sorti du grand bloc → 28z-gestes-planning.js (sviBdgGestesPlanning) */
+    sviBdgGestesPlanning({ DLYG_REF, DLY_SC, ECR, INS, body, dlyCfgPaint, dlyGanttDraw, dlyIsFolded, dlyRhApply, dlyRngEdge, dlyScale, grpFlush, insSave, lotDrop, lotLab, ref, shell, refreshAll: () => refreshAll, lkName: () => lkName, dlyHRange: () => dlyHRange, histLog: () => histLog });

@@ -1,0 +1,2 @@
+    /* v884 : À COMPLÉTER sorti du grand bloc → 29e-a-completer.js (sviBdgACompleter) */
+    const { insMarkUnlinked, dDur, insDlyKey, insTasks, insUnlCount, insCleanLinks, dParse } = sviBdgACompleter({ CF, DUP_LAB, ECR, INS, INS_EDIT, ONLYC, budget, cfHasF, dupCount, figeGo, insCal, insFigeBlocks, insFigeWhy, insParSet, insRg, insRowErr, insSave, insUnlinked, insUsed, shell, infMissing: () => infMissing, dlyLockLate: () => dlyLockLate, dlyView: () => dlyView, insMgParSet: () => insMgParSet, dlyName: () => dlyName, histLog: () => histLog, refreshAll: () => refreshAll });

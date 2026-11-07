@@ -1,0 +1,2 @@
+    /* v844 : le GLISSER DES LIGNES sorti du grand bloc → 28m-glisser-lignes.js (sviBdgGlisserLignes) */
+    const { insSelIds, insVis } = sviBdgGlisserLignes({ CF, INS, INS_COLS, INS_EDIT, actNextTitle, cfApply, coDrag, dlyPlanFromTasks, foldGet, grpFlush, insId, insNorm, insRedraw, insSave, insShown, layDrag, layResize, lines, lotDrop, ref, refreshAll, renderTab, roStart, shell, table, histLog: () => histLog });
