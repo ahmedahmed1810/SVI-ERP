@@ -4097,6 +4097,16 @@ def main():
         check("07/11 : IMPORTER dans le DÉTAIL CONSULTATION (Excel / CSV / Google Sheets / PDF) — colonnes reconnues ou devinées, titres = groupes, lignes « À VÉRIFIER » en alerte",
               f08.get('tab') == 'T:GROS ŒUVRE|Ciment CPJ45/T/12.5/1200|Sable/M3/30/' and f08.get('nohead') == 'Ciment/T/2|Gravier 15/25/M3/4'
               and f08.get('pdf') == 'Fer HA8/KG/250/9.5|Brique creuse 8T/U/1500/' and f08.get('why') == '1 DÉTAIL(S) IMPORTÉ(S) À VÉRIFIER', f08)
+        f09 = pg.evaluate("""async () => { await sviAchLoad(); const r = {};
+  const L = [{ id: 'a' }, { id: 'b', g: 'G' }, { id: 'c', g: 'G' }, { id: 'd' }], G = [{ id: 'G' }], s = o => o ? o.L.map(l => l.id + (l.g ? ':' + l.g : '')).join(',') + '|' + o.G.length : 'null';
+  r.before = s(achDetDrop(L, G, ['d'], { l: 'b' }, 'before')); r.afterTitle = s(achDetDrop(L, G, ['a'], { g: 'G' }, 'after'));
+  r.beforeTitle = s(achDetDrop(L, G, ['c'], { g: 'G' }, 'before')); r.onTitle = s(achDetDrop(L, G, ['a'], { g: 'G' }, 'on'));
+  const on = achDetDrop(L, G, ['d'], { l: 'a' }, 'on'); r.onLine = on.L.map(l => l.id + (l.g ? (l.g === 'G' ? ':G' : ':N') : '')).join(',') + '|' + on.G.length;
+  r.empty = s(achDetDrop(L, G, ['b', 'c'], { l: 'd' }, 'after')); r.self = s(achDetDrop(L, G, ['a'], { l: 'a' }, 'on'));
+  return r; }""")
+        check("07/11 : glisser une ligne du DÉTAIL CONSULTATION comme dans le budget — avant / après une ligne (même niveau), avant un titre (hors groupe), après un titre (en tête), sur une ligne (nouveau groupe), groupe vide supprimé",
+              f09.get('before') == 'a,d:G,b:G,c:G|1' and f09.get('afterTitle') == 'a:G,b:G,c:G,d|1' and f09.get('beforeTitle') == 'a,c,b:G,d|1' and f09.get('onTitle') == 'b:G,c:G,a:G,d|1'
+              and f09.get('onLine') == 'a:N,d:N,b:G,c:G|2' and f09.get('empty') == 'a,d,b,c|0' and f09.get('self') == 'null', f09)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

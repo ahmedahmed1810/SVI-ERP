@@ -359,12 +359,14 @@ function achMepOpen(cfg, P, rec, redraw, o) {
     fields: { ...Object.fromEntries((K === "cmf" ? achPrtAuto(P) : []).map(([id, l, v]) => ["a_" + id, l + " : " + v])), projet: P.projet || "", ttc: P.ttc && !o.noPrice ? achF2(P.ttc) + " MAD" : "", numFrs: P.numFrs || "", lettres, mention, soc },
     name: (P.ref || P.code) + " " + cfg.list.one, save: async (b, n) => { const r = await rec.savePdf(b, n); if (redraw) setTimeout(redraw, 0); return r; } });
 }
+/* 07/11 : redessin de la page ouverte (gestes hors clic : glisser une ligne) */
+let ACH_NV_REDRAW = null;
 function achNvMod(ctx, cfg) {
   let pid = null, P = null, rec = null;
   const open = id => { pid = id; rec = null; ctx.draw(); };
   const LST = achNvList(ctx, { ...cfg.list, page: open });
   const html = () => {
-    if (pid) { P = cfg.pageOf(pid); if (!P) pid = null; }
+    if (pid) { P = cfg.pageOf(pid); if (!P) pid = null; else ACH_NV_REDRAW = () => ctx.draw(); }
     if (!pid) return LST.html();
     if (!rec || rec.__c !== P.code) { rec = achRecBlock(P.code); rec.__c = P.code; }
     return achNvPageHTML(P, rec, ctx);

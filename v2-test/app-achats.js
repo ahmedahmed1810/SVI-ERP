@@ -2265,7 +2265,7 @@ function achCafPage(x, B) {
   const dis = open ? "" : " disabled";
   /* ---- DÉTAIL CONSULTATION ---- */
   const usedB = new Set((x.lignes || []).filter(l => l.bsn).map(l => l.bsn)), takenD = new Set((x.lignes || []).filter(l => l.bsn).map(l => achKey(l.des, l.u)));
-  const det = achDetNum(x.lignes || [], x.grp).map(o => { if (o.title) return { cls: "ins-title nvp-gt", cells: [o.no, { h: "<b>" + esc(o.lab) + "</b>", t: o.lab }, "", "", "", "", "", "", "", ""] };
+  const det = achDetNum(x.lignes || [], x.grp).map(o => { if (o.title) return { cls: "ins-title nvp-gt", gid: o.title.id, cells: [o.no, { h: "<b>" + esc(o.lab) + "</b>", t: o.lab }, "", "", "", "", "", "", "", ""] };
     const l = o.l, i = o.i, a = achArtOf(l.des, l.u), b = l.bsn ? achBsn().find(y => y.id === l.bsn) : null, pe = achStdPu(l.des, l.u, l.pu), k = "a|" + l.id;
     const BO = achBsnOpen().filter(y => !usedB.has(y.id) || y.id === l.bsn).concat(b && !achBsnOpen().some(y => y.id === b.id) ? [b] : []);
     const AO = achArts().filter(y => !y.del && !y.bloq && !y.arch && (!takenD.has(achKey(y.des, y.u)) || achKey(y.des, y.u) === achKey(l.des, l.u)));
@@ -2278,6 +2278,7 @@ function achCafPage(x, B) {
       { h: `<input class="ins-in cafp-l number" data-li="${esc(l.id)}" data-c="q" inputmode="decimal" value="${esc(String(l.q ?? "").replace(".", ","))}"${dis}>`, t: achN(l.q) },
       a ? pe : { h: `<input class="ins-in cafp-l number" data-li="${esc(l.id)}" data-c="pu" inputmode="decimal" value="${esc(String(l.pu ?? "").replace(".", ","))}" placeholder="À SAISIR"${dis}>`, t: achN(l.pu) },
       achN(l.q) * pe, b ? achN(l.q) * achN(b.pu) : "", String(nF)] }; });
+  ACH_CAF_DRAG = { id: x.id, open, rows: det.map(r => r.rd ? { l: r.rd.k.slice(2) } : { g: r.gid }) };
   const DET = { t: "DÉTAIL CONSULTATION", add: open ? "CRÉER UN DÉTAIL ICI…" : "", cols: [["ARTICLE", "center"], ["BESOIN"], ["CODE ARTICLE"], ["DÉSIGNATION"], ["U", "center"], ["QUANTITÉ", "number"], ["PRIX ESTIMÉ", "number"], ["MONTANT ESTIMÉ", "number"], ["MONTANT BUDGÉTÉ (NON ENVOYÉ)", "number"], ["FOURNISSEURS", "center"]],
     rows: det, addFn: redraw => { achCafSaveOne(x.id, c => { const id = achCafId(); c.lignes.push({ id, des: "", u: "", q: "" }); c.lf[id] = (c.frs || []).slice(); }, "DÉTAIL AJOUTÉ"); redraw(); },
     menu: open ? [{ k: "imp", lab: "IMPORTER (EXCEL, GOOGLE SHEETS, CSV, PDF)" }].concat((x.lignes || []).some(l => l.imp) ? [{ k: "impok", lab: "CONFIRMER LES COCHÉS (VÉRIFIÉS)" }] : []).concat([{ k: "bsn", lab: "AJOUTER LES BESOINS VALIDÉS NON COUVERTS" }, { k: "libre", lab: "AJOUTER UN ARTICLE HORS LISTE" }, { k: "up", lab: "MONTER LES COCHÉS" }, { k: "down", lab: "DESCENDRE LES COCHÉS" }, { k: "grp", lab: "GROUPER LES COCHÉS" }, { k: "ungrp", lab: "SORTIR LES COCHÉS DE LEUR GROUPE" }, { k: "rm", lab: "SUPPRIMER LES COCHÉS" }]) : [],
@@ -2529,6 +2530,44 @@ async function achCafImport(x, redraw) { const code = x.ref || x.code, DOCS = ac
       if (g) { l.g = g.id; g.n++; } c.lignes.push(l); c.lf[id] = (c.frs || []).slice(); });
     c.grp = c.grp.filter(y => y.n !== 0).map(y => { delete y.n; return y; }); }, "IMPORT — " + n + " DÉTAIL(S) À VÉRIFIER (" + from + ")");
   svToast(n + " DÉTAIL(S) IMPORTÉ(S), EN ROUGE : À VÉRIFIER PUIS CONFIRMER (COCHER › CONFIRMER LES COCHÉS).", 5000); if (redraw) redraw(); }
+
+/* ---------- GLISSER UNE LIGNE DU DÉTAIL CONSULTATION (07/11), comme dans le budget ----------
+   appui long sur une ligne = la prendre (les cochées partent avec elle si elle est cochée) ; la déposer :
+   - au-dessus / au-dessous d'une ligne : même niveau qu'elle (entre dans son groupe ou en sort) ;
+   - au-dessus d'un titre de groupe : avant le groupe, hors du groupe ; au-dessous : en tête du groupe ;
+   - sur une ligne : nouveau groupe avec elle (ou dans son groupe) ; sur un titre : à la fin du groupe ;
+   un groupe devenu vide disparaît */
+let ACH_CAF_DRAG = null;
+function achDetDrop(L, G, ids, tgt, mode) { L = L.map(l => ({ ...l })); G = (G || []).map(g => ({ ...g })); const S = new Set(ids);
+  if (tgt.l && S.has(tgt.l)) return null; const mv = L.filter(l => S.has(l.id)), rest = L.filter(l => !S.has(l.id)); if (!mv.length) return null;
+  const setG = gid => mv.forEach(l => { if (gid) l.g = gid; else delete l.g; }); let at;
+  if (tgt.l) { const i = rest.findIndex(l => l.id === tgt.l); if (i < 0) return null; const t = rest[i];
+    if (mode === "on") { if (!t.g) { const g = { id: "K" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) }; G.push(g); t.g = g.id; } setG(t.g); at = i + 1; }
+    else { setG(t.g); at = mode === "before" ? i : i + 1; } }
+  else { const I = rest.map((l, i) => l.g === tgt.g ? i : -1).filter(i => i >= 0);
+    if (!I.length) { setG(mode === "before" ? "" : tgt.g); at = rest.length; }
+    else if (mode === "before") { setG(""); at = I[0]; } else if (mode === "after") { setG(tgt.g); at = I[0]; } else { setG(tgt.g); at = I[I.length - 1] + 1; } }
+  rest.splice(at, 0, ...mv); const used = new Set(rest.map(l => l.g).filter(Boolean)); return { L: rest, G: G.filter(g => used.has(g.id)) }; }
+{ let T = null, D = null;
+  const blkOf = el => { const b = el && el.closest && el.closest("#ach .nvp-blk"); const h = b && b.querySelector("[data-nvh]"); return h && h.dataset.nvh === achNvhKey("DÉTAIL CONSULTATION") ? b : null; };
+  const clr = () => document.querySelectorAll("#ach tr.cafp-dg, #ach tr.cafp-db, #ach tr.cafp-da, #ach tr.cafp-do").forEach(t => t.classList.remove("cafp-dg", "cafp-db", "cafp-da", "cafp-do"));
+  const stop = () => { if (T) clearTimeout(T.h); T = null; D = null; clr(); document.documentElement.classList.remove("cafp-dragging"); };
+  const at = (x, y) => { const el = document.elementFromPoint(x, y), tr = el && el.closest && el.closest("tr[data-ri]"); if (!tr || !D || !blkOf(tr) || tr === D.tr) return null;
+    const r = tr.getBoundingClientRect(), f = (y - r.top) / Math.max(1, r.height); return { tr, mode: f < 0.3 ? "before" : f > 0.7 ? "after" : "on" }; };
+  document.addEventListener("pointerdown", e => { const tr = e.target.closest && e.target.closest("tr[data-ri]"); if (!tr || !ACH_CAF_DRAG || !ACH_CAF_DRAG.open || !blkOf(tr)) return;
+    if (e.target.closest("input, select, button, textarea, .nvp-rd, a")) return; const R = ACH_CAF_DRAG.rows[+tr.dataset.ri]; if (!R || !R.l) return;
+    T = { x: e.clientX, y: e.clientY, tr, h: setTimeout(() => { if (!T) return; const cb = tr.querySelector(".nvp-cb");
+      const ids = cb && cb.checked ? [...blkOf(tr).querySelectorAll("tbody tr[data-ri]")].filter(t => t.querySelector(".nvp-cb:checked")).map(t => ACH_CAF_DRAG.rows[+t.dataset.ri]).filter(r => r && r.l).map(r => r.l) : [R.l];
+      D = { tr, ids, id: ACH_CAF_DRAG.id }; tr.classList.add("cafp-dg"); document.documentElement.classList.add("cafp-dragging"); try { navigator.vibrate && navigator.vibrate(15); } catch (err) {} }, 450) }; }, true);
+  document.addEventListener("pointermove", e => { if (T && !D && Math.hypot(e.clientX - T.x, e.clientY - T.y) > 8) { stop(); return; } if (!D) return;
+    clr(); D.tr.classList.add("cafp-dg"); const a = at(e.clientX, e.clientY); D.a = a; if (a) a.tr.classList.add({ before: "cafp-db", after: "cafp-da", on: "cafp-do" }[a.mode]); }, true);
+  document.addEventListener("touchmove", e => { if (D) e.preventDefault(); }, { passive: false, capture: true });
+  document.addEventListener("pointerup", () => { if (!D) { stop(); return; } const d = D, a = D.a; stop(); if (!a) return; const R = ACH_CAF_DRAG && ACH_CAF_DRAG.rows[+a.tr.dataset.ri]; if (!R) return;
+    let ok = false; achCafSaveOne(d.id, c => { const r = achDetDrop(c.lignes, c.grp, d.ids, R, a.mode); if (r) { c.lignes = r.L; c.grp = r.G; ok = true; } }, "DÉTAIL DÉPLACÉ");
+    if (ok && ACH_NV_REDRAW) ACH_NV_REDRAW(); }, true);
+  document.addEventListener("pointercancel", stop, true);
+  document.addEventListener("click", e => { if (document.documentElement.classList.contains("cafp-dragging")) { e.preventDefault(); e.stopPropagation(); } }, true);
+}
 /* ⟪ src/45-achats-commandes.js ⟫ */
 /* =========================================================
    v762 : COMMANDES, RÉCEPTIONS, RETOURS (étape 4) — onglets de l'écran des achats (menu ☰ › ACHAT)
@@ -3623,12 +3662,14 @@ function achMepOpen(cfg, P, rec, redraw, o) {
     fields: { ...Object.fromEntries((K === "cmf" ? achPrtAuto(P) : []).map(([id, l, v]) => ["a_" + id, l + " : " + v])), projet: P.projet || "", ttc: P.ttc && !o.noPrice ? achF2(P.ttc) + " MAD" : "", numFrs: P.numFrs || "", lettres, mention, soc },
     name: (P.ref || P.code) + " " + cfg.list.one, save: async (b, n) => { const r = await rec.savePdf(b, n); if (redraw) setTimeout(redraw, 0); return r; } });
 }
+/* 07/11 : redessin de la page ouverte (gestes hors clic : glisser une ligne) */
+let ACH_NV_REDRAW = null;
 function achNvMod(ctx, cfg) {
   let pid = null, P = null, rec = null;
   const open = id => { pid = id; rec = null; ctx.draw(); };
   const LST = achNvList(ctx, { ...cfg.list, page: open });
   const html = () => {
-    if (pid) { P = cfg.pageOf(pid); if (!P) pid = null; }
+    if (pid) { P = cfg.pageOf(pid); if (!P) pid = null; else ACH_NV_REDRAW = () => ctx.draw(); }
     if (!pid) return LST.html();
     if (!rec || rec.__c !== P.code) { rec = achRecBlock(P.code); rec.__c = P.code; }
     return achNvPageHTML(P, rec, ctx);

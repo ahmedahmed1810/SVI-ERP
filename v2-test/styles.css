@@ -3661,3 +3661,9 @@ table.svi-bdgl td.nv-lk { white-space: nowrap; overflow: hidden; text-overflow: 
 /* 07/11 : détail importé, à vérifier */
 tr.cafp-imp > td, tr.cafp-imp > td input, tr.cafp-imp > td select { color: #dc2626 !important; }
 tr.cafp-imp > td:first-child { box-shadow: inset 3px 0 0 #dc2626; }
+/* 07/11 : glisser une ligne du DÉTAIL CONSULTATION */
+html.cafp-dragging, html.cafp-dragging * { user-select: none !important; -webkit-user-select: none !important; }
+#ach tr.cafp-dg > td { opacity: .45; }
+#ach tr.cafp-db > td { box-shadow: inset 0 3px 0 #2563eb; }
+#ach tr.cafp-da > td { box-shadow: inset 0 -3px 0 #2563eb; }
+#ach tr.cafp-do > td { background: rgba(37, 99, 235, .15) !important; }
