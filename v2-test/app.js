@@ -4490,6 +4490,41 @@ window.sviMep = sviMep;
 
 /* v784 : APERÇU d'une LISTE (liste des budgets, listes des achats) — ⋯ du titre de la liste ; le tableau affiché (filtres compris) */
 /* v785 : les listes ont la même barre que le budget (ANNULER, RÉTABLIR, PRÉCÉDENT, SUIVANT, ALERTES, FERMER, ⋯) ; ce qui est sans objet est grisé et dit pourquoi */
+/* 07/11 (document unique 3.1, « tout doit être uniforme ») : i et H aussi dans la barre du haut des LISTES (et du PARAMÉTRAGE)
+   i = informations de la liste (pièces par état, totaux des montants, filtres en cours) ; H = historique de toutes les pièces de la liste, les plus récentes d'abord */
+const sviListIH = () => `<span class="bdg-d-badge bdg-d-inf nvl-inf" role="button" title="Informations">i</span><span class="bdg-d-badge nvl-h" role="button" title="Historique">H</span>`;
+const sviListCtx = b => { const sh = b.closest(".novapp-list-shell, .view"), t = sh && [...sh.querySelectorAll("table")].find(x => x.offsetParent !== null && x.tHead);
+  const h1 = sh && sh.querySelector(".novapp-list-titlebar h1, .section-head h1, .section-head h2"), ttl = h1 ? String(h1.childNodes[0] ? h1.childNodes[0].textContent : h1.textContent).trim() : "";
+  const rows = t ? [...t.tBodies].flatMap(tb => [...tb.rows]).filter(r => r.offsetParent !== null && !r.matches(".bdg-newrow, .ins-new, .rec-new, [data-nvnew], .ach-new") && !/ICI…/.test(r.textContent)) : [];
+  return { sh, t, ttl, rows }; };
+const sviListRef = r => { const c = r.querySelector(".nv-reflink, .bdg-ref-c, td"); return c ? String(c.textContent || "").replace(/^!\s*/, "").replace(/\s+/g, " ").trim() : ""; };
+function sviListInfo(b) { const { t, ttl, rows } = sviListCtx(b), d = sviWinNew();
+  const stL = { instance: "EN INSTANCE", fige: "FIGÉ", remis: "REMIS", encours: "EN COURS DE VALIDATION", partiel: "PARTIELLEMENT ACHEVÉ", valide: "VALIDÉ", expire: "EXPIRÉ", bloque: "BLOQUÉ", archive: "ARCHIVÉ", annule: "ANNULÉ" };
+  const stOf = r => r.dataset.st || ((String(r.className).match(/\b(?:st|nvr|inst)-([a-z]+)\b/) || [])[1]) || "";
+  const N = {}; rows.forEach(r => { const k = stOf(r) || "—"; N[k] = (N[k] || 0) + 1; });
+  const H = t ? [...t.tHead.rows[t.tHead.rows.length - 1].cells] : [], tot = [];
+  H.forEach((h, j) => { const lab = String(h.textContent || "").replace(/\s+/g, " ").trim(); if (!/MONTANT|TOTAL|RESTE|TTC|HT\b/.test(lab)) return;
+    let s = 0, n = 0; rows.forEach(r => { const c = r.cells[j]; if (!c) return; const v = String(c.textContent || "").replace(/[\s  ]/g, "").replace(",", "."); if (/^-?\d+(\.\d+)?$/.test(v)) { s += +v; n++; } }); if (n) tot.push([lab, s]); });
+  const F = H.filter(h => h.classList.contains("cf-on")).map(h => String(h.textContent || "").replace(/\s+/g, " ").trim());
+  const f2 = v => v.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: "INFORMATIONS — " + esc(ttl || "LISTE"),
+    body: `<div class="svc-scroll"><table class="prm-table"><thead><tr><th>ÉTAT</th><th class="number">PIÈCES</th></tr></thead><tbody>
+      ${Object.entries(N).map(([k, n]) => `<tr><td>${esc(stL[k] || k.toUpperCase())}</td><td class="number">${n}</td></tr>`).join("")}<tr class="bdg-d-total-row"><td>TOTAL AFFICHÉ</td><td class="number">${rows.length}</td></tr></tbody></table>
+      ${tot.length ? `<table class="prm-table"><thead><tr><th>COLONNE</th><th class="number">TOTAL</th></tr></thead><tbody>${tot.map(([l, v]) => `<tr><td>${esc(l)}</td><td class="number">${f2(v)}</td></tr>`).join("")}</tbody></table>` : ""}
+      <table class="prm-table"><thead><tr><th>FILTRES EN COURS</th></tr></thead><tbody>${F.length ? F.map(x => `<tr><td>${esc(x)}</td></tr>`).join("") : `<tr><td>AUCUN FILTRE DE COLONNE</td></tr>`}</tbody></table></div>`,
+    foot: `<button type="button" class="svc-b" data-x>FERMER</button>` });
+  sviWinShow(d); d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) d.remove(); }); }
+function sviListHist(b) { const { ttl, rows } = sviListCtx(b), d = sviWinNew(), L = [];
+  const get = k => { try { return JSON.parse(localStorage.getItem(k) || "[]") || []; } catch (e) { return []; } };
+  [...new Set(rows.map(sviListRef).filter(Boolean))].forEach(ref => { get("svi_hist_v1:" + ref).concat(get("svi_hist_v1:ACH-" + ref)).forEach(h => L.push({ ...h, ref })); });
+  L.sort((a, c) => String(c.t || "").localeCompare(String(a.t || "")));
+  const dt = v => { try { return new Date(v).toLocaleString("fr-FR").replace(" ", " À ").slice(0, 21); } catch (e) { return ""; } };
+  d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: "HISTORIQUE — " + esc(ttl || "LISTE"),
+    body: `<div class="svc-scroll"><table class="prm-table"><thead><tr><th>DATE</th><th>RÉFÉRENCE</th><th>ACTION</th><th>DÉTAIL</th><th>PAR</th></tr></thead><tbody>
+      ${L.slice(0, 500).map(h => `<tr><td>${esc(dt(h.t))}</td><td>${esc(h.ref)}</td><td>${esc(String(h.a || "").toUpperCase())}</td><td>${esc(String(h.d || "").toUpperCase())}</td><td>${esc(String(h.u || "").toUpperCase())}</td></tr>`).join("")}</tbody></table></div>`,
+    foot: `<button type="button" class="svc-b" data-x>FERMER</button>` });
+  sviWinShow(d); d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) d.remove(); }); }
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".nvl-inf, .nvl-h"); if (!b) return; e.stopPropagation(); e.preventDefault(); if (b.classList.contains("nvl-inf")) sviListInfo(b); else sviListHist(b); }, true);
 const sviListBar = () => sviHdrBar({ attr: "nvl", why: { undo: "RIEN À ANNULER DANS LA LISTE.", redo: "RIEN À RÉTABLIR DANS LA LISTE.", prev: "LISTE : PAS D'ÉCRAN PRÉCÉDENT.", next: "LISTE : PAS D'ÉCRAN SUIVANT.", todo: "AUCUNE ALERTE.", close: "LISTE : RIEN À FERMER (MENU ☰ POUR CHANGER D'ÉCRAN)." } });
 document.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".svi-hdr .hdr-off[data-why]"); if (!b || b.closest(".bdg-d-sticky .bdg-d-hright:not(.svi-hdr)")) return; e.stopPropagation(); e.preventDefault(); svToast(b.dataset.why, 3000, b); }, true);
 document.addEventListener("click", e => {
@@ -5733,6 +5768,7 @@ function sviParamTabs() {
   const head = view.querySelector(".section-head");
   /* C7 (série C, document unique 3.1) : PARAMÉTRAGE reçoit la barre du haut commune — ⋯ (MODIFIER LE FORMAT), ⚠ et ✕ */
   if (head && !head.querySelector(".svi-hdr")) {
+    { const h = head.querySelector("h1, h2"); if (h && !head.querySelector(".nvl-inf")) h.insertAdjacentHTML("afterend", sviListIH()); }   /* 07/11 : i et H partout (3.1) */
     head.insertAdjacentHTML("beforeend", sviHdrBar({ attr: "prmh", why: { undo: "RIEN À ANNULER DANS LE PARAMÉTRAGE.", redo: "RIEN À RÉTABLIR DANS LE PARAMÉTRAGE.", prev: "PARAMÉTRAGE : PAS D'ÉCRAN PRÉCÉDENT.", next: "PARAMÉTRAGE : PAS D'ÉCRAN SUIVANT." } }));
     head.addEventListener("click", e => { const b = e.target.closest("[data-prmh]"); if (!b || b.dataset.why) return; const a = b.dataset.prmh;
       if (a === "todo") { svToast("AUCUNE ALERTE.", 2000, b); return; }

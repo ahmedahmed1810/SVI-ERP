@@ -218,7 +218,7 @@ function sviAchInit() {
     if (LM && LM.h1) { body.innerHTML = LM.html(); if (sub) sub.textContent = ""; view.classList.add("ach-bdgl"); achBdglSync(body); return; }
     view.classList.remove("ach-bdgl");
     /* v785 : PARAMÈTRES (et tout écran des achats sans liste) : même barre commune à droite du titre */
-    { const sh = view.querySelector(".section-head"); if (sh && !sh.querySelector(".svi-hdr")) { sh.insertAdjacentHTML("beforeend", sviListBar()); sh.style.display = "flex"; sh.style.alignItems = "center"; } }
+    { const sh = view.querySelector(".section-head"); if (sh && !sh.querySelector(".svi-hdr")) { { const h = sh.querySelector("h1, h2"); if (h && !sh.querySelector(".nvl-inf")) h.insertAdjacentHTML("afterend", sviListIH()); } sh.insertAdjacentHTML("beforeend", sviListBar()); sh.style.display = "flex"; sh.style.alignItems = "center"; } }
     if (h1 && TTL[tab]) h1.textContent = TTL[tab][0];
     else if (h1) h1.textContent = tab === "caf" ? "ACHATS — CONSULTATIONS FOURNISSEURS" : tab === "dvf" ? "ACHATS — DEVIS" : tab === "bsn" ? "BESOINS" : tab === "prm" ? "ACHATS — PARAMÈTRES" : tab === "frs" ? "ACHATS — FOURNISSEURS" : showDel ? "ACHATS — CORBEILLE DES ARTICLES" : "ACHATS — ARTICLES";
     if (sub && TTL[tab]) sub.textContent = TTL[tab][1];

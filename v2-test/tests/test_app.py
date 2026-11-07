@@ -4111,6 +4111,13 @@ def main():
   return [/--tb-new-c:#0d0e0f/.test(css), /tr\\.ins-new td input[^{]*\\{ color:inherit!important/.test(css) || /ins-new td input/.test(css), /::placeholder/.test(css), /#docPop \\.doc-ro/.test(css), /#docPop \\.doc-foot \\.doc-btn\\.doc-save/.test(css), /not\\(tr\\.lk-link \\*\\)/.test(css)].join(','); }""")
         check("07/11 (vérification du format) : champs dans les cases (lignes, CRÉER … ICI) et leur texte d'aide suivent le format, sauf couleurs de liaison ; fenêtre du budget : champs non saisissables et bouton ENREGISTRER couverts",
               f10 == 'true,true,true,true,true,true', f10)
+        f11 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = [];
+  const b = document.querySelector('.novapp-list-titlebar .nvl-inf, .section-head .nvl-inf'), h = document.querySelector('.novapp-list-titlebar .nvl-h, .section-head .nvl-h'); r.push(!!b, !!h);
+  if (b) { b.click(); await w(150); const t = document.querySelector('#svConf .svc-t'); r.push(t ? t.textContent.trim().startsWith('INFORMATIONS') : false); document.querySelector('#svConf [data-x]')?.click(); await w(100); }
+  if (h) { h.click(); await w(150); const t = document.querySelector('#svConf .svc-t'); r.push(t ? t.textContent.trim().startsWith('HISTORIQUE') : false); document.querySelector('#svConf [data-x]')?.click(); await w(100); }
+  r.push(/nvl-inf/.test(sviListIH()) && /nvl-h/.test(sviListIH())); return r.join(','); }""")
+        check("07/11 (document unique 3.1) : i et H aussi dans la barre du haut des listes — i = informations de la liste, H = historique de ses pièces",
+              f11 == 'true,true,true,true,true', f11)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

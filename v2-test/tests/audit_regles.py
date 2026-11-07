@@ -18,7 +18,7 @@ JS_AUDIT = r"""async (o) => {
     /* 3.1 barre du haut */
     const bar = Q('.novapp-list-titlebar, .bdg-d-sticky .novapp-list-titlebar, .section-head')[0];
     if (!bar) add('3.1', 'pas de barre du haut'); else { const tx = bar.innerHTML;
-      const need = { '≡': /navToggle|nav-ham|☰|≡|data-nav|menuBtn/i, 'i': /data-pill="inf"|data-nvp="info"|>i</, 'H': /data-pill="h"|data-nvp="h"|>H</, '⋯': /⋯|data-dots|hdrMenu|bdg-d-more|nvp-more/ };
+      const need = { '≡': /navToggle|nav-ham|☰|≡|data-nav|menuBtn/i, 'i': /data-pill="inf"|data-nvp="info"|nvl-inf|>i</, 'H': /data-pill="h"|data-nvp="h"|nvl-h|>H</, '⋯': /⋯|data-dots|hdrMenu|bdg-d-more|nvp-more/ };
       Object.entries(need).forEach(([k, re]) => { if (!re.test(tx)) add('3.1', 'barre du haut : « ' + k + ' » absent'); }); }
     /* 2.7 compteurs jamais entre parenthèses */
     Q('h1, .ttl, .bdg-d-tab, .rec-tab, .prm-tab, .prm-grp, th').forEach(e => { if (/\(\s*\d+\s*\)/.test(T(e))) add('2.7', 'compteur entre parenthèses : « ' + T(e).slice(0, 40) + ' »'); });
