@@ -57,16 +57,16 @@ const SVI_FMT_EL = [
   { k: "win", lab: "BANDEAU DES FENÊTRES", sel: ["#svConf .svc-card > .svc-t", "#docPop .doc-head"], def: { bg: "#dde2e9", c: "#172033", fs: 15, b: 1, h: 41 }, win: 1 },
   { k: "winbg", lab: "FENÊTRES — FOND DE LA FENÊTRE", sel: ["#svConf .svc-card", "#docPop .doc-card"], def: { bg: "#ffffff" }, f: ["bg"], win: 1 },
   { k: "winlab", lab: "FENÊTRES — NOMS DES CHAMPS", sel: ["#svConf .frs-f > span", "#svConf label > span:first-child", "#docPop .doc-lab"], def: { c: "#475467", fs: 11, b: 1 }, f: ["c", "fs", "b", "i", "u"], win: 1 },
-  { k: "winin", lab: "FENÊTRES — CHAMPS DE SAISIE", sel: ["#svConf input:not([type=checkbox]):not([type=radio]):not([type=color])", "#svConf select", "#svConf textarea", "#docPop .doc-in"], def: { bg: "#ffffff", c: "#172033", fs: 13, b: 0, h: 34 }, win: 1 },
-  { k: "wincan", lab: "FENÊTRES — BOUTON ANNULER", sel: ["#svConf .svc-f .svc-b:not(.svc-ok)", "#docPop .doc-foot .doc-btn:not(.ok)"], def: { bg: "#ffffff", c: "#172033", fs: 13, b: 1, h: 38 }, win: 1 },
+  { k: "winin", lab: "FENÊTRES — CHAMPS DE SAISIE", sel: ["#svConf input:not([type=checkbox]):not([type=radio]):not([type=color])", "#svConf select", "#svConf textarea", "#docPop .doc-in:not(.doc-ro):not([readonly])"], def: { bg: "#ffffff", c: "#172033", fs: 13, b: 0, h: 34 }, win: 1 },
+  { k: "wincan", lab: "FENÊTRES — BOUTON ANNULER", sel: ["#svConf .svc-f .svc-b:not(.svc-ok)", "#docPop .doc-foot .doc-btn:not(.ok):not(.doc-save)"], def: { bg: "#ffffff", c: "#172033", fs: 13, b: 1, h: 38 }, win: 1 },
   /* 05/11 : autres parties des fenêtres */
   { k: "wsec", lab: "FENÊTRES — TITRES DES SECTIONS", sel: ["#svConf .frs-st", "#docPop .doc-sec-t"], def: { c: "#172033", fs: 12, b: 1 }, f: ["bg", "c", "fs", "b", "i", "u"], win: 1 },
   { k: "wtab", lab: "FENÊTRES — ONGLETS", sel: ["#svConf .rec-tabs .rec-tab", "#docPop .rec-tabs .rec-tab"], def: { bg: "#eceff3", c: "#6b7280", fs: 12, b: 1 }, win: 1 },
   { k: "wtbl", lab: "FENÊTRES — TABLEAUX (TITRES DES COLONNES)", sel: ["#svConf table thead th", "#docPop table thead th"], def: { bg: "#f6f7f9", c: "#6b7480", fs: 11, b: 1 }, win: 1 },
   { k: "walrt", lab: "FENÊTRES — BANDEAU D'ALERTE ⚠", sel: ["#svConf .frs-why", "#docPop .doc-why"], def: { bg: "#fef2f2", c: "#b91c1c", fs: 12, b: 1 }, win: 1 },
-  { k: "wro", lab: "FENÊTRES — CHAMPS NON SAISISSABLES", sel: ["#svConf input[readonly]", "#svConf input:disabled", "#svConf select:disabled", "#docPop .doc-in[readonly]"], def: { bg: "#eef1f5", c: "#475467" }, f: ["bg", "c", "fs", "b"], win: 1 },
+  { k: "wro", lab: "FENÊTRES — CHAMPS NON SAISISSABLES", sel: ["#svConf input[readonly]", "#svConf input:disabled", "#svConf select:disabled", "#docPop .doc-in[readonly]", "#docPop .doc-ro"], def: { bg: "#eef1f5", c: "#475467" }, f: ["bg", "c", "fs", "b"], win: 1 },
   { k: "wx", lab: "FENÊTRES — BOUTON ✕ DE FERMETURE", sel: ["#svConf .svc-close", "#docPop .doc-x"], def: { c: "#172033", fs: 16 }, f: ["bg", "c", "fs"], win: 1 },
-  { k: "winok", lab: "FENÊTRES — BOUTON D'ACTION ENCADRÉ", sel: ["#svConf .svc-f .svc-b.svc-ok", "#docPop .doc-foot .doc-btn.ok"], def: { bg: "#ffffff", c: "#b91c1c", fs: 13, b: 1, h: 38 }, win: 1 }
+  { k: "winok", lab: "FENÊTRES — BOUTON D'ACTION ENCADRÉ", sel: ["#svConf .svc-f .svc-b.svc-ok", "#docPop .doc-foot .doc-btn.ok", "#docPop .doc-foot .doc-btn.doc-save"], def: { bg: "#ffffff", c: "#b91c1c", fs: 13, b: 1, h: 38 }, win: 1 }
 ];
 /* interfaces auxquelles la palette peut s'appliquer (APPLIQUER À) */
 const SVI_FMT_IF = [
@@ -119,7 +119,9 @@ function sviFmt() {
 /* v927 (remarque 12 du 04/11/2026) : réglage propre à une interface (MODIFIER LE FORMAT) — F.by[interface] = { el, st: { c, bg } } ;
    il passe devant le réglage commun, seulement quand cette interface est affichée (html[data-svif]) */
 /* 05/11 : les LIGNES DE TITRE ont leurs propres règles de couleur (variables --ttl-c / --ttl-bg) — le format règle aussi ces variables */
-const sviFmtVars = (E, o) => E.k !== "ttl" ? "" : [o.c ? `--ttl-c:${o.c}` : "", o.bg ? `--ttl-bg:${o.bg}` : ""].filter(Boolean).join(";");
+const sviFmtVars = (E, o) => E.k === "ttl" ? [o.c ? `--ttl-c:${o.c}` : "", o.bg ? `--ttl-bg:${o.bg}` : ""].filter(Boolean).join(";")
+  /* 07/11 : la ligne CRÉER … ICI a aussi ses variables (--tb-new-c / --tb-new-bg), reprises par ses champs et leur texte d'aide */
+  : E.k === "new" ? [o.c ? `--tb-new-c:${o.c}` : "", o.bg ? `--tb-new-bg:${o.bg}` : ""].filter(Boolean).join(";") : "";
 /* F15 (série F, 06/11) : un réglage du format passe devant les règles de la feuille de styles (même celles qui visent un identifiant) —
    sélecteur renforcé (sviFmtZ) ; le texte d'un élément (titre de la barre du haut, nom des colonnes, titre du bloc) suit la taille, le gras,
    l'italique, le souligné et la couleur réglés (E.tsel = parties texte de l'élément) */
@@ -129,6 +131,13 @@ const sviFmtTxt = (sels, E, o) => { if (!E || !E.tsel) return ""; const d = [];
   if (o.b !== undefined) d.push(`font-weight:${o.b ? 800 : 400}!important`); if (o.i !== undefined) d.push(`font-style:${o.i ? "italic" : "normal"}!important`);
   if (o.u !== undefined) d.push(`text-decoration:${o.u ? "underline" : "none"}!important`);
   return d.length ? sels.flatMap(s => E.tsel.map(t => sviFmtZ(s + " " + t))).join(", ") + " { " + d.join("; ") + " }" : ""; };
+/* 07/11 (point 3, vérification du format) : les champs de saisie DANS une case de tableau (lignes, titres, CRÉER … ICI, TOTAL) suivent la couleur
+   et la taille réglées — sans passer devant les couleurs de liaison du budget (règles !important) */
+const sviFmtIn = (sels, E, o) => { if (!E || !["row", "ttl", "new", "tot"].includes(E.k) || !(o.c || o.fs)) return ""; const d = [];
+  if (o.c) d.push("color:inherit!important", "-webkit-text-fill-color:inherit!important"); if (o.fs) d.push("font-size:inherit!important");
+  const X = ":not(tr.lk-link *):not(tr.lk-sel *):not(tr.lk-hit *):not(tr.ins-unl *)";
+  const S = sels.flatMap(s => [s + " input:not([type=checkbox]):not([type=radio]):not([type=color])" + X, s + " select" + X, s + " textarea" + X]);
+  return S.map(sviFmtZ).join(", ") + " { " + d.join("; ") + " }" + (o.c ? "\n" + sels.flatMap(s => [s + " input", s + " textarea"]).map(x => sviFmtZ(x) + "::placeholder").join(", ") + " { color:inherit; -webkit-text-fill-color:inherit; opacity:.6 }" : ""); };
 const sviFmtDecl = (o, E) => { const d = [];
   if (E && E.bd) { if (o.c) d.push(`border-color:${o.c}!important`); return d; }   /* E1 : traits des tableaux */
   if (o.bg) d.push(`background:${o.bg}!important`);
@@ -149,7 +158,7 @@ const sviFmtCatEls = c => { const C = SVI_FMT_CAT.find(x => x[0] === c); return 
 function sviFmtCssCat(F) { const out = [];
   SVI_FMT_CAT.forEach(([c, , pre]) => { const el = ((F.cat || {})[c] || {}).el || {};
     sviFmtCatEls(c).forEach(E => { const o0 = el[E.k]; if (!o0) return; const o = E.f ? Object.fromEntries(Object.entries(o0).filter(([f]) => E.f.includes(f))) : o0, d = sviFmtDecl(o, E); if (!d.length) return;
-      { const SS = pre.flatMap(p => E.sel.map(s => p + " body " + s)); out.push(SS.map(sviFmtZ).join(", ") + " { " + d.join("; ") + " }"); const tx = sviFmtTxt(SS, E, o); if (tx) out.push(tx); }
+      { const SS = pre.flatMap(p => E.sel.map(s => p + " body " + s)); out.push(SS.map(sviFmtZ).join(", ") + " { " + d.join("; ") + " }"); const tx = sviFmtTxt(SS, E, o); if (tx) out.push(tx); const ti = sviFmtIn(SS, E, o); if (ti) out.push(ti); }
       const vv = sviFmtVars(E, o); if (vv) out.push(pre.map(p => p + " body").join(", ") + " { " + vv + " }"); }); });
   return out.join("\n"); }
 function sviFmtCssBy(F) {
@@ -158,7 +167,7 @@ function sviFmtCssBy(F) {
     /* 06/11 : FENÊTRE d'une pièce (k_w) — seulement les parties des fenêtres, quand la liste ou la fiche de cette pièce est affichée */
     SVI_FMT_EL.forEach(E => { if (!!E.win !== W) return; const o0 = (B.el || {})[E.k]; if (!o0) return;
       const o = E.f ? Object.fromEntries(Object.entries(o0).filter(([f]) => E.f.includes(f))) : o0, d = sviFmtDecl(o, E); if (!d.length) return;
-      { const SS = PP.flatMap(p => E.sel.map(x => p + x)); out.push(SS.map(sviFmtZ).join(", ") + " { " + d.join("; ") + " }"); const tx = sviFmtTxt(SS, E, o); if (tx) out.push(tx); } const vv = sviFmtVars(E, o); if (vv) out.push(PP.map(p => p.trim()).join(", ") + " { " + vv + " }"); });
+      { const SS = PP.flatMap(p => E.sel.map(x => p + x)); out.push(SS.map(sviFmtZ).join(", ") + " { " + d.join("; ") + " }"); const tx = sviFmtTxt(SS, E, o); if (tx) out.push(tx); const ti = sviFmtIn(SS, E, o); if (ti) out.push(ti); } const vv = sviFmtVars(E, o); if (vv) out.push(PP.map(p => p.trim()).join(", ") + " { " + vv + " }"); });
     if (W) return;
     const st = B.st || {};
     /* 06/11 : plus de couleur d'écran forcée par interface — elle suit l'état de la pièce (palette) */
@@ -177,7 +186,7 @@ function sviFmtCss(F) {
     if (!d.length) return;
     const sels = SC && !E.win ? SC.flatMap(sc => E.sel.map(x => x.startsWith(sc) ? x : sc + " " + x)).filter(x => !(x.startsWith("#svConf ") && x.indexOf(" #svConf") > 0)) : E.sel;
     if (!sels.length) return;
-    { const SS = sels.map(x => "html body " + x); out.push(SS.map(sviFmtZ).join(", ") + " { " + d.join("; ") + " }"); const tx = sviFmtTxt(SS, E, o); if (tx) out.push(tx); }
+    { const SS = sels.map(x => "html body " + x); out.push(SS.map(sviFmtZ).join(", ") + " { " + d.join("; ") + " }"); const tx = sviFmtTxt(SS, E, o); if (tx) out.push(tx); const ti = sviFmtIn(SS, E, o); if (ti) out.push(ti); }
     const vv = sviFmtVars(E, o); if (vv) out.push((SC ? SC.map(x => "html body " + x).join(", ") : "html body") + " { " + vv + " }");
   });
   const ca = sviFmtCssCat(F); if (ca) out.push(ca);

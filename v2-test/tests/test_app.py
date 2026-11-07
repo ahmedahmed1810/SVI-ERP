@@ -4107,6 +4107,10 @@ def main():
         check("07/11 : glisser une ligne du DÉTAIL CONSULTATION comme dans le budget — avant / après une ligne (même niveau), avant un titre (hors groupe), après un titre (en tête), sur une ligne (nouveau groupe), groupe vide supprimé",
               f09.get('before') == 'a,d:G,b:G,c:G|1' and f09.get('afterTitle') == 'a:G,b:G,c:G,d|1' and f09.get('beforeTitle') == 'a,c,b:G,d|1' and f09.get('onTitle') == 'b:G,c:G,a:G,d|1'
               and f09.get('onLine') == 'a:N,d:N,b:G,c:G|2' and f09.get('empty') == 'a,d,b,c|0' and f09.get('self') == 'null', f09)
+        f10 = pg.evaluate("""() => { const css = sviFmtCss({ el: {}, to: null, blk: {}, cat: {}, by: { caf_f: { el: { new: { c: '#0d0e0f', fs: 19 }, row: { c: '#0d0e0f' } } }, bdg_w: { el: { wro: { bg: '#0a0b0c' }, winok: { c: '#0d0e0f' } } } } });
+  return [/--tb-new-c:#0d0e0f/.test(css), /tr\\.ins-new td input[^{]*\\{ color:inherit!important/.test(css) || /ins-new td input/.test(css), /::placeholder/.test(css), /#docPop \\.doc-ro/.test(css), /#docPop \\.doc-foot \\.doc-btn\\.doc-save/.test(css), /not\\(tr\\.lk-link \\*\\)/.test(css)].join(','); }""")
+        check("07/11 (vérification du format) : champs dans les cases (lignes, CRÉER … ICI) et leur texte d'aide suivent le format, sauf couleurs de liaison ; fenêtre du budget : champs non saisissables et bouton ENREGISTRER couverts",
+              f10 == 'true,true,true,true,true,true', f10)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
