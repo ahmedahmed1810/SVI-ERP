@@ -4158,6 +4158,15 @@ function sviCwCols(t, cols, extra = []) {
   const set = all.some(c => CW[t + "." + c[0]]);
   return { cg: `<colgroup>${all.map(c => `<col data-k="${esc(c[0])}" style="width:${w(c)}px">`).join("")}</colgroup>`, style: `width:${tot}px;min-width:${set ? tot + "px" : "100%"}` };
 }
+/* 07/11 (vérification des gestes, document unique 6.1) : la poignée de largeur est posée SUR le trait entre deux colonnes ; sa moitié droite
+   est recouverte par la colonne voisine (titres collants) — toucher le bord gauche d'un titre (10 px) revient à toucher la poignée de la colonne d'avant */
+document.addEventListener("pointerdown", e => {
+  if (!e.isTrusted || !e.target.closest || e.target.closest(".col-rs, .cf-btn, input, button")) return; const th = e.target.closest("thead th"); if (!th) return;
+  const pv = th.previousElementSibling, h = pv && pv.querySelector(":scope > .col-rs, .col-rs"); if (!h) return;
+  const r = th.getBoundingClientRect(); if (e.clientX - r.left > 10) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  h.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, composed: true, clientX: e.clientX, clientY: e.clientY, screenX: e.screenX, screenY: e.screenY, pointerId: e.pointerId, pointerType: e.pointerType, isPrimary: e.isPrimary, button: e.button, buttons: e.buttons }));
+}, true);
 document.addEventListener("pointerdown", e => {
   const h = e.target.closest && e.target.closest("table[data-svcw] .col-rs[data-col]"); if (!h) return;
   const table = h.closest("table"), t = table.dataset.svcw, col = table.querySelector(`colgroup col[data-k="${CSS.escape(h.dataset.col)}"]`); if (!col) return;
@@ -6209,7 +6218,8 @@ function sviPgDraw(k, pane) {
     const K = pane.__genKit || (pane.__genKit = sviCfKit({ key: "prm_gen", shell: {}, refresh: () => sviPgDraw("gen", pane) }));
     if (!pane.__genCf) { pane.__genCf = 1; pane.addEventListener("click", e => { const cf = e.target.closest && e.target.closest('.pg-gen .cf-btn'); if (cf) { e.preventDefault(); e.stopPropagation(); K.cfOpenMenu(cf); } }, true); }
     const RR = K.cfApply("prm_gen", [["c0", "RÉGLAGE", r => r.c0, ""], ["c1", "VALEUR", r => r.c1, "center"]], R);
-    pane.innerHTML = `<table class="prm-table pg-gen"><colgroup><col style="width:440px"><col style="width:200px"></colgroup><thead><tr>${K.cfHead("prm_gen", "c0", "RÉGLAGE")}${K.cfHead("prm_gen", "c1", "VALEUR", "center")}</tr></thead><tbody>
+    const CG = sviCwCols("prm_gen", [["c0", 440], ["c1", 200]]);   /* 07/11 : largeurs réglables à la poignée, gardées */
+    pane.innerHTML = `<table class="prm-table pg-gen" data-svcw="prm_gen" style="${CG.style}">${CG.cg}<thead><tr>${K.cfHead("prm_gen", "c0", "RÉGLAGE")}${K.cfHead("prm_gen", "c1", "VALEUR", "center")}</tr></thead><tbody>
       ${RR.map(r => `<tr><td>${esc(r.c0)}</td>${r.h}</tr>`).join("")}</tbody></table>`;
     pane.querySelectorAll(".pg-gv").forEach(i => i.closest("tr").cells[0].dataset.tip = { tva: "COMMUNE AU BUDGET ET AUX ACHATS ; VIDE : UNE DÉSIGNATION SANS TVA NE PEUT PAS ÊTRE ENREGISTRÉE", km: "DISTANCE À VOL D'OISEAU ENTRE LE DÉPÔT DU FOURNISSEUR ET LE CHANTIER", tz: "DÉCALAGE PAR RAPPORT À GMT : HEURE AFFICHÉE ET ENREGISTRÉE PAR L'APPLICATION" }[i.dataset.g] || "");
     return; }

@@ -134,6 +134,15 @@ function sviCwCols(t, cols, extra = []) {
   const set = all.some(c => CW[t + "." + c[0]]);
   return { cg: `<colgroup>${all.map(c => `<col data-k="${esc(c[0])}" style="width:${w(c)}px">`).join("")}</colgroup>`, style: `width:${tot}px;min-width:${set ? tot + "px" : "100%"}` };
 }
+/* 07/11 (vérification des gestes, document unique 6.1) : la poignée de largeur est posée SUR le trait entre deux colonnes ; sa moitié droite
+   est recouverte par la colonne voisine (titres collants) — toucher le bord gauche d'un titre (10 px) revient à toucher la poignée de la colonne d'avant */
+document.addEventListener("pointerdown", e => {
+  if (!e.isTrusted || !e.target.closest || e.target.closest(".col-rs, .cf-btn, input, button")) return; const th = e.target.closest("thead th"); if (!th) return;
+  const pv = th.previousElementSibling, h = pv && pv.querySelector(":scope > .col-rs, .col-rs"); if (!h) return;
+  const r = th.getBoundingClientRect(); if (e.clientX - r.left > 10) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  h.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, composed: true, clientX: e.clientX, clientY: e.clientY, screenX: e.screenX, screenY: e.screenY, pointerId: e.pointerId, pointerType: e.pointerType, isPrimary: e.isPrimary, button: e.button, buttons: e.buttons }));
+}, true);
 document.addEventListener("pointerdown", e => {
   const h = e.target.closest && e.target.closest("table[data-svcw] .col-rs[data-col]"); if (!h) return;
   const table = h.closest("table"), t = table.dataset.svcw, col = table.querySelector(`colgroup col[data-k="${CSS.escape(h.dataset.col)}"]`); if (!col) return;
