@@ -57,11 +57,13 @@ function achFafInfo(id, done) {
     if (e.target.closest("[data-copy]")) { achCopyOpen(f.copie); return; }
     if (e.target.closest("[data-full]")) { d.remove(); achFafFiche(id, {}, done); } });
 }
+/* lignes d'une facture tirées de sa commande (reçu non encore facturé) — fiche et liste (F14) */
+function achFafCmfLines(c, fid) { const R = achRcp(), T = achRtr(), F = achFaf();
+  return (c.lignes || []).map(l => ({ cl: l.id, des: l.des, u: l.u, pu: achN(l.pu), tva: l.tva, q: Math.max(0, Math.round((achRecQ(c.id, l.id, R, T) - achFacQ(c.id, l.id, fid, F)) * 1000) / 1000) })).filter(l => l.q > 1e-9); }
 function achFafFiche(id, o, done) {
   o = o || {};
   const f0 = id ? achFaf().find(x => x.id === id) : null; if (id && !f0) return;
-  const cmfLines = (c, fid) => { const R = achRcp(), T = achRtr(), F = achFaf();
-    return (c.lignes || []).map(l => ({ cl: l.id, des: l.des, u: l.u, pu: achN(l.pu), tva: l.tva, q: Math.max(0, Math.round((achRecQ(c.id, l.id, R, T) - achFacQ(c.id, l.id, fid, F)) * 1000) / 1000) })).filter(l => l.q > 1e-9); };
+  const cmfLines = achFafCmfLines;
   const C0 = o.cmf ? achCmf().find(c => c.id === o.cmf) : null;
   const P = f0 ? JSON.parse(JSON.stringify(f0)) : { id: achId("F"), ref: "", frs: C0 ? C0.frs : "", cmf: C0 ? C0.id : "", type: "normale", num: "", dFac: "", dRec: new Date().toISOString().slice(0, 10), ech: "", sTtc: "", sTva: "",
     ras: false, rasT: achPrm().rasT, avImp: C0 ? achAvReste(C0.id, null) : 0, rem: C0 ? achN(C0.rem) : 0, frais: C0 && !achFaf().some(x => x.cmf === C0.id && x.state !== "annule" && achN(x.frais)) ? achN(C0.frais) : 0,

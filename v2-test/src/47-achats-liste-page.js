@@ -125,15 +125,17 @@ function achNvList(ctx, o) {
     /* 06/11 (soir) : largeur des colonnes au moteur commun (chaque colonne se règle seule, gardée) */
     const W = o.w || {}, CG = sviCwCols(o.t, cols.map(c => [c[0], W[c[0]] || 120]), (delCol ? [["_del", 44]] : []).concat([["_cb", 40]]));
     const ED = o.edit || {};
+    /* F14 (fin) : une colonne peut dépendre de la pièce (ex. CHARGE d'un besoin : liste des charges du budget, ou texte libre au SIÈGE) */
+    const edOf = (k, x) => { const E = ED[k]; return typeof E === "function" ? E(x) : E; };
     const cell = (x, c) => { const v = c[2](x), cl = c[3] === "number" ? "number" : c[3] === "center" ? "center" : "";
       /* F7 (série F) : la RÉFÉRENCE est soulignée — elle ouvre la pièce */
       if (c[0] === "ref") { const w = o.why(x, all); return `<td class="bdg-ref-c ${cl}">${w.length ? `<b class="obs-bang val-bang nv-bang" role="button" data-why="${esc(w.join(" · "))}">!</b> ` : ""}<button type="button" class="nv-reflink" data-nvo="${esc(x.id)}">${esc(v)}</button></td>`; }
       /* F17 (série F), 2.10 : fournisseurs = noms soulignés, chacun dans la couleur de son propre état ; toucher = sa fiche */
-      const edOk = ED[c[0]] && isI(x) && !x.del;
+      const edOk = edOf(c[0], x) && isI(x) && !x.del;
       if (c[0] === "frs" && x.frs && !(o.mOf && o.mOf(x))) { const F = (Array.isArray(x.frs) ? x.frs : [x.frs]).filter(Boolean);
         return `<td class="${cl} nv-lk${edOk ? " nv-ed" : ""}"${edOk ? ` data-ed="${esc(c[0])}"` : ""} title="${esc(F.map(achFrsNom).join(", "))}">${F.map(f => `<button type="button" class="ach-link" data-nvgo="frs|${esc(f)}">${esc(achFrsNom(f))}</button>`).join(", ")}</td>`; }
       /* F14 (série F) : pièce EN INSTANCE — champ modifiable directement dans la liste (1er toucher = case choisie, 2e = saisie, règle 8.2) */
-      if (ED[c[0]] && isI(x) && !x.del) { const t = typeof v === "number" ? achF2(v) : String(v ?? ""); return `<td class="${cl} nv-ed" data-ed="${esc(c[0])}" title="${esc(t)}">${esc(t)}</td>`; }
+      if (edOf(c[0], x) && isI(x) && !x.del) { const t = typeof v === "number" ? achF2(v) : String(v ?? ""); return `<td class="${cl} nv-ed" data-ed="${esc(c[0])}" title="${esc(t)}">${esc(t)}</td>`; }
       /* v910 (checklist C1.38) : 5e élément d'une colonne = image (logo) devant le texte, à la hauteur de la ligne */
       const im = c[4] ? c[4](x) : "";
       const t = typeof v === "number" ? achF2(v) : String(v ?? ""); return `<td class="${cl}" title="${esc(t)}">${im ? `<img class="nv-logo" src="${esc(im)}" alt="">` : ""}${esc(t)}</td>`; };
@@ -150,7 +152,7 @@ function achNvList(ctx, o) {
           ${o.newRow ? `<tr class="bdg-newrow" data-nvnew data-st="instance"><td colspan="${cols.length + (delCol ? 2 : 1)}">${esc(o.newRow)}</td></tr>` : ""}</tbody></table></div></div></div>`;
   };
   /* F14 : saisie dans la case (ENTRÉE ou toucher ailleurs = enregistré ; ÉCHAP = annulé) */
-  const edit = td => { const id = td.closest("tr").dataset.id, k = td.dataset.ed, E = (o.edit || {})[k], L = o.all(), x = L.find(y => y.id === id); if (!E || !x) return;
+  const edit = td => { const id = td.closest("tr").dataset.id, k = td.dataset.ed, L = o.all(), x = L.find(y => y.id === id), E0 = (o.edit || {})[k], E = x && (typeof E0 === "function" ? E0(x) : E0); if (!E || !x) return;
     const v0 = E.get ? E.get(x) : x[k] ?? "", f = E.f || k;
     /* choix dans une liste (fournisseur, catégorie, mode…) : le menu commun de l'application, jamais celui de l'iPad */
     if (E.type === "sel") { const O = (E.opts ? E.opts(x) : []); sviEtatMenu(td, O.map(([v, l]) => ({ k: String(v), lab: l })), String(v0 ?? ""), nv => {
@@ -193,13 +195,21 @@ const ACH_ED = {
   dvf: { caf: { lab: "CONSULTATION", type: "sel", opts: () => [["", "HORS CONSULTATION"]].concat(achCaf().filter(c => c.state === "ouverte").map(c => [c.id, c.ref + (c.objet ? " — " + c.objet : "")])) },
     frs: { lab: "FOURNISSEUR", type: "sel", opts: achEdFrs }, nfrs: { lab: "N° FOURNISSEUR", f: "refFrs" }, date: { lab: "DATE", type: "date" }, val: { lab: "VALIDITÉ", type: "date", f: "validite" } },
   cmf: { nat: { lab: "NATURE" }, frs: { lab: "FOURNISSEUR", type: "sel", opts: achEdFrs }, lieu: { lab: "LIVRAISON" }, prom: { lab: "DATE PROMISE", type: "date", f: "dProm", get: c => c.dProm || "" } },
-  faf: { num: { lab: "N° FACTURE" }, frs: { lab: "FOURNISSEUR", type: "sel", opts: achEdFrs }, dfac: { lab: "DATE", type: "date", f: "dFac" } },
+  faf: { cmf: f => f.fa !== undefined || f.type === "acompte" ? null : { lab: "COMMANDE", type: "sel", opts: y => [["", "SANS COMMANDE"]].concat(achCmf().filter(c => c.frs === y.frs && (c.state === "valide" || c.state === "solde")).map(c => [c.id, c.ref])), get: y => y.cmf || "",
+      set: (y, v) => { const C = achCmf().find(c => c.id === v); y.cmf = v; y.lignes = C ? achFafCmfLines(C, y.id) : []; y.rem = C ? achN(C.rem) : 0; y.avImp = C ? achAvReste(C.id, y.id) : 0; y.frais = 0; } },
+    num: { lab: "N° FACTURE" }, frs: { lab: "FOURNISSEUR", type: "sel", opts: achEdFrs }, dfac: { lab: "DATE", type: "date", f: "dFac" } },
   avf: { num: { lab: "N° AVOIR" }, date: { lab: "DATE", type: "date" }, ttc: { lab: "MONTANT TTC", type: "num", get: a => achN(a.ttc) }, motif: { lab: "MOTIF" } },
   paf: { frs: { lab: "FOURNISSEUR", type: "sel", opts: achEdFrs }, mode: { lab: "MODE", type: "sel", opts: () => ACH_MODES.map(m => [m, m]) }, num: { lab: "N°" }, date: { lab: "DATE", type: "date" },
     mt: { lab: "MONTANT", type: "num", check: (p, v) => v > 0 ? "" : "MONTANT NON VALIDE." } },
   rcp: { nbl: { lab: "N° BL" } },
   rtr: { motif: { lab: "MOTIF" } },
-  bsn: { q: { lab: "QUANTITÉ", type: "num", check: (b, v) => v > 0 ? "" : "QUANTITÉ OBLIGATOIRE (> 0)." }, tache: { lab: "TÂCHE" }, prevue: { lab: "PRÉVU LE", type: "date", f: "datePrevue" }, dem: { lab: "DEMANDEUR" } },
+  bsn: { bdg: { lab: "BUDGET", type: "sel", opts: () => [["SIÈGE", "SIÈGE (HORS BUDGET)"]].concat(achBdgList().map(x => [x.ref, x.lab])), get: b => b.centre === "SIÈGE" ? "SIÈGE" : b.bdg || "",
+      set: (b, v) => { b.chg = ""; b.tache = ""; b.des = ""; b.u = ""; b.pu = 0;
+        if (v === "SIÈGE") { b.centre = "SIÈGE"; b.bdg = ""; b.bdgLab = ""; } else { b.centre = "CHANTIER"; b.bdg = v; b.bdgLab = (achBdgList().find(x => x.ref === v) || {}).lab || v; } } },
+    des: b => b.centre === "SIÈGE" ? { lab: "CHARGE", check: (y, v) => v ? "" : "CHARGE OBLIGATOIRE." }
+      : b.bdg ? { lab: "CHARGE", type: "sel", opts: y => achBdgCharges(y.bdg).map(c => [c.key, c.des + " (" + c.u + ")"]), get: y => y.chg || "",
+        set: (y, v) => { const c = achBdgCharges(y.bdg).find(z => z.key === v); y.chg = v; y.tache = c && c.tasks.length === 1 ? c.tasks[0] : ""; if (c) { y.des = c.des; y.u = c.u; y.pu = Math.round(c.p * 100) / 100; } } } : null,
+    q: { lab: "QUANTITÉ", type: "num", check: (b, v) => v > 0 ? "" : "QUANTITÉ OBLIGATOIRE (> 0)." }, tache: { lab: "TÂCHE" }, prevue: { lab: "PRÉVU LE", type: "date", f: "datePrevue" }, dem: { lab: "DEMANDEUR" } },
   art: { nom: { lab: "DÉSIGNATION", f: "des", check: (a, v, L) => !v ? "DÉSIGNATION OBLIGATOIRE." : achArtDup(L, v, a.u, a.id) ? "UN ARTICLE IDENTIQUE EXISTE." : "" },
     u: { lab: "UNITÉ", check: (a, v, L) => !v ? "UNITÉ OBLIGATOIRE." : achArtDup(L, a.des, v, a.id) ? "UN ARTICLE IDENTIQUE EXISTE." : "" },
     cat: { lab: "CATÉGORIE", type: "sel", opts: () => [["", "—"]].concat(achPrm().cat.map(c => [c, c])) }, pref: { lab: "PRIX RÉF. HT", type: "num" }, pmax: { lab: "PLAFOND HT", type: "num" } },

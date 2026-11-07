@@ -4077,6 +4077,16 @@ def main():
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); return r; }""")
         check("SÉRIE F, F1 F2 F4 F8 : détails numérotés 1 à n, groupes numérotés comme les LOTS (2, 2.1, 2.2) ; niveaux de seuil (départ, fin ; 0 et vide = tout) ; un détail chiffré deux fois = prix à choisir",
               f06.get('num') == '1,2T,2.1,2.2,3|1,2,3,4' and f06.get('seu') == '["3"]|["3","2"]|["3"]' and f06.get('pick') == 'choix2|ok12', f06)
+        f07 = pg.evaluate("""async () => { await sviAchLoad(); const r = {}, E = ACH_ED;
+  const b = { id: 'B', centre: 'CHANTIER', bdg: 'X', bdgLab: 'X', chg: 'k', des: 'SABLE', u: 'M3', pu: 5, tache: 'T' };
+  r.bdg = E.bsn.bdg.get(b); E.bsn.bdg.set(b, 'SIÈGE'); r.sie = [b.centre, b.bdg, b.chg, b.des, b.pu].join(',') + '|' + E.bsn.bdg.get(b);
+  r.des = (E.bsn.des(b) || {}).type || 'txt'; r.none = E.bsn.des({ centre: 'CHANTIER', bdg: '' }) === null ? 'null' : 'x'; r.sel = (E.bsn.des({ centre: 'CHANTIER', bdg: 'X' }) || {}).type;
+  r.faf = [E.faf.cmf({ type: 'acompte' }) === null, E.faf.cmf({ fa: 'F1' }) === null, (E.faf.cmf({ type: 'normale' }) || {}).type].join(',');
+  const f = { id: 'F', frs: 'Z', cmf: 'C', lignes: [{ q: 1 }], rem: 3 }; E.faf.cmf(f).set(f, ''); r.set = f.cmf + '|' + f.lignes.length + '|' + f.rem;
+  return r; }""")
+        check("F14 (fin) : BUDGET et CHARGE d'un besoin, COMMANDE d'une facture modifiables dans la liste (charge = liste du budget, texte libre au SIÈGE ; pas pour un acompte ni un avoir)",
+              f07.get('bdg') == 'X' and f07.get('sie') == 'SIÈGE,,,,0|SIÈGE' and f07.get('des') == 'txt' and f07.get('none') == 'null' and f07.get('sel') == 'sel'
+              and f07.get('faf') == 'true,true,sel' and f07.get('set') == '|0|0', f07)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()
