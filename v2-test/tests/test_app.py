@@ -2656,8 +2656,8 @@ def main():
             nav.append(pg.evaluate("() => [((document.getElementById('refTxt') || {}).textContent || '').split(' ').pop(), !!window.__sviBdgNav, (window.__sviBdgOrder || []).indexOf('SOLO-1') >= 0]"))
             pg.evaluate("() => { const o = window.__sviBdgOrder || [], i = o.indexOf('SOLO-1'), j = o.indexOf('AVT-1'); window.__sviBdgOrder = o.filter(x => x !== 'SOLO-1' && x !== 'AVT-1').concat(['SOLO-1', 'AVT-1']); window.__sviBdgNav && window.__sviBdgNav.go(1); }"); pg.wait_for_timeout(1200)
         pg.evaluate("() => { document.getElementById('budgetBackBtn')?.click(); sviInstSet(JSON.parse(window.__kp705)); localStorage.setItem('svi_listmode_v1', 'inst'); }"); pg.wait_for_timeout(600)
-        check("v705 : balayage — budget sans avenant puis budget suivant : CONSOLIDÉ, BUDGET INITIAL, AVENANT 1 un par un",
-              [n[0] for n in nav] == ["INI", "CNS", "INI", "AV1"] and nav[0][1], nav)
+        check("07/11 (remplace v705) : balayage = budget suivant de la liste ; un budget à avenants compte comme UN budget (son CONSOLIDÉ), au même rang qu'un budget sans avenant",
+              [n[0] for n in nav] == ["INI", "CNS", "CNS", "CNS"] and nav[0][1], nav)
         # v710 : budget ancien (lignes de la base, sans INS) — s'ouvre jusqu'au bout et ← ramène à la liste
         pg.evaluate("() => { document.getElementById('budgetBackBtn')?.click(); }"); pg.wait_for_timeout(500)
         pg.evaluate("() => { window.__rows710 = bdgRows; bdgRows = [{ PRJ: 'OLD', 'DÉSIGNATION': 'X' }]; localStorage.setItem('svi_listmode_v1', 'valid'); localStorage.setItem('svi_lastbdg_v1', 'BDG 26-1001/001'); renderBudgetList(); }"); pg.wait_for_timeout(1200)

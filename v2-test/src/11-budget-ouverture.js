@@ -327,16 +327,18 @@
       if (!root) return null;
       /* v705 : balayage d'un budget à l'autre dans l'ordre de la liste ; un budget à avenants est parcouru écran par écran
          (CONSOLIDÉ, BUDGET INITIAL, AVENANT 1…) avant de passer au suivant */
-      const famL = r => { let S = []; try { S = sviAvStages(r); } catch (e) {} return S.length < 2 ? [{ r, lab: r }]
-        : [{ r: r + "-GLOBAL", lab: r + " — BUDGET CONSOLIDÉ" }, ...S.map(st => ({ r: st.ref, lab: r + " — " + sviAvName(st) }))]; };
+      /* 07/11 (décision d'Ahmed, document unique 3.4) : balayage et ‹ › = budget précédent / suivant de la LISTE ; un budget consolidé compte
+         comme UN budget, au même rang qu'un budget initial sans avenant ; son budget initial et ses avenants s'ouvrent depuis la liste
+         (depuis l'un d'eux, le balayage part de la place de son consolidé dans la liste) */
+      const famL = r => { let S = []; try { S = sviAvStages(r); } catch (e) {} return S.length < 2 ? [{ r, lab: r, root: r }] : [{ r: r + "-GLOBAL", lab: r + " — BUDGET CONSOLIDÉ", root: r }]; };
       const ord = Array.isArray(window.__sviBdgOrder) ? window.__sviBdgOrder : [];
       let L = ord.includes(root) ? ord.flatMap(famL) : famL(root);
       L = L.filter(x => groups.has(x.r));
-      return L.length > 1 && L.some(x => x.r === ref) ? { L, ret: null, kind: "fam", swipe: true } : null;
+      return L.length > 1 && L.some(x => x.r === ref || x.root === root) ? { L, ret: null, kind: "fam", swipe: true, root } : null;
     })();
     const hnavGo = d => {
       if (!HNAV) return false;
-      const i = HNAV.L.findIndex(x => x.r === ref), j = i + d;
+      let i = HNAV.L.findIndex(x => x.r === ref); if (i < 0 && HNAV.kind === "fam") i = HNAV.L.findIndex(x => x.root === HNAV.root); const j = i + d;
       if (i < 0 || j < 0 || j >= HNAV.L.length) { const b = shell.querySelector(".bdg-d-sticky"); if (b) { b.classList.remove("nav-bump"); void b.offsetWidth; b.classList.add("nav-bump"); } return true; }
       const lab = HNAV.L[j].lab + " (" + (j + 1) + " / " + HNAV.L.length + ")";
       if (HNAV.kind === "fam") { window.__sviAvRet = null; openBudgetDetail(HNAV.L[j].r); }
@@ -381,12 +383,14 @@
           ☰
         </button>
 
+        <!-- 07/11 (décision d'Ahmed) : plus de flèche de retour dans la barre du budget (barre commune 3.1) ; le bouton reste caché,
+             FERMER et ☰ l'utilisent pour revenir à la liste -->
         <button
           type="button"
           id="budgetBackBtn"
           class="novapp-menu"
           aria-label="Retour"
-          ${INST_LIVE && !AV_RET ? 'style="display:none"' : ""}
+          style="display:none"
         >
           ←
         </button>
