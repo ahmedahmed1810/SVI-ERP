@@ -32,6 +32,7 @@ def longpress(pg, a, ms=650):
 
 def checks(pg, root, kind):
     R = {}
+    close_all(pg); pg.mouse.click(5, 300); pg.wait_for_timeout(150); close_all(pg)
     if kind == "l":
         # 8.2 / 6.18 : case modifiable — 1er toucher choisit, 2e saisit
         a = at(pg, root, "td.nv-ed:not(.nv-lk)")

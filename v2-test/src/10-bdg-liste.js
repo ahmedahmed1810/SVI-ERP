@@ -1414,7 +1414,7 @@ function renderBudgetList() {
      MONTANT TTC, SAISI LE ; VALIDÉ LE seulement dans la liste des validés ; le tableau prend toute la largeur
      ------------------------------------------------------- */
 
-  const columns = [
+  const COLS0 = [
     { key: "ref", title: "RÉFÉRENCE", width: 200 },
     /* v780 (remarque 1) : plus de colonne NATURE — la nature est à la fin de la référence (INI, AVn, CNS…) */
     { key: "budget", title: "PROJET", width: 100 },
@@ -1424,6 +1424,9 @@ function renderBudgetList() {
     { key: "entered", title: "SAISI LE", width: 150 },
     { key: "validated", title: "VALIDÉ LE", width: 150 }
   ];
+  /* 07/11 (document unique 6.11, vérification des gestes) : l'ordre des colonnes de la liste se change en glissant un titre, et il est gardé */
+  const columns = [], colsSync = () => { const L = coKeys("bdgl", COLS0.map(c => c.key)).map(k => COLS0.find(c => c.key === k)).filter(Boolean); columns.splice(0, columns.length, ...L); };
+  colsSync();
   const NCOL = columns.length + 2;   /* v754 : plus de colonne de pliage (la flèche est dans RÉFÉRENCE) ; v793 : + colonne des cases (à droite) */
 
   /* tri et filtre : le menu commun (sviCfKit, comme le budget et les achats) ; gardés pendant la session */
@@ -1445,6 +1448,7 @@ function renderBudgetList() {
   /* largeurs : proportionnelles par défaut (toute la largeur), en pixels une fois réglées à la main (mémoire de la session) */
   const colW = window.__bdglW || (window.__bdglW = {});
   const renderHead = () => {
+    colsSync();
     table.dataset.stf = "bdg";   /* 06/11 (soir) : FILTRER PAR COULEUR (loupe) = états de la liste */
     const tot = columns.reduce((t, c) => t + c.width, 0);
     let cg = table.querySelector("colgroup");
@@ -1651,9 +1655,22 @@ function renderBudgetList() {
     KIT.cfOpenMenu(b);
   };
 
+  const coDragList = e => { const th = e.target.closest("th"); if (!th || e.target.closest(".cf-btn, input") || !th.querySelector(".cf-btn")) return;
+    const ths = () => [...thead.querySelectorAll("tr:first-child > th")].filter(x => x.querySelector(".cf-btn")), x0 = e.clientX; let on = false, target = null, ghost = null;
+    const clear = () => ths().forEach(x => x.classList.remove("co-before", "co-after"));
+    const mv = ev => { if (!on) { if (Math.abs(ev.clientX - x0) < SVI_G.drag) return; on = true; th.classList.add("co-src"); ghost = document.createElement("div"); ghost.id = "coGhost"; ghost.textContent = (th.querySelector(".cf-lab")?.textContent || "").trim(); document.body.appendChild(ghost); }
+      ev.preventDefault(); ghost.style.left = ev.clientX + 8 + "px"; ghost.style.top = ev.clientY - 28 + "px"; clear(); target = null;
+      const L = ths(); for (const x of L) { const r = x.getBoundingClientRect(); if (ev.clientX >= r.left && ev.clientX < r.right) { if (x !== th) { x.classList.add(L.indexOf(x) > L.indexOf(th) ? "co-after" : "co-before"); target = x; } break; } } };
+    const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
+      clear(); th.classList.remove("co-src"); ghost && ghost.remove(); if (!on || !target) return;
+      const keyOf = x => x.querySelector(".cf-btn").dataset.col, keys = ths().map(keyOf), from = keys.indexOf(keyOf(th)), to = keys.indexOf(keyOf(target));
+      const [k] = keys.splice(from, 1); keys.splice(to, 0, k); const all = coLoad(); all.bdgl = keys; coSave(all);
+      table.addEventListener("click", ev => { ev.stopPropagation(); ev.preventDefault(); }, { capture: true, once: true });
+      renderHead(); renderRows(); };
+    document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up); };
   thead.onpointerdown = event => {
     const rs = event.target.closest(".col-rs");
-    if (!rs) return;
+    if (!rs) { coDragList(event); return; }
     event.preventDefault();
     event.stopPropagation();
     const th = rs.closest("th"), key = rs.dataset.col, col = table.querySelector(`col[data-bdg-col="${key}"]`);

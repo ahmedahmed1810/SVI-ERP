@@ -50,7 +50,7 @@ function achRecBlock(code) {
     /* v776 : bloc SUIVI comme celui du budget — en-tête SUIVI (agrandir, ⋯), rangée d'onglets, ligne CRÉER … ICI */
     return `<div class="bdg-d-block blk-rec blk-suivi nvp-rec nvp-blk" data-nvb="rec"><div class="bdg-d-block-title blk-head"><span class="ttl">${SVI_ICON.doc || ""}SUIVI</span>${achBlkTools("rec")}</div>
       <div class="blk-tabrow"><span class="rec-tabs">${["doc", "taf", "obs"].map(k => `<button type="button" class="rec-tab${k === tab ? " active" : ""}" data-nvr="${k}">${SVI_ICON[k] || ""}${{ doc: "DOCUMENTS", taf: "TAF", obs: "OBSERVATIONS" }[k]} ${svCnt(get(k).length)}</button>`).join("")}</span></div>
-      <div class="rec-scroll" style="max-height:var(--nvh-rec, var(--svi-hdef-a, 200px))"><table class="bdg-d-table rec-table" data-svcw="${tk}" style="${CG.style}">${CG.cg}<thead><tr>${C.map(th).join("")}</tr></thead>
+      <div class="rec-scroll" style="${achNvhSc("rec")}"><table class="bdg-d-table rec-table" data-svcw="${tk}" style="${CG.style}">${CG.cg}<thead><tr>${C.map(th).join("")}</tr></thead>
         <tbody>${R.map(r => `<tr>${row(r.x, r.i)}</tr>`).join("")}<tr class="rec-new" data-nvradd><td colspan="${head.length}">${{ doc: "CRÉER UN DOCUMENT ICI…", taf: "CRÉER UN TAF ICI…", obs: "CRÉER UNE OBSERVATION ICI…" }[tab]}</td></tr></tbody></table></div><div class="blk-rsz nvp-rsz" data-nvh="rec" title="Glisser pour changer la hauteur"></div></div>`;
   };
   const add = () => new Promise(ok => {
@@ -275,6 +275,9 @@ const ACH_NVH_K = "svi_ach_nvh_v1";
     if (!sc || rows(sc) <= pend.n) return; if (!pend.ok) { pend.ok = Date.now(); const me = pend; setTimeout(() => { if (pend === me) pend = null; }, 1500); }
     const go = () => { if (sc.isConnected) sc.scrollTop = sc.scrollHeight; }; go(); requestAnimationFrame(go); setTimeout(go, 120); }).observe(document.documentElement, { childList: true, subtree: true });
 }
+/* 07/11 (document unique 4.3, vérification des gestes) : une hauteur réglée à la poignée est gardée telle quelle, même au-delà des lignes (vide dessous permis) */
+const achNvhSet = k => { try { return !!(JSON.parse(localStorage.getItem(ACH_NVH_K) || "{}") || {})[k]; } catch (e) { return false; } };
+const achNvhSc = k => achNvhSet(k) ? `height:var(--nvh-${k});max-height:none` : `max-height:var(--nvh-${k}, var(--svi-hdef-a, 200px))`;
 const achNvhStyle = () => { let H = {}; try { H = JSON.parse(localStorage.getItem(ACH_NVH_K) || "{}") || {}; } catch (e) {} return Object.keys(H).map(k => "--nvh-" + k + ":" + H[k] + "px").join(";"); };
 function achNvhDrag(e, h) {
   e.preventDefault(); const pg = h.closest(".nvp"), k = h.dataset.nvh, sc = h.parentNode.querySelector(".rec-scroll"); if (!pg || !sc) return;
@@ -283,7 +286,7 @@ function achNvhDrag(e, h) {
      deux s'il a sa ligne CRÉER … ICI (la ligne CRÉER et une ligne de données) */
   const th = sc.querySelector("thead"), rows = [...sc.querySelectorAll("tbody tr")], nr = rows.find(r => r.matches(".rec-new, .bdg-newrow, .ach-new, [data-nvnew]")), r1 = rows.find(r => r !== nr);
   const minH = Math.ceil((th ? th.getBoundingClientRect().height : 22) + (r1 ? r1.getBoundingClientRect().height : 21) + (nr ? nr.getBoundingClientRect().height : 0)) + 2;
-  const mv = ev => { ev.preventDefault(); v = Math.max(minH, Math.round(b0 + ev.clientY - y0)); pg.style.setProperty("--nvh-" + k, v + "px"); };
+  const mv = ev => { ev.preventDefault(); v = Math.max(minH, Math.round(b0 + ev.clientY - y0)); pg.style.setProperty("--nvh-" + k, v + "px"); sc.style.height = "var(--nvh-" + k + ")"; sc.style.maxHeight = "none"; };
   const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up); h.classList.remove("on");
     try { const H = JSON.parse(localStorage.getItem(ACH_NVH_K) || "{}") || {}; H[k] = v; localStorage.setItem(ACH_NVH_K, JSON.stringify(H)); } catch (err) {} };
   document.addEventListener("pointermove", mv, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
@@ -311,7 +314,7 @@ function achNvPageHTML(p, rec, ctx) {
     const iE = L.cols.findIndex(c => /^ÉTAT|^RÉPONSE/.test(c[0])), stOf = r => r.st !== undefined ? r.st : iE < 0 ? "" : achStTxt(r.cells[iE]);
     const tot = isL ? R.reduce((s2, r) => s2 + (typeof tv(r.cells[iM]) === "number" ? tv(r.cells[iM]) : achN(tv(r.cells[iM])) || 0), 0) : 0;
     return `<div class="bdg-d-block nvp-blk" data-nvb="${k}"><div class="bdg-d-block-title blk-head"><span class="ttl">${esc(L.t)} ${svCnt(R.length, L.rows.length)}</span>${achBlkTools(k)}</div>
-      <div class="rec-scroll" style="max-height:var(--nvh-${k}, var(--svi-hdef-a, 200px))"><table class="bdg-d-table rec-table" data-colh="${esc(t)}" data-svcw="${esc(t)}" style="${CG.style}">${CG.cg}<thead><tr>${RD ? '<th class="nvp-rdh"></th>' : ""}${head}<th class="center nvp-cbh"><input type="checkbox" class="nvp-all" aria-label="Tout cocher"></th></tr></thead>
+      <div class="rec-scroll" style="${achNvhSc(k)}"><table class="bdg-d-table rec-table" data-colh="${esc(t)}" data-svcw="${esc(t)}" style="${CG.style}">${CG.cg}<thead><tr>${RD ? '<th class="nvp-rdh"></th>' : ""}${head}<th class="center nvp-cbh"><input type="checkbox" class="nvp-all" aria-label="Tout cocher"></th></tr></thead>
       <tbody>${R.map(r => `<tr class="${r.cls || ""}${stOf(r) ? " nvr-" + stOf(r) : ""}" data-ri="${r.__i}">${RD ? `<td class="nvp-rdc">${r.rd ? `<button type="button" class="nvp-rd${r.rd.st ? " rd-" + r.rd.st : ""}" data-rd="${esc(r.rd.k)}" aria-label="Liaison"></button>` : ""}</td>` : ""}${J.map(j => { const v = r.cells[j], g = (r.go || []).find(z => z[0] === j); if (v && typeof v === "object" && v.h !== undefined) return `<td class="${L.cols[j][1] || ""}">${v.h}</td>`; return `<td class="${L.cols[j][1] || ""}">${j === 0 && r.open ? `<button type="button" class="ach-link" data-nvl="${esc(L.t)}|${r.__i}">${esc(v)}</button>` : g ? `<button type="button" class="ach-link" data-nvgo="${esc(g[1] + "|" + g[2])}">${esc(v)}</button>` : esc(typeof v === "number" ? achF2(v) : v)}</td>`; }).join("")}<td class="center"><input type="checkbox" class="nvp-cb"></td></tr>`).join("")}${L.add ? `<tr class="rec-new" data-nvadd="${k}"><td colspan="${n + 1 + (RD ? 1 : 0)}">${esc(L.add)}</td></tr>` : ""}</tbody>
       ${isL ? `<tfoot><tr class="bdg-d-total-row">${RD ? "<td></td>" : ""}${J.map((j, jj) => j === iM ? `<td class="number">${achF2(tot)}</td>` : jj === J.indexOf(iM) - 1 ? `<td class="number">${R.length < L.rows.length ? "TOTAL PARTIEL" : "TOTAL"}</td>` : "<td></td>").join("")}<td></td></tr></tfoot>` : ""}</table></div>
       <div class="blk-rsz nvp-rsz" data-nvh="${k}" title="Glisser pour changer la hauteur"></div></div>`; };
