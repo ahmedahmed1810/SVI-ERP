@@ -4087,6 +4087,16 @@ def main():
         check("F14 (fin) : BUDGET et CHARGE d'un besoin, COMMANDE d'une facture modifiables dans la liste (charge = liste du budget, texte libre au SIÈGE ; pas pour un acompte ni un avoir)",
               f07.get('bdg') == 'X' and f07.get('sie') == 'SIÈGE,,,,0|SIÈGE' and f07.get('des') == 'txt' and f07.get('none') == 'null' and f07.get('sel') == 'sel'
               and f07.get('faf') == 'true,true,sel' and f07.get('set') == '|0|0', f07)
+        f08 = pg.evaluate("""async () => { await sviAchLoad(); const r = {};
+  const A = [['BORDEREAU'], ['N°', 'DÉSIGNATION', 'U', 'QTÉ', 'P.U.'], ['', 'GROS ŒUVRE', '', '', ''], ['1', 'Ciment CPJ45', 'T', '12,5', '1 200,00'], ['2', 'Sable', 'M3', '30', ''], ['', 'TOTAL', '', '', '']];
+  r.tab = achImpRows(A).map(o => o.title ? 'T:' + o.title : o.des + '/' + o.u + '/' + o.q + '/' + o.pu).join('|');
+  r.nohead = achImpRows([['Ciment', 'T', '2'], ['Gravier 15/25', 'M3', '4']]).map(o => o.des + '/' + o.u + '/' + o.q).join('|');
+  r.pdf = achImpPdfRows('DEVIS N 12\\n1 Fer HA8 KG 250 9,50\\n2.1 Brique creuse 8T U 1 500\\nTOTAL HT 4 000').map(o => o.des + '/' + o.u + '/' + o.q + '/' + o.pu).join('|');
+  r.why = achCafWhy({ state: 'ouverte', lignes: [{ des: 'X', u: 'U', q: 1, pu: 2, imp: true }], frs: ['F'] }).filter(w => /IMPORT/.test(w)).join('');
+  return r; }""")
+        check("07/11 : IMPORTER dans le DÉTAIL CONSULTATION (Excel / CSV / Google Sheets / PDF) — colonnes reconnues ou devinées, titres = groupes, lignes « À VÉRIFIER » en alerte",
+              f08.get('tab') == 'T:GROS ŒUVRE|Ciment CPJ45/T/12.5/1200|Sable/M3/30/' and f08.get('nohead') == 'Ciment/T/2|Gravier 15/25/M3/4'
+              and f08.get('pdf') == 'Fer HA8/KG/250/9.5|Brique creuse 8T/U/1500/' and f08.get('why') == '1 DÉTAIL(S) IMPORTÉ(S) À VÉRIFIER', f08)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

@@ -579,6 +579,8 @@ const achCafWhy = (c, D) => { const w = [], today = new Date().toISOString().sli
   if (!(c.lignes || []).length) w.push("AUCUNE LIGNE");
   /* 06/11 (soir) : une ligne hors de la liste des articles doit avoir un prix (montant de validation) */
   (c.lignes || []).forEach(l => { if (l.des && !achArtOf(l.des, l.u) && !(achN(l.pu) > 0)) w.push(l.des + " : HORS LISTE DES ARTICLES, PRIX ESTIMÉ À SAISIR"); });
+  /* 07/11 : lignes importées non encore vérifiées */
+  { const ni = (c.lignes || []).filter(l => l.imp).length; if (ni) w.push(ni + " DÉTAIL(S) IMPORTÉ(S) À VÉRIFIER"); }
   if (!(c.frs || []).length) w.push("AUCUN FOURNISSEUR CONSULTÉ");
   /* E6 (série E) : nombre minimum de fournisseurs consultés (PARAMÉTRAGE › ACHATS › RÈGLES INTERNES), non bloquant */
   else if ((c.frs || []).length < achPrm().ncons) w.push((c.frs || []).length + " FOURNISSEUR(S) CONSULTÉ(S) SUR " + achPrm().ncons + " AU MOINS");

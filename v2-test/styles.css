@@ -3658,3 +3658,6 @@ table.svi-bdgl td.nv-lk { white-space: nowrap; overflow: hidden; text-overflow: 
 .nvp-blk tr.nvp-gt td { font-weight: 800; }
 .nvp-blk td .sv-sel { height: 19px !important; min-height: 0 !important; padding: 0 4px !important; border: 0 !important; background: transparent !important; font: inherit !important; color: inherit !important; width: 100%; box-shadow: none !important; }
 .nvp-blk td .sv-sel .sv-sel-t { font: inherit; }
+/* 07/11 : détail importé, à vérifier */
+tr.cafp-imp > td, tr.cafp-imp > td input, tr.cafp-imp > td select { color: #dc2626 !important; }
+tr.cafp-imp > td:first-child { box-shadow: inset 3px 0 0 #dc2626; }
