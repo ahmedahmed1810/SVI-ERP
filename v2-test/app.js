@@ -3822,7 +3822,21 @@ function sviMenuOrder(m) {
   let lastG = null; items.filter(x => !x.r).forEach(x => { if (out.length && x.g !== lastG) out.push(sep()); lastG = x.g; out.push(x.c); });
   m.replaceChildren(...out);
 }
-new MutationObserver(ms => { for (const mu of ms) for (const n of mu.addedNodes) if (n.id === "blkMenu") sviMenuOrder(n); }).observe(document.body || document.documentElement, { childList: true });
+/* 07/11 (document unique 10.1, vérification) : une icône devant CHAQUE ligne de tout menu ⋯ — une ligne sans icône reçoit celle de son action (d'après son libellé) */
+const SVI_MI_X = {
+  up: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>', down: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg>',
+  grp: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h10M7 17h6"/></svg>', ungrp: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M8 12h12M8 18h12M4 12l2 0M4 18h2"/></svg>',
+  rows: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>', send: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3L10 14M21 3l-7 18-4-7-7-4 18-7z"/></svg>',
+  ok: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>', filt: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 8v5l-4 2v-7z"/><path d="M17 17l4 4M21 17l-4 4"/></svg>',
+  unlink: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 15l-2 2a3 3 0 0 1-4-4l2-2M15 9l2-2a3 3 0 0 1 4 4l-2 2M4 4l16 16"/></svg>', dot: '<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.2"/></svg>' };
+const SVI_MI_RX = [[/^(AGRANDIR|RÉDUIRE)\b/, "max"], [/^MONTER\b/, "up"], [/^DESCENDRE\b/, "down"], [/^GROUPER\b/, "grp"], [/^(SORTIR|DÉGROUPER)\b/, "ungrp"],
+  [/DÉLIER/, "unlink"], [/FILTRE/, "filt"], [/^(SUPPRIMER|EFFACER|RETIRER|ANNULER)\b/, "del"], [/^(AJOUTER|CRÉER|NOUVE)/, "add"], [/^IMPORTER\b/, "imp"], [/^EXPORTER\b/, "exp"],
+  [/^(APERÇU|IMPRIMER)/, "apr"], [/LIGNES?\b.*\(|^MODE RÉDUIT|HAUTEUR/, "rows"], [/^ENVOYER\b/, "send"], [/^(CLÔTURER|CONFIRMER|VALIDER)\b/, "ok"], [/DÉTAIL|FICHE/, "fiche"], [/FORMAT/, "__fmt"]];
+function sviMenuIcons(m) { if (!m) return;
+  m.querySelectorAll(":scope > button").forEach(b => { if (b.querySelector("svg, img")) return; const u = String(b.textContent || "").replace(/^[^A-ZÀ-Ü0-9]+/i, "").replace(/\s+/g, " ").trim().toUpperCase();
+    const r = SVI_MI_RX.find(x => x[0].test(u)), k = r ? r[1] : "dot", ic = SVI_MI[k] || SVI_MI_X[k] || SVI_MI_X.dot;
+    const sp = b.querySelector(":scope > i.mi-sp"); if (sp) sp.remove(); b.insertAdjacentHTML("afterbegin", ic); }); }
+new MutationObserver(ms => { for (const mu of ms) for (const n of mu.addedNodes) if (n.id === "blkMenu") { sviMenuOrder(n); sviMenuIcons(n); } }).observe(document.body || document.documentElement, { childList: true });
 /* ⟪ src/09e-colonnes-masquees.js ⟫ */
 /* =========================================================
    v786 (prompt codage, point 2) : MASQUER / AFFICHER LES COLONNES — un seul mécanisme pour tous les tableaux.

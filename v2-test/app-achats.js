@@ -2504,7 +2504,7 @@ const achImpSrcWin = DOCS => new Promise(ok => { const d = sviWinNew(), D = DOCS
     <button type="button" class="svc-b" data-s="file">UN FICHIER DE L'EXTÉRIEUR (EXCEL, CSV, PDF)</button>
     <button type="button" class="svc-b" data-s="gs">UN LIEN GOOGLE SHEETS</button>
     ${D.length ? `<div class="frs-st">UN DOCUMENT DE LA CONSULTATION</div>` + D.map((x, i) => `<button type="button" class="svc-b" data-s="d${i}">${esc((x.ref || "") + " — " + (x.title || x.fname || ""))}</button>`).join("") : ""}
-    <div class="frs-why">TOUTE LIGNE IMPORTÉE ARRIVE « À VÉRIFIER » (EN ROUGE) : CHAQUE LIGNE EST REVUE PUIS CONFIRMÉE AVANT L'ENVOI.</div></div>`,
+</div>`,   /* 10.5 : pas de bandeau ; le message après l'import dit que les lignes sont à vérifier */
     foot: `<button type="button" class="svc-b" data-x>ANNULER</button>` });
   sviWinShow(d);
   d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); ok(null); return; }
