@@ -3732,3 +3732,8 @@ table thead th :is(input, textarea) { -webkit-user-select: text; user-select: te
 /* série J (J4) : ligne grisée d'un menu ⋯ (ex. SUPPRIMER LES … COCHÉS sans case cochée) */
 #blkMenu button.blk-off { opacity: .45; }
 #blkMenu button .svi-cnt { margin-left: auto; }
+
+/* série J (J5, document unique 6.1) : TITRES DES COLONNES TOUJOURS À GAUCHE, dans tous les tableaux, quel que soit l'alignement du contenu
+   (nombres à droite, unités au centre : seulement dans les cases) ; la loupe suit le titre ; la case « tout cocher » reste centrée */
+table thead th:has(.cf-wrap), table.prm-table thead th:not(:has(input[type=checkbox])), table.frs-sub thead th:not(:has(input[type=checkbox])), table.ins-table thead th:not(:has(input[type=checkbox])) { text-align: left !important; }
+table thead th .cf-wrap { justify-content: flex-start !important; }

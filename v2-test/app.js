@@ -4326,7 +4326,7 @@ function sviColSetRun() { const S = sviColSet(); if (!Object.keys(S).length && !
     /* G5 : mise en forme de la colonne (taille, gras, italique, souligné) — cases du corps */
     const sig = [al, o.fs || "", o.b ?? "", o.i ?? "", o.u ?? ""].join("/");
     /* correction G-6 : chaque case garde sa marque (une case redessinée est reprise) ; la mise en forme de la loupe passe devant celle propre à la colonne (DATE LIMITE…) */
-    th.dataset.svcolAl = sig; th.style.textAlign = al;
+    th.dataset.svcolAl = sig; th.style.textAlign = "";   /* série J (J5) : le titre reste à gauche, l'alignement ne vise que les cases */
     const P = (c, k, v) => v ? c.style.setProperty(k, v, "important") : c.style.removeProperty(k);
     [...tb.tBodies].forEach(tbd => [...tbd.rows].forEach(r => { const c = r.cells.length === tr.cells.length && r.cells[i]; if (!c || c.dataset.svcolS === sig) return; c.dataset.svcolS = sig;
       P(c, "text-align", al); P(c, "font-size", o.fs ? o.fs + "px" : ""); P(c, "font-weight", o.b === undefined ? "" : o.b ? "800" : "400"); P(c, "font-style", o.i === undefined ? "" : o.i ? "italic" : "normal"); P(c, "text-decoration", o.u === undefined ? "" : o.u ? "underline" : "none"); })); }); }
