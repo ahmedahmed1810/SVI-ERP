@@ -3590,13 +3590,19 @@ const ACH_NVH_K = "svi_ach_nvh_v1";
 const achNvhSet = k => { try { return !!(JSON.parse(localStorage.getItem(ACH_NVH_K) || "{}") || {})[k]; } catch (e) { return false; } };
 const achNvhSc = k => achNvhSet(k) ? `height:var(--nvh-${k});max-height:none` : `max-height:var(--nvh-${k}, var(--svi-hdef-a, 200px))`;
 const achNvhStyle = () => { let H = {}; try { H = JSON.parse(localStorage.getItem(ACH_NVH_K) || "{}") || {}; } catch (e) {} return Object.keys(H).map(k => "--nvh-" + k + ":" + H[k] + "px").join(";"); };
+/* 08/11 (document unique 4.3, remarque d'Ahmed) : hauteur minimale d'un bloc = titres des colonnes + r lignes de DONNÉES + ligne CRÉER … ICI
+   + ligne TOTAL — jamais un bloc réduit qui ne montre que le TOTAL */
+function achNvhMin(sc, r) { const th = sc.querySelector("thead"), rows = [...sc.querySelectorAll("tbody tr, tfoot tr")];
+  const isN = x => x.matches(".rec-new, .bdg-newrow, .ach-new, [data-nvnew], [data-nvradd]"), isT = x => x.matches(".bdg-d-total-row, tfoot tr") || /^\s*TOTAL/.test(x.textContent || "");
+  const nr = rows.find(isN), tr = rows.find(isT), d1 = rows.find(x => !isN(x) && !isT(x)), h = x => x ? x.getBoundingClientRect().height : 0;
+  return Math.ceil((th ? h(th) : 22) + r * (d1 ? h(d1) : 21) + h(nr) + h(tr)) + 4; }
+function achNvhFloor() { document.querySelectorAll("#ach .nvp .rec-scroll").forEach(sc => { if (sc.style.maxHeight !== "none") return; const m = achNvhMin(sc, 1); if (sc.getBoundingClientRect().height < m - 1) sc.style.height = m + "px"; }); }
 function achNvhDrag(e, h) {
   e.preventDefault(); const pg = h.closest(".nvp"), k = h.dataset.nvh, sc = h.parentNode.querySelector(".rec-scroll"); if (!pg || !sc) return;
   const y0 = e.clientY, b0 = sc.getBoundingClientRect().height; let v = b0; h.classList.add("on");
   /* 05/11 : hauteur d'un bloc — il grandit avec ses lignes jusqu'à 5 (vide : titres seuls) ; la poignée le règle ; jamais moins d'une ligne,
      deux s'il a sa ligne CRÉER … ICI (la ligne CRÉER et une ligne de données) */
-  const th = sc.querySelector("thead"), rows = [...sc.querySelectorAll("tbody tr")], nr = rows.find(r => r.matches(".rec-new, .bdg-newrow, .ach-new, [data-nvnew]")), r1 = rows.find(r => r !== nr);
-  const minH = Math.ceil((th ? th.getBoundingClientRect().height : 22) + (r1 ? r1.getBoundingClientRect().height : 21) + (nr ? nr.getBoundingClientRect().height : 0)) + 2;
+  const minH = achNvhMin(sc, 1);
   const mv = ev => { ev.preventDefault(); v = Math.max(minH, Math.round(b0 + ev.clientY - y0)); pg.style.setProperty("--nvh-" + k, v + "px"); sc.style.height = "var(--nvh-" + k + ")"; sc.style.maxHeight = "none"; };
   const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up); h.classList.remove("on");
     try { const H = JSON.parse(localStorage.getItem(ACH_NVH_K) || "{}") || {}; H[k] = v; localStorage.setItem(ACH_NVH_K, JSON.stringify(H)); } catch (err) {} };
@@ -3683,6 +3689,7 @@ function achNvMod(ctx, cfg) {
     if (pid) { P = cfg.pageOf(pid); if (!P) pid = null; else ACH_NV_REDRAW = () => ctx.draw(); }
     if (!pid) return LST.html();
     if (!rec || rec.__c !== P.code) { rec = achRecBlock(P.code); rec.__c = P.code; }
+    requestAnimationFrame(achNvhFloor);   /* 08/11 : une hauteur gardée trop petite remonte au minimum (une ligne de données visible) */
     return achNvPageHTML(P, rec, ctx);
   };
   const h1 = () => pid && P ? esc(cfg.list.one) + " — " + (P.partyGo && P.party === P.title ? `<button type="button" class="ach-link nvp-party" data-nvgo="${esc(P.partyGo)}">${esc(P.title)}</button>` : esc(P.title)) : LST.h1();
@@ -3718,7 +3725,7 @@ function achNvMod(ctx, cfg) {
         /* B4 (série B) : hauteur commune des blocs — lignes par défaut ou mode réduit (réglages communs), gardée par bloc */
         if (a === "hdef" || a === "hred") { const pg = bl.closest(".nvp"); let H = {}; try { H = JSON.parse(localStorage.getItem(ACH_NVH_K) || "{}") || {}; } catch (e) {}
           if (a === "hdef") { delete H[k]; pg && pg.style.removeProperty("--nvh-" + k); }
-          else { const sc = bl.querySelector(".rec-scroll"), th = sc && sc.querySelector("thead"), r1 = sc && sc.querySelector("tbody tr"), v = Math.ceil((th ? th.getBoundingClientRect().height : 22) + sviBlkRows().r * (r1 ? r1.getBoundingClientRect().height : 21) + 4);
+          else { const sc = bl.querySelector(".rec-scroll"), v = sc ? achNvhMin(sc, sviBlkRows().r) : 60;
             H[k] = v; pg && pg.style.setProperty("--nvh-" + k, v + "px"); }
           try { localStorage.setItem(ACH_NVH_K, JSON.stringify(H)); } catch (e) {} return; }
         if (a === "add") { if (await rec.click({ target: bl.querySelector("[data-nvradd]") }, () => ctx.draw())) return; }

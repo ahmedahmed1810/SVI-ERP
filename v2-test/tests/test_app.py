@@ -4123,6 +4123,9 @@ def main():
   achDetDropIn(c, ['#1'], { l: '#0' }, 'on'); return [ok, r1, c.lignes.map(l => l.des + (l.g ? ':g' : '')).join(','), c.grp.length, typeof ACH_DET_DRAG].join('|'); }""")
         check("07/11 (9.3) : glisser une ligne dans tous les DÉTAILS des achats (devis, commande, facture…), même sans identifiant de ligne",
               f12 == 'true|C,A,B|C:g,A:g,B|1|object', f12)
+        f13 = pg.evaluate("""async () => { await sviAchLoad(); const d = document.createElement('div'); d.className = 'rec-scroll'; d.innerHTML = '<table><thead><tr><th style="height:22px">A</th></tr></thead><tbody><tr><td style="height:21px">X</td></tr><tr class="rec-new"><td style="height:21px">CRÉER</td></tr></tbody><tfoot><tr class="bdg-d-total-row"><td style="height:21px">TOTAL</td></tr></tfoot></table>';
+  document.body.appendChild(d); const m1 = achNvhMin(d, 1), m2 = achNvhMin(d, 2); d.remove(); return [m1 >= 22 + 21 * 3, m2 - m1 >= 20].join(','); }""")
+        check("08/11 (4.3) : hauteur minimale d'un bloc = titres + lignes de données + CRÉER + TOTAL (jamais le TOTAL seul)", f13 == 'true,true', f13)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

@@ -3666,6 +3666,9 @@ function sviFmtWin(ifk) {
         else if (P.mode === "nuit") { Object.keys(D).forEach(k => delete D[k]); Object.assign(D, JSON.parse(JSON.stringify(SVI_NUIT))); Object.assign(CD, SVI_COL_DEF); }
         else { D.el = {}; D.blk = {}; D.cat = {}; Object.assign(CD, SVI_COL_DEF); } } preview(); draw(); return; }
     if (e.target.closest("[data-save]")) { if (ifk) { if (!Object.keys(S.el).length && !Object.keys(S.st).length) delete D.by[ifk]; } else D.by = {};
+      /* 08/11 (remarque d'Ahmed) : APPLIQUER PARTOUT efface aussi les hauteurs de blocs gardées à la poignée (budget et pages d'achat) — tous les blocs suivent le format */
+      if (!ifk) { try { localStorage.removeItem("svi_ach_nvh_v1"); const L = JSON.parse(localStorage.getItem("svi_layout_v1") || "{}") || {}; if (L.h) { L.h = {}; localStorage.setItem("svi_layout_v1", JSON.stringify(L)); } } catch (er) {}
+        document.querySelectorAll(".nvp").forEach(p => [...p.style].filter(n => n.startsWith("--nvh-")).forEach(n => p.style.removeProperty(n))); }
       sviFmtSave(D); sviColorsSave(CD); d.remove(); svToast(ifk ? "FORMAT DE CETTE INTERFACE ENREGISTRÉ." : "RÉGLAGES COMMUNS APPLIQUÉS PARTOUT.", 2500); } });
   return d;
 }
