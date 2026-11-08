@@ -2019,10 +2019,12 @@ function renderBudgetList() {
   const renderHead = () => {
     colsSync();
     table.dataset.stf = "bdg";   /* 06/11 (soir) : FILTRER PAR COULEUR (loupe) = états de la liste */
-    const tot = columns.reduce((t, c) => t + c.width, 0);
-    let cg = table.querySelector("colgroup");
-    if (!cg) { cg = document.createElement("colgroup"); table.insertBefore(cg, thead); }
-    cg.innerHTML = columns.map(c => `<col data-bdg-col="${c.key}" style="width:${colW[c.key] ? colW[c.key] + "px" : (c.width / tot * 100).toFixed(2) + "%"}">`).join("") + `<col style="width:44px"><col style="width:40px">`;
+    /* 08/11 (document unique 6.11, remarque d'Ahmed) : largeurs au moteur commun des tableaux — à la première ouverture, le tableau remplit
+       l'écran (colonnes au prorata) ; dès qu'une colonne est tirée, toutes sont figées à leur largeur et seule celle-là change ; largeurs gardées */
+    const CG = sviCwCols("bdgl", columns.map(c => [c.key, c.width]), [["_act", 44], ["_cb", 40]], Math.max(0, ((table.parentElement && table.parentElement.clientWidth) || 0) - 30));
+    const cg0 = table.querySelector("colgroup"), tpl = document.createElement("template"); tpl.innerHTML = CG.cg;
+    if (cg0) cg0.replaceWith(tpl.content.firstChild); else table.insertBefore(tpl.content.firstChild, thead);
+    table.dataset.svcw = "bdgl"; table.setAttribute("style", CG.style);
     thead.innerHTML = `<tr>${columns.map(c => KIT.cfHead(BL, c.key, c.title, "bdg-list-head" + (c.number ? " number" : ""))).join("")}<th class="bdg-act-h"></th>${sviListCbTh()}</tr>`;
   };
   renderHead();

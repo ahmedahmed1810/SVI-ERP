@@ -17,11 +17,14 @@ try { document.documentElement.style.setProperty("--svi-hit-w", SVI_G.hitW + "px
   let tm = 0, x0 = 0, y0 = 0;
   /* les anciennes aides au survol (title) d'un intitulé deviennent aussi des bulles — l'iPad n'a pas de survol */
   const TIP = "[data-tip], label > span[title], .ach-pgen td[title]";
-  const show = el => { const t = el.dataset.tip || el.getAttribute("title") || ""; if (t && typeof svToast === "function") svToast(t, 7000, el); };
-  document.addEventListener("pointerdown", e => { const el = e.target.closest && e.target.closest(TIP); clearTimeout(tm); if (!el) return; x0 = e.clientX; y0 = e.clientY; tm = setTimeout(() => show(el), SVI_G.lp); }, true);
+  /* 08/11 : une case de LISTE dont le texte est coupé montre son texte entier dans la bulle (appui long) */
+  const cut = t => { const td = t && t.closest && t.closest("table.nv-one tbody td, #budgetListTable tbody td"); return td && !td.querySelector("input, select, textarea") && td.scrollWidth > td.clientWidth + 1 ? td : null; };
+  const pick = t => (t.closest && t.closest(TIP)) || cut(t);
+  const show = el => { const t = el.dataset.tip || el.getAttribute("title") || (el.matches("td") ? String(el.textContent || "").replace(/\s+/g, " ").trim() : ""); if (t && typeof svToast === "function") svToast(t, 7000, el); };
+  document.addEventListener("pointerdown", e => { const el = pick(e.target); clearTimeout(tm); if (!el) return; x0 = e.clientX; y0 = e.clientY; tm = setTimeout(() => show(el), SVI_G.lp); }, true);
   document.addEventListener("pointermove", e => { if (tm && Math.hypot(e.clientX - x0, e.clientY - y0) > SVI_G.drag) clearTimeout(tm); }, true);
   ["pointerup", "pointercancel"].forEach(t => document.addEventListener(t, () => clearTimeout(tm), true));
-  document.addEventListener("contextmenu", e => { const el = e.target.closest && e.target.closest(TIP); if (!el) return; e.preventDefault(); e.stopPropagation(); clearTimeout(tm); show(el); }, true);
+  document.addEventListener("contextmenu", e => { const el = pick(e.target); if (!el) return; e.preventDefault(); e.stopPropagation(); clearTimeout(tm); show(el); }, true);
 }
 /* v785 : RACCOURCIS COMMUNS — Ctrl (Commande sur l'iPad) + Z = ANNULER, + Y (ou Maj + Z) = RÉTABLIR, sur tout écran qui a la barre commune.
    Dans une case en cours de saisie (curseur dans le texte), le raccourci reste celui du texte. */
@@ -127,12 +130,16 @@ document.addEventListener("keydown", e => {
 /* v793 (DOCUMENT UNIQUE §6.1) : LARGEUR DES COLONNES COMMUNE — tout tableau marqué data-svcw="clé", avec un colgroup dont chaque col porte
    data-k (clé de la colonne) et des poignées .col-rs[data-col] dans ses titres ; largeur gardée (même mémoire que le budget : cwLoad / cwSave,
    clé « clé.colonne ») ; minimum 64 px comme partout. sviCwCols(clé, [[col, largeurParDéfaut]…], extra) rend le colgroup et la largeur du tableau. */
-function sviCwCols(t, cols, extra = []) {
+/* 08/11 : fit = LISTE (place disponible en px) — tant qu'aucune largeur n'a été réglée, le tableau tient dans l'écran (colonnes au prorata) */
+function sviCwCols(t, cols, extra = [], fit = false) {
   const CW = cwLoad(), all = cols.concat(extra), w = c => CW[t + "." + c[0]] || c[1];
   const tot = all.reduce((s, c) => s + w(c), 0);
   /* B47 (05/11) : dès qu'une largeur a été réglée, le tableau garde la somme exacte (les autres colonnes ne bougent plus) */
   const set = all.some(c => CW[t + "." + c[0]]);
-  return { cg: `<colgroup>${all.map(c => `<col data-k="${esc(c[0])}" style="width:${w(c)}px">`).join("")}</colgroup>`, style: `width:${tot}px;min-width:${set ? tot + "px" : "100%"}` };
+  /* fit = place disponible (px) : sans largeur réglée, les colonnes (pas les colonnes d'outils) sont ramenées au prorata pour tenir dans l'écran */
+  const ex = extra.reduce((a, c) => a + w(c), 0), k = fit > 0 && !set && tot > fit ? Math.max(0.3, (fit - ex) / Math.max(1, tot - ex)) : 1;
+  const cw = c => (extra.includes(c) ? w(c) : Math.max(64, Math.floor(w(c) * k))) + "px";
+  return { cg: `<colgroup>${all.map(c => `<col data-k="${esc(c[0])}" style="width:${cw(c)}">`).join("")}</colgroup>`, style: set ? `width:${tot}px;min-width:${tot}px` : fit ? "width:100%;min-width:0" : `width:${tot}px;min-width:100%` };
 }
 /* 07/11 (vérification des gestes, document unique 6.1) : la poignée de largeur est posée SUR le trait entre deux colonnes ; sa moitié droite
    est recouverte par la colonne voisine (titres collants) — toucher le bord gauche d'un titre (10 px) revient à toucher la poignée de la colonne d'avant */

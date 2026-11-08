@@ -3670,3 +3670,7 @@ html.cafp-dragging, html.cafp-dragging * { user-select: none !important; -webkit
 /* 07/11 (document unique 6.3, vérification) : les champs posés dans les cases des pages d'achat ne grandissent pas la ligne — lignes de 21 px */
 #ach .nvp table tbody td :is(input.ins-in:not([type=checkbox]), select.ins-in, .sv-sel, button.ach-b) { height: 19px !important; min-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; line-height: 17px !important; box-sizing: border-box !important; margin-top: 0 !important; margin-bottom: 0 !important; vertical-align: middle; }
 #ach .nvp table tbody td:has(> :is(input.ins-in, select.ins-in, .sv-sel, button.ach-b)) { padding-top: 0 !important; padding-bottom: 0 !important; }
+/* 08/11 (document unique 6.11, remarques d'Ahmed) : listes des achats — chaque colonne prend exactement la largeur réglée, même plus étroite
+   que son texte ; le texte trop long est coupé au bord (texte entier dans la bulle, appui long) ; la ligne garde sa hauteur */
+table.nv-one { table-layout: fixed; }
+table.nv-one tbody td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
