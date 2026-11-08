@@ -3563,7 +3563,8 @@ def main():
   const L2 = achCmf().filter(x => x.id !== c.id); achCmfSave(L2);
   if (keep === null) localStorage.removeItem('svi_ach_prm_v1'); else localStorage.setItem('svi_ach_prm_v1', keep); if (kt === null) localStorage.removeItem('svi_achprm_tab_v1'); else localStorage.setItem('svi_achprm_tab_v1', kt);
   document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
-        check("SÉRIE B, B27 : RÉFÉRENCES — modèle par type de pièce ({AA} {AAAA} {MM} {JJ} {NNN}), compteur remis à zéro par jour (défaut), mois, année ou jamais ; explication à l'appui long sur MODÈLE ; modèle sans compteur refusé", b27.get('rows') == 10 and b27.get('tip') and b27.get('n1') and b27.get('def') and b27.get('bad') == 'CMF {AA}-{MM}{JJ}/{NNN}' and b27.get('fold') == 2 and b27.get('fcla') and b27.get('ccla', 0) >= 2 and b27.get('cref'), b27)
+        # 08/11 (série H, H1) : une ligne de plus — CONSULTATION PAR FOURNISSEUR ({PARENT}-F{FF})
+        check("SÉRIE B, B27 : RÉFÉRENCES — modèle par type de pièce ({AA} {AAAA} {MM} {JJ} {NNN}), compteur remis à zéro par jour (défaut), mois, année ou jamais ; explication à l'appui long sur MODÈLE ; modèle sans compteur refusé", b27.get('rows') == 11 and b27.get('tip') and b27.get('n1') and b27.get('def') and b27.get('bad') == 'CMF {AA}-{MM}{JJ}/{NNN}' and b27.get('fold') == 2 and b27.get('fcla') and b27.get('ccla', 0) >= 2 and b27.get('cref'), b27)
         b29 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {};
   document.querySelector('#navMenu .nav-btn[data-ach="cmf"]').click(); await w(400);
   const c = achCmfFrom({ why: 'T' }); achCmfFiche(c.id); await w(300); const d = document.getElementById('svConf') || document.querySelector('.cmf-card');

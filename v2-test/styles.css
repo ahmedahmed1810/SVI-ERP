@@ -3711,3 +3711,9 @@ table tbody td.cell-x { white-space: normal !important; overflow: visible !impor
 /* correction G-3 : appui long sur un titre de colonne = déplacement seulement (pas de sélection Safari, pas de menu du système) */
 table thead th, table thead th * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 table thead th :is(input, textarea) { -webkit-user-select: text; user-select: text; }
+
+/* série H (H1) : état À RENVOYER d'une consultation par fournisseur — jaune ambre foncé */
+:root { --st-renvoyer: #CA8A04; }
+#ach .nvp .nvp-blk tr.nvr-renvoyer td, #ach .nvp .nvp-blk tr.nvr-renvoyer td .ach-link:not([data-nvgo]), tr.nvr-renvoyer td { color: var(--st-renvoyer, #CA8A04) !important; }
+#ach .nvp .nvp-blk tr.nvr-annule td, tr.nvr-annule td { color: var(--st-annule, #6b7280) !important; }
+.dvf-nofil { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px; font-weight: 700; color: var(--st-instance, #b91c1c); min-height: var(--fh, 30px); }

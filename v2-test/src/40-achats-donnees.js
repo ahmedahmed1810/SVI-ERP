@@ -41,7 +41,11 @@ const ACH_REF_T = [["BSN", "BESOIN"], ["CAF", "CONSULTATION (CFA)"], ["DVF", "DE
   ["RTR", "RETOUR DE RÉCEPTION"], ["FAF", "FACTURE DU FOURNISSEUR"], ["AVF", "AVOIR DU FOURNISSEUR"], ["PAF", "PAIEMENT"]];
 const ACH_REF_RZ = [["jour", "CHAQUE JOUR"], ["mois", "CHAQUE MOIS"], ["annee", "CHAQUE ANNÉE"], ["jamais", "JAMAIS"]];
 const achRefs = p => { const r = p.refs && typeof p.refs === "object" ? p.refs : {};
-  return Object.fromEntries(ACH_REF_T.map(([k]) => { const x = r[k] || {}; return [k, { m: String(x.m || "").trim() || (k === "CAF" ? "CFA" : k) + " {AA}-{MM}{JJ}/{NNN}", rz: ACH_REF_RZ.some(z => z[0] === x.rz) ? x.rz : "jour", l: String(x.l || "").trim() || ACH_REF_LDEF }]; })); };
+  return Object.fromEntries(ACH_REF_T.map(([k]) => { const x = r[k] || {}; return [k, { m: String(x.m || "").trim() || (k === "CAF" ? "CFA" : k) + " {AA}-{MM}{JJ}/{NNN}", rz: ACH_REF_RZ.some(z => z[0] === x.rz) ? x.rz : "jour", l: String(x.l || "").trim() || ACH_REF_LDEF, ...(k === "CAF" ? { f: String(x.f || "").trim() || ACH_REF_FDEF } : {}) }]; })); };
+/* 08/11 (série H, H1) : RÉFÉRENCE DES CONSULTATIONS PAR FOURNISSEUR (filles) — {PARENT} = référence de la consultation mère, {FF} = numéro du fournisseur
+   dans la consultation (autant de chiffres que de F, jamais réutilisé) ; le « F » la distingue des détails (-001) */
+const ACH_REF_FDEF = "{PARENT}-F{FF}";
+const achFilRef = (c, n) => String((((achPrm().refs || {}).CAF) || {}).f || ACH_REF_FDEF).replace(/\{PARENT\}/g, c.ref || "").replace(/\{(F+)\}/g, (_, F) => String(n).padStart(F.length, "0"));
 /* C6 (série C, document unique 6.14) : RÉFÉRENCE DES LIGNES d'une pièce — modèle par type : {PARENT} = référence de la pièce,
    {LLL} = compteur des lignes (autant de chiffres que de L), qui repart à 1 dans chaque pièce — distinct du compteur {NNN} des pièces */
 const ACH_REF_LDEF = "{PARENT}-{LLL}";

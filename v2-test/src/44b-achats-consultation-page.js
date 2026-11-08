@@ -17,7 +17,18 @@ function achCafUp(c) { let ch = false;
   if (!Array.isArray(c.cond)) { ch = true; c.cond = ACH_CAF_COND.map(([k, lab, t]) => ({ id: k, k, lab, t, v: k === "dlim" ? c.dlim || "" : k === "lieu" ? c.lieu || "" : k === "dSouh" ? c.dSouh || "" : k === "equiv" ? (c.variante ? "OUI" : "NON") : k === "franco" ? (c.franco ? "OUI" : "NON") : "", env: true })); }
   ["lf", "ld", "lc", "fd", "fc"].forEach(k => { if (!c[k] || typeof c[k] !== "object") { c[k] = {}; ch = true; } });
   (c.lignes || []).forEach(l => { if (!Array.isArray(c.lf[l.id])) { c.lf[l.id] = (c.frs || []).slice(); ch = true; } });
+  /* série H (H1) : une CONSULTATION PAR FOURNISSEUR (fille) pour chaque fournisseur consulté — numéro jamais réutilisé */
+  if (!c.fil || typeof c.fil !== "object") { c.fil = {}; ch = true; }
+  (c.frs || []).forEach(f => { if (!c.fil[f]) { c.filN = (+c.filN || 0) + 1; c.fil[f] = { n: c.filN, cree: achNow() }; ch = true; } });
   return ch; }
+/* série H : articles de la fille (détails liés au fournisseur), empreinte (pour À RENVOYER), référence et état */
+const achFilLig = (c, f) => (c.lignes || []).filter(l => ((c.lf || {})[l.id] || []).includes(f));
+const achFilSig = (c, f) => achFilLig(c, f).map(l => [l.id, achU(l.des), achU(l.u), achN(l.q)].join("~")).join("|");
+const achFilRefOf = (c, f) => { const o = (c.fil || {})[f]; return o ? achFilRef(c, o.n) : ""; };
+const ACH_FIL_ST = { instance: "EN INSTANCE", remis: "ENVOYÉE", renvoyer: "À RENVOYER", valide: "RÉPONDU", annule: "DÉCLINÉ" };
+const achFilSt = (c, f, D) => { const o = (c.fil || {})[f] || {}, r = (c.rep || {})[f] || {};
+  if (r.st === "decline") return "annule"; if (o.env && o.sig !== undefined && o.sig !== achFilSig(c, f)) return "renvoyer";
+  if ((D || achDvf()).some(v => v.caf === c.id && v.frs === f && v.state !== "annule")) return "valide"; return o.env || r.env ? "remis" : "instance"; };
 const achCafSaveOne = (id, mut, act) => { const L = achCaf(), c = L.find(x => x.id === id); if (!c) return null; achCafUp(c); mut(c); c.mod = achNow(); achCafSave(L); if (act) achHist(c.ref, act, c.objet || ""); return c; };
 /* détails qu'un fournisseur a déjà vendus (commandes validées) */
 const achFrsSold = f => { const S = new Set(); achCmf().filter(c => c.frs === f && c.state !== "annule" && c.state !== "instance").forEach(c => (c.lignes || []).forEach(l => S.add(achKey(l.des, l.u)))); return S; };
@@ -97,6 +108,11 @@ function achCafPage(x, B) {
     menu: open ? [{ k: "rmf", lab: "RETIRER LES COCHÉS (SANS DEVIS)" }] : [],
     act: async (a, ck, redraw) => { const F = ck.map(i => (x.frs || [])[i]).filter(Boolean).filter(f => !DD.some(v => v.frs === f)); if (!F.length) { svToast("COCHER DES FOURNISSEURS SANS DEVIS.", 2500); return; }
       achCafSaveOne(x.id, c => { c.frs = c.frs.filter(f => !F.includes(f)); F.forEach(f => { delete c.rep[f]; delete c.fd[f]; delete c.fc[f]; Object.keys(c.lf).forEach(l => { c.lf[l] = c.lf[l].filter(y => y !== f); }); }); }, "FOURNISSEURS RETIRÉS"); redraw(); } };
+  /* ---- série H (H1) : CONSULTATIONS PAR FOURNISSEUR — une fille par fournisseur, ses seuls articles ; À RENVOYER si ses articles ont changé depuis l'envoi ---- */
+  const FIL = { t: "CONSULTATIONS PAR FOURNISSEUR", cols: [["RÉFÉRENCE"], ["FOURNISSEUR"], ["ARTICLES", "center"], ["ENVOYÉE LE", "center"], ["DEVIS"], ["ÉTAT", "center"]],
+    rows: (x.frs || []).filter(f => (x.fil || {})[f]).map(f => { const o = x.fil[f], s0 = achFilSt(x, f, D), V = DD.filter(v => v.frs === f), env = o.env || ((x.rep || {})[f] || {}).env || "";
+      return { cls: "nvr-" + s0, go: [[1, "frs", f]], cells: [achFilRefOf(x, f), fr(f), String(achFilLig(x, f).length), env ? achDFr(String(env).slice(0, 10)) : "",
+        { h: V.map(v => `<button type="button" class="ach-link" data-nvgo="dvf|${esc(v.id)}">${esc(v.ref)}</button>`).join(", "), t: V.map(v => v.ref).join(", ") }, ACH_FIL_ST[s0]] }; }) };
   /* ---- DOCUMENTS : ceux de l'onglet DOCUMENTS du SUIVI ; cochés = à envoyer ---- */
   const DOCS = achJ("svi_docs_v1:ACH-" + (x.ref || x.code), []) || [];
   const DOC = { t: "DOCUMENTS", add: open ? "AJOUTER UN DOCUMENT ICI… (IL S'AJOUTE AUSSI AU SUIVI)" : "", cols: [["RÉFÉRENCE"], ["INTITULÉ"], ["FICHIER", "center"], ["À ENVOYER", "center"]],
@@ -132,7 +148,7 @@ function achCafPage(x, B) {
       /* F5 : les conditions particulières envoyées passent dans les clauses particulières de la commande (règle 12.3) — rien n'est saisi deux fois */
       try { const L = achCmf(), cm = L.find(y => y.id === m.id); if (cm) { const C2 = (achCaf().find(y => y.id === x.id) || x); cm.cla = (Array.isArray(cm.cla) ? cm.cla : achClCopy(achPrm().clP)).concat((C2.cond || []).filter(cd => cd.env !== false && cd.v && (!(C2.fc || {})[v.frs] || !(C2.fc[v.frs] || []).length || C2.fc[v.frs].includes(cd.id))).map(cd => ({ id: "c" + cd.id, t: "autre", txt: cd.lab + " : " + cd.v }))); achCmfSave(L); } } catch (e) {}
       achGo("cmf", m.id); return true; },
-    links: [DET, FRS, DOC, CND].concat(FC.length ? [CMP] : []).concat([B.DV("DEVIS", DD), B.CM("COMMANDES", achCmf().filter(c => c.caf === x.id))]),
+    links: [DET, FRS, FIL, DOC, CND].concat(FC.length ? [CMP] : []).concat([B.DV("DEVIS", DD), B.CM("COMMANDES", achCmf().filter(c => c.caf === x.id))]),
     /* ronds, devis, choix du prix, documents */
     click: async (e, redraw) => {
       const rd = e.target.closest(".nvp-rd"); if (rd && rd.closest(".nvp")) { const k = rd.dataset.rd, cur = ACH_CAF_SEL.id === x.id ? ACH_CAF_SEL.k : "";
@@ -181,20 +197,21 @@ function achCafSend(id) { const c = achCaf().find(y => y.id === id); if (!c) ret
     const pay = ((c.rep || {})[f] || {}).pay; const N = achDetNum(Ls, c.grp);
     return { n: Ls.length, txt: "MADAME, MONSIEUR,\n\nMERCI DE NOUS TRANSMETTRE VOTRE MEILLEURE OFFRE POUR :\n" + N.map(o => o.title ? "\n" + o.no + " " + o.lab : o.no + " — " + o.l.des + " : " + achF2(o.l.q) + " " + (o.l.u || "")).join("\n")
       + (Cd.length || pay ? "\n\nCONDITIONS PARTICULIÈRES :\n" + Cd.map(cd => "- " + cd.lab + " : " + (cd.t === "date" ? achDFr(cd.v) : cd.v)).concat(pay ? ["- CONDITIONS DE PAIEMENT : " + pay] : []).join("\n") : "")
-      + (Dc.length ? "\n\nDOCUMENTS JOINTS : " + Dc.map(x => x.title || x.ref).join(", ") : "") + "\n\nMERCI DE RAPPELER LA RÉFÉRENCE " + c.ref + " DANS VOTRE DEVIS.\n\nCORDIALEMENT." }; };
+      + (Dc.length ? "\n\nDOCUMENTS JOINTS : " + Dc.map(x => x.title || x.ref).join(", ") : "") + "\n\nMERCI DE RAPPELER LA RÉFÉRENCE " + (achFilRefOf(c, f) || c.ref) + " DANS VOTRE DEVIS.\n\nCORDIALEMENT." }; };
   const draw = () => { d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: "ENVOYER LA CONSULTATION — " + esc(c.ref),
     body: `<table class="prm-table frs-sub"><thead><tr><th>BLOC</th><th class="center">TOUS</th><th class="center">LES COCHÉS</th></tr></thead><tbody>${B.map(([k, l]) => `<tr><td>${l}</td><td class="center"><input type="radio" name="snd${k}" data-sm="${k}" value="all"${M[k] === "all" ? " checked" : ""}></td><td class="center"><input type="radio" name="snd${k}" data-sm="${k}" value="ck"${M[k] === "ck" ? " checked" : ""}${CK[k].length ? "" : " disabled"}> ${svCnt(CK[k].length)}</td></tr>`).join("")}</tbody></table>
       <div class="frs-st">BORDEREAU DE CHAQUE FOURNISSEUR (SES DÉTAILS LIÉS — AUCUN PRIX ENVOYÉ)</div>
-      <table class="prm-table frs-sub"><thead><tr><th>FOURNISSEUR</th><th>E-MAIL</th><th class="center">DÉTAILS</th><th></th></tr></thead><tbody>${pickF().map(f => { const F = achFrs().find(y => y.id === f) || {}, em = ((F.cte || []).find(y => y.email) || {}).email || "";
-        return `<tr><td>${esc(achFrsNom(f))}</td><td>${esc(em || "—")}</td><td class="center">${svCnt(txtOf(f).n)}</td><td>${em ? `<button type="button" class="ach-b" data-send="${esc(f)}">ENVOYER</button>` : ""}</td></tr>`; }).join("")}</tbody></table>`,
+      <table class="prm-table frs-sub"><thead><tr><th>CONSULTATION PAR FOURNISSEUR</th><th>FOURNISSEUR</th><th>E-MAIL</th><th class="center">DÉTAILS</th><th></th></tr></thead><tbody>${pickF().map(f => { const F = achFrs().find(y => y.id === f) || {}, em = ((F.cte || []).find(y => y.email) || {}).email || "";
+        return `<tr class="nvr-${achFilSt(c, f)}"><td>${esc(achFilRefOf(c, f))} · ${esc(ACH_FIL_ST[achFilSt(c, f)])}</td><td>${esc(achFrsNom(f))}</td><td>${esc(em || "—")}</td><td class="center">${svCnt(txtOf(f).n)}</td><td>${em ? `<button type="button" class="ach-b" data-send="${esc(f)}">ENVOYER</button>` : ""}</td></tr>`; }).join("")}</tbody></table>`,
     foot: `<button type="button" class="svc-b" data-x>FERMER</button>` }); if (!d.isConnected) sviWinShow(d); };
   draw();
   d.addEventListener("change", e => { const r = e.target.closest("[data-sm]"); if (r) { M[r.dataset.sm] = r.value; draw(); } });
   d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; }
     const sb = e.target.closest("[data-send]"); if (!sb) return; const f = sb.dataset.send, F = achFrs().find(y => y.id === f) || {}, em = ((F.cte || []).find(y => y.email) || {}).email || "", T = txtOf(f);
     if (!T.n) { svToast("AUCUN DÉTAIL POUR CE FOURNISSEUR.", 2500, sb); return; }
-    location.href = "mailto:" + encodeURIComponent(em) + "?subject=" + encodeURIComponent("CONSULTATION " + c.ref + (c.objet ? " — " + c.objet : "")) + "&body=" + encodeURIComponent(T.txt);
-    achCafSaveOne(id, x => { x.rep[f] = { ...(x.rep[f] || {}), env: achNow() }; }, "ENVOYÉE À " + achFrsNom(f)); sb.textContent = "ENVOYÉ"; });
+    location.href = "mailto:" + encodeURIComponent(em) + "?subject=" + encodeURIComponent("CONSULTATION " + (achFilRefOf(c, f) || c.ref) + (c.objet ? " — " + c.objet : "")) + "&body=" + encodeURIComponent(T.txt);
+    /* série H : la fille est ENVOYÉE ; son empreinte est gardée (un changement de ses articles la met À RENVOYER) */
+    achCafSaveOne(id, x => { const t0 = achNow(); x.rep[f] = { ...(x.rep[f] || {}), env: t0 }; x.fil[f] = { ...(x.fil[f] || {}), env: t0, sig: achFilSig(x, f) }; }, "ENVOYÉE À " + achFrsNom(f) + " (" + achFilRefOf(c, f) + ")"); sb.textContent = "ENVOYÉ"; });
 }
 /* fenêtre i de la consultation (F5) : RÉFÉRENCE, OBJET, PROJET, DATE seulement ; création = cette fenêtre, puis la page s'ouvre (3.6) */
 function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id === id) : null; if (id && !c0) return;

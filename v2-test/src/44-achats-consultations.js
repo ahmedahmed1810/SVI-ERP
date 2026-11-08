@@ -240,6 +240,9 @@ function achCafFiche(id, done) {
     if (e.target.closest("[data-mkcmf]")) { const v = achDvf().find(x => x.caf === C.id && x.state === "retenu"); if (!v) { svToast("AUCUN DEVIS RETENU.", 3000); return; }
       const m = achCmfFrom({ frs: v.frs, caf: C.id, dvf: v.id, lignes: achDvfCmfLines(v), why: "DEPUIS " + C.ref + " — " + v.ref }); d.remove(); achCmfFiche(m.id, done); return; }
     if (ro) return;
+    if (e.target.closest("[data-addfil]")) { pull(); const f = V.frs; if (!f || !V.caf) return;   /* série H : le fournisseur rejoint la consultation, lié aux détails qu'il chiffre (sinon à tous) */
+      achCafSaveOne(V.caf, c => { if (c.frs.includes(f)) return; c.frs.push(f); c.rep[f] = { st: "attente" }; const K = new Set(V.lignes.map(y => achKey(y.des, y.u))), mine = c.lignes.filter(l => K.has(achKey(l.des, l.u)));
+        (mine.length ? mine : c.lignes).forEach(l => { c.lf[l.id] = (c.lf[l.id] || []).concat([f]); }); achCafUp(c); }, "FOURNISSEUR AJOUTÉ DEPUIS LE DEVIS — " + achFrsNom(f)); draw(); return; }
     if (e.target.closest("[data-addl]")) { pull(); C.lignes.push({ des: "", u: "", q: "" }); draw(); return; }
     if (e.target.closest("[data-addlib]")) { pull(); C.lignes.push({ des: "", u: "", q: "", pu: "", libre: true }); draw(); return; }
     const rl = e.target.closest("[data-rml]"); if (rl) { pull(); C.lignes.splice(+rl.dataset.rml, 1); draw(); return; }
@@ -317,6 +320,11 @@ function achDvfFiche(id, done) {
           <label class="frs-f frs-w"><span>FOURNISSEUR <b>*</b></span><select class="ins-in dvf-x" data-k="frs"${dis || (V.caf ? " disabled" : "")}><option value=""></option>${FR.map(f => `<option value="${esc(f.id)}"${f.id === V.frs ? " selected" : ""}>${esc(f.code + " — " + f.nom)}</option>`).join("")}</select></label>
           <label class="frs-f"><span>N° DU DEVIS FOURNISSEUR</span><input class="ins-in dvf-x" data-k="refFrs" value="${esc(V.refFrs)}"${dis} autocomplete="off"></label>
           <label class="frs-f"><span>CONSULTATION</span>${ro ? `<input class="ins-in" value="${esc(((achCaf().find(c => c.id === V.caf) || {}).ref) || "HORS CONSULTATION")}" readonly>` : `<select class="ins-in dvf-x" data-k="caf"><option value="">HORS CONSULTATION</option>${achCaf().filter(c => c.state === "ouverte" || c.id === V.caf).map(c => `<option value="${esc(c.id)}"${c.id === V.caf ? " selected" : ""}>${esc(c.ref + (c.objet ? " — " + c.objet : ""))}</option>`).join("")}</select>`}</label>
+          ${(() => { /* série H (H1) : la fille est déduite du FOURNISSEUR du devis — affichée seule, non modifiable ; absente = proposer d'ajouter le fournisseur */
+            let c = V.caf ? achCaf().find(y => y.id === V.caf) : null; if (!c) return ""; if (typeof achCafUp === "function" && achCafUp(c)) c = achCafSaveOne(c.id, () => {}) || c;
+            const r = V.frs && typeof achFilRefOf === "function" ? achFilRefOf(c, V.frs) : "";
+            return `<label class="frs-f"><span>CONSULTATION PAR FOURNISSEUR</span>${r || !V.frs ? `<input class="ins-in dvf-fil" value="${esc(r || "(CHOISIR LE FOURNISSEUR)")}" readonly>`
+              : `<span class="dvf-nofil">CE FOURNISSEUR N'EST PAS DANS LA CONSULTATION.${ro ? "" : ` <button type="button" class="ach-b" data-addfil>L'AJOUTER À LA CONSULTATION</button>`}</span>`}</label>`; })()}
           <label class="frs-f"><span>DATE</span><input type="date" class="ins-in dvf-x" data-k="date" value="${esc(V.date)}"${dis}></label>
           <label class="frs-f"><span>VALIDE JUSQU'AU</span><input type="date" class="ins-in dvf-x" data-k="validite" value="${esc(V.validite)}"${dis}></label>
           <label class="frs-f"><span>REMISE GLOBALE (%)</span><input class="ins-in dvf-x number" data-k="remG" inputmode="decimal" value="${esc(V.remG ? String(V.remG).replace(".", ",") : "")}"${dis}></label>
@@ -345,6 +353,9 @@ function achDvfFiche(id, done) {
   d.addEventListener("click", async e => {
     if (e.target === d || e.target.closest("[data-x]")) { d.remove(); if (done) done(); return; }
     if (ro) return;
+    if (e.target.closest("[data-addfil]")) { pull(); const f = V.frs; if (!f || !V.caf) return;   /* série H : le fournisseur rejoint la consultation, lié aux détails qu'il chiffre (sinon à tous) */
+      achCafSaveOne(V.caf, c => { if (c.frs.includes(f)) return; c.frs.push(f); c.rep[f] = { st: "attente" }; const K = new Set(V.lignes.map(y => achKey(y.des, y.u))), mine = c.lignes.filter(l => K.has(achKey(l.des, l.u)));
+        (mine.length ? mine : c.lignes).forEach(l => { c.lf[l.id] = (c.lf[l.id] || []).concat([f]); }); achCafUp(c); }, "FOURNISSEUR AJOUTÉ DEPUIS LE DEVIS — " + achFrsNom(f)); draw(); return; }
     if (e.target.closest("[data-addl]")) { pull(); V.lignes.push({ des: "", u: "", q: "", pu: "", tva: achPrm().tva }); draw(); return; }
     const rl = e.target.closest("[data-rml]"); if (rl) { pull(); V.lignes.splice(+rl.dataset.rml, 1); draw(); return; }
     const L = achDvf(), now = new Date().toISOString();

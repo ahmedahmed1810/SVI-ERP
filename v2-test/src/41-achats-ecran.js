@@ -117,7 +117,9 @@ function sviAchInit() {
         <thead><tr><th>TYPE DE PIÈCE</th><th data-tip="TEXTE FIXE TEL QUEL ; VARIABLES ENTRE ACCOLADES : {AA} ANNÉE SUR 2 CHIFFRES ({AAAA} SUR 4), {MM} MOIS, {JJ} JOUR, {NNN} COMPTEUR (AUTANT DE CHIFFRES QUE DE N). EXEMPLE : DVF {AA}-{MM}{JJ}/{NNN} → DVF 26-0101/012">MODÈLE</th><th>EXEMPLE (AUJOURD'HUI, N° 12)</th><th>REMISE À ZÉRO DU COMPTEUR</th><th data-tip="{PARENT} = RÉFÉRENCE DE LA PIÈCE ; {LLL} = COMPTEUR DES LIGNES (AUTANT DE CHIFFRES QUE DE L), QUI REPART À 001 DANS CHAQUE PIÈCE">MODÈLE DES DÉTAILS</th><th>EXEMPLE (LIGNE 2)</th></tr></thead>
         <tbody>${ACH_REF_T.map(([k, l]) => { const R = P.refs[k]; return `<tr><td>${l}</td><td><input class="ins-in ach-ref" data-k="${k}" data-f="m" value="${esc(R.m)}" autocomplete="off"></td><td>${esc(achRefFill(R.m, new Date(), 12))}</td>
           <td><select class="ins-in ach-ref" data-k="${k}" data-f="rz">${ACH_REF_RZ.map(([v, t]) => `<option value="${v}"${v === R.rz ? " selected" : ""}>${t}</option>`).join("")}</select></td>
-          <td><input class="ins-in ach-ref" data-k="${k}" data-f="l" value="${esc(R.l)}" autocomplete="off"></td><td>${esc(achLineRef(k, achRefFill(R.m, new Date(), 12), 1))}</td></tr>`; }).join("")}</tbody></table></div>
+          <td><input class="ins-in ach-ref" data-k="${k}" data-f="l" value="${esc(R.l)}" autocomplete="off"></td><td>${esc(achLineRef(k, achRefFill(R.m, new Date(), 12), 1))}</td></tr>`
+          /* série H (H1) : modèle à part pour les consultations par fournisseur, sous la consultation */
+          + (k === "CAF" ? `<tr><td>CONSULTATION PAR FOURNISSEUR</td><td><input class="ins-in ach-ref" data-k="CAF" data-f="f" value="${esc(R.f)}" autocomplete="off" data-tip="{PARENT} = RÉFÉRENCE DE LA CONSULTATION ; {FF} = NUMÉRO DU FOURNISSEUR DANS LA CONSULTATION"></td><td>${esc(achFilRef({ ref: achRefFill(R.m, new Date(), 12) }, 1))}</td><td>—</td><td>—</td><td></td></tr>` : ""); }).join("")}</tbody></table></div>
       </div>`;
     /* B29 : CLAUSES — deux tableaux pliables (générales : chaque nouveau fournisseur ; particulières : chaque nouvelle commande, page annexe) */
     if (T === "cla") { const tb = (l, ttl, L) => `<details class="ach-pbox ach-pfold" open><summary class="ach-pt">${ttl} ${svCnt(L.length)}</summary>
@@ -322,6 +324,7 @@ function sviAchInit() {
     /* paramètres — série B : plafond de transactions (unité), alertes de retard, plafonds en espèces, mentions, seuils de validation */
     if (t.classList.contains("ach-ref")) { const P = achPrm(), k = t.dataset.k, f = t.dataset.f, v = f === "m" ? String(t.value).trim() : t.value;
       if (f === "m" && v && !/\{N+\}/.test(v)) { svToast("LE MODÈLE DOIT CONTENIR LE COMPTEUR {NNN}.", 3500, t); draw(); return; }
+      if (f === "f" && v && !(/\{F+\}/.test(v) && /\{PARENT\}/.test(v))) { svToast("LE MODÈLE DES CONSULTATIONS PAR FOURNISSEUR DOIT CONTENIR {PARENT} ET LE NUMÉRO {FF}.", 3500, t); draw(); return; }
       if (f === "l" && v && !(/\{L+\}/.test(v) && /\{PARENT\}/.test(v))) { svToast("LE MODÈLE DES DÉTAILS DOIT CONTENIR {PARENT} ET LE COMPTEUR {LLL}.", 3500, t); draw(); return; }
       P.refs = { ...P.refs, [k]: { ...P.refs[k], [f]: v } }; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-cl") || t.classList.contains("ach-clnew")) { const P = achPrm(), l = "cl" + t.dataset.l, L = P[l].map(x => ({ ...x }));
