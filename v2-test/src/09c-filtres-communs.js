@@ -407,6 +407,9 @@ const sviDateFold = lk => `<span class="dt-fa" data-dtfa="${esc(lk)}" role="butt
 const sviDateIn = (d, sel) => !sel || (sel === "SANS" ? !/^\d{4}-\d{2}-\d{2}/.test(d || "") : String(d || "").startsWith(sel));
 /* 08/11 (correction G-1) : le signe › / ⌄ réagit en premier — zone de toucher élargie au début de la ligne (Safari peut donner le bouton comme cible) */
 const sviDtHit = e => { if (!e.target.closest) return null; const f = e.target.closest("[data-dtf], [data-dtfa]"); if (f) return f;
+  /* 08/11 (remarque) : même zone élargie pour le signe de TOUT — un toucher au début de la ligne TOUT plie / déplie (le reste ouvre le menu des états) */
+  { const hd = e.target.closest(".novapp-date-head"), fa = hd && !e.target.closest(".cf-btn") && hd.querySelector(":scope > .dt-fa[data-dtfa]");
+    if (fa) { const r = fa.getBoundingClientRect(); if (e.clientX && e.clientX <= r.right + 10) return fa; } }
   const it = e.target.closest(".novapp-date-item"), sg = it && it.querySelector(":scope > .dt-f[data-dtf]"); if (!sg) return null;
   const r = sg.getBoundingClientRect(); return e.clientX && e.clientX <= r.right + 10 ? sg : null; };
 document.addEventListener("click", e => { const f = sviDtHit(e); if (!f) return; e.preventDefault(); e.stopPropagation();

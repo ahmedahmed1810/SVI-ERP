@@ -2697,7 +2697,7 @@ td.ins-pmp { position: relative; }
 /* v691 : liste mère en arborescence */
 #budgetListTable tr.bdg-fam, table.svi-bdgl tr.bdg-fam { cursor: pointer; }
 #budgetListTable .bdg-fold, table.svi-bdgl .bdg-fold { display: inline-block; width: 14px; font-weight: 900; color: #3f4856; margin-right: 4px; }
-#budgetListTable tr.bdg-kid td:first-child, table.svi-bdgl tr.bdg-kid td:first-child { padding-left: 36px; }
+/* 08/11 (remarque) : la colonne PROJET reste alignée pour les budgets d'un consolidé (le retrait reste dans RÉFÉRENCE) */
 #budgetListTable tr.bdg-kid small, table.svi-bdgl tr.bdg-kid small { color: #9aa3b2; font-weight: 600; }
 #budgetListTable tr.bdg-kid.inst-instance.row-av td, table.svi-bdgl tr.bdg-kid.inst-instance.row-av td { color: #dc2626; }
 #budgetListTable tr.bdg-kid.inst-fige.row-av td, table.svi-bdgl tr.bdg-kid.inst-fige.row-av td { color: #22a052; }
@@ -3687,8 +3687,8 @@ table.nv-one thead th, #budgetListTable thead th { position: sticky; top: 0; z-i
 /* G2 : arbre des dates */
 .novapp-date-item.dt-l2 { padding-left: 20px !important; } .novapp-date-item.dt-l3 { padding-left: 36px !important; }
 .novapp-date-item .dt-f { display: inline-block; width: 18px; flex: none; text-align: center; color: #6b7480; margin-right: 4px; padding: 4px 0; margin-top: -4px; margin-bottom: -4px; font-weight: 800; }
-.novapp-date-head .dt-fa { position: absolute; left: 2px; top: 50%; transform: translateY(-50%); z-index: 1; width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: #6b7480; font-weight: 800; }
-.novapp-date-head:has(.dt-fa) .svi-stf-head { padding-left: 26px !important; }
+.novapp-date-head .dt-fa { position: absolute; left: 0; top: 50%; transform: translateY(-50%); z-index: 1; width: 28px; height: 100%; min-height: 28px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: #6b7480; font-weight: 800; }
+.novapp-date-head:has(.dt-fa) .svi-stf-head { padding-left: 30px !important; }
 /* G3 : place réservée du signe d'alerte (!) — le texte commence toujours au même endroit */
 .nv-bslot { display: inline-block; width: 12px; flex: none; text-align: center; margin-right: 2px; vertical-align: baseline; }
 .nv-bslot > .nv-bang { margin: 0 !important; }
@@ -3724,3 +3724,7 @@ table thead th :is(input, textarea) { -webkit-user-select: text; user-select: te
 
 /* série I (I2) : MISE EN FORME de la loupe vraiment pliée (la règle display: flex passait devant l'attribut hidden) */
 #cfMenu .cf-fmt[hidden] { display: none !important; }
+
+/* 08/11 (remarque, document unique 6.11) : déplacer une colonne — trait bleu à la hauteur du titre, sur le bord où la colonne va se placer */
+:is(table thead th, .bdg-h-head).co-before { box-shadow: inset 3px 0 0 #2563eb !important; }
+:is(table thead th, .bdg-h-head).co-after { box-shadow: inset -3px 0 0 #2563eb !important; }
