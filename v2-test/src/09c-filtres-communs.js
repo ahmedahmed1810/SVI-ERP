@@ -181,7 +181,19 @@ function sviCfKit(o) {
     m.innerHTML = `
       <div class="cf-rsz" title="Largeur et hauteur"></div>
       <button type="button" class="cf-x" aria-label="Fermer">✕</button>
-      ${typeof sviColhHide === "function" && sviColhInfo(btn.closest("table")) ? '<button type="button" class="cf-hide">MASQUER LA COLONNE</button><div class="cf-sep"></div>' : ""}
+      ${(() => { /* 08/11 (série G, G5) : renommer la colonne et sa MISE EN FORME, en haut du menu ; appliqué et gardé tout de suite (EFFACER / OK = tri et filtre seulement) */
+        if (typeof sviColSet !== "function") return ""; const th = btn.closest("th"), lab = th && th.querySelector(".cf-lab"), o = sviColSet()[t + "|" + key] || {};
+        const def = th ? String(th.dataset.svcolDef || (lab && lab.lastChild ? lab.lastChild.textContent : "")).trim() : "";
+        const cell = th && th.closest("table").tBodies[0] && [...th.closest("table").tBodies[0].rows].find(r => r.cells.length === th.parentNode.cells.length);
+        const fs0 = o.fs || (cell ? Math.round(parseFloat(getComputedStyle(cell.cells[[...th.parentNode.cells].indexOf(th)]).fontSize)) : 12);
+        const AL = { g: '<svg width="16" height="14" viewBox="0 0 16 14"><path d="M1 2h14M1 7h9M1 12h12" stroke="currentColor" stroke-width="2"/></svg>', c: '<svg width="16" height="14" viewBox="0 0 16 14"><path d="M1 2h14M4 7h8M2 12h12" stroke="currentColor" stroke-width="2"/></svg>', d: '<svg width="16" height="14" viewBox="0 0 16 14"><path d="M1 2h14M6 7h9M3 12h12" stroke="currentColor" stroke-width="2"/></svg>' };
+        return `<input type="text" class="ins-in cf-ren" value="${esc(o.lab || def)}" data-def="${esc(def)}" autocomplete="off" aria-label="Titre de la colonne">`
+          + (typeof sviColhHide === "function" && sviColhInfo(btn.closest("table")) ? '<button type="button" class="cf-hide">MASQUER LA COLONNE</button>' : "")
+          + `<button type="button" class="cf-fmt-h">MISE EN FORME ›</button><div class="cf-fmt" hidden>
+            <div class="cf-fr"><button type="button" data-cff="fs-">−</button><span class="cf-fsv">${fs0}</span><button type="button" data-cff="fs+">+</button></div>
+            <div class="cf-fr"><button type="button" data-cff="b" class="${o.b ? "on" : ""}"><b>G</b></button><button type="button" data-cff="i" class="${o.i ? "on" : ""}"><i>I</i></button><button type="button" data-cff="u" class="${o.u ? "on" : ""}"><u>S</u></button></div>
+            <div class="cf-fr">${["g", "c", "d"].map(a => `<button type="button" data-cff="al-${a}" class="${o.al === a ? "on" : ""}" aria-label="Alignement">${AL[a]}</button>`).join("")}</div></div><div class="cf-sep"></div>`; })()}
+      ${typeof sviColSet !== "function" && typeof sviColhHide === "function" && sviColhInfo(btn.closest("table")) ? '<button type="button" class="cf-hide">MASQUER LA COLONNE</button><div class="cf-sep"></div>' : ""}
       <button type="button" class="cf-sort" data-dir="asc">TRIER DE A À Z</button>
       <button type="button" class="cf-sort" data-dir="desc">TRIER DE Z À A</button>${shell.__cfPar ? shell.__cfPar(t, key) : ""}
       <div class="cf-sep"></div>
@@ -200,6 +212,14 @@ function sviCfKit(o) {
         <button type="button" class="cf-ok">OK</button>
       </div>`;
     document.body.appendChild(m);
+    /* G5 : renommer (à la frappe) et mise en forme (au toucher) — gardés tout de suite */
+    if (typeof sviColSet === "function") { const K = t + "|" + key, up = f => { const N = sviColSet(), o = { ...(N[K] || {}) }; f(o); Object.keys(o).forEach(z => { if (o[z] === undefined || o[z] === "") delete o[z]; }); if (Object.keys(o).length) N[K] = o; else delete N[K]; sviColSetSave(N); };
+      const ren = m.querySelector(".cf-ren"); if (ren) { ren.addEventListener("click", ev => ev.stopPropagation()); ren.addEventListener("input", () => { const v = String(ren.value || "").trim().toUpperCase(); up(o => { o.lab = v && v !== ren.dataset.def ? v : undefined; }); }); }
+      m.querySelector(".cf-fmt-h")?.addEventListener("click", ev => { ev.stopPropagation(); const f = m.querySelector(".cf-fmt"); f.hidden = !f.hidden; ev.currentTarget.textContent = "MISE EN FORME " + (f.hidden ? "›" : "⌄"); });
+      m.querySelectorAll("[data-cff]").forEach(b => b.addEventListener("click", ev => { ev.stopPropagation(); const a = b.dataset.cff, sv = m.querySelector(".cf-fsv");
+        if (a === "fs-" || a === "fs+") { const v = Math.max(8, Math.min(24, (+sv.textContent || 12) + (a === "fs+" ? 1 : -1))); sv.textContent = v; up(o => { o.fs = v; }); return; }
+        if (a.startsWith("al-")) { const v = a.slice(3); up(o => { o.al = o.al === v ? undefined : v; }); m.querySelectorAll('[data-cff^="al-"]').forEach(x => x.classList.toggle("on", x === b && !(sviColSet()[K] || {}).al ? false : x === b && (sviColSet()[K] || {}).al === v)); return; }
+        up(o => { o[a] = o[a] ? undefined : true; }); b.classList.toggle("on", !!(sviColSet()[K] || {})[a]); })); }
     /* v926 (remarque 11) : MASQUER LA COLONNE, tout en haut du menu de la loupe */
     m.querySelector(".cf-hide")?.addEventListener("click", ev => { ev.stopPropagation(); const tb = btn.closest("table"); cfClose(); if (tb) sviColhHide(tb, key); });
 
@@ -352,3 +372,30 @@ function sviCfKit(o) {
 
   return { CF, cfSrc, cfT, cfApply, cfHead, cfClose, cfOpenMenu, cfMakeF };
 }
+/* 08/11 (série G, G2, document unique 3.5) : TABLEAU DES DATES DES LISTES EN ARBRE — ANNÉE › MOIS › JOUR, chacun avec son compteur ;
+   toucher un niveau filtre la liste sur cette période (la sélection est le début de la date : « 2026 », « 2026-11 », « 2026-11-08 ») ;
+   à l'ouverture : l'année en cours dépliée (ses mois), le mois en cours déplié (ses jours), le reste plié — suit tout seul le mois en cours ;
+   signe de l'en-tête : 1er toucher = tout déplier, 2e = retour à la vue de départ */
+const SVI_DT = {};   /* lk -> { all, tg: Set des nœuds basculés par rapport à la vue de départ, redraw } */
+const SVI_DT_MOIS = ["JANVIER", "FÉVRIER", "MARS", "AVRIL", "MAI", "JUIN", "JUILLET", "AOÛT", "SEPTEMBRE", "OCTOBRE", "NOVEMBRE", "DÉCEMBRE"];
+function sviDateTree(lk, days, sel, attr, redraw) {
+  const S = SVI_DT[lk] || (SVI_DT[lk] = { all: false, tg: new Set() }); S.redraw = redraw;
+  const now = new Date(), y0 = String(now.getFullYear()), m0 = y0 + "-" + String(now.getMonth() + 1).padStart(2, "0");
+  const def = k => k.length === 4 ? k === y0 : k === m0, open = k => S.all || (def(k) !== S.tg.has(k));
+  const Y = new Map(); let nd = 0;
+  days.forEach(([d, n]) => { if (!/^\d{4}-\d{2}-\d{2}/.test(d || "")) { nd += n; return; } const y = d.slice(0, 4), m = d.slice(0, 7);
+    const yy = Y.get(y) || { n: 0, M: new Map() }; yy.n += n; const mm = yy.M.get(m) || { n: 0, D: [] }; mm.n += n; mm.D.push([d.slice(0, 10), n]); yy.M.set(m, mm); Y.set(y, yy); });
+  const row = (k, lab, n, lv, kids) => `<button type="button" ${attr}="${esc(k)}" class="novapp-date-item dt-l${lv}${sel === k ? " selected" : ""}">${kids ? `<span class="dt-f" data-dtf="${esc(lk)}|${esc(k)}" role="button" aria-label="Plier / déplier">${open(k) ? "⌄" : "›"}</span>` : '<span class="dt-f dt-e"></span>'}<span>${esc(lab)}</span>${svCnt(n)}</button>`;
+  let h = "";
+  [...Y.keys()].sort().reverse().forEach(y => { const yy = Y.get(y); h += row(y, y, yy.n, 1, true); if (!open(y)) return;
+    [...yy.M.keys()].sort().reverse().forEach(m => { const mm = yy.M.get(m); h += row(m, SVI_DT_MOIS[+m.slice(5, 7) - 1] || m, mm.n, 2, true); if (!open(m)) return;
+      mm.D.sort((a, b) => b[0].localeCompare(a[0])).forEach(([d, n]) => { h += row(d, d.slice(8, 10) + "/" + d.slice(5, 7) + "/" + d.slice(0, 4), n, 3, false); }); }); });
+  if (nd) h += row("SANS", "SANS DATE", nd, 1, false);
+  return h; }
+const sviDateFold = lk => `<span class="dt-fa" data-dtfa="${esc(lk)}" role="button" title="Tout déplier / vue de départ">${(SVI_DT[lk] || {}).all ? "⌃" : "⌄"}</span>`;
+/* une date de pièce appartient à la sélection (année, mois, jour) */
+const sviDateIn = (d, sel) => !sel || (sel === "SANS" ? !/^\d{4}-\d{2}-\d{2}/.test(d || "") : String(d || "").startsWith(sel));
+document.addEventListener("click", e => { const f = e.target.closest && e.target.closest("[data-dtf], [data-dtfa]"); if (!f) return; e.preventDefault(); e.stopPropagation();
+  if (f.dataset.dtfa) { const S = SVI_DT[f.dataset.dtfa]; if (!S) return; if (S.all) { S.all = false; S.tg.clear(); } else S.all = true; S.redraw && S.redraw(); return; }
+  const [lk, k] = f.dataset.dtf.split("|"), S = SVI_DT[lk]; if (!S) return; if (S.all) { S.all = false; S.tg.clear(); /* repart de la vue de départ */ }
+  S.tg.has(k) ? S.tg.delete(k) : S.tg.add(k); S.redraw && S.redraw(); }, true);

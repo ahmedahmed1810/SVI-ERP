@@ -1522,18 +1522,9 @@ function renderBudgetList() {
     });
 
     const keys = [...counts.keys()].sort().reverse();
-
     panel.innerHTML = `
-      <div class="novapp-date-head">${sviStfHead(SK, budgetsE().length, BLAB, "bdgl_d")}</div>
-      <div class="novapp-date-list">
-        ${keys.map(k => `
-          <button type="button" data-date="${k}"
-            class="novapp-date-item ${dateFilter === k ? "selected" : ""}">
-            <span>${counts.get(k).label}</span>
-            ${svCnt(counts.get(k).n)}
-          </button>
-        `).join("")}
-      </div>
+      <div class="novapp-date-head">${sviStfHead(SK, budgetsE().length, BLAB, "bdgl_d")}${sviDateFold("bdgl")}</div>
+      <div class="novapp-date-list">${sviDateTree("bdgl", keys.map(k => [k, counts.get(k).n]), dateFilter, "data-date", () => renderDatePanel())}</div>
     `;
   }
 
@@ -1565,13 +1556,15 @@ function renderBudgetList() {
     if (dateFilter) {
       data = data.filter(item => {
         const d = sviRowDate(item.ref);   /* v695 */
-        return d && d.key === dateFilter;
+        return sviDateIn(d ? d.key : "", dateFilter);   /* G2 : année, mois ou jour */
       });
     }
 
     /* v750 : NATURE — CONSOLIDÉ (budget à avenants), sinon INITIAL */
     data.forEach(x => { const f = FLG.get(x.ref) || {}; x.fam = isFam(x.ref); x.flg = f; x.nat = x.fam ? "CONSOLIDÉ" : "INITIAL" + (f.xp ? " (EXPIRÉ)" : ""); x.etat = stepOf(f) + (x.fam ? " (CONSOLIDÉ)" : ""); });
 
+    /* 08/11 (série G, G1) : par défaut, le budget le plus récent en haut (un tri par colonne passe devant) */
+    data = data.map((x, i) => [x, i, (sviRowDate(x.ref) || {}).key || ""]).sort((a, b) => b[2].localeCompare(a[2]) || b[1] - a[1]).map(z => z[0]);
     /* TRI ET FILTRES (menu commun) */
     data = KIT.cfApply(BL, cfCols(), data);
     renderHead();

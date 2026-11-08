@@ -14,7 +14,7 @@
   /* ligne « CRÉER … ICI » : pas en gras, couleur du mode */
   --tb-new-fw: 400; --tb-new-c: var(--inst, var(--svst, #b91c1c)); --tb-new-bg: var(--inst-bg, #fdf0f0);
   /* ligne TOTAL */
-  --tb-tot-fw: 800; --tb-tot-c: var(--inst, var(--svst, #172033)); --tb-tot-bg: var(--inst-bg, #f3f6fa);
+  --tb-tot-fw: 800; --tb-tot-c: var(--tb-head-c, #6b7480); --tb-tot-bg: var(--tb-head-bg, #f6f7f9);   /* 08/11 (G1) : TOTAL au format des titres des colonnes par défaut */
   /* cases à cocher, ronds (○ et ›) */
   --tb-cb: 16px; --tb-cb-c: var(--svst, #172033); --tb-rd: 18px;
   /* compteurs */
@@ -3675,9 +3675,32 @@ html.cafp-dragging, html.cafp-dragging * { user-select: none !important; -webkit
 table.nv-one { table-layout: fixed; }
 table.nv-one tbody td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 08/11 : ligne TOTAL des listes fixée en bas du tableau (toujours visible) ; le mot TOTAL dans la 1re colonne */
-table.nv-one tfoot td, #budgetListTable tfoot td { position: sticky; bottom: 0; z-index: 4; background: var(--tb-tot-bg, #fdf0f0); }
+table.nv-one tfoot td, #budgetListTable tfoot td { position: sticky; bottom: 0; z-index: 4; }
 /* 08/11 (document unique 6.5, remarque d'Ahmed) : la ligne CRÉER … ICI des listes reste fixée en bas, juste au-dessus du TOTAL — on crée sans défiler */
 table.nv-one tbody tr[data-nvnew] td, #budgetListTable tbody tr[data-newbdg] td { position: sticky; bottom: var(--svi-tot-h, 22px); z-index: 4; background: var(--tb-new-bg, #fdf0f0); }
 table.nv-one:not(:has(tfoot tr)) tbody tr[data-nvnew] td, #budgetListTable:not(:has(tfoot tr)) tbody tr[data-newbdg] td { bottom: 0; }
 /* 08/11 (remarque d'Ahmed) : titres des colonnes des listes fixés en haut du tableau quand on fait défiler */
 table.nv-one thead th, #budgetListTable thead th { position: sticky; top: 0; z-index: 6; }
+
+/* 08/11 (série G, G1) : la ligne TOTAL prend par défaut le format des titres des colonnes (fond, couleur, taille) ; réglable à part (LIGNE TOTAL) */
+:is(table) :is(tfoot td, tr.bdg-d-total-row td) { color: var(--tb-tot-c) !important; -webkit-text-fill-color: var(--tb-tot-c); background: var(--tb-tot-bg) !important; font-size: var(--tb-head-fs, 11px); }
+/* G2 : arbre des dates */
+.novapp-date-item.dt-l2 { padding-left: 20px !important; } .novapp-date-item.dt-l3 { padding-left: 36px !important; }
+.novapp-date-item .dt-f { display: inline-block; width: 12px; flex: none; text-align: center; color: #6b7480; margin-right: 4px; }
+.novapp-date-head .dt-fa { margin-left: 4px; cursor: pointer; color: #6b7480; padding: 0 4px; font-weight: 800; }
+/* G3 : place réservée du signe d'alerte (!) — le texte commence toujours au même endroit */
+.nv-bslot { display: inline-block; width: 12px; flex: none; text-align: center; margin-right: 2px; vertical-align: baseline; }
+.nv-bslot > .nv-bang { margin: 0 !important; }
+/* G4 : case coupée agrandie au toucher (seule sa ligne grandit) ; pas de sélection de texte de Safari dans les tableaux */
+table tbody td { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+table tbody td :is(input, textarea) { -webkit-user-select: text; user-select: text; }
+table tbody tr.row-x > td { vertical-align: top; }
+table tbody td.cell-x { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; word-break: break-word; height: auto !important; }
+/* G5 : menu de la loupe — renommer, mise en forme */
+#cfMenu .cf-ren { width: 100%; box-sizing: border-box; margin: 2px 0 4px; font-weight: 800; text-transform: uppercase; }
+#cfMenu .cf-fmt-h { font-weight: 800; text-align: left; }
+#cfMenu .cf-fmt { display: flex; flex-direction: column; gap: 4px; padding: 2px 0 4px; }
+#cfMenu .cf-fr { display: flex; gap: 4px; align-items: center; }
+#cfMenu .cf-fr button { flex: 1; min-height: 30px; border: 1px solid #d0d5dd; border-radius: 6px; background: #fff; font-weight: 800; }
+#cfMenu .cf-fr button.on { background: #e8edf5; border-color: #172033; }
+#cfMenu .cf-fsv { min-width: 34px; text-align: center; font-weight: 800; }

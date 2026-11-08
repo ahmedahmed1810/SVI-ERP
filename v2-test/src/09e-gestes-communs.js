@@ -19,7 +19,7 @@ try { document.documentElement.style.setProperty("--svi-hit-w", SVI_G.hitW + "px
   const TIP = "[data-tip], label > span[title], .ach-pgen td[title]";
   /* 08/11 : une case de LISTE dont le texte est coupé montre son texte entier dans la bulle (appui long) */
   const cut = t => { const td = t && t.closest && t.closest("table.nv-one tbody td, #budgetListTable tbody td"); return td && !td.querySelector("input, select, textarea") && td.scrollWidth > td.clientWidth + 1 ? td : null; };
-  const pick = t => (t.closest && t.closest(TIP)) || cut(t);
+  const pick = t => t.closest && t.closest(TIP);   /* G4 (08/11) : plus de bulle pour une case coupée — on la touche pour l'agrandir */
   const show = el => { const t = el.dataset.tip || el.getAttribute("title") || (el.matches("td") ? String(el.textContent || "").replace(/\s+/g, " ").trim() : ""); if (t && typeof svToast === "function") svToast(t, 7000, el); };
   document.addEventListener("pointerdown", e => { const el = pick(e.target); clearTimeout(tm); if (!el) return; x0 = e.clientX; y0 = e.clientY; tm = setTimeout(() => show(el), SVI_G.lp); }, true);
   document.addEventListener("pointermove", e => { if (tm && Math.hypot(e.clientX - x0, e.clientY - y0) > SVI_G.drag) clearTimeout(tm); }, true);
@@ -209,9 +209,12 @@ function sviColSetRun() { const S = sviColSet(); if (!Object.keys(S).length && !
     if (lab && lab.lastChild && lab.lastChild.nodeType === 3 && !o.lab && th.dataset.svcolDef && lab.lastChild.textContent !== th.dataset.svcolDef) lab.lastChild.textContent = th.dataset.svcolDef;
     if (o.lab && lab && lab.lastChild && lab.lastChild.nodeType === 3 && lab.lastChild.textContent !== o.lab) lab.lastChild.textContent = o.lab;
     const al = { g: "left", c: "center", d: "right" }[o.al] || "", i = [...tr.cells].indexOf(th); if (i < 0) return;
-    if ((th.dataset.svcolAl || "") === al && th.dataset.svcolN === String(tb.tBodies[0] ? tb.tBodies[0].rows.length : 0)) return;
-    th.dataset.svcolAl = al; th.dataset.svcolN = String(tb.tBodies[0] ? tb.tBodies[0].rows.length : 0);
-    th.style.textAlign = al; [...tb.tBodies].forEach(tbd => [...tbd.rows].forEach(r => { if (r.cells.length === tr.cells.length && r.cells[i]) r.cells[i].style.textAlign = al; })); }); }
+    /* G5 : mise en forme de la colonne (taille, gras, italique, souligné) — cases du corps */
+    const sig = [al, o.fs || "", o.b ?? "", o.i ?? "", o.u ?? ""].join("/");
+    if ((th.dataset.svcolAl || "") === sig && th.dataset.svcolN === String(tb.tBodies[0] ? tb.tBodies[0].rows.length : 0)) return;
+    th.dataset.svcolAl = sig; th.dataset.svcolN = String(tb.tBodies[0] ? tb.tBodies[0].rows.length : 0);
+    th.style.textAlign = al; [...tb.tBodies].forEach(tbd => [...tbd.rows].forEach(r => { const c = r.cells.length === tr.cells.length && r.cells[i]; if (!c) return; c.style.textAlign = al;
+      c.style.fontSize = o.fs ? o.fs + "px" : ""; c.style.fontWeight = o.b === undefined ? "" : o.b ? "800" : "400"; c.style.fontStyle = o.i === undefined ? "" : o.i ? "italic" : "normal"; c.style.textDecoration = o.u === undefined ? "" : o.u ? "underline" : "none"; })); }); }
 { let raf = 0; const go = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; try { sviColSetRun(); } catch (e) {} }); };
   const start = () => new MutationObserver(go).observe(document.body, { childList: true, subtree: true }); if (document.body) start(); else document.addEventListener("DOMContentLoaded", start); }
 function sviColSetWin(t, k, def) {
@@ -228,12 +231,7 @@ function sviColSetWin(t, k, def) {
     if (e.target.closest("[data-ok]")) { const lab = String(d.querySelector(".cs-lab").value || "").trim().toUpperCase(), N = sviColSet(), x = {};
       if (lab && lab !== def) x.lab = lab; if (o.al) x.al = o.al; if (Object.keys(x).length) N[t + "|" + k] = x; else delete N[t + "|" + k]; sviColSetSave(N); d.remove(); document.dispatchEvent(new Event("svi-colset")); } });
 }
-{ let tm = 0, x0 = 0, y0 = 0;
-  document.addEventListener("pointerdown", e => { clearTimeout(tm); const th = e.target.closest && e.target.closest("thead th"); if (!th || e.target.closest(".cf-btn, .col-rs, input")) return;
-    const b = th.querySelector(".cf-btn[data-cf][data-col]"); if (!b) return; x0 = e.clientX; y0 = e.clientY;
-    tm = setTimeout(() => { tm = 0; const lab = th.querySelector(".cf-lab"), def = (th.dataset.svcolDef || (lab && lab.lastChild ? lab.lastChild.textContent : th.textContent)).trim(); sviColSetWin(b.dataset.cf, b.dataset.col, def); }, SVI_G.lp); }, true);
-  document.addEventListener("pointermove", e => { if (tm && Math.hypot(e.clientX - x0, e.clientY - y0) > SVI_G.drag) { clearTimeout(tm); tm = 0; } }, true);
-  ["pointerup", "pointercancel"].forEach(t => document.addEventListener(t, () => { clearTimeout(tm); tm = 0; }, true)); }
+/* 08/11 (série G, G5) : plus de renommage ni de mise en forme d'une colonne par appui long — c'est dans le menu de la loupe */
 /* F16 (série F, 06/11) : POIGNÉE DE LARGEUR dans tous les tableaux — un tableau à colgroup qui n'a pas encore de poignées (PARAMÉTRAGE,
    paramètres des achats…) reçoit le moteur commun (data-svcw, poignée sur chaque titre) ; largeur gardée par tableau */
 { let raf = 0;
@@ -301,3 +299,21 @@ sviRowHApply();
 /* 08/11 : hauteur réelle de la ligne TOTAL des listes (la ligne CRÉER se pose juste au-dessus) */
 { let q = 0; const up = () => { q = 0; const t = document.querySelector("table.nv-one tfoot tr, #budgetListTable tfoot tr"); if (t) { const h = Math.round(t.getBoundingClientRect().height); if (h) document.documentElement.style.setProperty("--svi-tot-h", h + "px"); } };
   new MutationObserver(() => { if (!q) q = requestAnimationFrame(up); }).observe(document.documentElement, { childList: true, subtree: true }); }
+
+/* 08/11 (série G, G4, document unique 6.3) : VOIR ET COPIER UN TEXTE COUPÉ — toucher une case dont le texte est coupé agrandit sa ligne
+   pour montrer tout le texte de CETTE case (les autres restent coupées, alignées en haut) ; elle reprend sa hauteur quand on sort de la case.
+   Une case qui ouvre la pièce l'ouvre au 2e toucher. Appui long = petit menu de l'application : COPIER (tout le texte). Pas de sélection Safari. */
+{ let cur = null, tm = 0, x0 = 0, y0 = 0;
+  const cutTd = t => { const td = t && t.closest && t.closest("table tbody td"); if (!td || td.querySelector("input, select, textarea, .sv-sel") || td.closest("#svConf .cmpm-pick")) return null; return td; };
+  const isCut = td => td.scrollWidth > td.clientWidth + 1;
+  const off = () => { if (!cur) return; cur.classList.remove("cell-x"); cur.parentElement && cur.parentElement.classList.remove("row-x"); cur = null; };
+  document.addEventListener("pointerdown", e => { if (cur && !cur.contains(e.target)) off(); const td = cutTd(e.target); clearTimeout(tm); if (!td) return; x0 = e.clientX; y0 = e.clientY;
+    tm = setTimeout(() => { tm = 0; const txt = String(td.textContent || "").replace(/\s+/g, " ").trim(); if (!txt || typeof sviEtatMenu !== "function") return;
+      sviEtatMenu(td, [{ k: "copy", lab: "COPIER" }], "", () => { try { navigator.clipboard.writeText(txt); } catch (er) {} if (typeof svToast === "function") svToast("COPIÉ.", 1500, td); }); }, SVI_G.lp); }, true);
+  document.addEventListener("pointermove", e => { if (tm && Math.hypot(e.clientX - x0, e.clientY - y0) > SVI_G.drag) { clearTimeout(tm); tm = 0; } }, true);
+  ["pointerup", "pointercancel"].forEach(t => document.addEventListener(t, () => { clearTimeout(tm); tm = 0; }, true));
+  document.addEventListener("click", e => { const td = cutTd(e.target); if (!td || td === cur || e.target.closest("button, a, .ach-link, .nv-reflink, .cf-btn, [data-why]")) return; if (!isCut(td)) return;
+    off(); cur = td; td.classList.add("cell-x"); td.parentElement.classList.add("row-x");
+    if (!td.classList.contains("nv-ed")) { e.preventDefault(); e.stopPropagation(); } }, true);
+  document.addEventListener("contextmenu", e => { if (cutTd(e.target)) e.preventDefault(); }, true);
+}

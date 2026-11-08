@@ -3427,9 +3427,9 @@ function achNvList(ctx, o) {
     /* états (menu ▾) puis filtre commun des dates (entonnoir) : les deux se cumulent */
     const base0 = all.filter(x => sviStfOk(sel, ST.get(x.id))), base = cfApply(o.t + "_d", [["_jour", "DATE", x => achDFr(dOf(x)) || "SANS DATE", ""]], base0);
     const days = [...base.reduce((m, x) => m.set(dOf(x), (m.get(dOf(x)) || 0) + 1), new Map())].sort((a, b) => b[0].localeCompare(a[0]));
-    if (dSel && !days.some(d => d[0] === dSel)) dSel = "";
+    if (dSel && !days.some(d => sviDateIn(d[0], dSel))) dSel = "";
     /* 06/11 (soir) : par défaut, la liste est classée de la plus récente à la plus ancienne (un tri par colonne passe devant) */
-    const rows0 = base.filter(x => !dSel || dOf(x) === dSel).slice().sort((a, b) => String(dI(b) || "").localeCompare(String(dI(a) || "")) || String(o.code ? o.code(b) : b.ref || "").localeCompare(String(o.code ? o.code(a) : a.ref || ""), "fr", { numeric: true }));
+    const rows0 = base.filter(x => sviDateIn(dOf(x), dSel)).slice().sort((a, b) => String(dI(b) || "").localeCompare(String(dI(a) || "")) || String(o.code ? o.code(b) : b.ref || "").localeCompare(String(o.code ? o.code(a) : a.ref || ""), "fr", { numeric: true }));
     const cols = coOrder(o.t, colsOf()), rows = cfApply(o.t, cols, rows0);
     order = rows.map(x => x.id);
     const canDel = x => isI(x) && !x.del && x.state !== "annule", delCol = rows.some(canDel);
@@ -3440,7 +3440,7 @@ function achNvList(ctx, o) {
     const edOf = (k, x) => { const E = ED[k]; return typeof E === "function" ? E(x) : E; };
     const cell = (x, c) => { const v = c[2](x), cl = c[3] === "number" ? "number" : c[3] === "center" ? "center" : "";
       /* F7 (série F) : la RÉFÉRENCE est soulignée — elle ouvre la pièce */
-      if (c[0] === "ref") { const w = o.why(x, all); return `<td class="bdg-ref-c ${cl}">${w.length ? `<b class="obs-bang val-bang nv-bang" role="button" data-why="${esc(w.join(" · "))}">!</b> ` : ""}<button type="button" class="nv-reflink" data-nvo="${esc(x.id)}">${esc(v)}</button></td>`; }
+      if (c[0] === "ref") { const w = o.why(x, all); return `<td class="bdg-ref-c ${cl}"><span class="nv-bslot">${w.length ? `<b class="obs-bang val-bang nv-bang" role="button" data-why="${esc(w.join(" · "))}">!</b>` : ""}</span><button type="button" class="nv-reflink" data-nvo="${esc(x.id)}">${esc(v)}</button></td>`; }
       /* F17 (série F), 2.10 : fournisseurs = noms soulignés, chacun dans la couleur de son propre état ; toucher = sa fiche */
       const edOk = edOf(c[0], x) && isI(x) && !x.del;
       if (c[0] === "frs" && x.frs && !(o.mOf && o.mOf(x))) { const F = (Array.isArray(x.frs) ? x.frs : [x.frs]).filter(Boolean);
@@ -3457,8 +3457,8 @@ function achNvList(ctx, o) {
     const rowCls = x => { const s = ST.get(x.id)[0]; return (s === "instance" ? "inst-instance" : s === "fige" ? "inst-fige" : "inst-valide") + " st-" + s; };
     return `<div class="novapp-list-shell"><div class="novapp-list-titlebar"><button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button><h1>${t1}</h1>${sviListIH()}${sviListBar()}</div>
       <div class="novapp-budget-layout"><aside class="novapp-date-panel svi-bdgp">
-        <div class="novapp-date-head">${sviStfHead(SK, base.length, o.stLab, o.t + "_d")}</div>
-        <div class="novapp-date-list">${days.map(([d, n]) => `<button type="button" data-nvday="${esc(d)}" class="novapp-date-item ${d === dSel ? "selected" : ""}"><span>${esc(achDFr(d) || "SANS DATE")}</span>${svCnt(n)}</button>`).join("")}</div></aside>
+        <div class="novapp-date-head">${sviStfHead(SK, base.length, o.stLab, o.t + "_d")}${sviDateFold("ach_" + o.k)}</div>
+        <div class="novapp-date-list">${sviDateTree("ach_" + o.k, days, dSel, "data-nvday", () => draw())}</div></aside>
       <div class="novapp-budget-table-wrap"><table id="${o.id}" class="novapp-budget-table svi-bdgl nv-one" data-ach="${o.k}" data-stf="${esc(SK)}" data-svcw="${esc(o.t)}" style="${CG.style}">
         ${CG.cg}
         <thead><tr>${cols.map(c => cfHead(o.t, c[0], c[1], "bdg-list-head" + (c[3] === "number" ? " number" : ""))).join("")}${delCol ? '<th class="bdg-act-h"></th>' : ""}${sviListCbTh()}</tr></thead>
