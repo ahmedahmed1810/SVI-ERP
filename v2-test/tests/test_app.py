@@ -4126,6 +4126,12 @@ def main():
         f13 = pg.evaluate("""async () => { await sviAchLoad(); const d = document.createElement('div'); d.className = 'rec-scroll'; d.innerHTML = '<table><thead><tr><th style="height:22px">A</th></tr></thead><tbody><tr><td style="height:21px">X</td></tr><tr class="rec-new"><td style="height:21px">CRÉER</td></tr></tbody><tfoot><tr class="bdg-d-total-row"><td style="height:21px">TOTAL</td></tr></tfoot></table>';
   document.body.appendChild(d); const m1 = achNvhMin(d, 1), m2 = achNvhMin(d, 2); d.remove(); return [m1 >= 22 + 21 * 3, m2 - m1 >= 20].join(','); }""")
         check("08/11 (4.3) : hauteur minimale d'un bloc = titres + lignes de données + CRÉER + TOTAL (jamais le TOTAL seul)", f13 == 'true,true', f13)
+        f14 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), d = document.createElement('div'); d.innerHTML = '<table data-svcw="tstpinch"><tbody><tr><td>X</td></tr></tbody></table>'; document.body.appendChild(d);
+  const td = d.querySelector('td'), h0 = td.getBoundingClientRect().height; const ev = new WheelEvent('wheel', { deltaY: -40, ctrlKey: true, bubbles: true, cancelable: true }); td.dispatchEvent(ev); await w(50);
+  const h1 = td.getBoundingClientRect().height, k = (JSON.parse(localStorage.getItem('svi_rowh_v1') || '{}') || {}).tstpinch; d.remove();
+  const H = JSON.parse(localStorage.getItem('svi_rowh_v1') || '{}'); delete H.tstpinch; localStorage.setItem('svi_rowh_v1', JSON.stringify(H)); sviRowHApply();
+  return [ev.defaultPrevented, h1 > h0, !!k].join(','); }""")
+        check("08/11 (9.2, 9.4) : pincement / Ctrl + molette sur les lignes d'un tableau = hauteur des lignes de ce tableau (gardée), zoom de la page bloqué là", f14 == 'true,true,true', f14)
         check("aucune erreur JavaScript pendant les tests", not errs, errs[:3])
         b.close()
     srv.shutdown()

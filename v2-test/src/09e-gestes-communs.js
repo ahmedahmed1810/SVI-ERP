@@ -270,3 +270,30 @@ window.__sviSwipe = true; window.__sviNoWrap = 0;
   document.addEventListener("pointerup", e => { if (e.pointerType === "touch" || !st || !st.m) return; if (end(e.clientX, e.clientY)) { eat = true; setTimeout(() => { eat = false; }, 400); } }, true);
   document.addEventListener("click", e => { if (eat) { eat = false; e.preventDefault(); e.stopPropagation(); } }, true);
 }
+/* 08/11 (document unique 9.2, remarque d'Ahmed) : PINCEMENT SUR LES LIGNES D'UN TABLEAU = hauteur des lignes de ce tableau (gardée) ; le zoom
+   de Safari y est bloqué ; ailleurs (vide sous les lignes, barre du haut, entre les blocs) le pincement garde le zoom de Safari.
+   À l'ordinateur : Ctrl / Cmd + molette sur les lignes (9.4). Le Gantt et le DÉTAIL DÉLAIS gardent leur propre pincement. */
+const SVI_ROWH_K = "svi_rowh_v1";
+const sviRowHGet = () => { try { return JSON.parse(localStorage.getItem(SVI_ROWH_K) || "{}") || {}; } catch (e) { return {}; } };
+const sviRowKey = t => t.dataset.svcw || t.dataset.colh || t.dataset.ik || t.id || "";
+function sviRowHApply() { let st = document.getElementById("sviRowHStyle"); if (!st) { st = document.createElement("style"); st.id = "sviRowHStyle"; (document.head || document.documentElement).appendChild(st); }
+  const H = sviRowHGet(), q = v => String(v).replace(/["\\]/g, "\\$&");
+  st.textContent = Object.keys(H).map(k => { const s = `table:is([data-svcw="${q(k)}"], [data-colh="${q(k)}"], [data-ik="${q(k)}"], [id="${q(k)}"]):not(#svi-z1):not(#svi-z2):not(#svi-z3) tbody tr:not(.ins-title):not(.nvp-gt) td`;
+    return `${s} { height: ${H[k]}px !important; min-height: 0 !important; box-sizing: border-box !important; }`; }).join("\n"); }
+sviRowHApply();
+{ const zone = t => { if (!t || !t.closest) return null; if (t.closest("#dlyGantt, .dlyg-foot, .dlyg-l, .dly-table, .ghist, #svConf, #docPop")) return null;
+    const td = t.closest("table tbody td"), tb = td && td.closest("table"); return tb && sviRowKey(tb) ? tb : null; };
+  const set = (tb, h) => { const H = sviRowHGet(), k = sviRowKey(tb); H[k] = Math.round(Math.max(18, Math.min(60, h))); try { localStorage.setItem(SVI_ROWH_K, JSON.stringify(H)); } catch (e) {} sviRowHApply(); };
+  const rowH = tb => { const td = tb.querySelector("tbody tr:not(.ins-title) td"); return td ? td.getBoundingClientRect().height : 21; };
+  let P = null;
+  const dy = T => Math.abs(T[0].clientY - T[1].clientY), d = T => Math.hypot(T[0].clientX - T[1].clientX, T[0].clientY - T[1].clientY);
+  document.addEventListener("touchstart", e => { if (e.touches.length !== 2) { P = null; return; } const tb = zone(e.touches[0].target), tb2 = zone(e.touches[1].target);
+    if (!tb || tb !== tb2) { P = null; return; } P = { tb, h0: rowH(tb), d0: Math.max(20, d(e.touches)) }; }, { passive: true, capture: true });
+  document.addEventListener("touchmove", e => { if (!P || e.touches.length !== 2) return; e.preventDefault(); set(P.tb, P.h0 * Math.pow(Math.max(20, d(e.touches)) / P.d0, SVI_G.pinch || 1)); }, { passive: false, capture: true });
+  document.addEventListener("touchend", e => { if (e.touches.length < 2) P = null; }, { passive: true, capture: true });
+  /* Safari : les gestes natifs (zoom de la page) sont bloqués seulement sur les lignes d'un tableau */
+  document.addEventListener("gesturestart", e => { if (zone(e.target)) e.preventDefault(); }, { passive: false, capture: true });
+  document.addEventListener("gesturechange", e => { if (zone(e.target)) e.preventDefault(); }, { passive: false, capture: true });
+  document.addEventListener("wheel", e => { if (!(e.ctrlKey || e.metaKey)) return; const tb = zone(e.target); if (!tb) return; e.preventDefault();
+    set(tb, rowH(tb) * Math.exp(-Math.max(-60, Math.min(60, e.deltaY)) * 0.01 * (SVI_G.pinch || 1))); }, { passive: false, capture: true });
+}
