@@ -97,7 +97,7 @@
       let lt = 0; b.addEventListener("pointerdown", () => { clearTimeout(lt); lt = setTimeout(() => svToast(b.dataset.why || "", 3500, b), SVI_G.lp); });
       ["pointerup", "pointercancel", "pointerleave"].forEach(ev => b.addEventListener(ev, () => clearTimeout(lt)));
     });
-    if (budget.inst && budget.inst.state === "valide") {
+    if (!budget.inst || budget.inst.state === "valide") {   /* 08/11 : budget de la base compris */
       $("instPrev")?.addEventListener("click", () => shell.__hnavGo && shell.__hnavGo(-1));
       $("instNext")?.addEventListener("click", () => shell.__hnavGo && shell.__hnavGo(1));
       $("instClose")?.addEventListener("click", () => $("budgetBackBtn")?.click());

@@ -2661,11 +2661,11 @@ def main():
         # v710 : budget ancien (lignes de la base, sans INS) — s'ouvre jusqu'au bout et ← ramène à la liste
         pg.evaluate("() => { document.getElementById('budgetBackBtn')?.click(); }"); pg.wait_for_timeout(500)
         pg.evaluate("() => { window.__rows710 = bdgRows; bdgRows = [{ PRJ: 'OLD', 'DÉSIGNATION': 'X' }]; localStorage.setItem('svi_listmode_v1', 'valid'); localStorage.setItem('svi_lastbdg_v1', 'BDG 26-1001/001'); renderBudgetList(); }"); pg.wait_for_timeout(1200)
-        o710 = pg.evaluate("() => [localStorage.getItem('svi_step_v1'), !!document.getElementById('budgetBackBtn')]")
-        pg.evaluate("() => document.getElementById('budgetBackBtn')?.click()"); pg.wait_for_timeout(600)
+        o710 = pg.evaluate("() => [localStorage.getItem('svi_step_v1'), !!document.getElementById('budgetBackBtn'), !!document.getElementById('instClose'), !!document.getElementById('instNext')]")
+        pg.evaluate("() => document.getElementById('instClose')?.click()"); pg.wait_for_timeout(600)
         b710 = pg.evaluate("() => !document.getElementById('budgetBackBtn')")
         pg.evaluate("() => { bdgRows = window.__rows710 || []; localStorage.setItem('svi_listmode_v1', 'inst'); renderBudgetList(); }"); pg.wait_for_timeout(400)
-        check("v710 : budget ancien (sans INS) ouvert jusqu'au bout ; ← ramène à la liste", o710 == ["OUVERT", True] and b710, [o710, b710])
+        check("v710 / 08/11 : budget ancien (sans INS) ouvert jusqu'au bout, avec la barre commune ; FERMER ramène à la liste", o710 == ["OUVERT", True, True, True] and b710, [o710, b710])
         # v749 (ACHATS, étape 1) : règles des articles — doublon (désignation + unité), presque identique, numéro jamais réutilisé
         # (corbeille), DIVERS sans plafond, prix au-dessus du plafond, reprise des charges des budgets, banque d'un RIB, fusion
         a749 = pg.evaluate("""() => { const keepA = localStorage.getItem('svi_ach_art_v1'), keepP = localStorage.getItem('svi_ach_prm_v1');

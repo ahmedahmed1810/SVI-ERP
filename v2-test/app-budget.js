@@ -2581,11 +2581,12 @@ function renderBudgetList() {
     /* v694 : écrans voisins du même budget — CONSOLIDÉ › BUDGET INITIAL › AVENANT 1… (balayage et ‹ ›) ;
        sur une version : versions de l'étape ; sur un recalage : recalages de l'étape (‹ › seulement) */
     const HNAV = (() => {
-      const bi = budget.inst; if (!bi) return null;
-      if (bi.virtual && bi.vname) { const st = sviInstGet().find(x => x.ref === bi.parent), V = (((st || {}).data || {}).vfz || []).slice().sort((x, y) => x.n - y.n);
+      const bi = budget.inst;
+      if (bi && bi.virtual && bi.vname) { const st = sviInstGet().find(x => x.ref === bi.parent), V = (((st || {}).data || {}).vfz || []).slice().sort((x, y) => x.n - y.n);
         const L = V.map(v => ({ r: bi.parent + "-V" + v.n, lab: "VERSION " + v.n })).filter(x => groups.has(x.r)); return L.length > 1 ? { L, ret: bi.parent, kind: "ver" } : null; }
-      if (bi.rclOf) { const L = sviRclOf(bi.rclOf).map(x => ({ r: x.ref, lab: "R" + x.rcn })); return L.length > 1 ? { L, ret: bi.rclOf, kind: "rcl" } : null; }
-      const root = AV_ROOT || (!bi.virtual ? (bi.parent || bi.ref) : "");
+      if (bi && bi.rclOf) { const L = sviRclOf(bi.rclOf).map(x => ({ r: x.ref, lab: "R" + x.rcn })); return L.length > 1 ? { L, ret: bi.rclOf, kind: "rcl" } : null; }
+      /* 08/11 : un budget de la base (sans instance) se parcourt aussi au balayage */
+      const root = AV_ROOT || (!bi ? ref : !bi.virtual ? (bi.parent || bi.ref) : "");
       if (!root) return null;
       /* v705 : balayage d'un budget à l'autre dans l'ordre de la liste ; un budget à avenants est parcouru écran par écran
          (CONSOLIDÉ, BUDGET INITIAL, AVENANT 1…) avant de passer au suivant */
@@ -2666,8 +2667,8 @@ function renderBudgetList() {
           ${(() => {
             /* v694 : EN-TÊTE COMMUN à tous les écrans d'un budget (étape, consolidé, version, recalage) : même rangée, même ordre ;
                une icône sans objet est grisée (pas cachée), un toucher ou un appui long en donne la raison */
-            const bi = budget.inst, st = bi ? (bi.state || "instance") : "valide";
-            if (!bi) return "";
+            /* 08/11 : un budget de la base (sans instance) a aussi la barre commune (FERMER, ‹ ›…), ses actions d'édition grisées */
+            const bi = budget.inst || { state: "valide", ref }, st = bi.state || "instance";
             const RO = bi.virtual ? (bi.vname ? "VERSION : PHOTO EN LECTURE SEULE." : "CONSOLIDÉ : LECTURE SEULE.") : st === "valide" ? (bi.rclOf ? "RECALAGE ENREGISTRÉ : LECTURE SEULE." : "BUDGET VALIDÉ : LECTURE SEULE (CRÉER UN RECALAGE OU UN AVENANT : MENU ⋯ OU BLOC RECALAGES).") : "";
             const hb = (id, cls, svg, title, why, extra = "") => `<button type="button" class="${cls}${why ? " hdr-off" : ""}" id="${id}" title="${esc(why || title)}" aria-label="${esc(title)}"${why ? ` data-why="${esc(why)}" aria-disabled="true"` : ""}${extra}>${svg}</button>`;
             const navWhy = HNAV ? "" : "PAS D'AUTRE BUDGET DANS LA LISTE.";
@@ -3043,7 +3044,7 @@ function renderBudgetList() {
       let lt = 0; b.addEventListener("pointerdown", () => { clearTimeout(lt); lt = setTimeout(() => svToast(b.dataset.why || "", 3500, b), SVI_G.lp); });
       ["pointerup", "pointercancel", "pointerleave"].forEach(ev => b.addEventListener(ev, () => clearTimeout(lt)));
     });
-    if (budget.inst && budget.inst.state === "valide") {
+    if (!budget.inst || budget.inst.state === "valide") {   /* 08/11 : budget de la base compris */
       $("instPrev")?.addEventListener("click", () => shell.__hnavGo && shell.__hnavGo(-1));
       $("instNext")?.addEventListener("click", () => shell.__hnavGo && shell.__hnavGo(1));
       $("instClose")?.addEventListener("click", () => $("budgetBackBtn")?.click());
