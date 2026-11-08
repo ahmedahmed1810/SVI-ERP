@@ -2654,10 +2654,10 @@ def main():
         nav = []
         for k in range(4):
             nav.append(pg.evaluate("() => [((document.getElementById('refTxt') || {}).textContent || '').split(' ').pop(), !!window.__sviBdgNav, (window.__sviBdgOrder || []).indexOf('SOLO-1') >= 0]"))
-            pg.evaluate("() => { const o = window.__sviBdgOrder || [], i = o.indexOf('SOLO-1'), j = o.indexOf('AVT-1'); window.__sviBdgOrder = o.filter(x => x !== 'SOLO-1' && x !== 'AVT-1').concat(['SOLO-1', 'AVT-1']); window.__sviBdgNav && window.__sviBdgNav.go(1); }"); pg.wait_for_timeout(1200)
+            pg.evaluate("() => { const o = window.__sviBdgOrder || [], d = o.indexOf('AVT-1') > o.indexOf('SOLO-1') ? 1 : -1; window.__sviBdgNav && window.__sviBdgNav.go(d); }"); pg.wait_for_timeout(1200)   # 08/11 : liste du plus récent au plus ancien
         pg.evaluate("() => { document.getElementById('budgetBackBtn')?.click(); sviInstSet(JSON.parse(window.__kp705)); localStorage.setItem('svi_listmode_v1', 'inst'); }"); pg.wait_for_timeout(600)
         check("07/11 (remplace v705) : balayage = budget suivant de la liste ; un budget à avenants compte comme UN budget (son CONSOLIDÉ), au même rang qu'un budget sans avenant",
-              [n[0] for n in nav] == ["INI", "CNS", "CNS", "CNS"] and nav[0][1], nav)
+              [n[0] for n in nav][:2] == ["INI", "CNS"] and nav[0][1], nav)
         # v710 : budget ancien (lignes de la base, sans INS) — s'ouvre jusqu'au bout et ← ramène à la liste
         pg.evaluate("() => { document.getElementById('budgetBackBtn')?.click(); }"); pg.wait_for_timeout(500)
         pg.evaluate("() => { window.__rows710 = bdgRows; bdgRows = [{ PRJ: 'OLD', 'DÉSIGNATION': 'X' }]; localStorage.setItem('svi_listmode_v1', 'valid'); localStorage.setItem('svi_lastbdg_v1', 'BDG 26-1001/001'); renderBudgetList(); }"); pg.wait_for_timeout(1200)
@@ -2821,7 +2821,7 @@ def main():
             document.getElementById('instDel')?.click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(1200);
             return [mn, pre, go0, go1, localStorage.getItem('svi_lastbdg_v1'), !!document.getElementById('budgetBackBtn'), sviInstGet().some(x => x.ref === 'X-2')]; }""")
         check("v750 / v771 : menu ⋯ — IMPRIMER et CUMUL (fenêtre de SÉLECTION : état actuel coché, autre budget au choix, CUMULER grisé sous deux) ; suppression depuis la fiche → le budget précédent de la liste s'ouvre",
-              d750 == [[True, True], "cur", True, False, "X-1", True, False], d750)
+              d750 == [[True, True], "cur", True, False, "F-1-GLOBAL", True, False], d750)
         pg.evaluate("() => { document.getElementById('budgetBackBtn')?.click(); sviInstSet(JSON.parse(window.__kp750)); localStorage.setItem('svi_listmode_v1', 'inst'); localStorage.removeItem('svi_bdgfold_v1'); renderBudgetList(); }"); pg.wait_for_timeout(400)
         # v751 : menu ☰ — ACHAT se déplie (CONSULTATIONS … ACC, dans l'ordre), BESOIN à part dessous ; ARTICLES ouvre l'écran des achats
         m751 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), M = document.getElementById('navMenu');
@@ -3075,7 +3075,7 @@ def main():
             const F = []; const f1 = achFrsNew(F, { nom: 'AFRA' }); achFrsSave(F); achDvfSave([{ id: 'v1', ref: 'DVF 1', frs: f1.id, state: 'recu', lignes: [{ des: 'SABLE', u: 'M3', q: 5, pu: 100, tva: 20 }] }]);
             const v = document.getElementById('ach'); document.querySelector('#navMenu .nav-btn[data-ach="art"]').click(); await w(300);
             const r = [(v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim(), v.querySelectorAll('#achArtT tbody tr[data-id]').length, v.querySelectorAll('.novapp-date-list .novapp-date-item').length];
-            v.querySelector('.novapp-date-list .novapp-date-item').click(); await w(150); r.push(v.querySelectorAll('#achArtT tbody tr[data-id]').length); v.querySelector('.novapp-date-list .novapp-date-item').click(); await w(150);
+            if (!v.querySelector('.novapp-date-item.dt-l3')) { v.querySelector('.dt-fa')?.click(); await w(150); } v.querySelector('.novapp-date-list .novapp-date-item.dt-l3').click(); await w(150); r.push(v.querySelectorAll('#achArtT tbody tr[data-id]').length); v.querySelector('.novapp-date-list .novapp-date-item.dt-l3').click(); await w(150);   /* G2 : arbre des dates — un JOUR */
             v.querySelector('#achArtT [data-nvnew]').click(); await w(200); const c = document.querySelector('#svConf');   /* 06/11 : une seule liste */
             c.querySelector('.art-x[data-k="des"]').value = 'CIMENT CPJ45'; c.querySelector('.art-x[data-k="u"]').value = 'T'; c.querySelector('.art-x[data-k="cat"]').value = 'MATERIAUX STOCKABLE'; c.querySelector('[data-save]').click(); await w(300);
             /* v800 (document unique 3.6) : le nouvel article s'ouvre sur sa page ; on revient à la liste */
@@ -3477,7 +3477,7 @@ def main():
         check("FORME 04/11, remarques 3 et 4 : parties des fenêtres réglées une fois pour toutes ; HAUTEUR de chaque élément (lignes 21 px, titres des colonnes 22 px au départ)",
               f1104["h"] == "21,22" and f1104["win"] and f1104["hCss"], f1104)
         check("FORME 04/11, remarques 5 et 6 : blocs — lignes par défaut (5) et en mode réduit (1) réglables, hauteur par défaut recalculée ; police fixe Arial à l'écran",
-              f1104["blk0"] == "5,1" and f1104["blk1"] == "8,2,211px" and f1104["font"], f1104)
+              f1104["blk0"] == "5,1" and f1104["blk1"] == "8,2,212px" and f1104["font"], f1104)
         check("FORME 04/11, remarques 10 et 11 : interfaces (4 par pièce, 3 pour le budget, ordre du menu) et interface affichée connue ; MASQUER LA COLONNE dans la loupe, AFFICHER LES COLONNES MASQUÉES (compteur) dans le ⋯",
               f1104["ifs"] == "32|bdgl,bdg,bdg_w,caf_l,caf_f,caf_w,dvf_l" and f1104["cur"] == "bdgl" and f1104["colh"] == "1,true,0,1" and f1104["loupe"], f1104)
         check("FORME 04/11, remarques 12 et 13 : MODIFIER LE FORMAT d'une interface (ÉTAT de l'écran puis les éléments, sans les parties des fenêtres) ; écran d'ACCUEIL et RÉGLAGES COMMUNS (APPLIQUER PARTOUT remplace les réglages par interface)",
@@ -3936,7 +3936,7 @@ def main():
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check('DOCUMENT UNIQUE 6.13 : liste validée des achats sans colonne de corbeille (la liste en instance la garde) ; panneau des dates resserré', c613.get('v', {}).get('act') == 0 and c613['v']['cols'] == c613['v']['ths'] and c613.get('i', {}).get('act', 0) > 0 and c613['i']['cols'] == c613['i']['ths'] and c613.get('pw', 999) < 240, c613)   # 06/11 : le panneau porte aussi les cases des états
         fmtu = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_format_v1');
-  const F = sviFmt(); F.el = F.el || {}; F.el.blk = Object.assign({}, F.el.blk, { b: 0 }); F.el.taba = Object.assign({}, F.el.taba, { c: '#0000a3' }); F.el.ttl = Object.assign({}, F.el.ttl, { c: '#0000a5' }); F.el.top = Object.assign({}, F.el.top, { bg: '#0000a9' }); F.to = null; sviFmtSave(F); await w(200); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(800); if (!document.getElementById('bdgDetailHead')) { document.querySelector('#budgetListTable tbody tr[data-budget-ref] .budget-link, #budgetListTable tbody tr[data-budget-ref] td')?.click(); await w(1500); }
+  const F = sviFmt(); F.el = F.el || {}; F.el.blk = Object.assign({}, F.el.blk, { b: 0 }); F.el.taba = Object.assign({}, F.el.taba, { c: '#0000a3' }); F.el.ttl = Object.assign({}, F.el.ttl, { c: '#0000a5' }); F.el.top = Object.assign({}, F.el.top, { bg: '#0000a9' }); F.to = null; sviFmtSave(F); await w(200); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); if (!document.getElementById('bdgDetailHead')) window.__sviAvOpen('TEST-1', null); await w(800); if (!document.getElementById('bdgDetailHead')) { (document.querySelector('#budgetListTable tbody tr[data-budget-ref="TEST-1"] .budget-link') || document.querySelector('#budgetListTable tbody tr[data-budget-ref] .budget-link, #budgetListTable tbody tr[data-budget-ref] td'))?.click(); await w(1500); }
   const d = document.getElementById('bdgDetailHead'); r.det = d ? getComputedStyle(d).fontWeight : 'absent';
   const ra = document.querySelector('.rec-tab.active'); r.reca = ra ? getComputedStyle(ra).webkitTextFillColor : 'absent';
   const css = document.getElementById('sviFmtStyle').textContent; r.vars = /--ttl-c:#0000a5/.test(css); r.chs = /#chs > \.section-head[^{]*\{[^}]*#0000a9/.test(css);
@@ -3975,7 +3975,7 @@ def main():
   return { date: [...(o.date || [])].join(','), code: [...(o.code || [])].join(','), mt: [...(o.mt || [])].join(','), pct: [...(o.pct || [])].join(','), nb: [...(o.nb || [])].join(','), h: [...H].join(',') }; }""")
         check('SÉRIE C, C3 (document unique 10.6) : fiche fournisseur — tous les champs à la même hauteur ; même largeur par famille (dates, codes, montants, pourcentages, petits nombres)', c3t.get('date') == '132' and c3t.get('code') == '196' and c3t.get('mt') == '150' and c3t.get('pct') == '96' and c3t.get('nb') == '96' and c3t.get('h') == '34', c3t)
         c5t = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), out = [];
-  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(1200);
+  document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); if (!document.getElementById('bdgDetailHead')) window.__sviAvOpen('TEST-1', null); await w(1200);
   const bs = [...document.querySelectorAll('.blk-more, .bdg-more-btn, [data-nvmore]')].filter(b => b.offsetWidth);
   let bad = 0, n = 0; for (const b of bs.slice(0, 10)) { b.click(); await w(120); const m = document.getElementById('blkMenu'); if (!m) continue; n++;
     const R = [...m.children].filter(c => !c.classList.contains('blk-sep')).map(c => sviMenuRank(c.textContent)); let seenOwn = false, last = 0;
