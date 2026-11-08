@@ -3674,3 +3674,5 @@ html.cafp-dragging, html.cafp-dragging * { user-select: none !important; -webkit
    que son texte ; le texte trop long est coupé au bord (texte entier dans la bulle, appui long) ; la ligne garde sa hauteur */
 table.nv-one { table-layout: fixed; }
 table.nv-one tbody td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 08/11 : ligne TOTAL des listes fixée en bas du tableau (toujours visible) ; le mot TOTAL dans la 1re colonne */
+table.nv-one tfoot td, #budgetListTable tfoot td { position: sticky; bottom: 0; z-index: 4; background: var(--tb-tot-bg, #fdf0f0); }

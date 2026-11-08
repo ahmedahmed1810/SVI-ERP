@@ -141,8 +141,8 @@ function achNvList(ctx, o) {
       const t = typeof v === "number" ? achF2(v) : String(v ?? ""); return `<td class="${cl}" title="${esc(t)}">${im ? `<img class="nv-logo" src="${esc(im)}" alt="">` : ""}${esc(t)}</td>`; };
     /* 08/11 (document unique 6.7, remarque d'Ahmed) : ligne TOTAL des colonnes de montants (lignes affichées) ; TOTAL PARTIEL si un filtre en cache */
     const totRow = () => { const M = cols.map((c, i) => c[3] === "number" && /MONTANT|TTC|\bHT\b|RESTE|TOTAL|MOINS-DISANT/.test(String(c[1]).toUpperCase()) ? i : -1).filter(i => i >= 0); if (!M.length) return "";
-      const part = rows.length < all.filter(x => !x.del).length, lab = part ? "TOTAL PARTIEL" : "TOTAL", sum = i => rows.reduce((a, x) => { const v = cols[i][2](x); return a + (typeof v === "number" ? v : 0); }, 0), li = Math.max(0, M[0] - 1);
-      return `<tfoot><tr class="bdg-d-total-row">${cols.map((c, i) => M.includes(i) ? `<td class="number">${achF2(sum(i))}</td>` : i === li && !M.includes(li) ? `<td class="number"><b>${lab}</b></td>` : "<td></td>").join("")}${delCol ? "<td></td>" : ""}<td></td></tr></tfoot>`; };
+      const part = rows.length < all.filter(x => !x.del).length, lab = part ? "TOTAL PARTIEL" : "TOTAL", sum = i => rows.reduce((a, x) => { const v = cols[i][2](x); return a + (typeof v === "number" ? v : 0); }, 0), li = M.includes(0) ? -1 : 0;
+      return `<tfoot><tr class="bdg-d-total-row">${cols.map((c, i) => M.includes(i) ? `<td class="number">${achF2(sum(i))}</td>` : i === li ? `<td><b>${lab}</b></td>` : "<td></td>").join("")}${delCol ? "<td></td>" : ""}<td></td></tr></tfoot>`; };
     const rowCls = x => { const s = ST.get(x.id)[0]; return (s === "instance" ? "inst-instance" : s === "fige" ? "inst-fige" : "inst-valide") + " st-" + s; };
     return `<div class="novapp-list-shell"><div class="novapp-list-titlebar"><button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button><h1>${t1}</h1>${sviListIH()}${sviListBar()}</div>
       <div class="novapp-budget-layout"><aside class="novapp-date-panel svi-bdgp">
