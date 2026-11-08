@@ -2092,7 +2092,7 @@ function renderBudgetList() {
 
     const keys = [...counts.keys()].sort().reverse();
     panel.innerHTML = `
-      <div class="novapp-date-head">${sviStfHead(SK, budgetsE().length, BLAB, "bdgl_d")}${sviDateFold("bdgl")}</div>
+      <div class="novapp-date-head">${sviDateFold("bdgl")}${sviStfHead(SK, budgetsE().length, BLAB, "bdgl_d")}</div>
       <div class="novapp-date-list">${sviDateTree("bdgl", keys.map(k => [k, counts.get(k).n]), dateFilter, "data-date", () => renderDatePanel())}</div>
     `;
   }
@@ -10617,7 +10617,7 @@ function sviBdgExploitation(C) {
       /* v510 (remarque 69) : le signe est posé dans l'en-tête, hors de l'intitulé (il ne compte jamais dans la largeur) */
       if (mgSort && mgSort.col === c[0]) h = h.replace(`<span class="cf-wrap">`, `<i class="mg-dir">${mgSort.dir > 0 ? "▲" : "▼"}</i><span class="cf-wrap">`);
       /* v613 (point 9) : tout replier / tout déplier, dans l'en-tête de la 1re colonne regroupée */
-      if (mgAll.length && c === oc.find(x => G.includes(x[0]))) h = h.replace(`<span class="cf-lab">${c[1]}`, `<span class="cf-lab">${c[1]}<span class="fold-all" data-fa="mg" role="button">${mgOpen.size ? "⌄" : "›"}</span>`);
+      if (mgAll.length && c === oc.find(x => G.includes(x[0]))) h = h.replace(`<span class="cf-lt">${c[1]}</span>`, `<span class="cf-lt">${c[1]}</span><span class="fold-all" data-fa="mg" role="button">${mgOpen.size ? "⌄" : "›"}</span>`);
       return h;
     };
     const tot = mgAgg(rows), tm = metr(tot, true);

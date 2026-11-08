@@ -3686,11 +3686,14 @@ table.nv-one thead th, #budgetListTable thead th { position: sticky; top: 0; z-i
 :is(table) :is(tfoot td, tr.bdg-d-total-row td) { color: var(--tb-tot-c) !important; -webkit-text-fill-color: var(--tb-tot-c); background: var(--tb-tot-bg) !important; font-size: var(--tb-head-fs, 11px); }
 /* G2 : arbre des dates */
 .novapp-date-item.dt-l2 { padding-left: 20px !important; } .novapp-date-item.dt-l3 { padding-left: 36px !important; }
-.novapp-date-item .dt-f { display: inline-block; width: 12px; flex: none; text-align: center; color: #6b7480; margin-right: 4px; }
-.novapp-date-head .dt-fa { margin-left: 4px; cursor: pointer; color: #6b7480; padding: 0 4px; font-weight: 800; }
+.novapp-date-item .dt-f { display: inline-block; width: 18px; flex: none; text-align: center; color: #6b7480; margin-right: 4px; padding: 4px 0; margin-top: -4px; margin-bottom: -4px; font-weight: 800; }
+.novapp-date-head .dt-fa { position: absolute; left: 2px; top: 50%; transform: translateY(-50%); z-index: 1; width: 22px; height: 24px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: #6b7480; font-weight: 800; }
+.novapp-date-head:has(.dt-fa) .svi-stf-head { padding-left: 26px !important; }
 /* G3 : place réservée du signe d'alerte (!) — le texte commence toujours au même endroit */
 .nv-bslot { display: inline-block; width: 12px; flex: none; text-align: center; margin-right: 2px; vertical-align: baseline; }
 .nv-bslot > .nv-bang { margin: 0 !important; }
+/* correction G-7 : la référence se coupe à la fin (… après le début) au lieu d'être remplacée en entier par « … » */
+table.nv-one tbody td > :is(.nv-reflink, button):not(.nv-bang) { max-width: calc(100% - 14px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
 /* G4 : case coupée agrandie au toucher (seule sa ligne grandit) ; pas de sélection de texte de Safari dans les tableaux */
 table tbody td { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 table tbody td :is(input, textarea) { -webkit-user-select: text; user-select: text; }
@@ -3704,3 +3707,7 @@ table tbody td.cell-x { white-space: normal !important; overflow: visible !impor
 #cfMenu .cf-fr button { flex: 1; min-height: 30px; border: 1px solid #d0d5dd; border-radius: 6px; background: #fff; font-weight: 800; }
 #cfMenu .cf-fr button.on { background: #e8edf5; border-color: #172033; }
 #cfMenu .cf-fsv { min-width: 34px; text-align: center; font-weight: 800; }
+
+/* correction G-3 : appui long sur un titre de colonne = déplacement seulement (pas de sélection Safari, pas de menu du système) */
+table thead th, table thead th * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+table thead th :is(input, textarea) { -webkit-user-select: text; user-select: text; }

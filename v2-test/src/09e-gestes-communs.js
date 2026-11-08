@@ -204,17 +204,18 @@ const sviColAl = (t, k) => ({ g: "left", c: "center", d: "number" }[(sviColSet()
 const sviColLab = (t, k, def) => (sviColSet()[t + "|" + k] || {}).lab || def;
 function sviColSetRun() { const S = sviColSet(); if (!Object.keys(S).length && !document.querySelector("[data-svcol-al]")) return;
   document.querySelectorAll("table thead th .cf-btn[data-cf][data-col]").forEach(b => { const th = b.closest("th"), tr = th && th.parentNode, tb = th && th.closest("table"); if (!tb || !tr) return;
-    const o = S[b.dataset.cf + "|" + b.dataset.col] || {}, lab = th.querySelector(".cf-lab");
-    if (lab && lab.lastChild && lab.lastChild.nodeType === 3 && th.dataset.svcolDef === undefined) th.dataset.svcolDef = lab.lastChild.textContent;
-    if (lab && lab.lastChild && lab.lastChild.nodeType === 3 && !o.lab && th.dataset.svcolDef && lab.lastChild.textContent !== th.dataset.svcolDef) lab.lastChild.textContent = th.dataset.svcolDef;
-    if (o.lab && lab && lab.lastChild && lab.lastChild.nodeType === 3 && lab.lastChild.textContent !== o.lab) lab.lastChild.textContent = o.lab;
+    const o = S[b.dataset.cf + "|" + b.dataset.col] || {}, lt = th.querySelector(".cf-lt, .cf-tt");   /* correction G-7 : le titre entier (et non son dernier morceau) */
+    if (lt && th.dataset.svcolDef === undefined) { th.dataset.svcolDef = lt.textContent.replace(/\s+/g, " ").trim(); th.dataset.svcolDefH = lt.innerHTML; }
+    if (lt && !o.lab && th.dataset.svcolDefH !== undefined && lt.innerHTML !== th.dataset.svcolDefH) lt.innerHTML = th.dataset.svcolDefH;
+    if (lt && o.lab && lt.textContent !== o.lab) lt.textContent = o.lab;
     const al = { g: "left", c: "center", d: "right" }[o.al] || "", i = [...tr.cells].indexOf(th); if (i < 0) return;
     /* G5 : mise en forme de la colonne (taille, gras, italique, souligné) — cases du corps */
     const sig = [al, o.fs || "", o.b ?? "", o.i ?? "", o.u ?? ""].join("/");
-    if ((th.dataset.svcolAl || "") === sig && th.dataset.svcolN === String(tb.tBodies[0] ? tb.tBodies[0].rows.length : 0)) return;
-    th.dataset.svcolAl = sig; th.dataset.svcolN = String(tb.tBodies[0] ? tb.tBodies[0].rows.length : 0);
-    th.style.textAlign = al; [...tb.tBodies].forEach(tbd => [...tbd.rows].forEach(r => { const c = r.cells.length === tr.cells.length && r.cells[i]; if (!c) return; c.style.textAlign = al;
-      c.style.fontSize = o.fs ? o.fs + "px" : ""; c.style.fontWeight = o.b === undefined ? "" : o.b ? "800" : "400"; c.style.fontStyle = o.i === undefined ? "" : o.i ? "italic" : "normal"; c.style.textDecoration = o.u === undefined ? "" : o.u ? "underline" : "none"; })); }); }
+    /* correction G-6 : chaque case garde sa marque (une case redessinée est reprise) ; la mise en forme de la loupe passe devant celle propre à la colonne (DATE LIMITE…) */
+    th.dataset.svcolAl = sig; th.style.textAlign = al;
+    const P = (c, k, v) => v ? c.style.setProperty(k, v, "important") : c.style.removeProperty(k);
+    [...tb.tBodies].forEach(tbd => [...tbd.rows].forEach(r => { const c = r.cells.length === tr.cells.length && r.cells[i]; if (!c || c.dataset.svcolS === sig) return; c.dataset.svcolS = sig;
+      P(c, "text-align", al); P(c, "font-size", o.fs ? o.fs + "px" : ""); P(c, "font-weight", o.b === undefined ? "" : o.b ? "800" : "400"); P(c, "font-style", o.i === undefined ? "" : o.i ? "italic" : "normal"); P(c, "text-decoration", o.u === undefined ? "" : o.u ? "underline" : "none"); })); }); }
 { let raf = 0; const go = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; try { sviColSetRun(); } catch (e) {} }); };
   const start = () => new MutationObserver(go).observe(document.body, { childList: true, subtree: true }); if (document.body) start(); else document.addEventListener("DOMContentLoaded", start); }
 function sviColSetWin(t, k, def) {
@@ -316,4 +317,20 @@ sviRowHApply();
     off(); cur = td; td.classList.add("cell-x"); td.parentElement.classList.add("row-x");
     if (!td.classList.contains("nv-ed")) { e.preventDefault(); e.stopPropagation(); } }, true);
   document.addEventListener("contextmenu", e => { if (cutTd(e.target)) e.preventDefault(); }, true);
+}
+
+/* 08/11 (correction G-3) : pas de menu du système à l'appui long sur un titre de colonne */
+document.addEventListener("contextmenu", e => { if (e.target.closest && e.target.closest("table thead th") && !e.target.closest("input, textarea")) e.preventDefault(); }, true);
+/* 08/11 (correction G-4) : DÉPLACER UNE COLONNE GARDE L'ÉCRAN STABLE — si l'ordre des titres a changé après le lâcher,
+   le défilement (horizontal et vertical) du tableau et de la page est remis où il était */
+{ let rec = null;
+  const sig = tb => [...(tb.tHead && tb.tHead.rows[0] ? tb.tHead.rows[0].cells : [])].map(th => (th.querySelector(".cf-btn") || {}).dataset?.col || th.textContent.trim()).join("|");
+  const scr = el => { const L = []; for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) if (p.scrollWidth > p.clientWidth + 1 || p.scrollHeight > p.clientHeight + 1) L.push(p); return L; };
+  const find = () => { if (!rec) return null; if (rec.tb.isConnected) return rec.tb; return rec.key ? document.querySelector(`table[data-svcw="${CSS.escape(rec.key)}"]`) : null; };
+  const fix = () => { const tb = find(); if (!tb || sig(tb) === rec.sig) return; const L = scr(tb);
+    rec.S.forEach((v, i) => { const p = L[i]; if (p) { p.scrollLeft = v[0]; p.scrollTop = v[1]; } }); window.scrollTo(rec.wx, rec.wy); };
+  document.addEventListener("pointerdown", e => { const th = e.target.closest && e.target.closest("table thead th"); if (!th) { rec = null; return; } const tb = th.closest("table");
+    rec = { tb, key: tb.dataset.svcw || "", sig: sig(tb), S: scr(tb).map(p => [p.scrollLeft, p.scrollTop]), wx: window.scrollX, wy: window.scrollY }; }, true);
+  document.addEventListener("pointerup", () => { if (!rec) return; const r0 = rec;
+    if (rec.tb.isConnected) { rec.S = scr(rec.tb).map(p => [p.scrollLeft, p.scrollTop]); rec.wx = window.scrollX; rec.wy = window.scrollY; }   /* position au lâcher */ [0, 60, 200, 450].forEach(t => setTimeout(() => { if (rec === r0) fix(); }, t)); setTimeout(() => { if (rec === r0) rec = null; }, 500); }, true);
 }

@@ -146,7 +146,7 @@ function achNvList(ctx, o) {
     const rowCls = x => { const s = ST.get(x.id)[0]; return (s === "instance" ? "inst-instance" : s === "fige" ? "inst-fige" : "inst-valide") + " st-" + s; };
     return `<div class="novapp-list-shell"><div class="novapp-list-titlebar"><button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button><h1>${t1}</h1>${sviListIH()}${sviListBar()}</div>
       <div class="novapp-budget-layout"><aside class="novapp-date-panel svi-bdgp">
-        <div class="novapp-date-head">${sviStfHead(SK, base.length, o.stLab, o.t + "_d")}${sviDateFold("ach_" + o.k)}</div>
+        <div class="novapp-date-head">${sviDateFold("ach_" + o.k)}${sviStfHead(SK, base.length, o.stLab, o.t + "_d")}</div>
         <div class="novapp-date-list">${sviDateTree("ach_" + o.k, days, dSel, "data-nvday", () => draw())}</div></aside>
       <div class="novapp-budget-table-wrap"><table id="${o.id}" class="novapp-budget-table svi-bdgl nv-one" data-ach="${o.k}" data-stf="${esc(SK)}" data-svcw="${esc(o.t)}" style="${CG.style}">
         ${CG.cg}

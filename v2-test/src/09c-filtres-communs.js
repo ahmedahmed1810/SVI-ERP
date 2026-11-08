@@ -52,7 +52,7 @@ function sviCfKit(o) {
     /* en-tête de colonne bleu : filtre ou tri choisi sur cette colonne */
     const on = !!st.f[key] || !!(st.sort && st.sort.col === key && !st.sort.def) || !!(shell.__cfParOn && shell.__cfParOn(t, key));
     return `<th class="${cls} ${on ? "cf-on" : ""}">
-      <span class="cf-wrap"><span class="cf-lab">${(() => { const k = shell.__faFor && shell.__faFor(t, key); return k && shell.__faHTML ? shell.__faHTML(k) : ""; })()}${label}</span><span class="cf-btn" data-cf="${t}" data-col="${key}"
+      <span class="cf-wrap"><span class="cf-lab">${(() => { const k = shell.__faFor && shell.__faFor(t, key); return k && shell.__faHTML ? shell.__faHTML(k) : ""; })()}<span class="cf-lt">${label}</span></span><span class="cf-btn" data-cf="${t}" data-col="${key}"
         role="button" aria-label="Trier / filtrer">${cfIcon}</span></span><span
         class="col-rs" data-rs="${t}" data-col="${key}"></span></th>`;
   };
@@ -183,7 +183,7 @@ function sviCfKit(o) {
       <button type="button" class="cf-x" aria-label="Fermer">✕</button>
       ${(() => { /* 08/11 (série G, G5) : renommer la colonne et sa MISE EN FORME, en haut du menu ; appliqué et gardé tout de suite (EFFACER / OK = tri et filtre seulement) */
         if (typeof sviColSet !== "function") return ""; const th = btn.closest("th"), lab = th && th.querySelector(".cf-lab"), o = sviColSet()[t + "|" + key] || {};
-        const def = th ? String(th.dataset.svcolDef || (lab && lab.lastChild ? lab.lastChild.textContent : "")).trim() : "";
+        const lt = th && th.querySelector(".cf-lt, .cf-tt"), def = th ? String(th.dataset.svcolDef || (lt ? lt.textContent : "")).replace(/\s+/g, " ").trim() : "";   /* correction G-7 : titre d'origine entier */
         const cell = th && th.closest("table").tBodies[0] && [...th.closest("table").tBodies[0].rows].find(r => r.cells.length === th.parentNode.cells.length);
         const fs0 = o.fs || (cell ? Math.round(parseFloat(getComputedStyle(cell.cells[[...th.parentNode.cells].indexOf(th)]).fontSize)) : 12);
         const AL = { g: '<svg width="16" height="14" viewBox="0 0 16 14"><path d="M1 2h14M1 7h9M1 12h12" stroke="currentColor" stroke-width="2"/></svg>', c: '<svg width="16" height="14" viewBox="0 0 16 14"><path d="M1 2h14M4 7h8M2 12h12" stroke="currentColor" stroke-width="2"/></svg>', d: '<svg width="16" height="14" viewBox="0 0 16 14"><path d="M1 2h14M6 7h9M3 12h12" stroke="currentColor" stroke-width="2"/></svg>' };
@@ -239,7 +239,10 @@ function sviCfKit(o) {
       let w = 240;
       try { w = Math.max(200, Math.min(window.innerWidth * 0.9, +localStorage.getItem("svi_cfw_v1") || 240)); } catch (e) {}
       m.style.width = w + "px";
-      m.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + "px";
+      /* correction G-2 : le menu se place À CÔTÉ de la colonne (à droite, sinon à gauche) pour voir la mise en forme en direct ; sinon sous le bouton */
+      const thc = live.closest("th"), rc = thc ? thc.getBoundingClientRect() : r;
+      const L = rc.right + 4 + w <= window.innerWidth - 8 ? rc.right + 4 : rc.left - 4 - w >= 8 ? rc.left - 4 - w : Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w));
+      m.style.left = L + "px";
       const below = vTop + vH - r.bottom - 10;
       const above = r.top - vTop - 10;
       const useBelow = below >= 280 || below >= above;
@@ -395,7 +398,11 @@ function sviDateTree(lk, days, sel, attr, redraw) {
 const sviDateFold = lk => `<span class="dt-fa" data-dtfa="${esc(lk)}" role="button" title="Tout déplier / vue de départ">${(SVI_DT[lk] || {}).all ? "⌃" : "⌄"}</span>`;
 /* une date de pièce appartient à la sélection (année, mois, jour) */
 const sviDateIn = (d, sel) => !sel || (sel === "SANS" ? !/^\d{4}-\d{2}-\d{2}/.test(d || "") : String(d || "").startsWith(sel));
-document.addEventListener("click", e => { const f = e.target.closest && e.target.closest("[data-dtf], [data-dtfa]"); if (!f) return; e.preventDefault(); e.stopPropagation();
+/* 08/11 (correction G-1) : le signe › / ⌄ réagit en premier — zone de toucher élargie au début de la ligne (Safari peut donner le bouton comme cible) */
+const sviDtHit = e => { if (!e.target.closest) return null; const f = e.target.closest("[data-dtf], [data-dtfa]"); if (f) return f;
+  const it = e.target.closest(".novapp-date-item"), sg = it && it.querySelector(":scope > .dt-f[data-dtf]"); if (!sg) return null;
+  const r = sg.getBoundingClientRect(); return e.clientX && e.clientX <= r.right + 10 ? sg : null; };
+document.addEventListener("click", e => { const f = sviDtHit(e); if (!f) return; e.preventDefault(); e.stopPropagation();
   if (f.dataset.dtfa) { const S = SVI_DT[f.dataset.dtfa]; if (!S) return; if (S.all) { S.all = false; S.tg.clear(); } else S.all = true; S.redraw && S.redraw(); return; }
   const [lk, k] = f.dataset.dtf.split("|"), S = SVI_DT[lk]; if (!S) return; if (S.all) { S.all = false; S.tg.clear(); /* repart de la vue de départ */ }
   S.tg.has(k) ? S.tg.delete(k) : S.tg.add(k); S.redraw && S.redraw(); }, true);

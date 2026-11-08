@@ -3044,7 +3044,7 @@ function sviCfKit(o) {
     /* en-tête de colonne bleu : filtre ou tri choisi sur cette colonne */
     const on = !!st.f[key] || !!(st.sort && st.sort.col === key && !st.sort.def) || !!(shell.__cfParOn && shell.__cfParOn(t, key));
     return `<th class="${cls} ${on ? "cf-on" : ""}">
-      <span class="cf-wrap"><span class="cf-lab">${(() => { const k = shell.__faFor && shell.__faFor(t, key); return k && shell.__faHTML ? shell.__faHTML(k) : ""; })()}${label}</span><span class="cf-btn" data-cf="${t}" data-col="${key}"
+      <span class="cf-wrap"><span class="cf-lab">${(() => { const k = shell.__faFor && shell.__faFor(t, key); return k && shell.__faHTML ? shell.__faHTML(k) : ""; })()}<span class="cf-lt">${label}</span></span><span class="cf-btn" data-cf="${t}" data-col="${key}"
         role="button" aria-label="Trier / filtrer">${cfIcon}</span></span><span
         class="col-rs" data-rs="${t}" data-col="${key}"></span></th>`;
   };
@@ -3175,7 +3175,7 @@ function sviCfKit(o) {
       <button type="button" class="cf-x" aria-label="Fermer">✕</button>
       ${(() => { /* 08/11 (série G, G5) : renommer la colonne et sa MISE EN FORME, en haut du menu ; appliqué et gardé tout de suite (EFFACER / OK = tri et filtre seulement) */
         if (typeof sviColSet !== "function") return ""; const th = btn.closest("th"), lab = th && th.querySelector(".cf-lab"), o = sviColSet()[t + "|" + key] || {};
-        const def = th ? String(th.dataset.svcolDef || (lab && lab.lastChild ? lab.lastChild.textContent : "")).trim() : "";
+        const lt = th && th.querySelector(".cf-lt, .cf-tt"), def = th ? String(th.dataset.svcolDef || (lt ? lt.textContent : "")).replace(/\s+/g, " ").trim() : "";   /* correction G-7 : titre d'origine entier */
         const cell = th && th.closest("table").tBodies[0] && [...th.closest("table").tBodies[0].rows].find(r => r.cells.length === th.parentNode.cells.length);
         const fs0 = o.fs || (cell ? Math.round(parseFloat(getComputedStyle(cell.cells[[...th.parentNode.cells].indexOf(th)]).fontSize)) : 12);
         const AL = { g: '<svg width="16" height="14" viewBox="0 0 16 14"><path d="M1 2h14M1 7h9M1 12h12" stroke="currentColor" stroke-width="2"/></svg>', c: '<svg width="16" height="14" viewBox="0 0 16 14"><path d="M1 2h14M4 7h8M2 12h12" stroke="currentColor" stroke-width="2"/></svg>', d: '<svg width="16" height="14" viewBox="0 0 16 14"><path d="M1 2h14M6 7h9M3 12h12" stroke="currentColor" stroke-width="2"/></svg>' };
@@ -3231,7 +3231,10 @@ function sviCfKit(o) {
       let w = 240;
       try { w = Math.max(200, Math.min(window.innerWidth * 0.9, +localStorage.getItem("svi_cfw_v1") || 240)); } catch (e) {}
       m.style.width = w + "px";
-      m.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + "px";
+      /* correction G-2 : le menu se place À CÔTÉ de la colonne (à droite, sinon à gauche) pour voir la mise en forme en direct ; sinon sous le bouton */
+      const thc = live.closest("th"), rc = thc ? thc.getBoundingClientRect() : r;
+      const L = rc.right + 4 + w <= window.innerWidth - 8 ? rc.right + 4 : rc.left - 4 - w >= 8 ? rc.left - 4 - w : Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w));
+      m.style.left = L + "px";
       const below = vTop + vH - r.bottom - 10;
       const above = r.top - vTop - 10;
       const useBelow = below >= 280 || below >= above;
@@ -3387,7 +3390,11 @@ function sviDateTree(lk, days, sel, attr, redraw) {
 const sviDateFold = lk => `<span class="dt-fa" data-dtfa="${esc(lk)}" role="button" title="Tout déplier / vue de départ">${(SVI_DT[lk] || {}).all ? "⌃" : "⌄"}</span>`;
 /* une date de pièce appartient à la sélection (année, mois, jour) */
 const sviDateIn = (d, sel) => !sel || (sel === "SANS" ? !/^\d{4}-\d{2}-\d{2}/.test(d || "") : String(d || "").startsWith(sel));
-document.addEventListener("click", e => { const f = e.target.closest && e.target.closest("[data-dtf], [data-dtfa]"); if (!f) return; e.preventDefault(); e.stopPropagation();
+/* 08/11 (correction G-1) : le signe › / ⌄ réagit en premier — zone de toucher élargie au début de la ligne (Safari peut donner le bouton comme cible) */
+const sviDtHit = e => { if (!e.target.closest) return null; const f = e.target.closest("[data-dtf], [data-dtfa]"); if (f) return f;
+  const it = e.target.closest(".novapp-date-item"), sg = it && it.querySelector(":scope > .dt-f[data-dtf]"); if (!sg) return null;
+  const r = sg.getBoundingClientRect(); return e.clientX && e.clientX <= r.right + 10 ? sg : null; };
+document.addEventListener("click", e => { const f = sviDtHit(e); if (!f) return; e.preventDefault(); e.stopPropagation();
   if (f.dataset.dtfa) { const S = SVI_DT[f.dataset.dtfa]; if (!S) return; if (S.all) { S.all = false; S.tg.clear(); } else S.all = true; S.redraw && S.redraw(); return; }
   const [lk, k] = f.dataset.dtf.split("|"), S = SVI_DT[lk]; if (!S) return; if (S.all) { S.all = false; S.tg.clear(); /* repart de la vue de départ */ }
   S.tg.has(k) ? S.tg.delete(k) : S.tg.add(k); S.redraw && S.redraw(); }, true);
@@ -4278,17 +4285,18 @@ const sviColAl = (t, k) => ({ g: "left", c: "center", d: "number" }[(sviColSet()
 const sviColLab = (t, k, def) => (sviColSet()[t + "|" + k] || {}).lab || def;
 function sviColSetRun() { const S = sviColSet(); if (!Object.keys(S).length && !document.querySelector("[data-svcol-al]")) return;
   document.querySelectorAll("table thead th .cf-btn[data-cf][data-col]").forEach(b => { const th = b.closest("th"), tr = th && th.parentNode, tb = th && th.closest("table"); if (!tb || !tr) return;
-    const o = S[b.dataset.cf + "|" + b.dataset.col] || {}, lab = th.querySelector(".cf-lab");
-    if (lab && lab.lastChild && lab.lastChild.nodeType === 3 && th.dataset.svcolDef === undefined) th.dataset.svcolDef = lab.lastChild.textContent;
-    if (lab && lab.lastChild && lab.lastChild.nodeType === 3 && !o.lab && th.dataset.svcolDef && lab.lastChild.textContent !== th.dataset.svcolDef) lab.lastChild.textContent = th.dataset.svcolDef;
-    if (o.lab && lab && lab.lastChild && lab.lastChild.nodeType === 3 && lab.lastChild.textContent !== o.lab) lab.lastChild.textContent = o.lab;
+    const o = S[b.dataset.cf + "|" + b.dataset.col] || {}, lt = th.querySelector(".cf-lt, .cf-tt");   /* correction G-7 : le titre entier (et non son dernier morceau) */
+    if (lt && th.dataset.svcolDef === undefined) { th.dataset.svcolDef = lt.textContent.replace(/\s+/g, " ").trim(); th.dataset.svcolDefH = lt.innerHTML; }
+    if (lt && !o.lab && th.dataset.svcolDefH !== undefined && lt.innerHTML !== th.dataset.svcolDefH) lt.innerHTML = th.dataset.svcolDefH;
+    if (lt && o.lab && lt.textContent !== o.lab) lt.textContent = o.lab;
     const al = { g: "left", c: "center", d: "right" }[o.al] || "", i = [...tr.cells].indexOf(th); if (i < 0) return;
     /* G5 : mise en forme de la colonne (taille, gras, italique, souligné) — cases du corps */
     const sig = [al, o.fs || "", o.b ?? "", o.i ?? "", o.u ?? ""].join("/");
-    if ((th.dataset.svcolAl || "") === sig && th.dataset.svcolN === String(tb.tBodies[0] ? tb.tBodies[0].rows.length : 0)) return;
-    th.dataset.svcolAl = sig; th.dataset.svcolN = String(tb.tBodies[0] ? tb.tBodies[0].rows.length : 0);
-    th.style.textAlign = al; [...tb.tBodies].forEach(tbd => [...tbd.rows].forEach(r => { const c = r.cells.length === tr.cells.length && r.cells[i]; if (!c) return; c.style.textAlign = al;
-      c.style.fontSize = o.fs ? o.fs + "px" : ""; c.style.fontWeight = o.b === undefined ? "" : o.b ? "800" : "400"; c.style.fontStyle = o.i === undefined ? "" : o.i ? "italic" : "normal"; c.style.textDecoration = o.u === undefined ? "" : o.u ? "underline" : "none"; })); }); }
+    /* correction G-6 : chaque case garde sa marque (une case redessinée est reprise) ; la mise en forme de la loupe passe devant celle propre à la colonne (DATE LIMITE…) */
+    th.dataset.svcolAl = sig; th.style.textAlign = al;
+    const P = (c, k, v) => v ? c.style.setProperty(k, v, "important") : c.style.removeProperty(k);
+    [...tb.tBodies].forEach(tbd => [...tbd.rows].forEach(r => { const c = r.cells.length === tr.cells.length && r.cells[i]; if (!c || c.dataset.svcolS === sig) return; c.dataset.svcolS = sig;
+      P(c, "text-align", al); P(c, "font-size", o.fs ? o.fs + "px" : ""); P(c, "font-weight", o.b === undefined ? "" : o.b ? "800" : "400"); P(c, "font-style", o.i === undefined ? "" : o.i ? "italic" : "normal"); P(c, "text-decoration", o.u === undefined ? "" : o.u ? "underline" : "none"); })); }); }
 { let raf = 0; const go = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; try { sviColSetRun(); } catch (e) {} }); };
   const start = () => new MutationObserver(go).observe(document.body, { childList: true, subtree: true }); if (document.body) start(); else document.addEventListener("DOMContentLoaded", start); }
 function sviColSetWin(t, k, def) {
@@ -4390,6 +4398,22 @@ sviRowHApply();
     off(); cur = td; td.classList.add("cell-x"); td.parentElement.classList.add("row-x");
     if (!td.classList.contains("nv-ed")) { e.preventDefault(); e.stopPropagation(); } }, true);
   document.addEventListener("contextmenu", e => { if (cutTd(e.target)) e.preventDefault(); }, true);
+}
+
+/* 08/11 (correction G-3) : pas de menu du système à l'appui long sur un titre de colonne */
+document.addEventListener("contextmenu", e => { if (e.target.closest && e.target.closest("table thead th") && !e.target.closest("input, textarea")) e.preventDefault(); }, true);
+/* 08/11 (correction G-4) : DÉPLACER UNE COLONNE GARDE L'ÉCRAN STABLE — si l'ordre des titres a changé après le lâcher,
+   le défilement (horizontal et vertical) du tableau et de la page est remis où il était */
+{ let rec = null;
+  const sig = tb => [...(tb.tHead && tb.tHead.rows[0] ? tb.tHead.rows[0].cells : [])].map(th => (th.querySelector(".cf-btn") || {}).dataset?.col || th.textContent.trim()).join("|");
+  const scr = el => { const L = []; for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) if (p.scrollWidth > p.clientWidth + 1 || p.scrollHeight > p.clientHeight + 1) L.push(p); return L; };
+  const find = () => { if (!rec) return null; if (rec.tb.isConnected) return rec.tb; return rec.key ? document.querySelector(`table[data-svcw="${CSS.escape(rec.key)}"]`) : null; };
+  const fix = () => { const tb = find(); if (!tb || sig(tb) === rec.sig) return; const L = scr(tb);
+    rec.S.forEach((v, i) => { const p = L[i]; if (p) { p.scrollLeft = v[0]; p.scrollTop = v[1]; } }); window.scrollTo(rec.wx, rec.wy); };
+  document.addEventListener("pointerdown", e => { const th = e.target.closest && e.target.closest("table thead th"); if (!th) { rec = null; return; } const tb = th.closest("table");
+    rec = { tb, key: tb.dataset.svcw || "", sig: sig(tb), S: scr(tb).map(p => [p.scrollLeft, p.scrollTop]), wx: window.scrollX, wy: window.scrollY }; }, true);
+  document.addEventListener("pointerup", () => { if (!rec) return; const r0 = rec;
+    if (rec.tb.isConnected) { rec.S = scr(rec.tb).map(p => [p.scrollLeft, p.scrollTop]); rec.wx = window.scrollX; rec.wy = window.scrollY; }   /* position au lâcher */ [0, 60, 200, 450].forEach(t => setTimeout(() => { if (rec === r0) fix(); }, t)); setTimeout(() => { if (rec === r0) rec = null; }, 500); }, true);
 }
 /* ⟪ src/09e-mise-en-page.js ⟫ */
 /* =========================================================
