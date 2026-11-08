@@ -474,9 +474,11 @@ function sviHdrMenu(btn, groups, pick) {
   const old = document.getElementById("blkMenu"); if (old) { const same = old.__btn === btn; old.remove(); if (same) return; }
   const m = document.createElement("div"); m.id = "blkMenu"; m.__btn = btn;
   const G = groups.map(g => g.filter(Boolean)).filter(g => g.length), icOf = x => x.ic !== undefined ? x.ic : SVI_MI[x.k] || "", anyIc = G.some(g => g.some(x => icOf(x)));
-  m.innerHTML = G.map(g => g.map(x => `<button type="button" data-a="${esc(x.k)}" class="${x.del ? "blk-del" : ""}">${icOf(x) || (anyIc ? '<i class="mi-sp"></i>' : "")}<span>${esc(x.lab)}</span></button>`).join("")).join('<div class="blk-sep"></div>');
+  m.innerHTML = G.map(g => g.map(x => `<button type="button" data-a="${esc(x.k)}" class="${x.del ? "blk-del" : ""}${x.off ? " blk-off" : ""}"${x.off ? ` data-why="${esc(x.off)}"` : ""}>${icOf(x) || (anyIc ? '<i class="mi-sp"></i>' : "")}<span>${esc(x.lab)}</span>${x.n !== undefined ? svCnt(x.n) : ""}</button>`).join("")).join('<div class="blk-sep"></div>');
   document.body.appendChild(m); sviPlaceMenu(m, btn.getBoundingClientRect());
-  m.addEventListener("click", e => { const it = e.target.closest("[data-a]"); if (!it) return; e.stopPropagation(); m.remove(); pick(it.dataset.a); });
+  m.addEventListener("click", e => { const it = e.target.closest("[data-a]"); if (!it) return; e.stopPropagation();
+    if (it.classList.contains("blk-off")) { svToast(it.dataset.why || "", 2500, it); return; }   /* série J (J4) : ligne grisée = message, le menu reste ouvert */
+    m.remove(); pick(it.dataset.a); });
   /* v790 (DOCUMENT UNIQUE §10.1) : un 2e toucher sur le même ⋯ ferme le menu (sans le rouvrir) */
   setTimeout(() => document.addEventListener("click", function off(e) { if (!m.isConnected) { document.removeEventListener("click", off, true); return; } if (!e.target.closest("#blkMenu")) { if (btn.contains(e.target)) { e.stopPropagation(); e.preventDefault(); } m.remove(); document.removeEventListener("click", off, true); } }, true), 0);
 }

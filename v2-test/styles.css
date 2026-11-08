@@ -3728,3 +3728,7 @@ table thead th :is(input, textarea) { -webkit-user-select: text; user-select: te
 /* 08/11 (remarque, document unique 6.11) : déplacer une colonne — trait bleu à la hauteur du titre, sur le bord où la colonne va se placer */
 :is(table thead th, .bdg-h-head).co-before { box-shadow: inset 3px 0 0 #2563eb !important; }
 :is(table thead th, .bdg-h-head).co-after { box-shadow: inset -3px 0 0 #2563eb !important; }
+
+/* série J (J4) : ligne grisée d'un menu ⋯ (ex. SUPPRIMER LES … COCHÉS sans case cochée) */
+#blkMenu button.blk-off { opacity: .45; }
+#blkMenu button .svi-cnt { margin-left: auto; }

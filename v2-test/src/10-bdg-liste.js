@@ -1427,7 +1427,7 @@ function renderBudgetList() {
   /* 07/11 (document unique 6.11, vérification des gestes) : l'ordre des colonnes de la liste se change en glissant un titre, et il est gardé */
   const columns = [], colsSync = () => { const L = coKeys("bdgl", COLS0.map(c => c.key)).map(k => COLS0.find(c => c.key === k)).filter(Boolean); columns.splice(0, columns.length, ...L); };
   colsSync();
-  const NCOL = columns.length + 2;   /* v754 : plus de colonne de pliage (la flèche est dans RÉFÉRENCE) ; v793 : + colonne des cases (à droite) */
+  const NCOL = columns.length + 1;   /* série J (J4) : plus de colonne corbeille */ //   /* v754 : plus de colonne de pliage (la flèche est dans RÉFÉRENCE) ; v793 : + colonne des cases (à droite) */
 
   /* tri et filtre : le menu commun (sviCfKit, comme le budget et les achats) ; gardés pendant la session */
   const BL = "bdgl";
@@ -1452,11 +1452,11 @@ function renderBudgetList() {
     table.dataset.stf = "bdg";   /* 06/11 (soir) : FILTRER PAR COULEUR (loupe) = états de la liste */
     /* 08/11 (document unique 6.11, remarque d'Ahmed) : largeurs au moteur commun des tableaux — à la première ouverture, le tableau remplit
        l'écran (colonnes au prorata) ; dès qu'une colonne est tirée, toutes sont figées à leur largeur et seule celle-là change ; largeurs gardées */
-    const CG = sviCwCols("bdgl", columns.map(c => [c.key, c.width]), [["_act", 44], ["_cb", 40]], Math.max(0, ((table.parentElement && table.parentElement.clientWidth) || 0) - 30));
+    const CG = sviCwCols("bdgl", columns.map(c => [c.key, c.width]), [["_cb", 40]], Math.max(0, ((table.parentElement && table.parentElement.clientWidth) || 0) - 30));
     const cg0 = table.querySelector("colgroup"), tpl = document.createElement("template"); tpl.innerHTML = CG.cg;
     if (cg0) cg0.replaceWith(tpl.content.firstChild); else table.insertBefore(tpl.content.firstChild, thead);
     table.dataset.svcw = "bdgl"; table.setAttribute("style", CG.style);
-    thead.innerHTML = `<tr>${columns.map(c => KIT.cfHead(BL, c.key, c.title, "bdg-list-head" + (c.number ? " number" : ""))).join("")}<th class="bdg-act-h"></th>${sviListCbTh()}</tr>`;
+    thead.innerHTML = `<tr>${columns.map(c => KIT.cfHead(BL, c.key, c.title, "bdg-list-head" + (c.number ? " number" : ""))).join("")}${sviListCbTh()}</tr>`;
   };
   renderHead();
   /* -------------------------------------------------------
@@ -1576,13 +1576,17 @@ function renderBudgetList() {
     /* v698 : plus de bouton + — dernière ligne « SAISIR ICI… » (fenêtre INF du nouveau budget) */
     /* v699 : lignes SAISIR ICI seulement dans la liste EN INSTANCE, en rouge */
     const NEWROW = `<tr class="bdg-newrow" data-newbdg="1" data-st="instance"><td colspan="${NCOL}">CRÉER UN BUDGET ICI…</td></tr>`;   /* 06/11 : une seule liste, ligne CRÉER toujours là */
+    /* série J (J4) : SUPPRIMER LES BUDGETS COCHÉS (⋯ de la barre du haut) — budgets et avenants EN INSTANCE seulement, avec leurs avenants et recalages */
+    table.dataset.sdel = "bdgl";
+    (window.SVI_LDEL = window.SVI_LDEL || {}).bdgl = { lab: "SUPPRIMER LES BUDGETS COCHÉS", ok: r => { const g = bdgGroups.get(r); return !!(g && g.inst && g.state !== "valide"); }, nom: r => { const g = bdgGroups.get(r) || {}; return ((g.project || "") + " " + r).trim(); },
+      run: async refs => { let L = sviInstGet(); refs.forEach(r => { try { L = sviBdgFamilyDrop(L, r); } catch (e) {} }); sviInstSet(L); renderBudgetList(); } };
     /* v705 : ordre de la liste affichée (tri et filtres) — balayage d'un budget à l'autre dans l'écran du budget */
     window.__sviBdgOrder = data.map(x => x.ref);
     /* 08/11 (document unique 6.7, remarque d'Ahmed) : ligne TOTAL en bas (montant TTC des lignes affichées ; un budget à avenants compte une fois,
        par son consolidé) ; TOTAL PARTIEL quand un filtre cache des budgets */
     { let tf = table.querySelector("tfoot"); if (!tf) { tf = document.createElement("tfoot"); table.appendChild(tf); }
       const part = data.length < budgets.length, it = columns.findIndex(c => c.key === "ttc"), lab = part ? "TOTAL PARTIEL" : "TOTAL", tot = data.reduce((a, x) => a + (+x.ttc || 0), 0);
-      tf.innerHTML = it < 0 ? "" : `<tr class="bdg-d-total-row">${columns.map((c, i) => i === it ? `<td class="number">${money(tot)}</td>` : i === (it > 0 ? 0 : 1) ? `<td><b>${lab}</b></td>` : "<td></td>").join("")}<td></td><td></td></tr>`; }
+      tf.innerHTML = it < 0 ? "" : `<tr class="bdg-d-total-row">${columns.map((c, i) => i === it ? `<td class="number">${money(tot)}</td>` : i === (it > 0 ? 0 : 1) ? `<td><b>${lab}</b></td>` : "<td></td>").join("")}<td></td></tr>`; }
     if (!data.length) {
       tbody.innerHTML = `<tr><td colspan="${NCOL}" class="empty">AUCUN BUDGET</td></tr>` + NEWROW;
       return;
@@ -1628,9 +1632,9 @@ function renderBudgetList() {
         const ec = item.flg && item.flg.arch ? " etat-archive" : item.flg && item.flg.blk ? " etat-bloque" : item.flg && item.flg.xp && (!fam || item.flg.allXp) ? " etat-expire" : "";
         return `<tr data-budget-ref="${esc(item.ref)}" data-st="${esc(keysOf(item.flg || {})[0] || item.state || "valide")}" class="${item.state ? "inst-" + item.state : ""}${fam ? " bdg-fam" : ""}${ec}"${fam ? ' data-fam="1"' : ""}>`
           + columns.map(c => cell(c.key, item)).join("")
-          + `<td class="bdg-action-cell">${item.state === "instance" ? delBtn(item.ref) : ""}</td>${sviListCbTd()}</tr>`
+          + `${sviListCbTd()}</tr>`
           + kids.map(k => `<tr data-budget-ref="${esc(k.ref)}" data-kid="${k.kind}" data-st="${esc(k.xp ? "expire" : k.state)}" class="bdg-kid${k.state ? " inst-" + k.state : ""}${k.kind === "av" ? " row-av" : " row-bdg"}${k.xp ? " etat-expire" : ""}${ec}">`
-            + columns.map(c => cell(c.key, k)).join("") + `<td class="bdg-action-cell">${k.del ? delBtn(k.ref) : ""}</td>${sviListCbTd()}</tr>`).join("")
+            + columns.map(c => cell(c.key, k)).join("") + `${sviListCbTd()}</tr>`).join("")
           + (open ? (() => { const S = sviAvStages(item.ref), ok = S.length && S[S.length - 1].state === "valide";
             return `<tr class="bdg-newrow bdg-kid${ok ? "" : " off"}" data-newav="${esc(item.ref)}"${ok ? "" : ` data-why="LE DERNIER AVENANT (OU LE BUDGET INITIAL) DOIT ÊTRE VALIDÉ AVANT D'AJOUTER UN AVENANT."`}><td colspan="${NCOL}">CRÉER UN AVENANT ICI…</td></tr>`; })() : "");
       }).join("") + NEWROW;

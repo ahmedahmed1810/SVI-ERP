@@ -121,8 +121,12 @@ function achNvList(ctx, o) {
     const rows0 = base.filter(x => sviDateIn(dOf(x), dSel)).slice().sort((a, b) => String(dI(b) || "").localeCompare(String(dI(a) || "")) || String(o.code ? o.code(b) : b.ref || "").localeCompare(String(o.code ? o.code(a) : a.ref || ""), "fr", { numeric: true }));
     const cols = coOrder(o.t, colsOf()), rows = sviPinSort(cfApply(o.t, cols, rows0), x => x.ref || x.code);   /* série I (I4) : épinglées en tête */
     order = rows.map(x => x.id);
-    const canDel = x => isI(x) && !x.del && x.state !== "annule", delCol = rows.some(canDel);
+    const canDel = x => isI(x) && !x.del && x.state !== "annule", delCol = false;   /* série J (J4) : plus de corbeille par ligne — SUPPRIMER LES … COCHÉ(E)S dans le ⋯ */
     /* 06/11 (soir) : largeur des colonnes au moteur commun (chaque colonne se règle seule, gardée) */
+    /* série J (J4) : SUPPRIMER LES … COCHÉ(E)S (⋯ de la barre du haut) — mêmes règles que l'ancienne corbeille (EN INSTANCE ; restaurable, numéro jamais réutilisé) */
+    { const fem = /^CETTE/.test(achCe(o.one || "")); (window.SVI_LDEL = window.SVI_LDEL || {})[o.t] = { lab: "SUPPRIMER LES " + String(o.name || "PIÈCES").toUpperCase() + (fem ? " COCHÉES" : " COCHÉS"),
+      ok: id => { const x = o.all().find(y => y.id === id); return !!(x && canDel(x)); }, nom: id => { const x = o.all().find(y => y.id === id); return x ? o.code(x) + " — " + o.nom(x) : id; },
+      run: async ids => { const L = o.all(), now = achNow(); ids.forEach(id => { const x = L.find(y => y.id === id); if (!x || !canDel(x)) return; x.del = now; x.mod = now; achHist(o.code(x), "CORBEILLE", o.nom(x)); }); o.save(L); draw(); } }; }
     const W = o.w || {}, CG = sviCwCols(o.t, cols.map(c => [c[0], W[c[0]] || 120]), (delCol ? [["_del", 44]] : []).concat([["_cb", 40]]));
     const ED = o.edit || {};
     /* F14 (fin) : une colonne peut dépendre de la pièce (ex. CHARGE d'un besoin : liste des charges du budget, ou texte libre au SIÈGE) */
@@ -148,7 +152,7 @@ function achNvList(ctx, o) {
       <div class="novapp-budget-layout"><aside class="novapp-date-panel svi-bdgp">
         <div class="novapp-date-head">${sviDateFold("ach_" + o.k)}${sviStfHead(SK, base.length, o.stLab, o.t + "_d")}</div>
         <div class="novapp-date-list">${sviDateTree("ach_" + o.k, days, dSel, "data-nvday", () => draw())}</div></aside>
-      <div class="novapp-budget-table-wrap"><table id="${o.id}" class="novapp-budget-table svi-bdgl nv-one" data-ach="${o.k}" data-stf="${esc(SK)}" data-svcw="${esc(o.t)}" style="${CG.style}">
+      <div class="novapp-budget-table-wrap"><table id="${o.id}" class="novapp-budget-table svi-bdgl nv-one" data-sdel="${esc(o.t)}" data-ach="${o.k}" data-stf="${esc(SK)}" data-svcw="${esc(o.t)}" style="${CG.style}">
         ${CG.cg}
         <thead><tr>${cols.map(c => cfHead(o.t, c[0], c[1], "bdg-list-head" + (c[3] === "number" ? " number" : ""))).join("")}${delCol ? '<th class="bdg-act-h"></th>' : ""}${sviListCbTh()}</tr></thead>
         <tbody>${rows.map(x => `<tr data-id="${esc(x.id)}" data-iid="${esc(x.id)}" data-nvo="${esc(x.id)}" data-st="${esc(ST.get(x.id)[0])}" class="${rowCls(x)}${x.del || x.state === "annule" ? " etat-bloque" : ""}${x.actif === false ? " etat-archive" : ""}">${cols.map(c => cell(x, c)).join("")}${delCol ? `<td class="bdg-action-cell">${canDel(x) ? `<button type="button" class="bdg-row-action bdg-row-del" data-nvdel="${esc(x.id)}" title="Supprimer" aria-label="Supprimer">${SVI_DEL_ICON}</button>` : ""}</td>` : ""}${sviListCbTd()}</tr>`).join("")

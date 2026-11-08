@@ -3885,9 +3885,11 @@ function sviHdrMenu(btn, groups, pick) {
   const old = document.getElementById("blkMenu"); if (old) { const same = old.__btn === btn; old.remove(); if (same) return; }
   const m = document.createElement("div"); m.id = "blkMenu"; m.__btn = btn;
   const G = groups.map(g => g.filter(Boolean)).filter(g => g.length), icOf = x => x.ic !== undefined ? x.ic : SVI_MI[x.k] || "", anyIc = G.some(g => g.some(x => icOf(x)));
-  m.innerHTML = G.map(g => g.map(x => `<button type="button" data-a="${esc(x.k)}" class="${x.del ? "blk-del" : ""}">${icOf(x) || (anyIc ? '<i class="mi-sp"></i>' : "")}<span>${esc(x.lab)}</span></button>`).join("")).join('<div class="blk-sep"></div>');
+  m.innerHTML = G.map(g => g.map(x => `<button type="button" data-a="${esc(x.k)}" class="${x.del ? "blk-del" : ""}${x.off ? " blk-off" : ""}"${x.off ? ` data-why="${esc(x.off)}"` : ""}>${icOf(x) || (anyIc ? '<i class="mi-sp"></i>' : "")}<span>${esc(x.lab)}</span>${x.n !== undefined ? svCnt(x.n) : ""}</button>`).join("")).join('<div class="blk-sep"></div>');
   document.body.appendChild(m); sviPlaceMenu(m, btn.getBoundingClientRect());
-  m.addEventListener("click", e => { const it = e.target.closest("[data-a]"); if (!it) return; e.stopPropagation(); m.remove(); pick(it.dataset.a); });
+  m.addEventListener("click", e => { const it = e.target.closest("[data-a]"); if (!it) return; e.stopPropagation();
+    if (it.classList.contains("blk-off")) { svToast(it.dataset.why || "", 2500, it); return; }   /* série J (J4) : ligne grisée = message, le menu reste ouvert */
+    m.remove(); pick(it.dataset.a); });
   /* v790 (DOCUMENT UNIQUE §10.1) : un 2e toucher sur le même ⋯ ferme le menu (sans le rouvrir) */
   setTimeout(() => document.addEventListener("click", function off(e) { if (!m.isConnected) { document.removeEventListener("click", off, true); return; } if (!e.target.closest("#blkMenu")) { if (btn.contains(e.target)) { e.stopPropagation(); e.preventDefault(); } m.remove(); document.removeEventListener("click", off, true); } }, true), 0);
 }
@@ -4723,7 +4725,14 @@ document.addEventListener("click", e => {
   const shell = b.closest(".novapp-list-shell"), t = shell ? shell.querySelector("table") : sviColhTableNear(b), h1 = shell ? shell.querySelector(".novapp-list-titlebar h1") : b.closest("#ach")?.querySelector(".section-head h2, .section-head h1");
   /* v818 : actions propres à une liste, ajoutées par son module (SVI_LIST_EXTRA : { when(titre), items, act(k) }) */
   const ttl = h1 ? (h1.childNodes[0] ? h1.childNodes[0].textContent : h1.textContent).trim() : "", EX = (window.SVI_LIST_EXTRA || []).filter(x => { try { return x.when(ttl); } catch (er) { return false; } });
-  sviHdrMenu(b, [sviColhItems(t), EX.flatMap(x => x.items), [{ k: "apr", lab: "APERÇU" }], [{ k: "__fmt", lab: "MODIFIER LE FORMAT" }, { k: "__lay", lab: "DISPOSITION PAR DÉFAUT" }]].filter(g => g.length), a => {
+  /* série J (J4) : SUPPRIMER LES … COCHÉ(E)S — remplace la corbeille des lignes ; grisé sans case cochée ; compteur des cases cochées */
+  const SD = t && t.dataset.sdel && (window.SVI_LDEL || {})[t.dataset.sdel], CK = SD ? [...t.querySelectorAll("tbody tr")].filter(r => r.querySelector(".nvl-cb:checked")).map(r => r.dataset.budgetRef || r.dataset.id).filter(Boolean) : [];
+  const delG = SD ? [{ k: "__ldel", lab: SD.lab, del: true, n: CK.length, off: CK.length ? "" : "COCHER D'ABORD LES LIGNES À SUPPRIMER (CASES À DROITE)." }] : [];
+  sviHdrMenu(b, [sviColhItems(t), EX.flatMap(x => x.items), [{ k: "apr", lab: "APERÇU" }], [{ k: "__fmt", lab: "MODIFIER LE FORMAT" }, { k: "__lay", lab: "DISPOSITION PAR DÉFAUT" }], delG].filter(g => g.length), async a => {
+    if (a === "__ldel") { const ok = CK.filter(SD.ok), no = CK.filter(x => !SD.ok(x));
+      if (!ok.length) { svToast("AUCUNE LIGNE COCHÉE N'EST EN INSTANCE : RIEN À SUPPRIMER.", 3500, b); return; }
+      if (!(await svConfirm({ title: SD.lab, text: ok.length + " SUPPRIMÉE(S) : " + ok.map(SD.nom).join(", ") + "." + (no.length ? " NON SUPPRIMÉE(S) (PAS EN INSTANCE) : " + no.map(SD.nom).join(", ") + "." : ""), ok: "SUPPRIMER" }))) return;
+      await SD.run(ok); svToast(ok.length + " LIGNE(S) SUPPRIMÉE(S).", 2500); return; }
     if (a === "__fmt") { sviFmtCurWin(); return; }   /* v927 (remarque 12) */
     { const x = EX.find(y => y.items.some(i => i.k === a)); if (x) { x.act(a); return; } }
     /* v920 (remarque 1) : DISPOSITION PAR DÉFAUT aussi dans les listes — colonnes d'origine, puis la liste est redessinée */
