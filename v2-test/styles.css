@@ -3679,3 +3679,5 @@ table.nv-one tfoot td, #budgetListTable tfoot td { position: sticky; bottom: 0; 
 /* 08/11 (document unique 6.5, remarque d'Ahmed) : la ligne CRÉER … ICI des listes reste fixée en bas, juste au-dessus du TOTAL — on crée sans défiler */
 table.nv-one tbody tr[data-nvnew] td, #budgetListTable tbody tr[data-newbdg] td { position: sticky; bottom: var(--svi-tot-h, 22px); z-index: 4; background: var(--tb-new-bg, #fdf0f0); }
 table.nv-one:not(:has(tfoot tr)) tbody tr[data-nvnew] td, #budgetListTable:not(:has(tfoot tr)) tbody tr[data-newbdg] td { bottom: 0; }
+/* 08/11 (remarque d'Ahmed) : titres des colonnes des listes fixés en haut du tableau quand on fait défiler */
+table.nv-one thead th, #budgetListTable thead th { position: sticky; top: 0; z-index: 6; }
