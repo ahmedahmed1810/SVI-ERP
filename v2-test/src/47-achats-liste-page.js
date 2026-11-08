@@ -139,6 +139,10 @@ function achNvList(ctx, o) {
       /* v910 (checklist C1.38) : 5e élément d'une colonne = image (logo) devant le texte, à la hauteur de la ligne */
       const im = c[4] ? c[4](x) : "";
       const t = typeof v === "number" ? achF2(v) : String(v ?? ""); return `<td class="${cl}" title="${esc(t)}">${im ? `<img class="nv-logo" src="${esc(im)}" alt="">` : ""}${esc(t)}</td>`; };
+    /* 08/11 (document unique 6.7, remarque d'Ahmed) : ligne TOTAL des colonnes de montants (lignes affichées) ; TOTAL PARTIEL si un filtre en cache */
+    const totRow = () => { const M = cols.map((c, i) => c[3] === "number" && /MONTANT|TTC|\bHT\b|RESTE|TOTAL|MOINS-DISANT/.test(String(c[1]).toUpperCase()) ? i : -1).filter(i => i >= 0); if (!M.length) return "";
+      const part = rows.length < all.filter(x => !x.del).length, lab = part ? "TOTAL PARTIEL" : "TOTAL", sum = i => rows.reduce((a, x) => { const v = cols[i][2](x); return a + (typeof v === "number" ? v : 0); }, 0), li = Math.max(0, M[0] - 1);
+      return `<tfoot><tr class="bdg-d-total-row">${cols.map((c, i) => M.includes(i) ? `<td class="number">${achF2(sum(i))}</td>` : i === li && !M.includes(li) ? `<td class="number"><b>${lab}</b></td>` : "<td></td>").join("")}${delCol ? "<td></td>" : ""}<td></td></tr></tfoot>`; };
     const rowCls = x => { const s = ST.get(x.id)[0]; return (s === "instance" ? "inst-instance" : s === "fige" ? "inst-fige" : "inst-valide") + " st-" + s; };
     return `<div class="novapp-list-shell"><div class="novapp-list-titlebar"><button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button><h1>${t1}</h1>${sviListIH()}${sviListBar()}</div>
       <div class="novapp-budget-layout"><aside class="novapp-date-panel svi-bdgp">
@@ -149,7 +153,7 @@ function achNvList(ctx, o) {
         <thead><tr>${cols.map(c => cfHead(o.t, c[0], c[1], "bdg-list-head" + (c[3] === "number" ? " number" : ""))).join("")}${delCol ? '<th class="bdg-act-h"></th>' : ""}${sviListCbTh()}</tr></thead>
         <tbody>${rows.map(x => `<tr data-id="${esc(x.id)}" data-iid="${esc(x.id)}" data-nvo="${esc(x.id)}" data-st="${esc(ST.get(x.id)[0])}" class="${rowCls(x)}${x.del || x.state === "annule" ? " etat-bloque" : ""}${x.actif === false ? " etat-archive" : ""}">${cols.map(c => cell(x, c)).join("")}${delCol ? `<td class="bdg-action-cell">${canDel(x) ? `<button type="button" class="bdg-row-action bdg-row-del" data-nvdel="${esc(x.id)}" title="Supprimer" aria-label="Supprimer">${SVI_DEL_ICON}</button>` : ""}</td>` : ""}${sviListCbTd()}</tr>`).join("")
           || ""}
-          ${o.newRow ? `<tr class="bdg-newrow" data-nvnew data-st="instance"><td colspan="${cols.length + (delCol ? 2 : 1)}">${esc(o.newRow)}</td></tr>` : ""}</tbody></table></div></div></div>`;
+          ${o.newRow ? `<tr class="bdg-newrow" data-nvnew data-st="instance"><td colspan="${cols.length + (delCol ? 2 : 1)}">${esc(o.newRow)}</td></tr>` : ""}</tbody>${totRow()}</table></div></div></div>`;
   };
   /* F14 : saisie dans la case (ENTRÉE ou toucher ailleurs = enregistré ; ÉCHAP = annulé) */
   const edit = td => { const id = td.closest("tr").dataset.id, k = td.dataset.ed, L = o.all(), x = L.find(y => y.id === id), E0 = (o.edit || {})[k], E = x && (typeof E0 === "function" ? E0(x) : E0); if (!E || !x) return;

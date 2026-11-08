@@ -1584,6 +1584,11 @@ function renderBudgetList() {
     const NEWROW = `<tr class="bdg-newrow" data-newbdg="1" data-st="instance"><td colspan="${NCOL}">CRÉER UN BUDGET ICI…</td></tr>`;   /* 06/11 : une seule liste, ligne CRÉER toujours là */
     /* v705 : ordre de la liste affichée (tri et filtres) — balayage d'un budget à l'autre dans l'écran du budget */
     window.__sviBdgOrder = data.map(x => x.ref);
+    /* 08/11 (document unique 6.7, remarque d'Ahmed) : ligne TOTAL en bas (montant TTC des lignes affichées ; un budget à avenants compte une fois,
+       par son consolidé) ; TOTAL PARTIEL quand un filtre cache des budgets */
+    { let tf = table.querySelector("tfoot"); if (!tf) { tf = document.createElement("tfoot"); table.appendChild(tf); }
+      const part = data.length < budgets.length, it = columns.findIndex(c => c.key === "ttc"), lab = part ? "TOTAL PARTIEL" : "TOTAL", tot = data.reduce((a, x) => a + (+x.ttc || 0), 0);
+      tf.innerHTML = it < 0 ? "" : `<tr class="bdg-d-total-row">${columns.map((c, i) => i === it ? `<td class="number">${money(tot)}</td>` : i === (it > 0 ? it - 1 : it + 1) ? `<td class="${it > 0 ? "number" : ""}"><b>${lab}</b></td>` : "<td></td>").join("")}<td></td><td></td></tr>`; }
     if (!data.length) {
       tbody.innerHTML = `<tr><td colspan="${NCOL}" class="empty">AUCUN BUDGET</td></tr>` + NEWROW;
       return;
