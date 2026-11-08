@@ -61,7 +61,9 @@ function achListPage(o, id) { const x = o.list().find(y => y.id === id); if (!x)
   return { id, code: x.ref, ref: x.ref, title: (o.one || "") + (D.title ? " — " + D.title : ""), party: x.frs ? achFrsNom(x.frs) : "", partyGo: x.frs ? "frs|" + x.frs : "", date: achDFr(x.date || x.dFac || x.cree), tot: D.tot || [], ttc: D.ttc || 0, numFrs: x.refFrs || x.num || x.nbl || "", st: x.state === "annule" ? "annule" : inst ? "instance" : "valide", del: x.state === "annule", why: [],
     info: done => o.open(id, () => done()), menu: [{ k: "fiche", lab: "OUVRIR LA FICHE" }].concat(D.menu || []),
     act: async (k, redraw) => { if (k === "fiche") { o.open(id, redraw); return; } if (D.act) await D.act(k, redraw); }, links: D.links.map(L => ({ ...L, add: "" })) }; }
-function achGo(t, id) { t = achGoMap[t] || t; const v = document.getElementById("ach"); if (!v || !v.__achTab) return; v.__achTab(t, !!(id && v.__achOpen)); if (v.__achOpen) v.__achOpen(t, id); }
+function achGo(t, id) { t = achGoMap[t] || t; const v = document.getElementById("ach"); if (!v || !v.__achTab) return;
+  /* série I (I3) : la page quittée entre dans le chemin suivi (sauf retour par FERMER) */
+  if (typeof ACH_PATH !== "undefined" && !(typeof achPathBack === "function" && achPathBack.on) && v.__achWhere) { const w = v.__achWhere(); if (w && w.id && !(w.t === t && w.id === id)) ACH_PATH.push(w); } v.__achTab(t, !!(id && v.__achOpen)); if (v.__achOpen) v.__achOpen(t, id); }
 function achDocPage(k, x) {
   const fr = id => id ? achFrsNom(id) : "", ref = (L, id) => ((L.find(y => y.id === id) || {}).ref) || "";
   /* v800 (document unique 3.6 – 3.7) : toucher un article ou un fournisseur dans un tableau ouvre sa page */
@@ -159,9 +161,9 @@ function achCafFiche(id, done) {
     /* comparatif : une colonne par fournisseur qui a un devis */
     const dv = f => D.find(v => v.frs === f);
     const tot = C.frs.map(f => { const v = dv(f); return v ? achDvfTot(v).ht : null; }), mins = tot.filter(x => x !== null && x > 0), min = mins.length ? Math.min(...mins) : null;
-    d.innerHTML = sviWinCard({ cls: "frs-card caf-card", close: "data-x", title: C.id ? "CONSULTATION — " + esc(C.ref) + " · " + ({ ouverte: "OUVERTE", close: "CLOSE", annule: "ANNULÉE" }[C.state]) : "NOUVELLE CONSULTATION",
+    d.innerHTML = sviWinCard({ cls: "frs-card caf-card", close: "data-x", title: C.id ? esc(C.ref) : "NOUVELLE CONSULTATION",
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
-        <div class="frs-sec"><div class="frs-g"><label class="frs-f frs-w"><span>OBJET</span><input class="ins-in caf-x" data-k="objet" value="${esc(C.objet)}"${dis} autocomplete="off"></label>
+        <div class="frs-sec"><div class="frs-g">${achCreeFld(c0)}<label class="frs-f frs-w"><span>OBJET</span><input class="ins-in caf-x" data-k="objet" value="${esc(C.objet)}"${dis} autocomplete="off"></label>
 </div></div>
         <div class="cafw-top">
         <div class="frs-sec cafw-art"><div class="frs-st">DÉTAIL CONSULTATION ${svCnt(C.lignes.length)}</div>

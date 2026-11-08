@@ -1567,6 +1567,7 @@ function renderBudgetList() {
     data = data.map((x, i) => [x, i, (sviRowDate(x.ref) || {}).key || ""]).sort((a, b) => b[2].localeCompare(a[2]) || b[1] - a[1]).map(z => z[0]);
     /* TRI ET FILTRES (menu commun) */
     data = KIT.cfApply(BL, cfCols(), data);
+    data = sviPinSort(data, x => x.ref);   /* série I (I4) : budgets épinglés en tête */
     renderHead();
 
     /* compteur du titre : budgets affichés (filtres compris) */

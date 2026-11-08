@@ -398,7 +398,7 @@
 
         <h1 class="bdg-d-h1"><span id="refBang">${obsBang(ref)}</span><span id="refTxt">${esc(fullRef)}</span></h1>
         <span class="bdg-d-badge bdg-d-inf" data-pill="inf" role="button" title="Informations (INF)">i</span>
-        <span class="bdg-d-badge" id="histBtn" role="button" title="Historique">H</span>
+        <span class="bdg-d-badge" id="histBtn" role="button" title="Historique">H</span>${sviPinBtn(budget.ref || ref)}
         ${INST_LIVE ? '<div class="lk-chain lk-chain-top" id="insChain" hidden></div>' : ""}
 
         <div class="bdg-d-hright">

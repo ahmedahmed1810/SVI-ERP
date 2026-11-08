@@ -109,12 +109,12 @@ function achCmfFiche(id, done) {
     const BL = achBsn(), DV = achDvf(), PV = C.nat === "PRESTATIONS ET HONORAIRES";
     const opt = (L, v) => L.map(x => `<option value="${esc(x[0])}"${x[0] === v ? " selected" : ""}>${esc(x[1])}</option>`).join("");
     const FR = achLive(achFrs()).filter(f => achFrsOk(f) || f.id === C.frs);
-    d.innerHTML = sviWinCard({ cls: "frs-card cmf-card", close: "data-x", title: "COMMANDE — " + esc(C.ref) + (C.av ? " · AVENANT " + C.av : "") + " · " + (ACH_CMF_ST[C.state] || "") + (edAv ? " (AVENANT EN COURS)" : ""),
+    d.innerHTML = sviWinCard({ cls: "frs-card cmf-card", close: "data-x", title: esc(C.ref),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}${(C.renv || []).length && C.state === "instance" && !C.circ ? `<div class="frs-why">↩ RENVOYÉE PAR ${esc(achGradeLab(C.renv[C.renv.length - 1].g))}${C.renv[C.renv.length - 1].u ? " — " + esc(C.renv[C.renv.length - 1].u) : ""} : ${esc(C.renv[C.renv.length - 1].why)}</div>` : ""}<div class="frs-scroll">
         ${C.circ && C.state === "instance" ? `<div class="frs-sec cmf-circ"><div class="frs-st">CIRCUIT DE VALIDATION — AU-DELÀ DE ${esc(achF2(C.circ.mt))} HT${C.circ.h ? " (HIÉRARCHIE RESPECTÉE)" : ""}</div>
           <table class="prm-table frs-sub"><thead><tr><th>GRADE</th><th>ÉTAT</th><th>PAR</th><th>LE</th></tr></thead><tbody>${C.circ.g.map(g => { const o = (C.circ.ok || []).find(x => String(x.g) === g), nx = achCircNext(C).includes(g);
             return `<tr class="${o ? "nvr-valide" : nx ? "nvr-instance" : ""}"><td>${esc(achGradeLab(g))}</td><td>${o ? "ACCEPTÉE" : nx ? "À VALIDER" : "EN ATTENTE"}</td><td>${esc(o ? o.u || "" : "")}</td><td>${esc(o ? achDFr(o.t) : "")}</td></tr>`; }).join("")}</tbody></table></div>` : ""}
-        <div class="frs-sec"><div class="frs-g">
+        <div class="frs-sec"><div class="frs-g">${achCreeFld(C)}
           <label class="frs-f"><span>NATURE</span><select class="ins-in cmf-x" data-k="nat"${dis}>${opt(ACH_NAT.map(x => [x, x]), C.nat)}</select></label>
           <label class="frs-f frs-w"><span>FOURNISSEUR <b>*</b></span><select class="ins-in cmf-x" data-k="frs"${dis || (C.caf ? " disabled" : "")}><option value=""></option>${opt(FR.map(f => [f.id, f.code + " — " + f.nom]), C.frs)}</select></label>
           <label class="frs-f"><span>LIEU DE LIVRAISON</span><input class="ins-in cmf-x" data-k="lieu" value="${esc(C.lieu)}"${dis} autocomplete="off"></label>
@@ -269,9 +269,9 @@ function achRcpFiche(id, cmfId, done) {
   const draw = () => {
     const why = r0 ? achRcpWhy(P) : [], dis = ro ? " disabled" : "", FR = achLive(achFrs()).filter(f => f.actif !== false || f.id === P.frs);
     const sel = (i, v) => `<select class="ins-in rcp-l" data-c="st" data-i="${i}"${dis}>${[["ok", "ACCEPTÉE"], ["res", "AVEC RÉSERVES"], ["att", "EN ATTENTE D'ESSAI"], ["ref", "REFUSÉE"]].map(([k, l]) => `<option value="${k}"${v === k ? " selected" : ""}>${l}</option>`).join("")}</select>`;
-    d.innerHTML = sviWinCard({ cls: "frs-card rcp-card", close: "data-x", title: (r0 ? "RÉCEPTION — " + esc(P.ref) : P.pv ? "PROCÈS-VERBAL DE SERVICE FAIT" : "NOUVELLE RÉCEPTION") + (C ? " · " + esc(C.ref) : " · SANS COMMANDE"),
+    d.innerHTML = sviWinCard({ cls: "frs-card rcp-card", close: "data-x", title: (r0 ? esc(P.ref) : P.pv ? "PROCÈS-VERBAL DE SERVICE FAIT" : "NOUVELLE RÉCEPTION"),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
-        <div class="frs-sec"><div class="frs-g">
+        <div class="frs-sec"><div class="frs-g">${achCreeFld(r0)}
           <label class="frs-f frs-w"><span>FOURNISSEUR <b>*</b></span><select class="ins-in rcp-x" data-k="frs"${dis || (C ? " disabled" : "")}><option value=""></option>${FR.map(f => `<option value="${esc(f.id)}"${f.id === P.frs ? " selected" : ""}>${esc(f.code + " — " + f.nom)}</option>`).join("")}</select></label>
           <label class="frs-f"><span>${P.pv ? "N° DU PV" : "N° DU BON DE LIVRAISON"}${P.pv ? "" : " <b>*</b>"}</span><input class="ins-in rcp-x" data-k="nbl" value="${esc(P.nbl)}"${dis} autocomplete="off"></label>
           <label class="frs-f"><span>REÇU LE (DATE ET HEURE)</span><input class="ins-in" value="${esc(svDT(P.date))}" readonly></label>

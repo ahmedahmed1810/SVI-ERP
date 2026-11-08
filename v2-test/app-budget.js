@@ -2136,6 +2136,7 @@ function renderBudgetList() {
     data = data.map((x, i) => [x, i, (sviRowDate(x.ref) || {}).key || ""]).sort((a, b) => b[2].localeCompare(a[2]) || b[1] - a[1]).map(z => z[0]);
     /* TRI ET FILTRES (menu commun) */
     data = KIT.cfApply(BL, cfCols(), data);
+    data = sviPinSort(data, x => x.ref);   /* série I (I4) : budgets épinglés en tête */
     renderHead();
 
     /* compteur du titre : budgets affichés (filtres compris) */
@@ -2660,7 +2661,7 @@ function renderBudgetList() {
 
         <h1 class="bdg-d-h1"><span id="refBang">${obsBang(ref)}</span><span id="refTxt">${esc(fullRef)}</span></h1>
         <span class="bdg-d-badge bdg-d-inf" data-pill="inf" role="button" title="Informations (INF)">i</span>
-        <span class="bdg-d-badge" id="histBtn" role="button" title="Historique">H</span>
+        <span class="bdg-d-badge" id="histBtn" role="button" title="Historique">H</span>${sviPinBtn(budget.ref || ref)}
         ${INST_LIVE ? '<div class="lk-chain lk-chain-top" id="insChain" hidden></div>' : ""}
 
         <div class="bdg-d-hright">

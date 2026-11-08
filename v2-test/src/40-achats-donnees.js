@@ -45,6 +45,10 @@ const achRefs = p => { const r = p.refs && typeof p.refs === "object" ? p.refs :
 /* 08/11 (série H, H1) : RÉFÉRENCE DES CONSULTATIONS PAR FOURNISSEUR (filles) — {PARENT} = référence de la consultation mère, {FF} = numéro du fournisseur
    dans la consultation (autant de chiffres que de F, jamais réutilisé) ; le « F » la distingue des détails (-001) */
 const ACH_REF_FDEF = "{PARENT}-F{FF}";
+/* série I (I9, document unique 10.2) : toute fenêtre i de pièce commence par la DATE DE CRÉATION — remplie seule, non modifiable (date et heure en entier) */
+const achCreeFr = x => { const t = x && x.cree ? new Date(x.cree) : new Date(); if (isNaN(t)) return String(x.cree || "");
+  const p2 = n => String(n).padStart(2, "0"); return p2(t.getDate()) + "/" + p2(t.getMonth() + 1) + "/" + t.getFullYear() + " " + p2(t.getHours()) + ":" + p2(t.getMinutes()); };
+const achCreeFld = x => `<label class="frs-f ach-cree"><span>DATE DE CRÉATION</span><input class="ins-in" value="${esc(achCreeFr(x))}" readonly tabindex="-1"></label>`;
 const achFilRef = (c, n) => String((((achPrm().refs || {}).CAF) || {}).f || ACH_REF_FDEF).replace(/\{PARENT\}/g, c.ref || "").replace(/\{(F+)\}/g, (_, F) => String(n).padStart(F.length, "0"));
 /* C6 (série C, document unique 6.14) : RÉFÉRENCE DES LIGNES d'une pièce — modèle par type : {PARENT} = référence de la pièce,
    {LLL} = compteur des lignes (autant de chiffres que de L), qui repart à 1 dans chaque pièce — distinct du compteur {NNN} des pièces */

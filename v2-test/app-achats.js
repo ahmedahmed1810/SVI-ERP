@@ -46,6 +46,10 @@ const achRefs = p => { const r = p.refs && typeof p.refs === "object" ? p.refs :
 /* 08/11 (série H, H1) : RÉFÉRENCE DES CONSULTATIONS PAR FOURNISSEUR (filles) — {PARENT} = référence de la consultation mère, {FF} = numéro du fournisseur
    dans la consultation (autant de chiffres que de F, jamais réutilisé) ; le « F » la distingue des détails (-001) */
 const ACH_REF_FDEF = "{PARENT}-F{FF}";
+/* série I (I9, document unique 10.2) : toute fenêtre i de pièce commence par la DATE DE CRÉATION — remplie seule, non modifiable (date et heure en entier) */
+const achCreeFr = x => { const t = x && x.cree ? new Date(x.cree) : new Date(); if (isNaN(t)) return String(x.cree || "");
+  const p2 = n => String(n).padStart(2, "0"); return p2(t.getDate()) + "/" + p2(t.getMonth() + 1) + "/" + t.getFullYear() + " " + p2(t.getHours()) + ":" + p2(t.getMinutes()); };
+const achCreeFld = x => `<label class="frs-f ach-cree"><span>DATE DE CRÉATION</span><input class="ins-in" value="${esc(achCreeFr(x))}" readonly tabindex="-1"></label>`;
 const achFilRef = (c, n) => String((((achPrm().refs || {}).CAF) || {}).f || ACH_REF_FDEF).replace(/\{PARENT\}/g, c.ref || "").replace(/\{(F+)\}/g, (_, F) => String(n).padStart(F.length, "0"));
 /* C6 (série C, document unique 6.14) : RÉFÉRENCE DES LIGNES d'une pièce — modèle par type : {PARENT} = référence de la pièce,
    {LLL} = compteur des lignes (autant de chiffres que de L), qui repart à 1 dans chaque pièce — distinct du compteur {NNN} des pièces */
@@ -1012,6 +1016,7 @@ function sviAchInit() {
   /* v764 : icône de bascule EN INSTANCE ⇄ VALIDÉS, placée dans le titre (hors du corps) */
   if (h1) h1.addEventListener("click", e => { const M = NV[tab] || (tab === "bsn" ? BSNM : MODS[tab]); if (M && e.target.closest("[data-nvsw]")) M.click(e); });
   /* v750 : entrée du menu ☰ (ACHAT › ARTICLES…) — ouvre l'onglet correspondant */
+  view.__achWhere = () => { const M = NV[tab] || MODS[tab] || (tab === "bsn" ? BSNM : null); return { t: tab, id: M && M.cur ? M.cur() : null }; };   /* série I (I3) : où l'on est */
   view.__achOpen = (t, id) => { const M = NV[t] || MODS[t] || (t === "bsn" ? BSNM : null); if (M && M.open) M.open(id); };   /* v779 : page d'une pièce liée */
   view.__achTab = (t, noDraw) => { Object.values(NV).forEach(M => M.close()); Object.values(MODS).forEach(M => M.close && M.close()); if (BSNM.close) BSNM.close(); if (!["art", "prm", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "rtc", "rtr", "faf", "avf", "paf"].includes(t)) return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} if (!noDraw) draw(); };   /* B48 : pas de dessin de la liste quand on ouvre directement une pièce */
   /* ---------- gestes ---------- */
@@ -1724,9 +1729,9 @@ function achBsnFiche(id, done) {
     const ctl = achBsnCtl(B, achBsn()), why = achBsnWhy(B, achBsn());
     const nf = v => (Number(v) || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const dis = ro ? " disabled" : "";
-    d.innerHTML = sviWinCard({ cls: "frs-card bsn-card", close: "data-x", title: (b0 ? "BESOIN — " + esc(B.ref) + " · " + (B.state === "valide" ? "VALIDÉ" : B.state === "annule" ? "ANNULÉ" : "EN INSTANCE") : "NOUVEAU BESOIN"),
+    d.innerHTML = sviWinCard({ cls: "frs-card bsn-card", close: "data-x", title: (b0 ? esc(B.ref) : "NOUVEAU BESOIN"),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
-        <div class="frs-sec"><div class="frs-st">AFFECTATION</div><div class="frs-g">
+        <div class="frs-sec"><div class="frs-st">AFFECTATION</div><div class="frs-g">${achCreeFld(b0)}
           <label class="frs-f"><span>CENTRE DE COÛT</span><select class="ins-in bsn-x" data-k="centre"${dis}>${opt([["CHANTIER", "CHANTIER (BUDGET)"], ["SIÈGE", "SIÈGE (HORS BUDGET)"]], B.centre)}</select></label>
           ${B.centre === "SIÈGE" ? `<label class="frs-f frs-w"><span>CHARGE <b>*</b></span><input class="ins-in bsn-x" data-k="des" value="${esc(B.des)}"${dis} autocomplete="off"></label>
             <label class="frs-f"><span>UNITÉ</span><input class="ins-in bsn-x" data-k="u" value="${esc(B.u)}"${dis} autocomplete="off"></label>`
@@ -1895,7 +1900,9 @@ function achListPage(o, id) { const x = o.list().find(y => y.id === id); if (!x)
   return { id, code: x.ref, ref: x.ref, title: (o.one || "") + (D.title ? " — " + D.title : ""), party: x.frs ? achFrsNom(x.frs) : "", partyGo: x.frs ? "frs|" + x.frs : "", date: achDFr(x.date || x.dFac || x.cree), tot: D.tot || [], ttc: D.ttc || 0, numFrs: x.refFrs || x.num || x.nbl || "", st: x.state === "annule" ? "annule" : inst ? "instance" : "valide", del: x.state === "annule", why: [],
     info: done => o.open(id, () => done()), menu: [{ k: "fiche", lab: "OUVRIR LA FICHE" }].concat(D.menu || []),
     act: async (k, redraw) => { if (k === "fiche") { o.open(id, redraw); return; } if (D.act) await D.act(k, redraw); }, links: D.links.map(L => ({ ...L, add: "" })) }; }
-function achGo(t, id) { t = achGoMap[t] || t; const v = document.getElementById("ach"); if (!v || !v.__achTab) return; v.__achTab(t, !!(id && v.__achOpen)); if (v.__achOpen) v.__achOpen(t, id); }
+function achGo(t, id) { t = achGoMap[t] || t; const v = document.getElementById("ach"); if (!v || !v.__achTab) return;
+  /* série I (I3) : la page quittée entre dans le chemin suivi (sauf retour par FERMER) */
+  if (typeof ACH_PATH !== "undefined" && !(typeof achPathBack === "function" && achPathBack.on) && v.__achWhere) { const w = v.__achWhere(); if (w && w.id && !(w.t === t && w.id === id)) ACH_PATH.push(w); } v.__achTab(t, !!(id && v.__achOpen)); if (v.__achOpen) v.__achOpen(t, id); }
 function achDocPage(k, x) {
   const fr = id => id ? achFrsNom(id) : "", ref = (L, id) => ((L.find(y => y.id === id) || {}).ref) || "";
   /* v800 (document unique 3.6 – 3.7) : toucher un article ou un fournisseur dans un tableau ouvre sa page */
@@ -1993,9 +2000,9 @@ function achCafFiche(id, done) {
     /* comparatif : une colonne par fournisseur qui a un devis */
     const dv = f => D.find(v => v.frs === f);
     const tot = C.frs.map(f => { const v = dv(f); return v ? achDvfTot(v).ht : null; }), mins = tot.filter(x => x !== null && x > 0), min = mins.length ? Math.min(...mins) : null;
-    d.innerHTML = sviWinCard({ cls: "frs-card caf-card", close: "data-x", title: C.id ? "CONSULTATION — " + esc(C.ref) + " · " + ({ ouverte: "OUVERTE", close: "CLOSE", annule: "ANNULÉE" }[C.state]) : "NOUVELLE CONSULTATION",
+    d.innerHTML = sviWinCard({ cls: "frs-card caf-card", close: "data-x", title: C.id ? esc(C.ref) : "NOUVELLE CONSULTATION",
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
-        <div class="frs-sec"><div class="frs-g"><label class="frs-f frs-w"><span>OBJET</span><input class="ins-in caf-x" data-k="objet" value="${esc(C.objet)}"${dis} autocomplete="off"></label>
+        <div class="frs-sec"><div class="frs-g">${achCreeFld(c0)}<label class="frs-f frs-w"><span>OBJET</span><input class="ins-in caf-x" data-k="objet" value="${esc(C.objet)}"${dis} autocomplete="off"></label>
 </div></div>
         <div class="cafw-top">
         <div class="frs-sec cafw-art"><div class="frs-st">DÉTAIL CONSULTATION ${svCnt(C.lignes.length)}</div>
@@ -2448,20 +2455,19 @@ function achCafSend(id) { const c = achCaf().find(y => y.id === id); if (!c) ret
     /* série H : la fille est ENVOYÉE ; son empreinte est gardée (un changement de ses articles la met À RENVOYER) */
     achCafSaveOne(id, x => { const t0 = achNow(); x.rep[f] = { ...(x.rep[f] || {}), env: t0 }; x.fil[f] = { ...(x.fil[f] || {}), env: t0, sig: achFilSig(x, f) }; }, "ENVOYÉE À " + achFrsNom(f) + " (" + achFilRefOf(c, f) + ")"); sb.textContent = "ENVOYÉ"; });
 }
-/* fenêtre i de la consultation (F5) : RÉFÉRENCE, OBJET, PROJET, DATE seulement ; création = cette fenêtre, puis la page s'ouvre (3.6) */
+/* fenêtre i de la consultation (série I, I7 – I9, document unique 10.2) : DATE DE CRÉATION (remplie seule, non modifiable) puis OBJET — rien d'autre
+   (plus de RÉFÉRENCE : elle est dans le bandeau ; plus de PROJET : une consultation n'est rattachée à aucun projet) ; création = cette fenêtre, puis la page s'ouvre (3.6) */
 function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id === id) : null; if (id && !c0) return;
-  const C = c0 ? { ...c0 } : { objet: "", projet: "", date: achNow().slice(0, 10) }, ro = !!c0 && c0.state !== "ouverte", d = sviWinNew(), dis = ro ? " disabled" : "";
-  d.innerHTML = sviWinCard({ cls: "frs-card caf-card caf-info", close: "data-x", title: c0 ? "CONSULTATION — " + esc(c0.ref) : "NOUVELLE CONSULTATION",
-    body: `<div class="frs-g"><label class="frs-f"><span>RÉFÉRENCE</span><input class="ins-in" value="${esc(c0 ? c0.ref : "(À LA CRÉATION)")}" readonly></label>
-      <label class="frs-f frs-w"><span>OBJET</span><input class="ins-in cafi-x" data-k="objet" value="${esc(C.objet || "")}"${dis} autocomplete="off"></label>
-      <label class="frs-f"><span>PROJET</span><input class="ins-in cafi-x" data-k="projet" value="${esc(C.projet || "")}"${dis} autocomplete="off"></label>
-      <label class="frs-f"><span>DATE</span><input type="date" class="ins-in cafi-x" data-k="date" value="${esc(String(C.date || C.cree || "").slice(0, 10))}"${dis}></label></div>`,
+  const C = c0 ? { ...c0 } : { objet: "" }, ro = !!c0 && c0.state !== "ouverte", d = sviWinNew(), dis = ro ? " disabled" : "";
+  d.innerHTML = sviWinCard({ cls: "frs-card caf-card caf-info", close: "data-x", title: c0 ? esc(c0.ref) : "NOUVELLE CONSULTATION",
+    body: `<div class="frs-g">${achCreeFld(c0)}
+      <label class="frs-f frs-w"><span>OBJET</span><input class="ins-in cafi-x" data-k="objet" value="${esc(C.objet || "")}"${dis} autocomplete="off"></label></div>`,
     foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${ro ? "" : `<button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button>`}` });
   sviWinShow(d);
   d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); if (done) done(); return; } if (!e.target.closest("[data-ok]")) return;
     const v = k => (d.querySelector(`.cafi-x[data-k="${k}"]`) || {}).value || "", L = achCaf();
-    if (c0) { const c = L.find(x => x.id === id); c.objet = achU(v("objet")); c.projet = achU(v("projet")); c.date = v("date"); c.mod = achNow(); achCafSave(L); achHist(c.ref, "MODIFICATION", c.objet); }
-    else { const now = achNow(), c = { id: "C" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), ref: achNextRef("CAF", L), objet: achU(v("objet")), projet: achU(v("projet")), date: v("date"), dlim: "", lignes: [], frs: [], rep: {}, state: "ouverte", cree: now };
+    if (c0) { const c = L.find(x => x.id === id); c.objet = achU(v("objet")); c.mod = achNow(); achCafSave(L); achHist(c.ref, "MODIFICATION", c.objet); }
+    else { const now = achNow(), c = { id: "C" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), ref: achNextRef("CAF", L), objet: achU(v("objet")), date: now.slice(0, 10), dlim: "", lignes: [], frs: [], rep: {}, state: "ouverte", cree: now };
       achCafUp(c); L.push(c); achCafSave(L); achHist(c.ref, "CRÉATION", c.objet); }
     d.remove(); if (done) done(); });
 }
@@ -2723,12 +2729,12 @@ function achCmfFiche(id, done) {
     const BL = achBsn(), DV = achDvf(), PV = C.nat === "PRESTATIONS ET HONORAIRES";
     const opt = (L, v) => L.map(x => `<option value="${esc(x[0])}"${x[0] === v ? " selected" : ""}>${esc(x[1])}</option>`).join("");
     const FR = achLive(achFrs()).filter(f => achFrsOk(f) || f.id === C.frs);
-    d.innerHTML = sviWinCard({ cls: "frs-card cmf-card", close: "data-x", title: "COMMANDE — " + esc(C.ref) + (C.av ? " · AVENANT " + C.av : "") + " · " + (ACH_CMF_ST[C.state] || "") + (edAv ? " (AVENANT EN COURS)" : ""),
+    d.innerHTML = sviWinCard({ cls: "frs-card cmf-card", close: "data-x", title: esc(C.ref),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}${(C.renv || []).length && C.state === "instance" && !C.circ ? `<div class="frs-why">↩ RENVOYÉE PAR ${esc(achGradeLab(C.renv[C.renv.length - 1].g))}${C.renv[C.renv.length - 1].u ? " — " + esc(C.renv[C.renv.length - 1].u) : ""} : ${esc(C.renv[C.renv.length - 1].why)}</div>` : ""}<div class="frs-scroll">
         ${C.circ && C.state === "instance" ? `<div class="frs-sec cmf-circ"><div class="frs-st">CIRCUIT DE VALIDATION — AU-DELÀ DE ${esc(achF2(C.circ.mt))} HT${C.circ.h ? " (HIÉRARCHIE RESPECTÉE)" : ""}</div>
           <table class="prm-table frs-sub"><thead><tr><th>GRADE</th><th>ÉTAT</th><th>PAR</th><th>LE</th></tr></thead><tbody>${C.circ.g.map(g => { const o = (C.circ.ok || []).find(x => String(x.g) === g), nx = achCircNext(C).includes(g);
             return `<tr class="${o ? "nvr-valide" : nx ? "nvr-instance" : ""}"><td>${esc(achGradeLab(g))}</td><td>${o ? "ACCEPTÉE" : nx ? "À VALIDER" : "EN ATTENTE"}</td><td>${esc(o ? o.u || "" : "")}</td><td>${esc(o ? achDFr(o.t) : "")}</td></tr>`; }).join("")}</tbody></table></div>` : ""}
-        <div class="frs-sec"><div class="frs-g">
+        <div class="frs-sec"><div class="frs-g">${achCreeFld(C)}
           <label class="frs-f"><span>NATURE</span><select class="ins-in cmf-x" data-k="nat"${dis}>${opt(ACH_NAT.map(x => [x, x]), C.nat)}</select></label>
           <label class="frs-f frs-w"><span>FOURNISSEUR <b>*</b></span><select class="ins-in cmf-x" data-k="frs"${dis || (C.caf ? " disabled" : "")}><option value=""></option>${opt(FR.map(f => [f.id, f.code + " — " + f.nom]), C.frs)}</select></label>
           <label class="frs-f"><span>LIEU DE LIVRAISON</span><input class="ins-in cmf-x" data-k="lieu" value="${esc(C.lieu)}"${dis} autocomplete="off"></label>
@@ -2883,9 +2889,9 @@ function achRcpFiche(id, cmfId, done) {
   const draw = () => {
     const why = r0 ? achRcpWhy(P) : [], dis = ro ? " disabled" : "", FR = achLive(achFrs()).filter(f => f.actif !== false || f.id === P.frs);
     const sel = (i, v) => `<select class="ins-in rcp-l" data-c="st" data-i="${i}"${dis}>${[["ok", "ACCEPTÉE"], ["res", "AVEC RÉSERVES"], ["att", "EN ATTENTE D'ESSAI"], ["ref", "REFUSÉE"]].map(([k, l]) => `<option value="${k}"${v === k ? " selected" : ""}>${l}</option>`).join("")}</select>`;
-    d.innerHTML = sviWinCard({ cls: "frs-card rcp-card", close: "data-x", title: (r0 ? "RÉCEPTION — " + esc(P.ref) : P.pv ? "PROCÈS-VERBAL DE SERVICE FAIT" : "NOUVELLE RÉCEPTION") + (C ? " · " + esc(C.ref) : " · SANS COMMANDE"),
+    d.innerHTML = sviWinCard({ cls: "frs-card rcp-card", close: "data-x", title: (r0 ? esc(P.ref) : P.pv ? "PROCÈS-VERBAL DE SERVICE FAIT" : "NOUVELLE RÉCEPTION"),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
-        <div class="frs-sec"><div class="frs-g">
+        <div class="frs-sec"><div class="frs-g">${achCreeFld(r0)}
           <label class="frs-f frs-w"><span>FOURNISSEUR <b>*</b></span><select class="ins-in rcp-x" data-k="frs"${dis || (C ? " disabled" : "")}><option value=""></option>${FR.map(f => `<option value="${esc(f.id)}"${f.id === P.frs ? " selected" : ""}>${esc(f.code + " — " + f.nom)}</option>`).join("")}</select></label>
           <label class="frs-f"><span>${P.pv ? "N° DU PV" : "N° DU BON DE LIVRAISON"}${P.pv ? "" : " <b>*</b>"}</span><input class="ins-in rcp-x" data-k="nbl" value="${esc(P.nbl)}"${dis} autocomplete="off"></label>
           <label class="frs-f"><span>REÇU LE (DATE ET HEURE)</span><input class="ins-in" value="${esc(svDT(P.date))}" readonly></label>
@@ -3015,8 +3021,8 @@ const achCopyOpen = async k => { try { const b = await sviFiles.get(k); if (b) w
 function achFafInfo(id, done) {
   const f = achFaf().find(x => x.id === id); if (!f) return; const d = sviWinNew(), C = achCmf().find(c => c.id === f.cmf);
   const row = (l, v) => `<label class="frs-f"><span>${l}</span><input class="ins-in" value="${esc(v || "—")}" readonly></label>`;
-  d.innerHTML = sviWinCard({ cls: "frs-card faf-info", close: "data-x", title: "FACTURE — " + esc(f.ref) + " · " + esc(achFafEtat(f)),
-    body: `<div class="frs-scroll"><div class="frs-sec"><div class="frs-g">${row("N° DE LA FACTURE", f.num)}${row("TYPE", { normale: "FACTURE", acompte: "ACOMPTE" }[f.type] || String(f.type || "").toUpperCase())}
+  d.innerHTML = sviWinCard({ cls: "frs-card faf-info", close: "data-x", title: esc(f.ref),
+    body: `<div class="frs-scroll"><div class="frs-sec"><div class="frs-g">${achCreeFld(f)}${row("N° DE LA FACTURE", f.num)}${row("TYPE", { normale: "FACTURE", acompte: "ACOMPTE" }[f.type] || String(f.type || "").toUpperCase())}
       ${row("ÉMISE LE", achDFr(f.dFac))}${row("REÇUE LE", achDFr(f.dRec))}${row("ÉCHÉANCE", achDFr(achFafEch(f)))}${row("COMMANDE", C ? C.ref : f.type === "acompte" ? "ACOMPTE" : "SANS COMMANDE")}
       ${row("FOURNISSEUR", f.frs ? achFrsNom(f.frs) : "")}${row("MONTANT TTC", achF2(achFafTot(f).ttc))}${row("RESTE À PAYER", f.state === "annule" ? "" : achF2(achFafReste(f)))}
       ${f.motifAnn ? row("MOTIF DE L'ANNULATION", f.motifAnn) : ""}<label class="frs-f"><span>COPIE</span>${f.copie ? `<button type="button" class="ach-b" data-copy>VOIR LA COPIE</button>` : `<input class="ins-in" value="AUCUNE" readonly>`}</label></div></div></div>`,
@@ -3044,9 +3050,9 @@ function achFafFiche(id, o, done) {
     const FR = achLive(achFrs()).filter(f => f.actif !== false || f.id === P.frs), CM = achCmf().filter(c => c.frs === P.frs && (c.state === "valide" || c.state === "solde"));
     const opt = (L, v) => L.map(x => `<option value="${esc(x[0])}"${x[0] === v ? " selected" : ""}>${esc(x[1])}</option>`).join("");
     const num = v => esc(v === "" || v === undefined ? "" : achF2(v));
-    d.innerHTML = sviWinCard({ cls: "frs-card faf-card", close: "data-x", title: (f0 ? "FACTURE — " + esc(P.ref) : "NOUVELLE FACTURE") + " · " + esc(f0 ? achFafEtat(P) : "EN INSTANCE"),
+    d.innerHTML = sviWinCard({ cls: "frs-card faf-card", close: "data-x", title: (f0 ? esc(P.ref) : "NOUVELLE FACTURE"),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
-        <div class="frs-sec"><div class="frs-g">
+        <div class="frs-sec"><div class="frs-g">${achCreeFld(f0)}
           <label class="frs-f frs-w"><span>FOURNISSEUR <b>*</b></span><select class="ins-in fa-x" data-k="frs"${dis || (f0 || C0 ? " disabled" : "")}><option value=""></option>${opt(FR.map(f => [f.id, f.code + " — " + f.nom]), P.frs)}</select></label>
           <label class="frs-f"><span>TYPE</span><select class="ins-in fa-x" data-k="type"${dis}>${opt([["normale", "FACTURE"], ["acompte", "FACTURE D'ACOMPTE"]], P.type)}</select></label>
           <label class="frs-f"><span>COMMANDE</span><select class="ins-in fa-x" data-k="cmf"${dis || (f0 || C0 ? " disabled" : "")}><option value="">SANS COMMANDE</option>${opt(CM.map(c => [c.id, c.ref]), P.cmf)}</select></label>
@@ -3148,8 +3154,8 @@ function achAvfFiche(id, done) {
     const used = a0 ? achAvfUsed(P.id) : 0, ro = P.state === "annule" || used > 0, dis = ro ? " disabled" : "";
     const FR = achLive(achFrs()).filter(f => f.actif !== false || f.id === P.frs), FA = achFaf().filter(f => f.frs === P.frs && f.state !== "annule"), RT = achRtr().filter(x => x.frs === P.frs && x.kind === "rcp");
     const opt = (L, v) => L.map(x => `<option value="${esc(x[0])}"${x[0] === v ? " selected" : ""}>${esc(x[1])}</option>`).join("");
-    d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: (a0 ? "AVOIR — " + esc(P.ref) : "NOUVEL AVOIR FOURNISSEUR") + (P.state === "annule" ? " · ANNULÉ" : ""),
-      body: `<div class="frs-scroll"><div class="frs-sec"><div class="frs-g">
+    d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: (a0 ? esc(P.ref) : "NOUVEL AVOIR FOURNISSEUR"),
+      body: `<div class="frs-scroll"><div class="frs-sec"><div class="frs-g">${achCreeFld(a0)}
           <label class="frs-f frs-w"><span>FOURNISSEUR <b>*</b></span><select class="ins-in av-x" data-k="frs"${dis || (a0 ? " disabled" : "")}><option value=""></option>${opt(FR.map(f => [f.id, f.code + " — " + f.nom]), P.frs)}</select></label>
           <label class="frs-f"><span>N° DE L'AVOIR <b>*</b></span><input class="ins-in av-x" data-k="num" value="${esc(P.num)}"${dis} autocomplete="off"></label>
           <label class="frs-f"><span>DATE</span><input type="date" class="ins-in av-x" data-k="date" value="${esc(P.date)}"${dis}></label>
@@ -3216,10 +3222,10 @@ function achPafFiche(id, o, done) {
     const CM = achCmf().filter(c => c.frs === P.frs && (c.state === "valide" || c.state === "instance") && c.avT);
     const opt = (L, v) => L.map(x => `<option value="${esc(x[0])}"${x[0] === v ? " selected" : ""}>${esc(x[1])}</option>`).join("");
     const mine = (L, k, id) => achN(((L || []).find(a => a[k] === id) || {}).m);
-    d.innerHTML = sviWinCard({ cls: "frs-card paf-card", close: "data-x", title: (p0 ? "PAIEMENT — " + esc(P.ref) : "NOUVEAU PAIEMENT") + " · " + esc(ACH_PAF_ST[P.state] || ""),
+    d.innerHTML = sviWinCard({ cls: "frs-card paf-card", close: "data-x", title: (p0 ? esc(P.ref) : "NOUVEAU PAIEMENT"),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}
         ${fr && achFrsAttExp(fr) && P.state === "instance" ? `<div class="frs-why pa-att">⚠ ATTESTATION DE RÉGULARITÉ FISCALE EXPIRÉE : ${P.deb ? `PAIEMENT DÉBLOQUÉ PAR ${esc(P.deb.u || "?")} LE ${esc(achDFr(String(P.deb.t).slice(0, 10)))} — ${esc(P.deb.why || "")}` : `PAIEMENT BLOQUÉ <button type="button" class="ach-b" data-attdeb>DÉBLOQUER</button>`}</div>` : ""}<div class="frs-scroll">
-        <div class="frs-sec"><div class="frs-g">
+        <div class="frs-sec"><div class="frs-g">${achCreeFld(p0)}
           <label class="frs-f"><span>TYPE</span><select class="ins-in pa-x" data-k="type"${dis || (p0 || o.fa || o.cmf ? " disabled" : "")}>${opt([["reglement", "RÈGLEMENT DE FACTURES"], ["avance", "AVANCE SUR COMMANDE"]], P.type)}</select></label>
           <label class="frs-f frs-w"><span>FOURNISSEUR <b>*</b></span><select class="ins-in pa-x" data-k="frs"${dis || (p0 || o.fa || o.cmf ? " disabled" : "")}><option value=""></option>${opt(FR.map(f => [f.id, f.code + " — " + f.nom]), P.frs)}</select></label>
           <label class="frs-f"><span>MODE</span><select class="ins-in pa-x" data-k="mode"${dis}>${opt(ACH_MODES.map(x => [x, x]), P.mode)}</select></label>
@@ -3465,7 +3471,7 @@ function achNvList(ctx, o) {
     if (dSel && !days.some(d => sviDateIn(d[0], dSel))) dSel = "";
     /* 06/11 (soir) : par défaut, la liste est classée de la plus récente à la plus ancienne (un tri par colonne passe devant) */
     const rows0 = base.filter(x => sviDateIn(dOf(x), dSel)).slice().sort((a, b) => String(dI(b) || "").localeCompare(String(dI(a) || "")) || String(o.code ? o.code(b) : b.ref || "").localeCompare(String(o.code ? o.code(a) : a.ref || ""), "fr", { numeric: true }));
-    const cols = coOrder(o.t, colsOf()), rows = cfApply(o.t, cols, rows0);
+    const cols = coOrder(o.t, colsOf()), rows = sviPinSort(cfApply(o.t, cols, rows0), x => x.ref || x.code);   /* série I (I4) : épinglées en tête */
     order = rows.map(x => x.id);
     const canDel = x => isI(x) && !x.del && x.state !== "annule", delCol = rows.some(canDel);
     /* 06/11 (soir) : largeur des colonnes au moteur commun (chaque colonne se règle seule, gardée) */
@@ -3681,7 +3687,7 @@ function achNvPageHTML(p, rec, ctx) {
       <button type="button" class="novapp-menu open-menu" aria-label="Menu">☰</button>
       <h1 class="bdg-d-h1 nvp-ref${p.del ? " nv-strike" : ""}">${esc(p.ref || p.code)}</h1>
       <span class="bdg-d-badge bdg-d-inf" data-nvp="info" role="button" title="Informations">i</span>
-      <span class="bdg-d-badge ach-h" data-h="${esc(p.code)}" role="button" title="Historique">H</span>
+      <span class="bdg-d-badge ach-h" data-h="${esc(p.code)}" role="button" title="Historique">H</span>${sviPinBtn(p.ref || p.code)}
       ${sviHdrBar({ attr: "nvp", n: p.why.length, why: { undo: "RIEN À ANNULER SUR CETTE FICHE.", redo: "RIEN À RÉTABLIR SUR CETTE FICHE.", todo: p.why.length ? "" : "AUCUNE ALERTE." } })}
     </div></div>
     ${p.links.map(blk).join("")}
@@ -3718,6 +3724,11 @@ function achMepOpen(cfg, P, rec, redraw, o) {
     fields: { ...Object.fromEntries((K === "cmf" ? achPrtAuto(P) : []).map(([id, l, v]) => ["a_" + id, l + " : " + v])), projet: P.projet || "", ttc: P.ttc && !o.noPrice ? achF2(P.ttc) + " MAD" : "", numFrs: P.numFrs || "", lettres, mention, soc },
     name: (P.ref || P.code) + " " + cfg.list.one, save: async (b, n) => { const r = await rec.savePdf(b, n); if (redraw) setTimeout(redraw, 0); return r; } });
 }
+/* 08/11 (série I, I3, document unique 3.1) : FERMER REVIENT PAS À PAS — chemin suivi d'une page à l'autre (liste › consultation › devis › fournisseur) ;
+   FERMER ramène à la page d'avant, puis à celle d'avant… jusqu'à la liste ; le menu ≡ repart d'un chemin vide (aller ailleurs d'un coup) */
+const ACH_PATH = [];
+const achPathBack = () => { const w = ACH_PATH.pop(); if (!w) return false; achPathBack.on = true; try { achGo(w.t, w.id); } finally { achPathBack.on = false; } return true; };
+document.addEventListener("click", e => { if (e.target.closest && e.target.closest("#navMenu .nav-btn")) ACH_PATH.length = 0; }, true);
 /* 07/11 : redessin de la page ouverte (gestes hors clic : glisser une ligne) */
 let ACH_NV_REDRAW = null;
 function achNvMod(ctx, cfg) {
@@ -3738,7 +3749,7 @@ function achNvMod(ctx, cfg) {
     if (P && P.click && await P.click(e, () => ctx.draw())) return true;   /* F3 : gestes propres à la page (ronds, boutons des blocs) */
     const b = e.target.closest("[data-nvp]");
     if (b) { const k = b.dataset.nvp, ord = LST.order(), i = ord.indexOf(pid);
-      if (k === "close") { pid = null; ctx.draw(); return true; }
+      if (k === "close") { if (achPathBack()) return true; pid = null; ctx.draw(); return true; }   /* série I (I3) : FERMER revient d'un cran */
       if (k === "prev" || k === "next") { const j = i + (k === "next" ? 1 : -1); if (i < 0 || j < 0 || j >= ord.length) { svToast(k === "next" ? "DERNIER DE LA LISTE." : "PREMIER DE LA LISTE.", 2000, b); return true; } open(ord[j]); return true; }
       if (k === "info") { P.info(() => ctx.draw()); return true; }
       if (b.classList.contains("hdr-off")) { svToast(b.dataset.why || "", 3000, b); return true; }
@@ -3746,7 +3757,7 @@ function achNvMod(ctx, cfg) {
       /* v774 : ⋯ principal commun — VALIDER en tête ; actions ; CORBEILLE / RESTAURER et FERMER en bas, séparés par un trait */
       /* v920 (remarques 1 et 2 du 04/11/2026) : même ordre que le ⋯ du budget — FIGER / VALIDER ; actions ; DISPOSITION PAR DÉFAUT ; SUPPRIMER (ou ANNULER / RESTAURER) et FERMER ; une icône par ligne */
       if (k === "more") { const M = P.menu.concat([{ k: "__apr", lab: "APERÇU" }]).concat(cfg.list.k === "cmf" || cfg.list.k === "rcp" ? [{ k: "__aprsp", lab: "BON SANS PRIX (CHAUFFEUR, MAGASIN)" }] : []), top = M.filter(m => m.k === "val" || m.k === "fige" || m.k === "defige"), bot = M.filter(m => m.k === "del" || m.k === "rest").map(m => ({ ...m, del: m.k === "del" })), mid = M.filter(m => !top.includes(m) && !["del", "rest"].includes(m.k));
-        sviHdrMenu(b, [top, mid, [{ k: "__fmt", lab: "MODIFIER LE FORMAT" }, { k: "__lay", lab: "DISPOSITION PAR DÉFAUT" }], [...bot, { k: "__close", lab: "FERMER" }]], async a => { if (a === "__close") { pid = null; ctx.draw(); return; }
+        sviHdrMenu(b, [top, mid, [{ k: "__fmt", lab: "MODIFIER LE FORMAT" }, { k: "__lay", lab: "DISPOSITION PAR DÉFAUT" }], [...bot, { k: "__close", lab: "FERMER" }]], async a => { if (a === "__close") { if (achPathBack()) return; pid = null; ctx.draw(); return; }
           if (a === "__fmt") { sviFmtCurWin(); return; }   /* v927 (remarque 12) */
           if (a === "__lay") { if (!(await sviLayAsk())) return; const pg = b.closest(".nvp") || document.querySelector("#ach .nvp"); sviLayReset(pg);
             try { localStorage.removeItem(ACH_NVH_K); } catch (e) {} if (pg) { pg.querySelectorAll(".nvp-max").forEach(x => x.classList.remove("nvp-max")); pg.removeAttribute("style"); } ctx.draw(); return; } if (a === "__apr") { achMepOpen(cfg, P, rec, () => ctx.draw()); return; } if (a === "__aprsp") { achMepOpen(cfg, P, rec, () => ctx.draw(), { noPrice: true }); return; } await P.act(a, () => ctx.draw(), id => open(id)); }); return true; }
@@ -3780,7 +3791,7 @@ function achNvMod(ctx, cfg) {
     return false;
   };
   const change = e => { if (!pid) return false; if (P && P.change && P.change(e, () => ctx.draw())) return true; return rec ? rec.change(e) : false; };
-  return { html, click, change, h1, open, close: () => { pid = null; }, isPage: () => !!pid };
+  return { html, click, change, h1, open, close: () => { pid = null; }, isPage: () => !!pid, cur: () => pid };
 }
 
 /* ---------- ARTICLES ---------- */

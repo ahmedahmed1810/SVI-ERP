@@ -198,3 +198,17 @@ new MutationObserver(muts => {
   cancelAnimationFrame(sviUpRaf);
   sviUpRaf = requestAnimationFrame(sviUpAll);
 }).observe(document.documentElement, { childList: true, subtree: true });
+
+/* 08/11 (série I, I4, document unique 6.19 et 6.5) : ÉPINGLER UNE PIÈCE EN HAUT DE SA LISTE — épingle dans la barre du haut de la pièce, après H :
+   1er toucher = épinglée, 2e = retirée ; les pièces épinglées passent en tête de leur liste (même triée par une colonne), puis l'ordre habituel ;
+   propre à chaque utilisateur (clé par utilisateur) ; la pièce est reconnue par sa référence */
+const sviPinK = () => "svi_pin_v1:" + (typeof sviUser === "function" ? sviUser() || "-" : "-");
+const sviPins = () => { try { const v = JSON.parse(localStorage.getItem(sviPinK()) || "[]"); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
+const sviPinOn = ref => !!ref && sviPins().includes(ref);
+const sviPinTog = ref => { if (!ref) return false; const L = sviPins(), on = !L.includes(ref); try { localStorage.setItem(sviPinK(), JSON.stringify(on ? L.concat([ref]) : L.filter(x => x !== ref))); } catch (e) {} return on; };
+const sviPinSort = (rows, refOf) => { const P = new Set(sviPins()); if (!P.size) return rows; return rows.filter(x => P.has(refOf(x))).concat(rows.filter(x => !P.has(refOf(x)))); };
+const SVI_PIN_IC = '<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3l6 6-3 1-4 4 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 4-4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
+const sviPinBtn = ref => ref ? `<span class="bdg-d-badge svi-pin${sviPinOn(ref) ? " on" : ""}" data-pin="${esc(ref)}" role="button" title="${sviPinOn(ref) ? "Retirer l'épingle" : "Épingler en haut de la liste"}">${SVI_PIN_IC}</span>` : "";
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-pin]"); if (!b) return; e.preventDefault(); e.stopPropagation();
+  const on = sviPinTog(b.dataset.pin); b.classList.toggle("on", on); b.title = on ? "Retirer l'épingle" : "Épingler en haut de la liste";
+  if (typeof svToast === "function") svToast(on ? "ÉPINGLÉE EN HAUT DE LA LISTE." : "ÉPINGLE RETIRÉE.", 1800, b); }, true);

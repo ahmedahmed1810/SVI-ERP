@@ -213,20 +213,19 @@ function achCafSend(id) { const c = achCaf().find(y => y.id === id); if (!c) ret
     /* série H : la fille est ENVOYÉE ; son empreinte est gardée (un changement de ses articles la met À RENVOYER) */
     achCafSaveOne(id, x => { const t0 = achNow(); x.rep[f] = { ...(x.rep[f] || {}), env: t0 }; x.fil[f] = { ...(x.fil[f] || {}), env: t0, sig: achFilSig(x, f) }; }, "ENVOYÉE À " + achFrsNom(f) + " (" + achFilRefOf(c, f) + ")"); sb.textContent = "ENVOYÉ"; });
 }
-/* fenêtre i de la consultation (F5) : RÉFÉRENCE, OBJET, PROJET, DATE seulement ; création = cette fenêtre, puis la page s'ouvre (3.6) */
+/* fenêtre i de la consultation (série I, I7 – I9, document unique 10.2) : DATE DE CRÉATION (remplie seule, non modifiable) puis OBJET — rien d'autre
+   (plus de RÉFÉRENCE : elle est dans le bandeau ; plus de PROJET : une consultation n'est rattachée à aucun projet) ; création = cette fenêtre, puis la page s'ouvre (3.6) */
 function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id === id) : null; if (id && !c0) return;
-  const C = c0 ? { ...c0 } : { objet: "", projet: "", date: achNow().slice(0, 10) }, ro = !!c0 && c0.state !== "ouverte", d = sviWinNew(), dis = ro ? " disabled" : "";
-  d.innerHTML = sviWinCard({ cls: "frs-card caf-card caf-info", close: "data-x", title: c0 ? "CONSULTATION — " + esc(c0.ref) : "NOUVELLE CONSULTATION",
-    body: `<div class="frs-g"><label class="frs-f"><span>RÉFÉRENCE</span><input class="ins-in" value="${esc(c0 ? c0.ref : "(À LA CRÉATION)")}" readonly></label>
-      <label class="frs-f frs-w"><span>OBJET</span><input class="ins-in cafi-x" data-k="objet" value="${esc(C.objet || "")}"${dis} autocomplete="off"></label>
-      <label class="frs-f"><span>PROJET</span><input class="ins-in cafi-x" data-k="projet" value="${esc(C.projet || "")}"${dis} autocomplete="off"></label>
-      <label class="frs-f"><span>DATE</span><input type="date" class="ins-in cafi-x" data-k="date" value="${esc(String(C.date || C.cree || "").slice(0, 10))}"${dis}></label></div>`,
+  const C = c0 ? { ...c0 } : { objet: "" }, ro = !!c0 && c0.state !== "ouverte", d = sviWinNew(), dis = ro ? " disabled" : "";
+  d.innerHTML = sviWinCard({ cls: "frs-card caf-card caf-info", close: "data-x", title: c0 ? esc(c0.ref) : "NOUVELLE CONSULTATION",
+    body: `<div class="frs-g">${achCreeFld(c0)}
+      <label class="frs-f frs-w"><span>OBJET</span><input class="ins-in cafi-x" data-k="objet" value="${esc(C.objet || "")}"${dis} autocomplete="off"></label></div>`,
     foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${ro ? "" : `<button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button>`}` });
   sviWinShow(d);
   d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); if (done) done(); return; } if (!e.target.closest("[data-ok]")) return;
     const v = k => (d.querySelector(`.cafi-x[data-k="${k}"]`) || {}).value || "", L = achCaf();
-    if (c0) { const c = L.find(x => x.id === id); c.objet = achU(v("objet")); c.projet = achU(v("projet")); c.date = v("date"); c.mod = achNow(); achCafSave(L); achHist(c.ref, "MODIFICATION", c.objet); }
-    else { const now = achNow(), c = { id: "C" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), ref: achNextRef("CAF", L), objet: achU(v("objet")), projet: achU(v("projet")), date: v("date"), dlim: "", lignes: [], frs: [], rep: {}, state: "ouverte", cree: now };
+    if (c0) { const c = L.find(x => x.id === id); c.objet = achU(v("objet")); c.mod = achNow(); achCafSave(L); achHist(c.ref, "MODIFICATION", c.objet); }
+    else { const now = achNow(), c = { id: "C" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), ref: achNextRef("CAF", L), objet: achU(v("objet")), date: now.slice(0, 10), dlim: "", lignes: [], frs: [], rep: {}, state: "ouverte", cree: now };
       achCafUp(c); L.push(c); achCafSave(L); achHist(c.ref, "CRÉATION", c.objet); }
     d.remove(); if (done) done(); });
 }

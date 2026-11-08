@@ -35,9 +35,9 @@ function achBsnFiche(id, done) {
     const ctl = achBsnCtl(B, achBsn()), why = achBsnWhy(B, achBsn());
     const nf = v => (Number(v) || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const dis = ro ? " disabled" : "";
-    d.innerHTML = sviWinCard({ cls: "frs-card bsn-card", close: "data-x", title: (b0 ? "BESOIN — " + esc(B.ref) + " · " + (B.state === "valide" ? "VALIDÉ" : B.state === "annule" ? "ANNULÉ" : "EN INSTANCE") : "NOUVEAU BESOIN"),
+    d.innerHTML = sviWinCard({ cls: "frs-card bsn-card", close: "data-x", title: (b0 ? esc(B.ref) : "NOUVEAU BESOIN"),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
-        <div class="frs-sec"><div class="frs-st">AFFECTATION</div><div class="frs-g">
+        <div class="frs-sec"><div class="frs-st">AFFECTATION</div><div class="frs-g">${achCreeFld(b0)}
           <label class="frs-f"><span>CENTRE DE COÛT</span><select class="ins-in bsn-x" data-k="centre"${dis}>${opt([["CHANTIER", "CHANTIER (BUDGET)"], ["SIÈGE", "SIÈGE (HORS BUDGET)"]], B.centre)}</select></label>
           ${B.centre === "SIÈGE" ? `<label class="frs-f frs-w"><span>CHARGE <b>*</b></span><input class="ins-in bsn-x" data-k="des" value="${esc(B.des)}"${dis} autocomplete="off"></label>
             <label class="frs-f"><span>UNITÉ</span><input class="ins-in bsn-x" data-k="u" value="${esc(B.u)}"${dis} autocomplete="off"></label>`

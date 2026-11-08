@@ -119,7 +119,7 @@ function achNvList(ctx, o) {
     if (dSel && !days.some(d => sviDateIn(d[0], dSel))) dSel = "";
     /* 06/11 (soir) : par défaut, la liste est classée de la plus récente à la plus ancienne (un tri par colonne passe devant) */
     const rows0 = base.filter(x => sviDateIn(dOf(x), dSel)).slice().sort((a, b) => String(dI(b) || "").localeCompare(String(dI(a) || "")) || String(o.code ? o.code(b) : b.ref || "").localeCompare(String(o.code ? o.code(a) : a.ref || ""), "fr", { numeric: true }));
-    const cols = coOrder(o.t, colsOf()), rows = cfApply(o.t, cols, rows0);
+    const cols = coOrder(o.t, colsOf()), rows = sviPinSort(cfApply(o.t, cols, rows0), x => x.ref || x.code);   /* série I (I4) : épinglées en tête */
     order = rows.map(x => x.id);
     const canDel = x => isI(x) && !x.del && x.state !== "annule", delCol = rows.some(canDel);
     /* 06/11 (soir) : largeur des colonnes au moteur commun (chaque colonne se règle seule, gardée) */
@@ -335,7 +335,7 @@ function achNvPageHTML(p, rec, ctx) {
       <button type="button" class="novapp-menu open-menu" aria-label="Menu">☰</button>
       <h1 class="bdg-d-h1 nvp-ref${p.del ? " nv-strike" : ""}">${esc(p.ref || p.code)}</h1>
       <span class="bdg-d-badge bdg-d-inf" data-nvp="info" role="button" title="Informations">i</span>
-      <span class="bdg-d-badge ach-h" data-h="${esc(p.code)}" role="button" title="Historique">H</span>
+      <span class="bdg-d-badge ach-h" data-h="${esc(p.code)}" role="button" title="Historique">H</span>${sviPinBtn(p.ref || p.code)}
       ${sviHdrBar({ attr: "nvp", n: p.why.length, why: { undo: "RIEN À ANNULER SUR CETTE FICHE.", redo: "RIEN À RÉTABLIR SUR CETTE FICHE.", todo: p.why.length ? "" : "AUCUNE ALERTE." } })}
     </div></div>
     ${p.links.map(blk).join("")}
@@ -372,6 +372,11 @@ function achMepOpen(cfg, P, rec, redraw, o) {
     fields: { ...Object.fromEntries((K === "cmf" ? achPrtAuto(P) : []).map(([id, l, v]) => ["a_" + id, l + " : " + v])), projet: P.projet || "", ttc: P.ttc && !o.noPrice ? achF2(P.ttc) + " MAD" : "", numFrs: P.numFrs || "", lettres, mention, soc },
     name: (P.ref || P.code) + " " + cfg.list.one, save: async (b, n) => { const r = await rec.savePdf(b, n); if (redraw) setTimeout(redraw, 0); return r; } });
 }
+/* 08/11 (série I, I3, document unique 3.1) : FERMER REVIENT PAS À PAS — chemin suivi d'une page à l'autre (liste › consultation › devis › fournisseur) ;
+   FERMER ramène à la page d'avant, puis à celle d'avant… jusqu'à la liste ; le menu ≡ repart d'un chemin vide (aller ailleurs d'un coup) */
+const ACH_PATH = [];
+const achPathBack = () => { const w = ACH_PATH.pop(); if (!w) return false; achPathBack.on = true; try { achGo(w.t, w.id); } finally { achPathBack.on = false; } return true; };
+document.addEventListener("click", e => { if (e.target.closest && e.target.closest("#navMenu .nav-btn")) ACH_PATH.length = 0; }, true);
 /* 07/11 : redessin de la page ouverte (gestes hors clic : glisser une ligne) */
 let ACH_NV_REDRAW = null;
 function achNvMod(ctx, cfg) {
@@ -392,7 +397,7 @@ function achNvMod(ctx, cfg) {
     if (P && P.click && await P.click(e, () => ctx.draw())) return true;   /* F3 : gestes propres à la page (ronds, boutons des blocs) */
     const b = e.target.closest("[data-nvp]");
     if (b) { const k = b.dataset.nvp, ord = LST.order(), i = ord.indexOf(pid);
-      if (k === "close") { pid = null; ctx.draw(); return true; }
+      if (k === "close") { if (achPathBack()) return true; pid = null; ctx.draw(); return true; }   /* série I (I3) : FERMER revient d'un cran */
       if (k === "prev" || k === "next") { const j = i + (k === "next" ? 1 : -1); if (i < 0 || j < 0 || j >= ord.length) { svToast(k === "next" ? "DERNIER DE LA LISTE." : "PREMIER DE LA LISTE.", 2000, b); return true; } open(ord[j]); return true; }
       if (k === "info") { P.info(() => ctx.draw()); return true; }
       if (b.classList.contains("hdr-off")) { svToast(b.dataset.why || "", 3000, b); return true; }
@@ -400,7 +405,7 @@ function achNvMod(ctx, cfg) {
       /* v774 : ⋯ principal commun — VALIDER en tête ; actions ; CORBEILLE / RESTAURER et FERMER en bas, séparés par un trait */
       /* v920 (remarques 1 et 2 du 04/11/2026) : même ordre que le ⋯ du budget — FIGER / VALIDER ; actions ; DISPOSITION PAR DÉFAUT ; SUPPRIMER (ou ANNULER / RESTAURER) et FERMER ; une icône par ligne */
       if (k === "more") { const M = P.menu.concat([{ k: "__apr", lab: "APERÇU" }]).concat(cfg.list.k === "cmf" || cfg.list.k === "rcp" ? [{ k: "__aprsp", lab: "BON SANS PRIX (CHAUFFEUR, MAGASIN)" }] : []), top = M.filter(m => m.k === "val" || m.k === "fige" || m.k === "defige"), bot = M.filter(m => m.k === "del" || m.k === "rest").map(m => ({ ...m, del: m.k === "del" })), mid = M.filter(m => !top.includes(m) && !["del", "rest"].includes(m.k));
-        sviHdrMenu(b, [top, mid, [{ k: "__fmt", lab: "MODIFIER LE FORMAT" }, { k: "__lay", lab: "DISPOSITION PAR DÉFAUT" }], [...bot, { k: "__close", lab: "FERMER" }]], async a => { if (a === "__close") { pid = null; ctx.draw(); return; }
+        sviHdrMenu(b, [top, mid, [{ k: "__fmt", lab: "MODIFIER LE FORMAT" }, { k: "__lay", lab: "DISPOSITION PAR DÉFAUT" }], [...bot, { k: "__close", lab: "FERMER" }]], async a => { if (a === "__close") { if (achPathBack()) return; pid = null; ctx.draw(); return; }
           if (a === "__fmt") { sviFmtCurWin(); return; }   /* v927 (remarque 12) */
           if (a === "__lay") { if (!(await sviLayAsk())) return; const pg = b.closest(".nvp") || document.querySelector("#ach .nvp"); sviLayReset(pg);
             try { localStorage.removeItem(ACH_NVH_K); } catch (e) {} if (pg) { pg.querySelectorAll(".nvp-max").forEach(x => x.classList.remove("nvp-max")); pg.removeAttribute("style"); } ctx.draw(); return; } if (a === "__apr") { achMepOpen(cfg, P, rec, () => ctx.draw()); return; } if (a === "__aprsp") { achMepOpen(cfg, P, rec, () => ctx.draw(), { noPrice: true }); return; } await P.act(a, () => ctx.draw(), id => open(id)); }); return true; }
@@ -434,7 +439,7 @@ function achNvMod(ctx, cfg) {
     return false;
   };
   const change = e => { if (!pid) return false; if (P && P.change && P.change(e, () => ctx.draw())) return true; return rec ? rec.change(e) : false; };
-  return { html, click, change, h1, open, close: () => { pid = null; }, isPage: () => !!pid };
+  return { html, click, change, h1, open, close: () => { pid = null; }, isPage: () => !!pid, cur: () => pid };
 }
 
 /* ---------- ARTICLES ---------- */
