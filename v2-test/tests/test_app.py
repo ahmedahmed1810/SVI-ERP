@@ -2833,7 +2833,7 @@ def main():
             const r = [top.join(','), sub.join(','), open, still, stay, document.getElementById('ach').classList.contains('active-view'), (document.querySelector('#ach .novapp-list-titlebar h1') || document.querySelector('#ach .section-head h1')).textContent.trim().replace(/ \(.*$| \d+$/, '')];
             M.querySelector('.nav-grp').click(); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); M.classList.add('hidden'); await w(600); return r; }""")
         check("v751 / v752 : menu ☰ — ordre BDG, ACHAT, BESOIN, PARAMÉTRAGE ; ACHAT dépliable (CONSULTATIONS, DEVIS, COMMANDES, RÉCEPTIONS, FACTURES, PAIEMENTS, FOURNISSEURS, ARTICLES, ACC), BESOIN dessous ; entrées à venir grisées ; ARTICLES ouvre les achats",
-              m751 == ["ACCUEIL,BDG,ACHAT,BESOIN,PARAMÉTRAGE,DONNÉES SOURCE", "TABLEAU DE BORD,CONSULTATIONS FOURNISSEURS,DEVIS,COMMANDES,RÉCEPTIONS,FACTURES,PAIEMENTS,FOURNISSEURS,ARTICLES,ACC", True, True, True, True, "ARTICLES"], m751)
+              m751 == ["ACCUEIL,BDG,ACHAT,BESOIN,PARAMÉTRAGE,DONNÉES SOURCE", "TABLEAU DE BORD,CONSULTATIONS,DEVIS,COMMANDES,RÉCEPTIONS,FACTURES,PAIEMENTS,FOURNISSEURS,ARTICLES,ACC", True, True, True, True, "ARTICLES"], m751)
         # v752 : icône devant chaque entrée du menu ; liste des budgets en gras ; lignes du dessous décalées ; corbeille de la couleur de sa ligne
         k752 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const M = document.getElementById('navMenu');
             const ic = [...M.querySelectorAll('.nav-btn, .nav-grp, .nav-off, .nav-src')].every(b => !!b.querySelector('svg.nav-ic'));
@@ -3118,7 +3118,7 @@ def main():
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); });
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v765 : listes des achats au format du budget — sans onglets, titre EN INSTANCE / VALIDÉS avec nombre et bascule, dates, sans H, sans étiquette du budget ; corbeille = ANNULÉ ; ligne → fiche",
-              l765[0] == "none" and l765[1].startswith("CONSULTATIONS FOURNISSEURS 2") and l765[2:6] == [2, True, True, False] and l765[6].startswith("CONSULTATIONS FOURNISSEURS 2") and l765[7] is True and l765[8:] == ["annule", True], l765)
+              l765[0] == "none" and l765[1].startswith("CONSULTATIONS 2") and l765[2:6] == [2, True, True, False] and l765[6].startswith("CONSULTATIONS 2") and l765[7] is True and l765[8:] == ["annule", True], l765)
         # B15 (série B) : plus d'import NovApp (bouton et procédure retirés)
         check("SÉRIE B, B15 : bouton et procédure d'import NovApp retirés", pg.evaluate("() => typeof achNovImport === 'undefined' && typeof achHistNov === 'function'"))
         # v786 / v788 → v796 (document unique 6.8) : MASQUER / AFFICHER LES COLONNES dans PARAMÉTRAGE › FORMAT › COLONNES, plus dans les ⋯ ;

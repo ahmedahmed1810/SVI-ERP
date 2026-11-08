@@ -1,5 +1,5 @@
 /* =========================================================
-   F3 – F12 (série F, 06/11/2026) : PAGE DE LA CONSULTATION FOURNISSEURS sur le modèle du budget — une seule page, quatre blocs liés par les
+   F3 – F12 (série F, 06/11/2026) : PAGE DE LA CONSULTATION sur le modèle du budget — une seule page, quatre blocs liés par les
    ronds à gauche (règle 2.5) : DÉTAIL CONSULTATION, FOURNISSEURS, DOCUMENTS, CONDITIONS PARTICULIÈRES ; puis le comparatif et les pièces liées.
    Liaisons gardées sur la consultation : lf (détail → fournisseurs), ld (détail → documents), lc (détail → conditions),
    fd (fournisseur → documents), fc (fournisseur → conditions). Choisir un détail éclaire ses fournisseurs, documents et conditions ; choisir un
@@ -199,7 +199,7 @@ function achCafSend(id) { const c = achCaf().find(y => y.id === id); if (!c) ret
 /* fenêtre i de la consultation (F5) : RÉFÉRENCE, OBJET, PROJET, DATE seulement ; création = cette fenêtre, puis la page s'ouvre (3.6) */
 function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id === id) : null; if (id && !c0) return;
   const C = c0 ? { ...c0 } : { objet: "", projet: "", date: achNow().slice(0, 10) }, ro = !!c0 && c0.state !== "ouverte", d = sviWinNew(), dis = ro ? " disabled" : "";
-  d.innerHTML = sviWinCard({ cls: "frs-card caf-card caf-info", close: "data-x", title: c0 ? "CONSULTATION FOURNISSEURS — " + esc(c0.ref) : "NOUVELLE CONSULTATION FOURNISSEURS",
+  d.innerHTML = sviWinCard({ cls: "frs-card caf-card caf-info", close: "data-x", title: c0 ? "CONSULTATION — " + esc(c0.ref) : "NOUVELLE CONSULTATION",
     body: `<div class="frs-g"><label class="frs-f"><span>RÉFÉRENCE</span><input class="ins-in" value="${esc(c0 ? c0.ref : "(À LA CRÉATION)")}" readonly></label>
       <label class="frs-f frs-w"><span>OBJET</span><input class="ins-in cafi-x" data-k="objet" value="${esc(C.objet || "")}"${dis} autocomplete="off"></label>
       <label class="frs-f"><span>PROJET</span><input class="ins-in cafi-x" data-k="projet" value="${esc(C.projet || "")}"${dis} autocomplete="off"></label>

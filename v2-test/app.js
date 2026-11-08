@@ -3427,7 +3427,7 @@ const SVI_FMT_IF = [
    fiche en instance, fiche validée) ; le budget trois (listes en instance / validés, fiche budget) ; dans l'ordre du menu ≡.
    L'interface affichée est posée sur la page (html[data-svif]) : MODIFIER LE FORMAT vise celle-là. */
 /* D1 (série D) : plus d'interfaces RETOURS DE COMMANDE, RETOURS DE RÉCEPTION, AVOIRS — ils sont dans COMMANDES, RÉCEPTIONS, FACTURES */
-const SVI_IF_ACH = [["caf", "CONSULTATION FOURNISSEURS", "CONSULTATIONS FOURNISSEURS"], ["dvf", "DEVIS", "DEVIS"], ["cmf", "COMMANDE", "COMMANDES"],
+const SVI_IF_ACH = [["caf", "CONSULTATION", "CONSULTATIONS"], ["dvf", "DEVIS", "DEVIS"], ["cmf", "COMMANDE", "COMMANDES"],
   ["rcp", "RÉCEPTION", "RÉCEPTIONS"], ["faf", "FACTURE", "FACTURES"], ["paf", "PAIEMENT", "PAIEMENTS"],
   ["frs", "FOURNISSEUR", "FOURNISSEURS"], ["art", "ARTICLE", "ARTICLES"], ["bsn", "BESOIN", "BESOINS"]];
 /* 06/11/2026 (décision) : UN SEUL TYPE DE LISTE, DE FICHE ET DE FENÊTRE par pièce, colorés selon l'état (palette) — MODIFIER LE FORMAT règle

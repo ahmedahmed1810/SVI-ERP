@@ -37,7 +37,7 @@ const achEspL = p => Array.isArray(p.espL) ? p.espL : [{ id: "e1", per: "jour", 
 const achEspJour = p => { const L = achEspL(p), j = L.find(x => x.per === "jour") || L[0]; return j ? achN(j.mt) : Infinity; };
 /* série B (B27) : RÉFÉRENCES — un modèle par type de pièce ; texte fixe tel quel, variables {AA} (année, 2 chiffres), {AAAA}, {MM}, {JJ},
    {NNN} (compteur, autant de chiffres que de N) ; compteur remis à zéro chaque jour (par défaut), mois, année ou jamais */
-const ACH_REF_T = [["BSN", "BESOIN"], ["CAF", "CONSULTATION FOURNISSEUR ACHAT (CFA)"], ["DVF", "DEVIS DU FOURNISSEUR"], ["CMF", "COMMANDE"], ["RTC", "RETOUR DE COMMANDE"], ["RCP", "RÉCEPTION"],
+const ACH_REF_T = [["BSN", "BESOIN"], ["CAF", "CONSULTATION (CFA)"], ["DVF", "DEVIS DU FOURNISSEUR"], ["CMF", "COMMANDE"], ["RTC", "RETOUR DE COMMANDE"], ["RCP", "RÉCEPTION"],
   ["RTR", "RETOUR DE RÉCEPTION"], ["FAF", "FACTURE DU FOURNISSEUR"], ["AVF", "AVOIR DU FOURNISSEUR"], ["PAF", "PAIEMENT"]];
 const ACH_REF_RZ = [["jour", "CHAQUE JOUR"], ["mois", "CHAQUE MOIS"], ["annee", "CHAQUE ANNÉE"], ["jamais", "JAMAIS"]];
 const achRefs = p => { const r = p.refs && typeof p.refs === "object" ? p.refs : {};
@@ -319,7 +319,7 @@ const achArtPartNo = (c, f) => { if (!f) return ""; const g = achFrsRoot(f.id), 
    La commande envoyée est verrouillée ; un valideur l'accepte ou la renvoie avec ses remarques ; corrigée, elle repart dans le circuit. */
 /* 06/11/2026 (décision d'Ahmed) : CHAQUE TYPE DE PIÈCE A SON PROPRE CIRCUIT DE VALIDATION — seuils réglés type par type (PARAMÉTRAGE › ACHATS ›
    RÈGLES INTERNES › SEUILS DE VALIDATION) ; le seuil GÉNÉRAL de la société n'est que proposé par défaut : un type sans réglage propre le reprend */
-const ACH_CIRC_T = [["gen", "GÉNÉRAL (PROPOSÉ PAR DÉFAUT)"], ["bsn", "BESOINS"], ["caf", "CONSULTATIONS FOURNISSEURS"], ["dvf", "DEVIS"], ["cmf", "COMMANDES"], ["faf", "FACTURES"], ["paf", "PAIEMENTS"]];
+const ACH_CIRC_T = [["gen", "GÉNÉRAL (PROPOSÉ PAR DÉFAUT)"], ["bsn", "BESOINS"], ["caf", "CONSULTATIONS"], ["dvf", "DEVIS"], ["cmf", "COMMANDES"], ["faf", "FACTURES"], ["paf", "PAIEMENTS"]];
 /* 06/11 (soir) : montant d'une pièce sans prix d'achat (besoin, consultation, devis) = quantités × PRIX STANDARD de l'article (prix de référence
    de la liste des articles) ; une ligne hors liste prend le prix saisi sur la ligne */
 const achArtOf = (des, u) => achArts().find(a => !a.del && achKey(a.des, a.u) === achKey(des, u)) || null;
