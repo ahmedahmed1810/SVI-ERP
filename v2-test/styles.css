@@ -3676,3 +3676,6 @@ table.nv-one { table-layout: fixed; }
 table.nv-one tbody td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 08/11 : ligne TOTAL des listes fixée en bas du tableau (toujours visible) ; le mot TOTAL dans la 1re colonne */
 table.nv-one tfoot td, #budgetListTable tfoot td { position: sticky; bottom: 0; z-index: 4; background: var(--tb-tot-bg, #fdf0f0); }
+/* 08/11 (document unique 6.5, remarque d'Ahmed) : la ligne CRÉER … ICI des listes reste fixée en bas, juste au-dessus du TOTAL — on crée sans défiler */
+table.nv-one tbody tr[data-nvnew] td, #budgetListTable tbody tr[data-newbdg] td { position: sticky; bottom: var(--svi-tot-h, 22px); z-index: 4; background: var(--tb-new-bg, #fdf0f0); }
+table.nv-one:not(:has(tfoot tr)) tbody tr[data-nvnew] td, #budgetListTable:not(:has(tfoot tr)) tbody tr[data-newbdg] td { bottom: 0; }

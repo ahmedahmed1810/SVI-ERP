@@ -4324,6 +4324,10 @@ sviRowHApply();
   document.addEventListener("wheel", e => { if (!(e.ctrlKey || e.metaKey)) return; const tb = zone(e.target); if (!tb) return; e.preventDefault();
     set(tb, rowH(tb) * Math.exp(-Math.max(-60, Math.min(60, e.deltaY)) * 0.01 * (SVI_G.pinch || 1))); }, { passive: false, capture: true });
 }
+
+/* 08/11 : hauteur réelle de la ligne TOTAL des listes (la ligne CRÉER se pose juste au-dessus) */
+{ let q = 0; const up = () => { q = 0; const t = document.querySelector("table.nv-one tfoot tr, #budgetListTable tfoot tr"); if (t) { const h = Math.round(t.getBoundingClientRect().height); if (h) document.documentElement.style.setProperty("--svi-tot-h", h + "px"); } };
+  new MutationObserver(() => { if (!q) q = requestAnimationFrame(up); }).observe(document.documentElement, { childList: true, subtree: true }); }
 /* ⟪ src/09e-mise-en-page.js ⟫ */
 /* =========================================================
    v783 : APERÇU UNIQUE — éditeur MISE EN PAGE par blocs (repris d'achats.html)
