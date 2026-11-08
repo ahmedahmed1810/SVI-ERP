@@ -3453,10 +3453,13 @@ def main():
             /* remarques 12 et 13 : MODIFIER LE FORMAT (une interface, ÉTAT de l'écran puis les éléments) ; RÉGLAGES COMMUNS de l'accueil (APPLIQUER PARTOUT remplace les réglages par interface) */
             const keepC = localStorage.getItem('svi_colors_v1'); const w = ms => new Promise(z => setTimeout(z, ms));
             r.byCss = /html\[data-svif="dvf_f"\] body table tbody td[^{]*\{[^}]*height:30px/.test(sviFmtCss({ el: {}, by: { dvf_f: { el: { row: { h: 30 } }, st: {} } } }));   /* 06/11 : FICHE (plus d'EN INSTANCE / VALIDÉE) */
-            sviFmtWin('frs_f'); await w(150); r.win1 = [!!document.querySelector('#svConf .fmt-st'), document.querySelectorAll('#svConf .fmt-el tbody tr').length, /FICHE FOURNISSEUR/.test(document.querySelector('#svConf .svc-t').textContent)].join(',');
+            /* 08/11 (série I, I10) : fenêtre en groupes pliés — on déplie ÉCRAN pour régler le FOND DE L'ÉCRAN */
+            sviFmtWin('frs_f'); await w(150); const g0 = document.querySelectorAll('#svConf .fmt-grp').length, rows0 = document.querySelectorAll('#svConf .fmt-el tbody tr[data-el]').length;
+            document.querySelector('#svConf [data-fgrp="ecran"]').click(); await w(100);
+            r.win1 = [!!document.querySelector('#svConf .fmw-st[data-f="bg"]'), g0 >= 4 && rows0 === 0, /FICHE FOURNISSEUR/.test(document.querySelector('#svConf .svc-t').textContent)].join(',');
             const c = document.querySelector('#svConf .fmw-st[data-f="bg"]'); c.value = '#112233'; c.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('#svConf [data-save]').click(); await w(150);
             r.saved = (sviFmt().by.frs_f || { st: {} }).st.bg;
-            sviFmtWin(null); await w(150); r.win2 = [!!document.querySelector('#svConf .fmt-cols'), document.querySelectorAll('#svConf .fmt-el tbody tr').length, !!document.querySelector('#svConf .fmt-blk')].join(',');
+            sviFmtWin(null); await w(150); r.win2 = [!!document.querySelector('#svConf .fmt-cols'), document.querySelectorAll('#svConf .fmt-el tbody tr.fmt-grp').length, !!document.querySelector('#svConf .fmt-blk')].join(',');
             document.querySelector('#svConf [data-save]').click(); await w(150); r.cleared = Object.keys(sviFmt().by).length;
             r.home = !!document.querySelector('#home') && !!document.querySelector('.nav-btn[data-view="home"]');
             if (keepC === null) localStorage.removeItem('svi_colors_v1'); else localStorage.setItem('svi_colors_v1', keepC); sviColorsApply();
@@ -3481,7 +3484,7 @@ def main():
         check("FORME 04/11, remarques 10 et 11 : interfaces (4 par pièce, 3 pour le budget, ordre du menu) et interface affichée connue ; MASQUER LA COLONNE dans la loupe, AFFICHER LES COLONNES MASQUÉES (compteur) dans le ⋯",
               f1104["ifs"] == "32|bdgl,bdg,bdg_w,caf_l,caf_f,caf_w,dvf_l" and f1104["cur"] == "bdgl" and f1104["colh"] == "1,true,0,1" and f1104["loupe"], f1104)
         check("FORME 04/11, remarques 12 et 13 : MODIFIER LE FORMAT d'une interface (ÉTAT de l'écran puis les éléments, sans les parties des fenêtres) ; écran d'ACCUEIL et RÉGLAGES COMMUNS (APPLIQUER PARTOUT remplace les réglages par interface)",
-              f1104["byCss"] and f1104["win1"] == "true,13,true" and f1104["saved"] == "#112233" and f1104["win2"] == "true,25,true" and f1104["cleared"] == 0 and f1104["home"], f1104)
+              f1104["byCss"] and f1104["win1"] == "true,true,true" and f1104["saved"] == "#112233" and f1104["win2"] == "true,5,true" and f1104["cleared"] == 0 and f1104["home"], f1104)
         check("FORME 04/11, remarques 14 et 15 : rubrique FORMAT et MASQUES DE SAISIE retirées de PARAMÉTRAGE ; masque posé sur un champ par appui long (clic droit), \"texte\" écrit d'office, autres signes placés d'office",
               f1104["noFmt"] and f1104["tok"] == "+212 6 12 34 56 78|ABC-123|123-AB" and f1104["pop"] and f1104["applied"] == "12345-B-67|99999-A-99", f1104)
         # remarque 16 : gestes sur ordinateur (Ctrl / Cmd + molette = hauteur des lignes, Option + molette = échelle du temps, clic droit = appui long)
@@ -3837,7 +3840,7 @@ def main():
         check("05/11 : BANQUES › agence › MODES DE PAIEMENT (modèle d'impression par mode, dans la MISE EN PAGE) › CARNETS du n° au n°, feuilles suivies (utilisée par quel paiement, abîmée, erronée) ; paiement : IMPRIMER LE CHÈQUE avec le modèle de son carnet", c13.get('tree') == 'BANQUE UN,AGENCE AGADIR,CHÈQUE,C1:1000-1024' and c13.get('btn') and c13.get('used') == 1 and c13.get('of') == 'C1' and c13.get('win') == 25 and c13.get('fl') == '{"1001":"abime"}' and c13.get('mep'), c13)
         c15 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_format_v1', 'svi_pal_v1', 'svi_colors_v1'], keep = K.map(k => localStorage.getItem(k));
   sviFmtWin(null); await w(200); const d = document.querySelector('#svConf');
-  r.cats = [...d.querySelectorAll('.fmt-catg')].map(x => x.textContent.replace(/[›⌄]/g, '').trim()).join('|');
+  r.cats = [...d.querySelectorAll('.fmt-catg:not(.fmt-grp)')].map(x => x.textContent.replace(/[›⌄]/g, '').trim()).join('|');
   d.querySelector('[data-catf="l"]').click(); await w(100); r.lv = [...document.querySelectorAll('#svConf .fmt-catr[data-cat="l"]')].map(x => x.dataset.el).join(',');
   document.querySelector('[data-catf="f"]').click(); await w(100); r.fi = document.querySelectorAll('#svConf .fmt-catr[data-cat="f"]').length;
   document.querySelector('[data-catf="w"]').click(); await w(100); r.wi = document.querySelectorAll('#svConf .fmt-catr[data-cat="w"]').length;

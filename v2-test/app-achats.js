@@ -3731,6 +3731,8 @@ function achMepOpen(cfg, P, rec, redraw, o) {
 /* 08/11 (série I, I3, document unique 3.1) : FERMER REVIENT PAS À PAS — chemin suivi d'une page à l'autre (liste › consultation › devis › fournisseur) ;
    FERMER ramène à la page d'avant, puis à celle d'avant… jusqu'à la liste ; le menu ≡ repart d'un chemin vide (aller ailleurs d'un coup) */
 const ACH_PATH = [];
+/* correction (compte rendu v1003) : le nom du tiers dans le bandeau du centre (#sviScreenTag, hors du corps de l'écran) ouvre sa fiche */
+document.addEventListener("click", e => { const g = e.target.closest && e.target.closest("#sviScreenTag [data-nvgo]"); if (!g) return; e.preventDefault(); e.stopPropagation(); const [t, id] = g.dataset.nvgo.split("|"); achGo(t, id); }, true);
 const achPathBack = () => { const w = ACH_PATH.pop(); if (!w) return false; achPathBack.on = true; try { achGo(w.t, w.id); } finally { achPathBack.on = false; } return true; };
 document.addEventListener("click", e => { if (e.target.closest && e.target.closest("#navMenu .nav-btn")) ACH_PATH.length = 0; }, true);
 /* 07/11 : redessin de la page ouverte (gestes hors clic : glisser une ligne) */

@@ -68,12 +68,12 @@ def checks(pg, root, kind):
             n = P(pg, """root => { const tr = [...document.querySelectorAll(root + ' thead tr')].find(x => __ga.vis(x) && x.cells.length >= 4); return tr ? [...tr.cells].map(x => x.textContent.trim()).join('|') : ''; }""", root)
         R["6.11 ordre des colonnes"] = "ok" if n != o[3] else "KO (ordre inchangé)"
         close_all(pg)
-    # appui long sur un titre de colonne → renommer / aligner
+    # appui long sur un titre de colonne → plus de fenêtre (G5 : renommer et aligner sont dans la loupe ; l'appui long ne sert qu'à déplacer)
     a = at(pg, root, "thead th .cf-lab", .3, .5)
     if a:
         longpress(pg, a)
         t = P(pg, """() => { const c = document.querySelector('#svConf .svc-card, #svConf .svc-t'); return c ? c.textContent.replace(/\\s+/g, ' ').slice(0, 60) : ''; }""")
-        R["titre de colonne : renommer / aligner (appui long)"] = "ok" if t else "KO"
+        R["titre de colonne : appui long sans fenêtre (renommer dans la loupe, G5)"] = "ok" if not t else "KO (fenêtre : " + t[:30] + ")"
         close_all(pg)
     if kind == "f":
         # 4.2 : double toucher sur le titre du bloc = agrandir
