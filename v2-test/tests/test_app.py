@@ -2795,7 +2795,7 @@ def main():
               T.querySelectorAll('tr[data-kid="glob"]').length, cells('X-1')[1], !!row('F-1').querySelector('td.bdg-ref-c [data-fold-bdg]'), !T.querySelector('td.bdg-fold-c, th.bdg-fold-h'),
               cs.backgroundColor === 'rgba(0, 0, 0, 0)' && cs.fontWeight === getComputedStyle(it).fontWeight && cs.textDecorationLine === 'underline', wr.scrollWidth <= wr.clientWidth + 1]; }""")
         check("v750 / v793 : liste — colonnes dans l'ordre (sans VALIDÉ LE en instance), icône de bascule, ni case CUMUL ni impression (cases de sélection à droite, v793), CONSOLIDÉ en titre, AVENANT 1 dessous (lien PROJET, corbeille), INITIAL, marge de pliage, PROJET souligné sans fond, toute la largeur",
-              l750 == ["RÉFÉRENCE|PROJET|INTITULÉ|MONTANT TTC|ÉTAT|SAISI LE|VALIDÉ LE||", False, True, 0, "⌄FAM F-1 CNS|FAM|VILLA", "FAM F-1 AV1|FAM|VILLA", True, True, 0, "XA", True, True, True, True], l750)   # v780 : plus de NATURE, nature au bout de la référence
+              l750 == ["RÉFÉRENCE|PROJET|INTITULÉ|MONTANT TTC|ÉTAT|SAISI LE|VALIDÉ LE|", False, True, 0, "⌄FAM F-1 CNS|FAM|VILLA", "FAM F-1 AV1|FAM|VILLA", True, False, 0, "XA", True, True, True, True], l750)   # v780 : plus de NATURE, nature au bout de la référence
         f750 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), T = document.getElementById('budgetListTable');
             T.querySelector('.cf-btn[data-col="budget"]').click(); await w(200); const m = document.getElementById('cfMenu'); if (!m) return 'pas de menu';
             const ord = [...m.children].map(e => e.className.split(' ')[0]).filter(c => /cf-(sort|search|cond|list|foot)/.test(c)).join(',');
@@ -2842,10 +2842,10 @@ def main():
             sviInstSet(sviInstGet().map(x => x.ref === 'F-1' ? { ...x, state: 'valide' } : x).concat([{ ref: 'F-1-AV1', project: 'FAM', state: 'instance', created: '2026-10-31T09:00', parent: 'F-1', avn: 1, data: d() }]));
             localStorage.setItem('svi_listmode_v1', 'inst'); localStorage.setItem('svi_bdgfold_v1', JSON.stringify(['F-1'])); renderBudgetList(); await w(300);
             const T = document.getElementById('budgetListTable'), top = T.querySelector('tr[data-budget-ref="F-1"]'), kid = T.querySelector('tr[data-budget-ref="F-1-AV1"]');
-            const fw = getComputedStyle(kid.cells[2]).fontWeight, pl = [parseFloat(getComputedStyle(top.cells[0]).paddingLeft), parseFloat(getComputedStyle(kid.cells[0]).paddingLeft)];
-            const del = kid.querySelector('.bdg-row-del'), same = del && getComputedStyle(del).color === getComputedStyle(kid.cells[2]).color;
+            const fw = getComputedStyle(kid.cells[2]).fontWeight, pl = [parseFloat(getComputedStyle(top.querySelector('td.bdg-ref-c') || top.cells[1]).paddingLeft), parseFloat(getComputedStyle(kid.querySelector('td.bdg-ref-c') || kid.cells[1]).paddingLeft)];   /* J2 : le décalage est dans RÉFÉRENCE (PROJET aligné) */
+            const same = !kid.querySelector('.bdg-row-del');   /* J4 : plus de corbeille par ligne */
             sviInstSet(JSON.parse(window.__kp752)); localStorage.removeItem('svi_bdgfold_v1'); renderBudgetList(); return [ic, fw, pl[1] > pl[0] + 10, same]; }""")
-        check("v752 : icônes du menu, liste en gras, lignes du dessous décalées vers la droite, corbeille de la couleur de sa ligne", k752 == [True, "700", True, True], k752)
+        check("v752 : icônes du menu, liste en gras, lignes du dessous décalées vers la droite (dans RÉFÉRENCE, J2), plus de corbeille par ligne (J4)", k752 == [True, "700", True, True], k752)
         # v754 (lot 1) : « ! » devant VALIDÉ LE si validé plus de 24 h après la saisie (raison au toucher ; parent en alerte si une étape l'est),
         # total à côté de TOUT, flèche de pliage dans RÉFÉRENCE (plus de colonne à gauche), PARAMÉTRAGE › COULEURS (couleur d'un état appliquée)
         k754 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); window.__kp754 = JSON.stringify(sviInstGet()); const d = () => ({ des: [], lot: [], prim: [], sec: [], chg: [], prd: [], links: [], dlp: {} });
@@ -3081,7 +3081,7 @@ def main():
             /* v800 (document unique 3.6) : le nouvel article s'ouvre sur sa page ; on revient à la liste */
             if (!v.querySelector('.nvp-ref')) return 'v800 : page du nouvel article non ouverte'; document.querySelector('#svConf')?.remove(); v.querySelector('[data-nvp="close"]')?.click(); await w(250);
             const A = achArts().find(a => a.des === 'CIMENT CPJ45');
-            r.push(!!A && A.st, (v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim(), v.querySelectorAll('#achArtT tbody tr[data-id]').length, !!v.querySelector('table.nv-one [data-nvdel]'), !!v.querySelector('[data-nvnew]'));
+            r.push(!!A && A.st, (v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim(), v.querySelectorAll('#achArtT tbody tr[data-id]').length, !v.querySelector('table.nv-one [data-nvdel]'), !!v.querySelector('[data-nvnew]'));   /* J4 : plus de corbeille par ligne */
             v.querySelector(`[data-nvo="${A.id}"]`).click(); await w(250);
             r.push(/^ARA \\d{2}-\\d{4}\\/0\\d[1-9]$/.test(v.querySelector('.nvp-ref').textContent) ? 'ART-0003' : v.querySelector('.nvp-ref').textContent, !!v.querySelector('.nvp.bdg-inst-instance'), v.querySelectorAll('.nvp-rec .rec-tab').length);
             v.querySelector('[data-nvr="obs"]').click(); await w(100); v.querySelector('[data-nvradd]').click(); await w(200);
@@ -3111,8 +3111,8 @@ def main():
             const v = document.getElementById('ach'); document.querySelector('#navMenu .nav-btn[data-ach="caf"]').click(); await w(300);
             const h = () => (v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.replace(/\\s+/g, ' ').trim();
             const r = [getComputedStyle(v.querySelector('.ach-tabs')).display, h(), v.querySelectorAll('#achCafT tbody tr[data-id]').length, !!v.querySelector('.novapp-date-item'), !v.querySelector('.ach-hh'), !!document.getElementById('sviScreenTag')];
-            r.push(h(), !!v.querySelector('table.nv-one [data-nvdel]'));   /* 06/11 : une seule liste (plus de bascule) */
-            v.querySelector('[data-nvdel]').click(); await w(200); { const q = document.querySelector('#svConf .ask-v'); if (q) { q.value = 'ERREUR'; document.querySelector('#svConf [data-ok]').click(); } else document.querySelector('#svConf [data-r="1"]')?.click(); } await w(250);
+            r.push(h(), !v.querySelector('table.nv-one [data-nvdel]'));   /* J4 : plus de corbeille par ligne — SUPPRIMER LES CONSULTATIONS COCHÉES (⋯) = ANNULÉE avec motif */
+            const pr = SVI_LDEL[v.querySelector('table.nv-one').dataset.sdel].run(['c1']); await w(200); { const q = document.querySelector('#svConf .ask-v'); if (q) { q.value = 'ERREUR'; document.querySelector('#svConf [data-ok]').click(); } } await pr; await w(250);
             r.push(achCaf().find(c => c.id === 'c1').state);
             v.querySelector('[data-nvo]').click(); await w(250); v.querySelector('[data-nvp="info"]')?.click(); await w(200); r.push(!!document.querySelector('.caf-card') && !!v.querySelector('.nvp-ref')); document.querySelector('.caf-card [data-x]')?.click(); await w(150); v.querySelector('[data-nvp="close"]')?.click(); await w(150);
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); });
@@ -3938,7 +3938,7 @@ def main():
   r.i = st(); sviStfSet('ach_dvf', ['valide']); document.getElementById('ach').__achTab('dvf'); await w(400); r.v = st(); sviStfSet('ach_dvf', null);
   const p = document.querySelector('#ach .svi-bdgp'); r.pw = Math.round(p.getBoundingClientRect().width);
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
-        check('DOCUMENT UNIQUE 6.13 : liste validée des achats sans colonne de corbeille (la liste en instance la garde) ; panneau des dates resserré', c613.get('v', {}).get('act') == 0 and c613['v']['cols'] == c613['v']['ths'] and c613.get('i', {}).get('act', 0) > 0 and c613['i']['cols'] == c613['i']['ths'] and c613.get('pw', 999) < 240, c613)   # 06/11 : le panneau porte aussi les cases des états
+        check('DOCUMENT UNIQUE 6.13 / 6.4 (J4) : aucune liste des achats n\'a de colonne de corbeille ; panneau des dates resserré', c613.get('v', {}).get('act') == 0 and c613['v']['cols'] == c613['v']['ths'] and c613.get('i', {}).get('act', 1) == 0 and c613['i']['cols'] == c613['i']['ths'] and c613.get('pw', 999) < 240, c613)   # 06/11 : le panneau porte aussi les cases des états
         fmtu = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_format_v1');
   const F = sviFmt(); F.el = F.el || {}; F.el.blk = Object.assign({}, F.el.blk, { b: 0 }); F.el.taba = Object.assign({}, F.el.taba, { c: '#0000a3' }); F.el.ttl = Object.assign({}, F.el.ttl, { c: '#0000a5' }); F.el.top = Object.assign({}, F.el.top, { bg: '#0000a9' }); F.to = null; sviFmtSave(F); await w(200); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); if (!document.getElementById('bdgDetailHead')) window.__sviAvOpen('TEST-1', null); await w(800); if (!document.getElementById('bdgDetailHead')) { (document.querySelector('#budgetListTable tbody tr[data-budget-ref="TEST-1"] .budget-link') || document.querySelector('#budgetListTable tbody tr[data-budget-ref] .budget-link, #budgetListTable tbody tr[data-budget-ref] td'))?.click(); await w(1500); }
   const d = document.getElementById('bdgDetailHead'); r.det = d ? getComputedStyle(d).fontWeight : 'absent';

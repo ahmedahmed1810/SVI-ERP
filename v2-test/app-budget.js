@@ -2147,7 +2147,7 @@ function renderBudgetList() {
     const NEWROW = `<tr class="bdg-newrow" data-newbdg="1" data-st="instance"><td colspan="${NCOL}">CRÉER UN BUDGET ICI…</td></tr>`;   /* 06/11 : une seule liste, ligne CRÉER toujours là */
     /* série J (J4) : SUPPRIMER LES BUDGETS COCHÉS (⋯ de la barre du haut) — budgets et avenants EN INSTANCE seulement, avec leurs avenants et recalages */
     table.dataset.sdel = "bdgl";
-    (window.SVI_LDEL = window.SVI_LDEL || {}).bdgl = { lab: "SUPPRIMER LES BUDGETS COCHÉS", ok: r => { const g = bdgGroups.get(r); return !!(g && g.inst && g.state !== "valide"); }, nom: r => { const g = bdgGroups.get(r) || {}; return ((g.project || "") + " " + r).trim(); },
+    (window.SVI_LDEL = window.SVI_LDEL || {}).bdgl = { lab: "SUPPRIMER LES BUDGETS COCHÉS", ok: r => { const g = bdgGroups.get(r), tr = table.querySelector(`tr[data-budget-ref="${CSS.escape(r)}"]`); return !!(g && g.inst && tr && tr.classList.contains("inst-instance")); },   /* correction (compte rendu v1006) : budget ou avenant EN INSTANCE seulement */ nom: r => { const g = bdgGroups.get(r) || {}; return ((g.project || "") + " " + r).trim(); },
       run: async refs => { let L = sviInstGet(); refs.forEach(r => { try { L = sviBdgFamilyDrop(L, r); } catch (e) {} }); sviInstSet(L); renderBudgetList(); } };
     /* v705 : ordre de la liste affichée (tri et filtres) — balayage d'un budget à l'autre dans l'écran du budget */
     window.__sviBdgOrder = data.map(x => x.ref);

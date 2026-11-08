@@ -3476,9 +3476,13 @@ function achNvList(ctx, o) {
     const canDel = x => isI(x) && !x.del && x.state !== "annule", delCol = false;   /* série J (J4) : plus de corbeille par ligne — SUPPRIMER LES … COCHÉ(E)S dans le ⋯ */
     /* 06/11 (soir) : largeur des colonnes au moteur commun (chaque colonne se règle seule, gardée) */
     /* série J (J4) : SUPPRIMER LES … COCHÉ(E)S (⋯ de la barre du haut) — mêmes règles que l'ancienne corbeille (EN INSTANCE ; restaurable, numéro jamais réutilisé) */
+    const cdOf = x => o.code ? o.code(x) : x.ref || x.code || x.id, nmOf = x => { const n = o.nom ? o.nom(x) : x.objet || x.des || ""; return cdOf(x) + (n ? " — " + n : ""); };
     { const fem = /^CETTE/.test(achCe(o.one || "")); (window.SVI_LDEL = window.SVI_LDEL || {})[o.t] = { lab: "SUPPRIMER LES " + String(o.name || "PIÈCES").toUpperCase() + (fem ? " COCHÉES" : " COCHÉS"),
-      ok: id => { const x = o.all().find(y => y.id === id); return !!(x && canDel(x)); }, nom: id => { const x = o.all().find(y => y.id === id); return x ? o.code(x) + " — " + o.nom(x) : id; },
-      run: async ids => { const L = o.all(), now = achNow(); ids.forEach(id => { const x = L.find(y => y.id === id); if (!x || !canDel(x)) return; x.del = now; x.mod = now; achHist(o.code(x), "CORBEILLE", o.nom(x)); }); o.save(L); draw(); } }; }
+      ok: id => { const x = o.all().find(y => y.id === id); return !!(x && canDel(x) && !(o.mOf && o.mOf(x))); }, nom: id => { const x = o.all().find(y => y.id === id); return x ? nmOf(x) : id; },
+      /* correction (compte rendu v1006) : pièces d'achat = ANNULÉES avec un motif, gardées (comme l'ancienne corbeille, v817) ; articles, fournisseurs = corbeille restaurable */
+      run: async ids => { if (o.kill) { const m = await achAsk("ANNULER LES PIÈCES COCHÉES (GARDÉES, VISIBLES DANS ANNULÉS)", "MOTIF DE L'ANNULATION"); if (!m) return;
+          const L = o.all(), now = achNow(); ids.forEach(id => { const x = L.find(y => y.id === id); if (!x || !canDel(x) || (o.mOf && o.mOf(x))) return; x.state = "annule"; x.motifAnn = m; x.mod = now; achHist(x.ref || cdOf(x), "ANNULÉ — " + m, ""); }); o.save(L); draw(); return; }
+        const L = o.all(), now = achNow(); ids.forEach(id => { const x = L.find(y => y.id === id); if (!x || !canDel(x)) return; x.del = now; x.mod = now; achHist(cdOf(x), "CORBEILLE", nmOf(x)); }); o.save(L); draw(); } }; }
     const W = o.w || {}, CG = sviCwCols(o.t, cols.map(c => [c[0], W[c[0]] || 120]), (delCol ? [["_del", 44]] : []).concat([["_cb", 40]]));
     const ED = o.edit || {};
     /* F14 (fin) : une colonne peut dépendre de la pièce (ex. CHARGE d'un besoin : liste des charges du budget, ou texte libre au SIÈGE) */
