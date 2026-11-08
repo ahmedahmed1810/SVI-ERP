@@ -185,13 +185,17 @@ function sviCfKit(o) {
         if (typeof sviColSet !== "function") return ""; const th = btn.closest("th"), lab = th && th.querySelector(".cf-lab"), o = sviColSet()[t + "|" + key] || {};
         const lt = th && th.querySelector(".cf-lt, .cf-tt"), def = th ? String(th.dataset.svcolDef || (lt ? lt.textContent : "")).replace(/\s+/g, " ").trim() : "";   /* correction G-7 : titre d'origine entier */
         const cell = th && th.closest("table").tBodies[0] && [...th.closest("table").tBodies[0].rows].find(r => r.cells.length === th.parentNode.cells.length);
-        const fs0 = o.fs || (cell ? Math.round(parseFloat(getComputedStyle(cell.cells[[...th.parentNode.cells].indexOf(th)]).fontSize)) : 12);
+        /* série I (I1) : la loupe du bloc des dates règle ses lignes (TOUT, années, mois, jours) — case de référence = 1re ligne du bloc */
+        const dh = !th && btn.closest(".novapp-date-head"), ce = cell ? cell.cells[[...th.parentNode.cells].indexOf(th)] : dh ? dh.parentElement.querySelector(".novapp-date-item") || dh.querySelector(".svi-stf-head") : null;
+        const fs0 = o.fs || (ce ? Math.round(parseFloat(getComputedStyle(ce).fontSize)) : 12);
+        /* série I (I6) : G suit le gras réel de la colonne (les lignes sont déjà grasses par défaut) — allumé si elle est grasse */
+        const b0 = o.b !== undefined ? !!o.b : ce ? (parseInt(getComputedStyle(ce).fontWeight, 10) || 400) >= 600 : false;
         const AL = { g: '<svg width="16" height="14" viewBox="0 0 16 14"><path d="M1 2h14M1 7h9M1 12h12" stroke="currentColor" stroke-width="2"/></svg>', c: '<svg width="16" height="14" viewBox="0 0 16 14"><path d="M1 2h14M4 7h8M2 12h12" stroke="currentColor" stroke-width="2"/></svg>', d: '<svg width="16" height="14" viewBox="0 0 16 14"><path d="M1 2h14M6 7h9M3 12h12" stroke="currentColor" stroke-width="2"/></svg>' };
-        return `<input type="text" class="ins-in cf-ren" value="${esc(o.lab || def)}" data-def="${esc(def)}" autocomplete="off" aria-label="Titre de la colonne">`
+        return (th ? `<input type="text" class="ins-in cf-ren" value="${esc(o.lab || def)}" data-def="${esc(def)}" autocomplete="off" aria-label="Titre de la colonne">` : "")
           + (typeof sviColhHide === "function" && sviColhInfo(btn.closest("table")) ? '<button type="button" class="cf-hide">MASQUER LA COLONNE</button>' : "")
           + `<button type="button" class="cf-fmt-h">MISE EN FORME ›</button><div class="cf-fmt" hidden>
             <div class="cf-fr"><button type="button" data-cff="fs-">−</button><span class="cf-fsv">${fs0}</span><button type="button" data-cff="fs+">+</button></div>
-            <div class="cf-fr"><button type="button" data-cff="b" class="${o.b ? "on" : ""}"><b>G</b></button><button type="button" data-cff="i" class="${o.i ? "on" : ""}"><i>I</i></button><button type="button" data-cff="u" class="${o.u ? "on" : ""}"><u>S</u></button></div>
+            <div class="cf-fr"><button type="button" data-cff="b" class="${b0 ? "on" : ""}"><b>G</b></button><button type="button" data-cff="i" class="${o.i ? "on" : ""}"><i>I</i></button><button type="button" data-cff="u" class="${o.u ? "on" : ""}"><u>S</u></button></div>
             <div class="cf-fr">${["g", "c", "d"].map(a => `<button type="button" data-cff="al-${a}" class="${o.al === a ? "on" : ""}" aria-label="Alignement">${AL[a]}</button>`).join("")}</div></div><div class="cf-sep"></div>`; })()}
       ${typeof sviColSet !== "function" && typeof sviColhHide === "function" && sviColhInfo(btn.closest("table")) ? '<button type="button" class="cf-hide">MASQUER LA COLONNE</button><div class="cf-sep"></div>' : ""}
       <button type="button" class="cf-sort" data-dir="asc">TRIER DE A À Z</button>
@@ -219,6 +223,8 @@ function sviCfKit(o) {
       m.querySelectorAll("[data-cff]").forEach(b => b.addEventListener("click", ev => { ev.stopPropagation(); const a = b.dataset.cff, sv = m.querySelector(".cf-fsv");
         if (a === "fs-" || a === "fs+") { const v = Math.max(8, Math.min(24, (+sv.textContent || 12) + (a === "fs+" ? 1 : -1))); sv.textContent = v; up(o => { o.fs = v; }); return; }
         if (a.startsWith("al-")) { const v = a.slice(3); up(o => { o.al = o.al === v ? undefined : v; }); m.querySelectorAll('[data-cff^="al-"]').forEach(x => x.classList.toggle("on", x === b && !(sviColSet()[K] || {}).al ? false : x === b && (sviColSet()[K] || {}).al === v)); return; }
+        /* I6 : G bascule entre normal et gras d'après son état affiché ; I, S comme avant */
+        if (a === "b") { const on = !b.classList.contains("on"); up(o => { o.b = on; }); b.classList.toggle("on", on); return; }
         up(o => { o[a] = o[a] ? undefined : true; }); b.classList.toggle("on", !!(sviColSet()[K] || {})[a]); })); }
     /* v926 (remarque 11) : MASQUER LA COLONNE, tout en haut du menu de la loupe */
     m.querySelector(".cf-hide")?.addEventListener("click", ev => { ev.stopPropagation(); const tb = btn.closest("table"); cfClose(); if (tb) sviColhHide(tb, key); });
@@ -395,7 +401,8 @@ function sviDateTree(lk, days, sel, attr, redraw) {
       mm.D.sort((a, b) => b[0].localeCompare(a[0])).forEach(([d, n]) => { h += row(d, d.slice(8, 10) + "/" + d.slice(5, 7) + "/" + d.slice(0, 4), n, 3, false); }); }); });
   if (nd) h += row("SANS", "SANS DATE", nd, 1, false);
   return h; }
-const sviDateFold = lk => `<span class="dt-fa" data-dtfa="${esc(lk)}" role="button" title="Tout déplier / vue de départ">${(SVI_DT[lk] || {}).all ? "⌃" : "⌄"}</span>`;
+/* série I (I5) : signe de TOUT selon la règle 7 — › sur la vue de départ, ⌄ quand tout est déplié (plus de ^) */
+const sviDateFold = lk => `<span class="dt-fa" data-dtfa="${esc(lk)}" role="button" title="Tout déplier / vue de départ">${(SVI_DT[lk] || {}).all ? "⌄" : "›"}</span>`;
 /* une date de pièce appartient à la sélection (année, mois, jour) */
 const sviDateIn = (d, sel) => !sel || (sel === "SANS" ? !/^\d{4}-\d{2}-\d{2}/.test(d || "") : String(d || "").startsWith(sel));
 /* 08/11 (correction G-1) : le signe › / ⌄ réagit en premier — zone de toucher élargie au début de la ligne (Safari peut donner le bouton comme cible) */

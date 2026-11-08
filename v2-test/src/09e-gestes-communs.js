@@ -202,7 +202,15 @@ const sviColSet = () => { try { const o = JSON.parse(localStorage.getItem(SVI_CO
 const sviColSetSave = o => { try { localStorage.setItem(SVI_COLSET_K, JSON.stringify(o)); } catch (e) {} sviColSetRun(); };
 const sviColAl = (t, k) => ({ g: "left", c: "center", d: "number" }[(sviColSet()[t + "|" + k] || {}).al] || "");
 const sviColLab = (t, k, def) => (sviColSet()[t + "|" + k] || {}).lab || def;
-function sviColSetRun() { const S = sviColSet(); if (!Object.keys(S).length && !document.querySelector("[data-svcol-al]")) return;
+function sviColSetRun() { const S = sviColSet(); if (!Object.keys(S).length && !document.querySelector("[data-svcol-al], [data-svcol-s]")) return;
+  /* série I (I1) : bloc des dates à gauche des listes — la mise en forme de sa loupe s'applique à ses lignes (TOUT, années, mois, jours) */
+  { const P = (c, k, v) => v ? c.style.setProperty(k, v, "important") : c.style.removeProperty(k);
+    document.querySelectorAll(".novapp-date-head .cf-btn[data-cf][data-col]").forEach(b => { const o = S[b.dataset.cf + "|" + b.dataset.col] || {}, al = { g: "left", c: "center", d: "right" }[o.al] || "";
+      const sig = [al, o.fs || "", o.b ?? "", o.i ?? "", o.u ?? ""].join("/"), box = b.closest(".novapp-date-head").parentElement; if (!box) return;
+      box.querySelectorAll(".novapp-date-item, .novapp-date-head .svi-stf-head").forEach(it => { if (it.dataset.svcolS === sig) return; it.dataset.svcolS = sig;
+        P(it, "font-size", o.fs ? o.fs + "px" : ""); P(it, "font-weight", o.b === undefined ? "" : o.b ? "800" : "400"); P(it, "font-style", o.i === undefined ? "" : o.i ? "italic" : "normal"); P(it, "text-decoration", o.u === undefined ? "" : o.u ? "underline" : "none");
+        const lab = [...it.children].find(x => x.tagName === "SPAN" && !x.classList.contains("dt-f") && !x.classList.contains("svi-cnt") && !x.classList.contains("cf-btn"));
+        if (lab) { lab.style.flex = al ? "1 1 auto" : ""; lab.style.textAlign = al; [...lab.querySelectorAll("*")].forEach(z => { if (!z.classList.contains("dt-arr")) z.style.fontWeight = ""; }); } }); }); }
   document.querySelectorAll("table thead th .cf-btn[data-cf][data-col]").forEach(b => { const th = b.closest("th"), tr = th && th.parentNode, tb = th && th.closest("table"); if (!tb || !tr) return;
     const o = S[b.dataset.cf + "|" + b.dataset.col] || {}, lt = th.querySelector(".cf-lt, .cf-tt");   /* correction G-7 : le titre entier (et non son dernier morceau) */
     if (lt && th.dataset.svcolDef === undefined) { th.dataset.svcolDef = lt.textContent.replace(/\s+/g, " ").trim(); th.dataset.svcolDefH = lt.innerHTML; }

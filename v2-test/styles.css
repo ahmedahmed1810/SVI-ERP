@@ -3721,3 +3721,6 @@ table thead th :is(input, textarea) { -webkit-user-select: text; user-select: te
 /* série I (I4) : épingle de la barre du haut — vide = non épinglée, pleine = épinglée */
 .novapp-list-titlebar .bdg-d-badge.svi-pin { background: transparent; color: #3f4856 !important; display: inline-flex; align-items: center; justify-content: center; }
 .svi-pin svg path { fill: none; } .svi-pin.on svg path { fill: currentColor; }
+
+/* série I (I2) : MISE EN FORME de la loupe vraiment pliée (la règle display: flex passait devant l'attribut hidden) */
+#cfMenu .cf-fmt[hidden] { display: none !important; }
