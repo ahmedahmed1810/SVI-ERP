@@ -4116,12 +4116,12 @@ def main():
         check("07/11 (vérification du format) : champs dans les cases (lignes, CRÉER … ICI) et leur texte d'aide suivent le format, sauf couleurs de liaison ; fenêtre du budget : champs non saisissables et bouton ENREGISTRER couverts",
               f10 == 'true,true,true,true,true,true', f10)
         f11 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = [];
-  const b = document.querySelector('.novapp-list-titlebar .nvl-inf, .section-head .nvl-inf'), h = document.querySelector('.novapp-list-titlebar .nvl-h, .section-head .nvl-h'); r.push(!!b, !!h);
-  if (b) { b.click(); await w(150); const t = document.querySelector('#svConf .svc-t'); r.push(t ? t.textContent.trim().startsWith('INFORMATIONS') : false); document.querySelector('#svConf [data-x]')?.click(); await w(100); }
+  /* 09/11 (3.1) : plus de i dans les listes (le i n'existe que sur les pièces et les paramètres) ; H juste après le titre */
+  const b = document.querySelector('.novapp-list-titlebar .nvl-inf'), h = document.querySelector('.novapp-list-titlebar .nvl-h, .section-head .nvl-h'); r.push(!b, !!h);
   if (h) { h.click(); await w(150); const t = document.querySelector('#svConf .svc-t'); r.push(t ? t.textContent.trim().startsWith('HISTORIQUE') : false); document.querySelector('#svConf [data-x]')?.click(); await w(100); }
-  r.push(/nvl-inf/.test(sviListIH()) && /nvl-h/.test(sviListIH())); return r.join(','); }""")
-        check("07/11 (document unique 3.1) : i et H aussi dans la barre du haut des listes — i = informations de la liste, H = historique de ses pièces",
-              f11 == 'true,true,true,true,true', f11)
+  r.push(!/nvl-inf/.test(sviListIH()) && /nvl-inf/.test(sviListIH(true)) && /nvl-h/.test(sviListIH())); return r.join(','); }""")
+        check("09/11 (document unique 3.1) : listes = H seul (historique de leurs pièces), plus de i ; le i reste sur les pièces et les paramètres",
+              f11 == 'true,true,true,true', f11)
         f12 = pg.evaluate("""async () => { await sviAchLoad(); const c = { lignes: [{ des: 'A' }, { des: 'B' }, { des: 'C' }], grp: [] };
   const ok = achDetDropIn(c, ['#2'], { l: '#0' }, 'before'); const r1 = c.lignes.map(l => l.des + (l.id ? '*' : '')).join(',');
   achDetDropIn(c, ['#1'], { l: '#0' }, 'on'); return [ok, r1, c.lignes.map(l => l.des + (l.g ? ':g' : '')).join(','), c.grp.length, typeof ACH_DET_DRAG].join('|'); }""")
