@@ -3749,3 +3749,9 @@ table.nv-one tbody td.bdg-ref-c .nv-bang { line-height: 1; vertical-align: middl
 /* 09/11 (remarque) : MÊME PRÉSENTATION pour toutes les listes des confirmations — un élément par ligne, précédé d'un tiret (plus de puces) */
 :is(#svConf, #dlyAddW) .svc-list { list-style: none; padding-left: 0; }
 :is(#svConf, #dlyAddW) .svc-list > li::before { content: "- "; }
+
+/* 09/11 (remarque) : H À GAUCHE PARTOUT — le titre d'une liste ne prend plus que sa place ; H juste après lui, le reste de la barre à droite */
+.novapp-list-titlebar h1 { flex: 0 1 auto !important; }
+.novapp-list-titlebar > .nvl-h { margin-right: auto; }
+/* H dans le bandeau des fenêtres i, juste après la référence */
+.svi-win-h { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin-left: 10px; border: 1px solid currentColor; border-radius: 6px; font-size: 12px; font-weight: 900; cursor: pointer; vertical-align: middle; background: transparent; }

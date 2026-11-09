@@ -47,6 +47,9 @@ const achRefs = p => { const r = p.refs && typeof p.refs === "object" ? p.refs :
    dans la consultation (autant de chiffres que de F, jamais réutilisé) ; le « F » la distingue des détails (-001) */
 const ACH_REF_FDEF = "{PARENT}-F{FF}";
 /* série I (I9, document unique 10.2) : toute fenêtre i de pièce commence par la DATE DE CRÉATION — remplie seule, non modifiable (date et heure en entier) */
+/* 09/11 (remarque) : bandeau des fenêtres i = la référence, puis H (historique de la pièce), comme dans la barre du haut */
+const achWinTtl = (ref, nouv) => ref ? esc(ref) + ` <span class="bdg-d-badge svi-win-h" data-wh="${esc(ref)}" role="button" title="Historique">H</span>` : nouv;
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-wh]"); if (!b) return; e.preventDefault(); e.stopPropagation(); if (typeof achHistWin === "function") achHistWin(b.dataset.wh); }, true);
 const achCreeFr = x => { const t = x && x.cree ? new Date(x.cree) : new Date(); if (isNaN(t)) return String(x.cree || "");
   const p2 = n => String(n).padStart(2, "0"); return p2(t.getDate()) + "/" + p2(t.getMonth() + 1) + "/" + t.getFullYear() + " " + p2(t.getHours()) + ":" + p2(t.getMinutes()); };
 const achCreeFld = x => `<label class="frs-f ach-cree"><span>DATE DE CRÉATION</span><input class="ins-in" value="${esc(achCreeFr(x))}" readonly tabindex="-1"></label>`;
@@ -1729,7 +1732,7 @@ function achBsnFiche(id, done) {
     const ctl = achBsnCtl(B, achBsn()), why = achBsnWhy(B, achBsn());
     const nf = v => (Number(v) || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const dis = ro ? " disabled" : "";
-    d.innerHTML = sviWinCard({ cls: "frs-card bsn-card", close: "data-x", title: (b0 ? esc(B.ref) : "NOUVEAU BESOIN"),
+    d.innerHTML = sviWinCard({ cls: "frs-card bsn-card", close: "data-x", title: achWinTtl(b0 && B.ref, "NOUVEAU BESOIN"),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
         <div class="frs-sec"><div class="frs-st">AFFECTATION</div><div class="frs-g">${achCreeFld(b0)}
           <label class="frs-f"><span>CENTRE DE COÛT</span><select class="ins-in bsn-x" data-k="centre"${dis}>${opt([["CHANTIER", "CHANTIER (BUDGET)"], ["SIÈGE", "SIÈGE (HORS BUDGET)"]], B.centre)}</select></label>
@@ -2000,7 +2003,7 @@ function achCafFiche(id, done) {
     /* comparatif : une colonne par fournisseur qui a un devis */
     const dv = f => D.find(v => v.frs === f);
     const tot = C.frs.map(f => { const v = dv(f); return v ? achDvfTot(v).ht : null; }), mins = tot.filter(x => x !== null && x > 0), min = mins.length ? Math.min(...mins) : null;
-    d.innerHTML = sviWinCard({ cls: "frs-card caf-card", close: "data-x", title: C.id ? esc(C.ref) : "NOUVELLE CONSULTATION",
+    d.innerHTML = sviWinCard({ cls: "frs-card caf-card", close: "data-x", title: achWinTtl(C.id && C.ref, "NOUVELLE CONSULTATION"),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
         <div class="frs-sec"><div class="frs-g">${achCreeFld(c0)}<label class="frs-f frs-w"><span>OBJET</span><input class="ins-in caf-x" data-k="objet" value="${esc(C.objet)}"${dis} autocomplete="off"></label>
 </div></div>
@@ -2155,7 +2158,7 @@ function achDvfFiche(id, done) {
   const ro = !!v0 && v0.state !== "recu", d = sviWinNew();
   const draw = () => {
     const t = achDvfTot(V), why = V.id ? achDvfWhy(V) : [], dis = ro ? " disabled" : "", FR = achLive(achFrs()).filter(f => achFrsOk(f) || f.id === V.frs);
-    d.innerHTML = sviWinCard({ cls: "frs-card dvf-card", close: "data-x", title: v0 ? esc(V.ref) : "NOUVEAU DEVIS",   /* série I (I8) : bandeau = la référence seule */
+    d.innerHTML = sviWinCard({ cls: "frs-card dvf-card", close: "data-x", title: achWinTtl(v0 && V.ref, "NOUVEAU DEVIS"),   /* série I (I8) : bandeau = la référence seule */
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
         <div class="frs-sec"><div class="frs-g">${achCreeFld(v0)}
           <label class="frs-f frs-w"><span>FOURNISSEUR <b>*</b></span><select class="ins-in dvf-x" data-k="frs"${dis || (V.caf ? " disabled" : "")}><option value=""></option>${FR.map(f => `<option value="${esc(f.id)}"${f.id === V.frs ? " selected" : ""}>${esc(f.code + " — " + f.nom)}</option>`).join("")}</select></label>
@@ -2459,7 +2462,7 @@ function achCafSend(id) { const c = achCaf().find(y => y.id === id); if (!c) ret
    (plus de RÉFÉRENCE : elle est dans le bandeau ; plus de PROJET : une consultation n'est rattachée à aucun projet) ; création = cette fenêtre, puis la page s'ouvre (3.6) */
 function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id === id) : null; if (id && !c0) return;
   const C = c0 ? { ...c0 } : { objet: "" }, ro = !!c0 && c0.state !== "ouverte", d = sviWinNew(), dis = ro ? " disabled" : "";
-  d.innerHTML = sviWinCard({ cls: "frs-card caf-card caf-info", close: "data-x", title: c0 ? esc(c0.ref) : "NOUVELLE CONSULTATION",
+  d.innerHTML = sviWinCard({ cls: "frs-card caf-card caf-info", close: "data-x", title: achWinTtl(c0 && c0.ref, "NOUVELLE CONSULTATION"),
     body: `<div class="frs-g">${achCreeFld(c0)}
       <label class="frs-f frs-w"><span>OBJET</span><input class="ins-in cafi-x" data-k="objet" value="${esc(C.objet || "")}"${dis} autocomplete="off"></label></div>`,
     foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${ro ? "" : `<button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button>`}` });
@@ -2729,7 +2732,7 @@ function achCmfFiche(id, done) {
     const BL = achBsn(), DV = achDvf(), PV = C.nat === "PRESTATIONS ET HONORAIRES";
     const opt = (L, v) => L.map(x => `<option value="${esc(x[0])}"${x[0] === v ? " selected" : ""}>${esc(x[1])}</option>`).join("");
     const FR = achLive(achFrs()).filter(f => achFrsOk(f) || f.id === C.frs);
-    d.innerHTML = sviWinCard({ cls: "frs-card cmf-card", close: "data-x", title: esc(C.ref),
+    d.innerHTML = sviWinCard({ cls: "frs-card cmf-card", close: "data-x", title: achWinTtl(C.ref, ""),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}${(C.renv || []).length && C.state === "instance" && !C.circ ? `<div class="frs-why">↩ RENVOYÉE PAR ${esc(achGradeLab(C.renv[C.renv.length - 1].g))}${C.renv[C.renv.length - 1].u ? " — " + esc(C.renv[C.renv.length - 1].u) : ""} : ${esc(C.renv[C.renv.length - 1].why)}</div>` : ""}<div class="frs-scroll">
         ${C.circ && C.state === "instance" ? `<div class="frs-sec cmf-circ"><div class="frs-st">CIRCUIT DE VALIDATION — AU-DELÀ DE ${esc(achF2(C.circ.mt))} HT${C.circ.h ? " (HIÉRARCHIE RESPECTÉE)" : ""}</div>
           <table class="prm-table frs-sub"><thead><tr><th>GRADE</th><th>ÉTAT</th><th>PAR</th><th>LE</th></tr></thead><tbody>${C.circ.g.map(g => { const o = (C.circ.ok || []).find(x => String(x.g) === g), nx = achCircNext(C).includes(g);
@@ -2889,7 +2892,7 @@ function achRcpFiche(id, cmfId, done) {
   const draw = () => {
     const why = r0 ? achRcpWhy(P) : [], dis = ro ? " disabled" : "", FR = achLive(achFrs()).filter(f => f.actif !== false || f.id === P.frs);
     const sel = (i, v) => `<select class="ins-in rcp-l" data-c="st" data-i="${i}"${dis}>${[["ok", "ACCEPTÉE"], ["res", "AVEC RÉSERVES"], ["att", "EN ATTENTE D'ESSAI"], ["ref", "REFUSÉE"]].map(([k, l]) => `<option value="${k}"${v === k ? " selected" : ""}>${l}</option>`).join("")}</select>`;
-    d.innerHTML = sviWinCard({ cls: "frs-card rcp-card", close: "data-x", title: (r0 ? esc(P.ref) : P.pv ? "PROCÈS-VERBAL DE SERVICE FAIT" : "NOUVELLE RÉCEPTION"),
+    d.innerHTML = sviWinCard({ cls: "frs-card rcp-card", close: "data-x", title: achWinTtl(r0 && P.ref, P.pv ? "PROCÈS-VERBAL DE SERVICE FAIT" : "NOUVELLE RÉCEPTION"),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
         <div class="frs-sec"><div class="frs-g">${achCreeFld(r0)}
           <label class="frs-f frs-w"><span>FOURNISSEUR <b>*</b></span><select class="ins-in rcp-x" data-k="frs"${dis || (C ? " disabled" : "")}><option value=""></option>${FR.map(f => `<option value="${esc(f.id)}"${f.id === P.frs ? " selected" : ""}>${esc(f.code + " — " + f.nom)}</option>`).join("")}</select></label>
@@ -3021,7 +3024,7 @@ const achCopyOpen = async k => { try { const b = await sviFiles.get(k); if (b) w
 function achFafInfo(id, done) {
   const f = achFaf().find(x => x.id === id); if (!f) return; const d = sviWinNew(), C = achCmf().find(c => c.id === f.cmf);
   const row = (l, v) => `<label class="frs-f"><span>${l}</span><input class="ins-in" value="${esc(v || "—")}" readonly></label>`;
-  d.innerHTML = sviWinCard({ cls: "frs-card faf-info", close: "data-x", title: esc(f.ref),
+  d.innerHTML = sviWinCard({ cls: "frs-card faf-info", close: "data-x", title: achWinTtl(f.ref, ""),
     body: `<div class="frs-scroll"><div class="frs-sec"><div class="frs-g">${achCreeFld(f)}${row("N° DE LA FACTURE", f.num)}${row("TYPE", { normale: "FACTURE", acompte: "ACOMPTE" }[f.type] || String(f.type || "").toUpperCase())}
       ${row("ÉMISE LE", achDFr(f.dFac))}${row("REÇUE LE", achDFr(f.dRec))}${row("ÉCHÉANCE", achDFr(achFafEch(f)))}${row("COMMANDE", C ? C.ref : f.type === "acompte" ? "ACOMPTE" : "SANS COMMANDE")}
       ${row("FOURNISSEUR", f.frs ? achFrsNom(f.frs) : "")}${row("MONTANT TTC", achF2(achFafTot(f).ttc))}${row("RESTE À PAYER", f.state === "annule" ? "" : achF2(achFafReste(f)))}
@@ -3050,7 +3053,7 @@ function achFafFiche(id, o, done) {
     const FR = achLive(achFrs()).filter(f => f.actif !== false || f.id === P.frs), CM = achCmf().filter(c => c.frs === P.frs && (c.state === "valide" || c.state === "solde"));
     const opt = (L, v) => L.map(x => `<option value="${esc(x[0])}"${x[0] === v ? " selected" : ""}>${esc(x[1])}</option>`).join("");
     const num = v => esc(v === "" || v === undefined ? "" : achF2(v));
-    d.innerHTML = sviWinCard({ cls: "frs-card faf-card", close: "data-x", title: (f0 ? esc(P.ref) : "NOUVELLE FACTURE"),
+    d.innerHTML = sviWinCard({ cls: "frs-card faf-card", close: "data-x", title: achWinTtl(f0 && P.ref, "NOUVELLE FACTURE"),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
         <div class="frs-sec"><div class="frs-g">${achCreeFld(f0)}
           <label class="frs-f frs-w"><span>FOURNISSEUR <b>*</b></span><select class="ins-in fa-x" data-k="frs"${dis || (f0 || C0 ? " disabled" : "")}><option value=""></option>${opt(FR.map(f => [f.id, f.code + " — " + f.nom]), P.frs)}</select></label>
@@ -3154,7 +3157,7 @@ function achAvfFiche(id, done) {
     const used = a0 ? achAvfUsed(P.id) : 0, ro = P.state === "annule" || used > 0, dis = ro ? " disabled" : "";
     const FR = achLive(achFrs()).filter(f => f.actif !== false || f.id === P.frs), FA = achFaf().filter(f => f.frs === P.frs && f.state !== "annule"), RT = achRtr().filter(x => x.frs === P.frs && x.kind === "rcp");
     const opt = (L, v) => L.map(x => `<option value="${esc(x[0])}"${x[0] === v ? " selected" : ""}>${esc(x[1])}</option>`).join("");
-    d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: (a0 ? esc(P.ref) : "NOUVEL AVOIR FOURNISSEUR"),
+    d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: achWinTtl(a0 && P.ref, "NOUVEL AVOIR FOURNISSEUR"),
       body: `<div class="frs-scroll"><div class="frs-sec"><div class="frs-g">${achCreeFld(a0)}
           <label class="frs-f frs-w"><span>FOURNISSEUR <b>*</b></span><select class="ins-in av-x" data-k="frs"${dis || (a0 ? " disabled" : "")}><option value=""></option>${opt(FR.map(f => [f.id, f.code + " — " + f.nom]), P.frs)}</select></label>
           <label class="frs-f"><span>N° DE L'AVOIR <b>*</b></span><input class="ins-in av-x" data-k="num" value="${esc(P.num)}"${dis} autocomplete="off"></label>
@@ -3222,7 +3225,7 @@ function achPafFiche(id, o, done) {
     const CM = achCmf().filter(c => c.frs === P.frs && (c.state === "valide" || c.state === "instance") && c.avT);
     const opt = (L, v) => L.map(x => `<option value="${esc(x[0])}"${x[0] === v ? " selected" : ""}>${esc(x[1])}</option>`).join("");
     const mine = (L, k, id) => achN(((L || []).find(a => a[k] === id) || {}).m);
-    d.innerHTML = sviWinCard({ cls: "frs-card paf-card", close: "data-x", title: (p0 ? esc(P.ref) : "NOUVEAU PAIEMENT"),
+    d.innerHTML = sviWinCard({ cls: "frs-card paf-card", close: "data-x", title: achWinTtl(p0 && P.ref, "NOUVEAU PAIEMENT"),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}
         ${fr && achFrsAttExp(fr) && P.state === "instance" ? `<div class="frs-why pa-att">⚠ ATTESTATION DE RÉGULARITÉ FISCALE EXPIRÉE : ${P.deb ? `PAIEMENT DÉBLOQUÉ PAR ${esc(P.deb.u || "?")} LE ${esc(achDFr(String(P.deb.t).slice(0, 10)))} — ${esc(P.deb.why || "")}` : `PAIEMENT BLOQUÉ <button type="button" class="ach-b" data-attdeb>DÉBLOQUER</button>`}</div>` : ""}<div class="frs-scroll">
         <div class="frs-sec"><div class="frs-g">${achCreeFld(p0)}
