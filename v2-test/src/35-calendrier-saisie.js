@@ -1405,7 +1405,7 @@ window.__sviCells = (() => {
     if (n < 2 || !sel.length) { if (B) B.style.display = "none"; return; }
     if (!B) build();
     /* 09/11 (Ahmed) : une case non modifiable (noire, liste, lecture seule) dans la sélection = COPIER seulement */
-    { const edOk = x => { if (window.__sviRO) return false; if (x.matches && x.matches("td.bdg-ied")) return true; const i = x.matches && x.matches(SVI_ED) ? x : x.querySelector && x.querySelector(SVI_ED); return !!i && !i.disabled && !i.readOnly; };
+    { const edOk = x => { if (window.__sviRO && x.closest && x.closest(".bdg-d-page")) return false; if (x.matches && x.matches("td.bdg-ied")) return true;   /* 09/11 : la lecture seule d'un budget ouvert avant ne vaut pas pour les listes */ const i = x.matches && x.matches(SVI_ED) ? x : x.querySelector && x.querySelector(SVI_ED); return !!i && !i.disabled && !i.readOnly; };
       const ro = sel.some(x => !edOk(x)); B.querySelectorAll('[data-sb="paste"], [data-sb="clear"], .blk-sep').forEach(b => { b.style.display = ro ? "none" : ""; });
       const rh = Math.round(Math.max(18, Math.min(44, sel[0].getBoundingClientRect().height))); B.style.setProperty("--lph", rh + "px"); }
     let top = Infinity, left = Infinity, bottom = -Infinity;

@@ -4516,13 +4516,13 @@ sviRowHApply();
   /* 09/11 (Ahmed) : case non modifiable — le 2e toucher ne colore rien (le cadre rouge suffit ; l'appui long copie) */
   const allSel = el => { document.querySelectorAll(".cell-all").forEach(x => x.classList.remove("cell-all")); };
   /* appui long : case modifiable (rouge) = COUPER, COPIER, COLLER, EFFACER ; case non modifiable (noire, lecture seule) = COPIER */
-  const canEd = el => el.matches(FLD) && !el.disabled && !el.readOnly && !window.__sviRO;
+  const canEd = el => el.matches(FLD) && !el.disabled && !el.readOnly && !(window.__sviRO && el.closest(".bdg-d-page"));
   const setVal = (el, v) => { el.value = v; el.dispatchEvent(new InputEvent("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); };
   /* 09/11 (Ahmed) : petit menu de l'application (forme du menu des cases) — chaque ligne à la hauteur d'une ligne du tableau, largeur selon le contenu */
   let LB = null; const lbOff = () => { if (LB) LB.style.display = "none"; };
   document.addEventListener("pointerdown", e => { if (LB && !LB.contains(e.target)) lbOff(); }, true);
   document.addEventListener("scroll", lbOff, true);
-  const lpMenu = el => { const sel = el.tagName === "TD" ? el.querySelector("select") : null, txt = sel ? (typeof sviSelLab === "function" ? sviSelLab(sel) : "") : txtOf(el), ed = sel ? !sel.disabled && !window.__sviRO : canEd(el);
+  const lpMenu = el => { const sel = el.tagName === "TD" ? el.querySelector("select") : null, txt = sel ? (typeof sviSelLab === "function" ? sviSelLab(sel) : "") : txtOf(el), ed = sel ? !sel.disabled && !(window.__sviRO && el.closest(".bdg-d-page")) : canEd(el);
     /* une plage de cases a déjà sa barre (COPIER, COLLER, EFFACER) : un seul menu */
     { const c = el.closest("td.svi-cs"); if (c && [...document.querySelectorAll("td.svi-cs")].filter(x => x.offsetParent !== null).length > 1) { if (window.__sviSelBar) window.__sviSelBar(); return; } }
     if (window.__sviCells && window.__sviCells.count() > 1 && (el.closest("td.svi-cs") || (el.closest(".ins-li") && el.closest(".ins-li").querySelector(".svi-ls")))) return;
@@ -8184,7 +8184,7 @@ window.__sviCells = (() => {
     if (n < 2 || !sel.length) { if (B) B.style.display = "none"; return; }
     if (!B) build();
     /* 09/11 (Ahmed) : une case non modifiable (noire, liste, lecture seule) dans la sélection = COPIER seulement */
-    { const edOk = x => { if (window.__sviRO) return false; if (x.matches && x.matches("td.bdg-ied")) return true; const i = x.matches && x.matches(SVI_ED) ? x : x.querySelector && x.querySelector(SVI_ED); return !!i && !i.disabled && !i.readOnly; };
+    { const edOk = x => { if (window.__sviRO && x.closest && x.closest(".bdg-d-page")) return false; if (x.matches && x.matches("td.bdg-ied")) return true;   /* 09/11 : la lecture seule d'un budget ouvert avant ne vaut pas pour les listes */ const i = x.matches && x.matches(SVI_ED) ? x : x.querySelector && x.querySelector(SVI_ED); return !!i && !i.disabled && !i.readOnly; };
       const ro = sel.some(x => !edOk(x)); B.querySelectorAll('[data-sb="paste"], [data-sb="clear"], .blk-sep').forEach(b => { b.style.display = ro ? "none" : ""; });
       const rh = Math.round(Math.max(18, Math.min(44, sel[0].getBoundingClientRect().height))); B.style.setProperty("--lph", rh + "px"); }
     let top = Infinity, left = Infinity, bottom = -Infinity;
