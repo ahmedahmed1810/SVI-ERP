@@ -291,7 +291,7 @@ function sviFmtWin(ifk) {
     d.innerHTML = sviWinCard({ cls: "fmw-card", close: "data-x", title: `<span class="fmw-ttl">${ifk ? "MODIFIER LE FORMAT — " + esc(IF.lab) : "RÉGLAGES COMMUNS — TOUT LE PROGRAMME"}</span>${sviPalBtns()}`,   /* C10, D4 : choix de la palette dans le bandeau */
       body: `<div class="fmw-scroll">${stRow}${elT}${catT}${blkT}</div>`,
       /* I10 : interface = ANNULER, PAR DÉFAUT, ENREGISTRER ; réglages communs = ANNULER, PAR DÉFAUT, DÉFINIR COMME PAR DÉFAUT, APPLIQUER PARTOUT, ENREGISTRER */
-      foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b" data-def>PAR DÉFAUT</button>${ifk ? "" : `<button type="button" class="svc-b" data-setdef>DÉFINIR COMME PAR DÉFAUT</button><button type="button" class="svc-b" data-save data-all>APPLIQUER PARTOUT</button>`}<button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER</button>` });
+      foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b" data-def>PAR DÉFAUT</button><button type="button" class="svc-b" data-setdef>DÉFINIR COMME PAR DÉFAUT</button>${ifk ? "" : `<button type="button" class="svc-b" data-save data-all>APPLIQUER PARTOUT</button>`}<button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER</button>` });
   };
   draw(); sviWinShow(d);
   const num = (v, a, b) => { const n = parseInt(String(v).replace(/\D/g, ""), 10); return n >= a && n <= b ? n : null; };
@@ -325,8 +325,12 @@ function sviFmtWin(ifk) {
       P[cur] = { F: JSON.parse(JSON.stringify(D)), CD: { ...CD } }; const nx = P[to] || (to === "nuit" ? { F: JSON.parse(JSON.stringify(SVI_NUIT)), CD: { ...CD } } : { F: { el: {}, blk: {}, to: null, by: {} }, CD: { ...SVI_COL_DEF } });
       Object.keys(D).forEach(k => delete D[k]); Object.assign(D, JSON.parse(JSON.stringify(nx.F))); Object.keys(CD).forEach(k => delete CD[k]); Object.assign(CD, nx.CD); P.mode = to; sviPalSave(P);
       sviFmtSave(D); sviColorsSave(CD); sviPalApply(); preview(); draw(); svToast("PALETTE " + (to === "nuit" ? "DE NUIT" : "DE JOUR") + ".", 2000); return; }
+    /* 09/11 (remarque) : DÉFINIR COMME PAR DÉFAUT aussi dans une interface — réglage de départ de CETTE interface (et du groupe FENÊTRES de la pièce), par palette */
+    if (ifk && e.target.closest("[data-setdef]")) { const P = sviPal(), md = P.mode === "nuit" ? "nuit" : "jour"; P.defBy = P.defBy || {}; P.defBy[md] = P.defBy[md] || {};
+      P.defBy[md][ifk] = JSON.parse(JSON.stringify(S)); if (WK) P.defBy[md][WK] = JSON.parse(JSON.stringify(SW)); sviPalSave(P); svToast("CE RÉGLAGE EST MAINTENANT LE PAR DÉFAUT DE CETTE INTERFACE.", 2500); return; }
     if (e.target.closest("[data-setdef]")) { const P = sviPal(); P.def = P.def || {}; P.def[P.mode === "nuit" ? "nuit" : "jour"] = { F: JSON.parse(JSON.stringify(D)), CD: { ...CD } }; sviPalSave(P); svToast("CE RÉGLAGE EST MAINTENANT LE PAR DÉFAUT.", 2500); return; }
-    if (e.target.closest("[data-def]")) { if (ifk) { S.el = {}; S.st = {}; if (SW) { SW.el = {}; SW.st = {}; } } else { const P = sviPal(), u = (P.def || {})[P.mode === "nuit" ? "nuit" : "jour"];
+    if (e.target.closest("[data-def]")) { if (ifk) { const P = sviPal(), u = ((P.defBy || {})[P.mode === "nuit" ? "nuit" : "jour"] || {}), cp = o => o ? JSON.parse(JSON.stringify(o)) : { el: {}, st: {} };   /* réglage de départ de l'interface, sinon réglages communs */
+        const a = cp(u[ifk]); S.el = a.el || {}; S.st = a.st || {}; if (SW) { const b = cp(u[WK]); SW.el = b.el || {}; SW.st = b.st || {}; } } else { const P = sviPal(), u = (P.def || {})[P.mode === "nuit" ? "nuit" : "jour"];
         if (u) { Object.keys(D).forEach(k => delete D[k]); Object.assign(D, JSON.parse(JSON.stringify(u.F))); Object.keys(CD).forEach(k => delete CD[k]); Object.assign(CD, u.CD); }
         else if (P.mode === "nuit") { Object.keys(D).forEach(k => delete D[k]); Object.assign(D, JSON.parse(JSON.stringify(SVI_NUIT))); Object.assign(CD, SVI_COL_DEF); }
         else { D.el = {}; D.blk = {}; D.cat = {}; Object.assign(CD, SVI_COL_DEF); } } preview(); draw(); return; }
