@@ -1208,7 +1208,7 @@ function renderBudgetList() {
   sviWatchState(shell);
   {
     const h1 = shell.querySelector(".novapp-list-titlebar h1");
-    { const lb = shell.querySelector(".novapp-list-titlebar .svi-listbar"); if (lb && !lb.firstChild) lb.innerHTML = sviListBar(); if (lb && !shell.querySelector(".novapp-list-titlebar .nvl-inf")) lb.insertAdjacentHTML("beforebegin", sviListIH()); }   /* v785 : barre commune */
+    { const lb = shell.querySelector(".novapp-list-titlebar .svi-listbar"); if (lb && !lb.firstChild) lb.innerHTML = sviListBar(); if (lb && !shell.querySelector(".novapp-list-titlebar .nvl-h")) lb.insertAdjacentHTML("beforebegin", sviListIH()); }   /* v785 : barre commune */
     if (h1) h1.innerHTML = 'BUDGETS <span id="bdgListCount"></span>';
     shell.querySelector(".novapp-list-actions")?.remove();
   }

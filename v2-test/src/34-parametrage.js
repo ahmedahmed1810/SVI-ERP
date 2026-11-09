@@ -224,7 +224,7 @@ function sviParamTabs() {
   const head = view.querySelector(".section-head");
   /* C7 (série C, document unique 3.1) : PARAMÉTRAGE reçoit la barre du haut commune — ⋯ (MODIFIER LE FORMAT), ⚠ et ✕ */
   if (head && !head.querySelector(".svi-hdr")) {
-    { const h = head.querySelector("h1, h2"); if (h && !head.querySelector(".nvl-inf")) h.insertAdjacentHTML("afterend", sviListIH()); }   /* 07/11 : i et H partout (3.1) */
+    { const h = head.querySelector("h1, h2"); if (h && !head.querySelector(".nvl-h")) h.insertAdjacentHTML("afterend", sviListIH(true)); }   /* 07/11 : i et H partout (3.1) */
     head.insertAdjacentHTML("beforeend", sviHdrBar({ attr: "prmh", why: { undo: "RIEN À ANNULER DANS LE PARAMÉTRAGE.", redo: "RIEN À RÉTABLIR DANS LE PARAMÉTRAGE.", prev: "PARAMÉTRAGE : PAS D'ÉCRAN PRÉCÉDENT.", next: "PARAMÉTRAGE : PAS D'ÉCRAN SUIVANT." } }));
     head.addEventListener("click", e => { const b = e.target.closest("[data-prmh]"); if (!b || b.dataset.why) return; const a = b.dataset.prmh;
       if (a === "todo") { svToast("AUCUNE ALERTE.", 2000, b); return; }

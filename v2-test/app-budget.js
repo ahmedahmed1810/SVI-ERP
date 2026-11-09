@@ -1777,7 +1777,7 @@ function renderBudgetList() {
   sviWatchState(shell);
   {
     const h1 = shell.querySelector(".novapp-list-titlebar h1");
-    { const lb = shell.querySelector(".novapp-list-titlebar .svi-listbar"); if (lb && !lb.firstChild) lb.innerHTML = sviListBar(); if (lb && !shell.querySelector(".novapp-list-titlebar .nvl-inf")) lb.insertAdjacentHTML("beforebegin", sviListIH()); }   /* v785 : barre commune */
+    { const lb = shell.querySelector(".novapp-list-titlebar .svi-listbar"); if (lb && !lb.firstChild) lb.innerHTML = sviListBar(); if (lb && !shell.querySelector(".novapp-list-titlebar .nvl-h")) lb.insertAdjacentHTML("beforebegin", sviListIH()); }   /* v785 : barre commune */
     if (h1) h1.innerHTML = 'BUDGETS <span id="bdgListCount"></span>';
     shell.querySelector(".novapp-list-actions")?.remove();
   }
@@ -5693,7 +5693,7 @@ function sviBdgIndicateurs(C) {
         if (a === "del") {
           const L = cfg.list(), names = L.filter(r => st.ck.has(r.id)).map(r => r.nom);
           d.remove();
-          if (await svConfirm({ title: "SUPPRIMER " + names.length + " INDICATEUR(S)", text: names.slice(0, 5).join(", ") + (names.length > 5 ? "…" : "") + (cfg.t === "ind" ? " : PLUS PROPOSÉS AUX BUDGETS ; CEUX QUI LES UTILISENT LES GARDENT." : " : RETIRÉS DU TABLEAU DE BORD ET DE SES GRAPHIQUES."), ok: "SUPPRIMER" })) {
+          if (await svConfirm({ title: "SUPPRIMER " + names.length + " INDICATEUR(S)", html: `<ul class="svc-list">${names.map(n => `<li>${esc(n)}</li>`).join("")}</ul><div style="margin-top:12px">${cfg.t === "ind" ? "PLUS PROPOSÉS AUX BUDGETS ; CEUX QUI LES UTILISENT LES GARDENT." : "RETIRÉS DU TABLEAU DE BORD ET DE SES GRAPHIQUES."}</div>`, ok: "SUPPRIMER" })) {   /* 09/11 : un indicateur par ligne, précédé d'un tiret */
             if (cfg.t === "ind") cfg.save(L.map(r => st.ck.has(r.id) ? { ...r, del: true } : r)); else cfg.save(L.filter(r => !st.ck.has(r.id))); histLog(cfg.store.br, "INDICATEURS SUPPRIMÉS", names.join(", ")); st.ck = new Set();
           }
           cfg.reopen(); return;

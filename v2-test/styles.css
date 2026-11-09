@@ -3745,3 +3745,7 @@ table thead th .cf-wrap { justify-content: flex-start !important; }
 /* 09/11 (remarque) : le signe « ! » et la référence ne grandissent plus la ligne — même hauteur pour toutes les lignes, le pincement agit aussi sur les rouges */
 table.nv-one tbody td.bdg-ref-c > :is(.nv-bslot, .nv-reflink) { vertical-align: middle; line-height: 1; }
 table.nv-one tbody td.bdg-ref-c .nv-bang { line-height: 1; vertical-align: middle; }
+
+/* 09/11 (remarque) : MÊME PRÉSENTATION pour toutes les listes des confirmations — un élément par ligne, précédé d'un tiret (plus de puces) */
+:is(#svConf, #dlyAddW) .svc-list { list-style: none; padding-left: 0; }
+:is(#svConf, #dlyAddW) .svc-list > li::before { content: "- "; }

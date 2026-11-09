@@ -4684,7 +4684,9 @@ window.sviMep = sviMep;
 /* v785 : les listes ont la même barre que le budget (ANNULER, RÉTABLIR, PRÉCÉDENT, SUIVANT, ALERTES, FERMER, ⋯) ; ce qui est sans objet est grisé et dit pourquoi */
 /* 07/11 (document unique 3.1, « tout doit être uniforme ») : i et H aussi dans la barre du haut des LISTES (et du PARAMÉTRAGE)
    i = informations de la liste (pièces par état, totaux des montants, filtres en cours) ; H = historique de toutes les pièces de la liste, les plus récentes d'abord */
-const sviListIH = () => `<span class="bdg-d-badge bdg-d-inf nvl-inf" role="button" title="Informations">i</span><span class="bdg-d-badge nvl-h" role="button" title="Historique">H</span>`;
+/* 09/11 (remarque, document unique 3.1) : les LISTES n'ont plus de i (ni sa fenêtre INFORMATIONS) — le i n'existe que sur les pièces ;
+   sviListIH(true) garde le i des écrans qui ne sont pas des listes (PARAMÉTRAGE, ACHATS › PARAMÈTRES) */
+const sviListIH = withI => (withI ? `<span class="bdg-d-badge bdg-d-inf nvl-inf" role="button" title="Informations">i</span>` : "") + `<span class="bdg-d-badge nvl-h" role="button" title="Historique">H</span>`;
 const sviListCtx = b => { const sh = b.closest(".novapp-list-shell, .view"), t = sh && [...sh.querySelectorAll("table")].find(x => x.offsetParent !== null && x.tHead);
   const h1 = sh && sh.querySelector(".novapp-list-titlebar h1, .section-head h1, .section-head h2"), ttl = h1 ? String(h1.childNodes[0] ? h1.childNodes[0].textContent : h1.textContent).trim() : "";
   const rows = t ? [...t.tBodies].flatMap(tb => [...tb.rows]).filter(r => r.offsetParent !== null && !r.matches(".bdg-newrow, .ins-new, .rec-new, [data-nvnew], .ach-new") && !/ICI…/.test(r.textContent)) : [];
@@ -5984,7 +5986,7 @@ function sviParamTabs() {
   const head = view.querySelector(".section-head");
   /* C7 (série C, document unique 3.1) : PARAMÉTRAGE reçoit la barre du haut commune — ⋯ (MODIFIER LE FORMAT), ⚠ et ✕ */
   if (head && !head.querySelector(".svi-hdr")) {
-    { const h = head.querySelector("h1, h2"); if (h && !head.querySelector(".nvl-inf")) h.insertAdjacentHTML("afterend", sviListIH()); }   /* 07/11 : i et H partout (3.1) */
+    { const h = head.querySelector("h1, h2"); if (h && !head.querySelector(".nvl-h")) h.insertAdjacentHTML("afterend", sviListIH(true)); }   /* 07/11 : i et H partout (3.1) */
     head.insertAdjacentHTML("beforeend", sviHdrBar({ attr: "prmh", why: { undo: "RIEN À ANNULER DANS LE PARAMÉTRAGE.", redo: "RIEN À RÉTABLIR DANS LE PARAMÉTRAGE.", prev: "PARAMÉTRAGE : PAS D'ÉCRAN PRÉCÉDENT.", next: "PARAMÉTRAGE : PAS D'ÉCRAN SUIVANT." } }));
     head.addEventListener("click", e => { const b = e.target.closest("[data-prmh]"); if (!b || b.dataset.why) return; const a = b.dataset.prmh;
       if (a === "todo") { svToast("AUCUNE ALERTE.", 2000, b); return; }
