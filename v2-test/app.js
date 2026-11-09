@@ -4334,9 +4334,11 @@ function sviNvlPaint() { document.querySelectorAll("table").forEach(t => { const
 /* 09/11 (Ahmed, règle 10.4) : DÉPLACER UNE COLONNE = APPUI LONG sur son titre, puis glisser. Un glissé sans appui long (défilement) ne déplace rien.
    sviColArm(événement de départ, titre) → fonction(ev) qui dit si le déplacement peut commencer */
 document.addEventListener("pointerdown", () => document.querySelectorAll(".co-arm").forEach(x => x.classList.remove("co-arm")), true);
-function sviColArm(e, th) { const t0 = e.timeStamp; let dead = false;
-  const tm = setTimeout(() => { if (!dead) th.classList.add("co-arm"); }, SVI_G.lp);
-  const end = () => { clearTimeout(tm); th.classList.remove("co-arm"); document.removeEventListener("pointerup", end, true); document.removeEventListener("pointercancel", end, true); };
+function sviColArm(e, th) { const t0 = e.timeStamp; let dead = false, armed = false;
+  const tm = setTimeout(() => { if (!dead) { armed = true; th.classList.add("co-arm"); } }, SVI_G.lp);
+  /* iPad : une fois la colonne prise, le doigt qui glisse déplace la colonne et ne fait plus défiler l'écran */
+  const tmv = ev => { if (armed && ev.cancelable) ev.preventDefault(); }; document.addEventListener("touchmove", tmv, { passive: false, capture: true });
+  const end = () => { clearTimeout(tm); armed = false; th.classList.remove("co-arm"); document.removeEventListener("touchmove", tmv, { capture: true }); document.removeEventListener("pointerup", end, true); document.removeEventListener("pointercancel", end, true); document.removeEventListener("touchend", end, true); };
   document.addEventListener("pointerup", end, true); document.addEventListener("pointercancel", end, true); document.addEventListener("touchend", end, true);
   return ev => { if (dead) return false; if (ev.timeStamp - t0 < SVI_G.lp) { dead = true; clearTimeout(tm); th.classList.remove("co-arm"); return false; } return true; }; }
 /* v929 (remarque 16 du 04/11/2026, document unique 9.4) : SUR ORDINATEUR — appui long = clic droit (ou Ctrl + clic sur Mac) :
