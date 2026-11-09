@@ -4556,33 +4556,75 @@ sviRowHApply();
       else if (k === "clear") setVal(el, "");
       el.classList.remove("cell-all"); }; };
   /* 09/11 (Ahmed) : 3e toucher sur une case déjà en saisie = le curseur se place là où on touche, et c'est tout (jamais la bulle de Safari) */
-  { let T3 = null; const cv = document.createElement("canvas").getContext("2d");
-    const caretAt = (i, x) => { const cs = getComputedStyle(i), r = i.getBoundingClientRect(); cv.font = cs.font; const v = String(i.value || "");
-      const pl = parseFloat(cs.paddingLeft) + parseFloat(cs.borderLeftWidth), tw = cv.measureText(v).width, w = r.width - pl - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth);
+  /* 09/11 (Ahmed, règle 8.2) : CHAMP OUVERT DANS UNE CASE — tout est géré par l'application, jamais par Safari :
+     toucher = curseur à l'endroit touché ; glisser = le curseur suit ; double toucher = un mot ; 2e toucher d'ouverture = tout le contenu ;
+     une sélection montre DEUX POIGNÉES (taille de celles de Safari, zone de prise large) qu'on tire pour l'élargir, et le menu de l'application
+     (COUPER, COPIER, COLLER, EFFACER) qui agit sur le texte sélectionné. */
+  { let T3 = null, T2 = null; const cv = document.createElement("canvas").getContext("2d");
+    const geo = i => { const cs = getComputedStyle(i), r = i.getBoundingClientRect(); cv.font = cs.font; const v = String(i.value || "");
+      const pl = parseFloat(cs.paddingLeft) + parseFloat(cs.borderLeftWidth), pr = parseFloat(cs.paddingRight) + parseFloat(cs.borderRightWidth), w = r.width - pl - pr;
+      const ls = parseFloat(cs.letterSpacing) || 0, W = k => cv.measureText(v.slice(0, k)).width + ls * k, tw = W(v.length);
       const off = cs.textAlign === "right" || cs.textAlign === "end" ? Math.max(0, w - tw) : cs.textAlign === "center" ? Math.max(0, (w - tw) / 2) : 0;
-      const ls = parseFloat(cs.letterSpacing) || 0, W = k => cv.measureText(v.slice(0, k)).width + ls * k;
-      /* 09/11 : toucher le bord droit (ou au-delà du texte) = la fin du champ, même si le texte dépasse */
-      if (x >= r.right - parseFloat(cs.paddingRight) - 10 && W(v.length) + ls > w + i.scrollLeft - 2) return v.length;
-      const px = x - r.left - pl - off + i.scrollLeft; let best = 0, bd = 1e9; for (let k = 0; k <= v.length; k++) { const d = Math.abs(W(k) - px); if (d < bd) { bd = d; best = k; } } return best; };
-    /* le 2e toucher (le champ sort de la simple sélection) garde son effet : tout le contenu sélectionné */
+      return { r, v, pl, pr, w, W, tw, off, ls }; };
+    const caretAt = (i, x) => { const g = geo(i);
+      if (x >= g.r.right - g.pr - 10 && g.tw + g.ls > g.w + i.scrollLeft - 2) return g.v.length;   /* bord droit = la fin, même si le texte dépasse */
+      const px = x - g.r.left - g.pl - g.off + i.scrollLeft; let best = 0, bd = 1e9; for (let k = 0; k <= g.v.length; k++) { const d = Math.abs(g.W(k) - px); if (d < bd) { bd = d; best = k; } } return best; };
+    const xOf = (i, k) => { const g = geo(i); return g.r.left + g.pl + g.off + g.W(k) - i.scrollLeft; };
+    const inCell = t => t && t.matches && t.matches(FLD) && t.closest("table tbody td, .ins-hcol .ins-li, .bdg-h-col .bdg-h-item");
+    /* poignées et menu de la sélection */
+    let HA = null, HB = null, SB = null, cur = null;
+    const mk = cls => { const d = document.createElement("div"); d.className = "svi-th " + cls; d.innerHTML = '<i></i>'; document.body.appendChild(d); return d; };
+    const hide = () => { [HA, HB, SB].forEach(x => { if (x) x.style.display = "none"; }); cur = null; };
+    const place = () => { const i = cur; if (!i || document.activeElement !== i || i.selectionStart === i.selectionEnd) { hide(); return; }
+      if (!HA) { HA = mk("svi-th-a"); HB = mk("svi-th-b"); [HA, HB].forEach(h => h.addEventListener("pointerdown", dragH, { passive: false }));
+        SB = document.createElement("div"); SB.id = "sviTxtBar"; document.body.appendChild(SB); SB.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); }); SB.addEventListener("click", act); }
+      const r = i.getBoundingClientRect(), a = Math.max(r.left, Math.min(r.right, xOf(i, i.selectionStart))), b = Math.max(r.left, Math.min(r.right, xOf(i, i.selectionEnd))), h = Math.max(14, r.height - 6);
+      Object.assign(HA.style, { display: "block", left: a + "px", top: (r.top + 3) + "px", height: h + "px" }); Object.assign(HB.style, { display: "block", left: b + "px", top: (r.top + 3) + "px", height: h + "px" });
+      const ro = i.readOnly || i.disabled;
+      SB.innerHTML = (ro ? "" : '<button type="button" data-tx="cut">COUPER</button>') + '<button type="button" data-tx="copy">COPIER</button>' + (ro ? "" : '<button type="button" data-tx="paste">COLLER</button><button type="button" data-tx="clear" class="sb-del">EFFACER</button>');
+      SB.style.setProperty("--lph", Math.round(Math.max(18, Math.min(44, r.height))) + "px"); SB.style.display = "flex";
+      const sh = SB.offsetHeight, sw = SB.offsetWidth; let y = r.top - sh - 8; if (y < 60) y = r.bottom + 8;
+      SB.style.left = Math.max(4, Math.min(innerWidth - sw - 4, (a + b) / 2 - sw / 2)) + "px"; SB.style.top = y + "px"; };
+    const show = i => { cur = i; requestAnimationFrame(place); };
+    const dragH = e => { e.preventDefault(); e.stopPropagation(); const i = cur, isA = e.currentTarget === HA; if (!i) return; try { e.currentTarget.setPointerCapture(e.pointerId); } catch (er) {}
+      SB.style.display = "none"; const fixed = isA ? i.selectionEnd : i.selectionStart;
+      const mv = ev => { ev.preventDefault(); const r = i.getBoundingClientRect(); if (ev.clientX > r.right - 14) i.scrollLeft += 8; else if (ev.clientX < r.left + 14) i.scrollLeft = Math.max(0, i.scrollLeft - 8);
+        const k = caretAt(i, ev.clientX); i.setSelectionRange(Math.min(k, fixed), Math.max(k, fixed)); place(); SB.style.display = "none"; };
+      const up = () => { e.currentTarget && e.currentTarget.releasePointerCapture && 0; document.removeEventListener("pointermove", mv, true); document.removeEventListener("pointerup", up, true); document.removeEventListener("pointercancel", up, true); place(); };
+      document.addEventListener("pointermove", mv, true); document.addEventListener("pointerup", up, true); document.addEventListener("pointercancel", up, true); };
+    const act = async e => { const b = e.target.closest("[data-tx]"); if (!b || !cur) return; e.preventDefault(); e.stopPropagation(); const i = cur, a = i.selectionStart, z = i.selectionEnd, v = String(i.value || ""), sel = v.slice(a, z), k = b.dataset.tx;
+      const put = t => { i.value = v.slice(0, a) + t + v.slice(z); const c = a + t.length; i.setSelectionRange(c, c); i.dispatchEvent(new InputEvent("input", { bubbles: true })); };
+      if (k === "copy" || k === "cut") { try { await navigator.clipboard.writeText(sel); } catch (er) {} window.__sviSelClip = sel; if (k === "cut") put(""); else { i.setSelectionRange(z, z); } if (typeof svToast === "function") svToast(k === "cut" ? "COUPÉ." : "COPIÉ.", 1400, i); }
+      else if (k === "paste") { let t = ""; try { t = await navigator.clipboard.readText(); } catch (er) {} if (!t) t = window.__sviSelClip || ""; put(String(t).replace(/[\r\n]+/g, " ").toUpperCase()); }
+      else if (k === "clear") put("");
+      i.focus({ preventScroll: true }); hide(); };
+    document.addEventListener("selectionchange", () => { if (cur && document.activeElement === cur) requestAnimationFrame(place); });
+    document.addEventListener("focusout", e => { if (e.target === cur) setTimeout(() => { if (document.activeElement !== cur) hide(); }, 0); }, true);
+    document.addEventListener("input", e => { if (e.target === cur && e.inputType) hide(); }, true);
+    document.addEventListener("scroll", () => { if (cur) requestAnimationFrame(place); }, true);
+    /* 2e toucher d'ouverture : la case passe en saisie, TOUT le contenu sélectionné, sans menu de Safari */
     let pdNav = false; document.addEventListener("pointerdown", e => { const t = e.target; pdNav = !!(t && t.classList && t.classList.contains("svi-nav")); }, true);
-    document.addEventListener("touchstart", e => { const t = e.target; T3 = null; if (pdNav || e.touches.length !== 1 || !t || !t.matches || !t.matches(FLD) || t !== document.activeElement || t.classList.contains("svi-nav")) return;
-      if (!t.closest("table tbody td, .ins-hcol .ins-li, .bdg-h-col .bdg-h-item")) return; e.preventDefault(); T3 = { t, x: e.touches[0].clientX, y: e.touches[0].clientY }; }, { passive: false, capture: true });
-    /* glisser le doigt dans le champ = le curseur suit le doigt */
+    document.addEventListener("touchstart", e => { const t = e.target; T3 = null; T2 = null; if (e.touches.length !== 1 || !inCell(t) || t !== document.activeElement) return;
+      if (pdNav) { if (t.readOnly || t.disabled) return; e.preventDefault(); T2 = t; return; }
+      if (t.classList.contains("svi-nav")) return;
+      e.preventDefault(); T3 = { t, x: e.touches[0].clientX, y: e.touches[0].clientY }; }, { passive: false, capture: true });
     document.addEventListener("touchmove", e => { if (!T3 || e.touches.length !== 1) return; e.preventDefault(); const i = T3.t, x = e.touches[0].clientX, r = i.getBoundingClientRect();
-      /* doigt au bord : le texte défile pour atteindre le début ou la fin */
       if (x > r.right - 18) i.scrollLeft += 10; else if (x < r.left + 18) i.scrollLeft = Math.max(0, i.scrollLeft - 10);
-      try { const k = caretAt(i, x); i.setSelectionRange(k, k); if (k >= String(i.value || "").length) i.scrollLeft = i.scrollWidth; } catch (er) {} }, { passive: false, capture: true });
-    /* 09/11 (Ahmed) : champ ouvert, DOUBLE TOUCHER sur un mot = ce mot seul sélectionné */
+      try { const k = caretAt(i, x); i.setSelectionRange(k, k); if (k >= String(i.value || "").length) i.scrollLeft = i.scrollWidth; } catch (er) {} hide(); }, { passive: false, capture: true });
     let lastT3 = null;
-    document.addEventListener("touchend", e => { if (!T3) return; const c = e.changedTouches[0], P = T3; T3 = null;
+    document.addEventListener("touchend", e => {
+      if (T2) { const i = T2; T2 = null; try { if (window.__sviNav) window.__sviNav.off(i); i.__edit = true; i.blur(); i.focus({ preventScroll: true }); i.setSelectionRange(0, String(i.value || "").length); } catch (er) {} show(i); return; }
+      if (!T3) return; const c = e.changedTouches[0], P = T3; T3 = null;
       try { const k = caretAt(P.t, c.clientX), v = String(P.t.value || ""), now = Date.now();
         if (lastT3 && lastT3.t === P.t && now - lastT3.at < (SVI_G.dbl || 350) && Math.abs(c.clientX - lastT3.x) < 24) {
           let a = k, b = k; while (a > 0 && !/\s/.test(v[a - 1])) a--; while (b < v.length && !/\s/.test(v[b])) b++;
-          if (a === b && b < v.length) { while (b < v.length && /\s/.test(v[b])) b++; a = b; while (b < v.length && !/\s/.test(v[b])) b++; }   /* toucher entre deux mots : le mot qui suit */
-          P.t.setSelectionRange(a, b); lastT3 = null; return; }
+          if (a === b && b < v.length) { while (b < v.length && /\s/.test(v[b])) b++; a = b; while (b < v.length && !/\s/.test(v[b])) b++; }   /* entre deux mots : le mot qui suit */
+          P.t.setSelectionRange(a, b); lastT3 = null; show(P.t); return; }
         lastT3 = { t: P.t, at: now, x: c.clientX };
-        P.t.setSelectionRange(k, k); if (k >= v.length) P.t.scrollLeft = P.t.scrollWidth; } catch (er) {} }, { passive: true, capture: true }); }
+        P.t.setSelectionRange(k, k); if (k >= v.length) P.t.scrollLeft = P.t.scrollWidth; hide(); } catch (er) {} }, { passive: true, capture: true });
+    /* ordinateur : sélection à la souris dans un champ ouvert = mêmes poignées et même menu */
+    document.addEventListener("mouseup", e => { const t = e.target; if (inCell(t) && document.activeElement === t && !t.classList.contains("svi-nav")) setTimeout(() => { if (t.selectionStart !== t.selectionEnd) show(t); }, 0); }, true);
+    window.__sviTxtSel = { show, hide }; }
   /* jamais la bulle de Safari (Copier / Rechercher la sélection) sur les cases des tableaux */
   document.addEventListener("selectstart", e => { const t = e.target && e.target.nodeType === 1 ? e.target : e.target && e.target.parentElement; if (t && t.closest && t.closest("table tbody td, .ins-hcol .ins-li") && !t.closest("input, textarea")) e.preventDefault(); }, true);
   document.addEventListener("pointerdown", e => { if (!e.target.closest || !e.target.closest(".cell-all, #sviEtatMenu")) document.querySelectorAll(".cell-all").forEach(x => x.classList.remove("cell-all")); }, true);

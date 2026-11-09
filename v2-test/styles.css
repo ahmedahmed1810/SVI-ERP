@@ -3823,3 +3823,15 @@ thead th { -webkit-user-select: none; user-select: none; -webkit-touch-callout: 
 #sviSelHandle { z-index: 100006; }
 /* 09/11 : fenêtre INF en palette NUIT — champs sombres comme la fenêtre */
 html.svi-nuit #docPop :is(input:not([type=checkbox]):not([type=radio]), textarea, select, .sv-sel), html.svi-nuit #svConf :is(input:not([type=checkbox]):not([type=radio]), textarea, .sv-sel) { background: #111827 !important; color: #f8fafc !important; -webkit-text-fill-color: #f8fafc !important; border-color: #334155 !important; }
+/* 09/11 : poignées de sélection du texte (taille de celles de Safari) — zone de prise large ; menu de la sélection */
+.svi-th { position: fixed; display: none; width: 2px; margin-left: -1px; background: #b91c1c; z-index: 100012; touch-action: none; }
+.svi-th::before { content: ""; position: absolute; left: -18px; right: -18px; top: -18px; bottom: -18px; }
+.svi-th i { position: absolute; left: -4px; width: 10px; height: 10px; border-radius: 50%; background: #b91c1c; }
+.svi-th-a i { top: -9px; } .svi-th-b i { bottom: -9px; }
+#sviTxtBar { position: fixed; display: none; z-index: 100013; flex-direction: row; width: max-content; padding: 3px; background: #fff; border: 1px solid #d0d5dd; border-radius: 10px; box-shadow: 0 8px 24px rgba(16,24,40,.16); }
+#sviTxtBar button { height: var(--lph, 24px); padding: 0 12px; border: 0; background: transparent; border-radius: 6px; font: 700 11.5px/1 Arial, sans-serif; color: #172033; cursor: pointer; -webkit-user-select: none; user-select: none; }
+#sviTxtBar button + button { border-left: 1px solid #eaecf0; border-radius: 0; }
+#sviTxtBar .sb-del { color: #b91c1c; }
+html.svi-nuit #sviTxtBar { background: #1f2937; border-color: #334155; } html.svi-nuit #sviTxtBar button { color: #e5e7eb; }
+/* jamais la loupe ni les poignées de Safari dans une case en saisie */
+table tbody td input, table tbody td textarea { -webkit-touch-callout: none; }
