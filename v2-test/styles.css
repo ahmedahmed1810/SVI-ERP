@@ -3699,6 +3699,7 @@ table tbody td { -webkit-user-select: none; user-select: none; -webkit-touch-cal
 table tbody td :is(input, textarea) { -webkit-user-select: text; user-select: text; }
 table tbody tr.row-x > td { vertical-align: top; }
 table tbody td.cell-x { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; word-break: break-word; height: auto !important; }
+table tbody td.cell-x *:not(input, textarea, button, svg, svg *) { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; max-height: none !important; height: auto !important; word-break: break-word; }
 /* G5 : menu de la loupe — renommer, mise en forme */
 #cfMenu .cf-ren { width: 100%; box-sizing: border-box; margin: 2px 0 4px; font-weight: 800; text-transform: uppercase; }
 #cfMenu .cf-fmt-h { font-weight: 800; text-align: left; }

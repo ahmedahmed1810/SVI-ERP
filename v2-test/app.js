@@ -4452,10 +4452,13 @@ sviRowHApply();
 { let cur = null, tip = null, tm = 0, x0 = 0, y0 = 0, t0 = 0, eat = false;
   const FLD = "input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=hidden]):not([type=file]), textarea";
   const cutTd = t => { if (!t || !t.closest || t.closest("#cfMenu, .fmw-card, .cmpm-pick")) return null;
-    const td = t.closest("table tbody td"); if (td && !td.querySelector("input, select, textarea, .sv-sel")) return td;
+    /* 09/11 : tous les champs — une case à champ grisé (disabled : le toucher arrive sur la case) montre aussi son champ */
+    const td = t.closest("table tbody td"); if (td) { if (td.querySelector("select, .sv-sel")) return null; const f = t.matches && t.matches(FLD) ? t : td.querySelector(FLD); return f || td; }
     const li = t.closest(".bdg-h-col .bdg-h-item, .ins-hcol .ins-li"); if (li) return li.querySelector(":scope input.ins-in, :scope .lot-in input.ins-in") || li;
     const f = t.closest(FLD); return f && f.closest(".bdg-d-page, .nvp, #svConf, #docPop, .novapp-list-shell, table") ? f : null; };
-  const isCut = el => { if (el.matches(FLD)) return el.scrollWidth > el.clientWidth + 1; return el.scrollWidth > el.clientWidth + 1; };
+  const over = el => el.scrollWidth > el.clientWidth + 1 || (el.tagName === "TEXTAREA" && el.scrollHeight > el.clientHeight + 1);
+  /* une case est coupée si elle-même ou un de ses morceaux de texte l'est (désignation dans un bloc, nom avec ses signes) */
+  const isCut = el => { if (el.matches(FLD) || over(el)) return over(el); return [...el.querySelectorAll("*")].some(x => !x.matches("input, button, svg, svg *") && x.clientWidth && over(x)); };
   const txtOf = el => String(el.matches(FLD) ? el.value : el.textContent || "").replace(/\s+/g, " ").trim();
   const off = () => { if (cur) { cur.classList.remove("cell-x"); cur.parentElement && cur.parentElement.classList.remove("row-x"); cur = null; } if (tip) { tip.remove(); tip = null; } };
   const show = el => { off(); if (el.matches(FLD)) { const r = el.getBoundingClientRect(); tip = document.createElement("div"); tip.id = "sviFullTip"; tip.textContent = txtOf(el);
@@ -4463,7 +4466,7 @@ sviRowHApply();
     const cs = getComputedStyle(el); Object.assign(tip.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px", minHeight: r.height + "px", font: cs.font, color: cs.color, textAlign: cs.textAlign,
       paddingLeft: cs.paddingLeft, paddingRight: cs.paddingRight, letterSpacing: cs.letterSpacing, textTransform: cs.textTransform }); document.body.appendChild(tip); tip.__el = el; return; }
     cur = el; el.classList.add("cell-x"); el.tagName === "TD" && el.parentElement.classList.add("row-x"); };
-  document.addEventListener("pointerdown", e => { if ((cur && !cur.contains(e.target)) || (tip && tip.__el !== e.target)) off(); const el = cutTd(e.target); clearTimeout(tm); if (!el) return; x0 = e.clientX; y0 = e.clientY; t0 = Date.now();
+  document.addEventListener("pointerdown", e => { const el = cutTd(e.target); if ((cur && !cur.contains(e.target)) || (tip && tip.__el !== el)) off(); clearTimeout(tm); if (!el) return; x0 = e.clientX; y0 = e.clientY; t0 = Date.now();
     if (isCut(el)) window.__sviCutT = Date.now();   /* le message LECTURE SEULE se tait : le toucher sert à lire */
     tm = setTimeout(() => { tm = 0; const txt = txtOf(el); if (!txt || typeof sviEtatMenu !== "function") return;
       sviEtatMenu(el, [{ k: "copy", lab: "COPIER" }], "", () => { try { navigator.clipboard.writeText(txt); } catch (er) {} if (typeof svToast === "function") svToast("COPIÉ.", 1500, el); }); }, SVI_G.lp); }, true);
