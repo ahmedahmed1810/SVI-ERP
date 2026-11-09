@@ -3765,3 +3765,8 @@ html.svi-nuit #sviFullTip { background: #1f2937; color: #f8fafc; border-color: #
 /* 09/11 : épingle après la référence d'une fiche épinglée (listes) */
 .svi-pinmk { display: inline-flex; vertical-align: -2px; margin-left: 5px; color: #1d4ed8; pointer-events: none; } .svi-pinmk svg path { fill: currentColor; }
 html.svi-nuit .svi-pinmk { color: #93c5fd; }
+/* 09/11 : NUIT — lignes liées en bleu clair (le bleu foncé ne se lit pas sur fond sombre) */
+html.svi-nuit .ins-table tr.lk-link td, html.svi-nuit .ins-hcol .ins-li.lk-link,
+html.svi-nuit .ins-table tr.lk-link td :is(input.ins-in, textarea.ins-in, .ins-dv), html.svi-nuit .ins-hcol .ins-li.lk-link :is(input.ins-in, textarea.ins-in, .ins-dv),
+html.svi-nuit .dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td :is(input, span:not(.lk-rd):not(.dly-pred), b),
+html.svi-nuit .bdg-d-page .dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td, html.svi-nuit .bdg-d-page .dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td *:not(.lk-rd):not(.lk-rd *) { color: #93c5fd !important; -webkit-text-fill-color: #93c5fd !important; }

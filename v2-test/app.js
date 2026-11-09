@@ -4458,10 +4458,17 @@ sviRowHApply();
     const f = t.closest(FLD); return f && f.closest(".bdg-d-page, .nvp, #svConf, #docPop, .novapp-list-shell, table") ? f : null; };
   const over = el => el.scrollWidth > el.clientWidth + 1 || (el.tagName === "TEXTAREA" && el.scrollHeight > el.clientHeight + 1);
   /* une case est coupée si elle-même ou un de ses morceaux de texte l'est (désignation dans un bloc, nom avec ses signes) */
-  const isCut = el => { if (el.matches(FLD) || over(el)) return over(el); return [...el.querySelectorAll("*")].some(x => !x.matches("input, button, svg, svg *") && x.clientWidth && over(x)); };
+  /* texte posé dans la case sans champ (morceaux en ligne) : on mesure le texte lui-même contre la largeur utile de la case */
+  const txtW = el => { try { const rg = document.createRange(); rg.selectNodeContents(el); const cs = getComputedStyle(el); return rg.getBoundingClientRect().width > el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) + 1; } catch (e) { return false; } };
+  const isCut = el => { if (el.matches(FLD) || over(el)) return over(el); return [...el.querySelectorAll("*")].some(x => !x.matches("input, button, svg, svg *") && x.clientWidth && over(x)) || txtW(el); };
   const txtOf = el => String(el.matches(FLD) ? el.value : el.textContent || "").replace(/\s+/g, " ").trim();
   /* 09/11 : le texte agrandi garde la forme du champ — fond de la première couche non transparente (champ, case, ligne, bloc) */
-  const bgOf = el => { for (let x = el; x && x.nodeType === 1; x = x.parentElement) { const c = getComputedStyle(x).backgroundColor; if (c && !/rgba\(\d+, \d+, \d+, 0\)|transparent/.test(c)) return c; } return ""; };
+  /* couches semi-transparentes mélangées jusqu'à la première couche pleine : le fond affiché est celui qu'on voit vraiment */
+  const bgOf = el => { const L = []; for (let x = el; x && x.nodeType === 1; x = x.parentElement) { const m = getComputedStyle(x).backgroundColor.match(/[\d.]+/g); if (!m) continue;
+      const a = m.length > 3 ? +m[3] : 1; if (a > 0) L.push([+m[0], +m[1], +m[2], a]); if (a >= 1) break; }
+    let c = document.documentElement.classList.contains("svi-nuit") ? [11, 18, 32] : [255, 255, 255];
+    for (let i = L.length - 1; i >= 0; i--) { const [r, g, b, a] = L[i]; c = [r * a + c[0] * (1 - a), g * a + c[1] * (1 - a), b * a + c[2] * (1 - a)]; }
+    return "rgb(" + c.map(Math.round).join(", ") + ")"; };
   const off = () => { if (cur) { cur.classList.remove("cell-x"); cur.parentElement && cur.parentElement.classList.remove("row-x"); cur = null; } if (tip) { tip.remove(); tip = null; } };
   const show = el => { off(); if (el.matches(FLD)) { const r = el.getBoundingClientRect(); tip = document.createElement("div"); tip.id = "sviFullTip"; tip.textContent = txtOf(el);
       /* 09/11 (règle 6.9) : le texte entier s'affiche SUR le champ, à sa largeur exacte, sur plusieurs lignes — le champ semble s'agrandir vers le bas */
