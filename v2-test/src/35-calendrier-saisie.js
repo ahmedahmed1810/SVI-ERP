@@ -783,7 +783,8 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
     let vr = vis.right, vb = vis.bottom;
     /* 09/11 (Ahmed) : plusieurs cases = le point au coin du grand cadre, du côté où la sélection se termine (en bas à droite en descendant, en haut à droite en montant) */
     { const C = [...document.querySelectorAll("td.svi-cs")].filter(x => x.offsetParent !== null);
-      if (td && S.b && S.a && C.length > 1) { let t = 1e9, b = -1e9, r = -1e9, l = 1e9; C.forEach(x => { const R = x.getBoundingClientRect(); t = Math.min(t, R.top); b = Math.max(b, R.bottom); r = Math.max(r, R.right); l = Math.min(l, R.left); });
+      const endTd = td && S.b && S.tbl ? tdAt(S.tbl, S.b.r, S.b.c) : null;
+      if (td && S.b && S.a && C.length > 1 && C.includes(td) && endTd && C.includes(endTd) && td.closest("table") === S.tbl) {   /* 09/11 : seulement une vraie plage en cours (jamais une ancienne) */ let t = 1e9, b = -1e9, r = -1e9, l = 1e9; C.forEach(x => { const R = x.getBoundingClientRect(); t = Math.min(t, R.top); b = Math.max(b, R.bottom); r = Math.max(r, R.right); l = Math.min(l, R.left); });
         const hw = (H.offsetWidth || 9) / 2;   /* le centre du point pile sur le coin extérieur où la sélection se termine */
         H.style.background = "#b91c1c"; H.style.display = "block"; H.style.left = ((S.b.c < S.a.c ? l : r) - hw + window.scrollX) + "px"; H.style.top = ((S.b.r < S.a.r ? t : b) - hw + window.scrollY) + "px"; return; } }
     { const F = document.getElementById("sviSelFrame"); if (end === cell && F && F.style.display === "block") { const fr = F.getBoundingClientRect(); vr = fr.right; vb = fr.bottom; } }
