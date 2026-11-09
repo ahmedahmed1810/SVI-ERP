@@ -183,15 +183,17 @@ function sviCfKit(o) {
       <button type="button" class="cf-x" aria-label="Fermer">✕</button>
       ${(() => { /* 08/11 (série G, G5) : renommer la colonne et sa MISE EN FORME, en haut du menu ; appliqué et gardé tout de suite (EFFACER / OK = tri et filtre seulement) */
         if (typeof sviColSet !== "function") return ""; const th = btn.closest("th"), lab = th && th.querySelector(".cf-lab"), o = sviColSet()[t + "|" + key] || {};
-        const lt = th && th.querySelector(".cf-lt, .cf-tt"), def = th ? String(th.dataset.svcolDef || (lt ? lt.textContent : "")).replace(/\s+/g, " ").trim() : "";   /* correction G-7 : titre d'origine entier */
+        /* 09/11 (remarque) : LOT, ACTIVITÉ PRIMAIRE et SECONDAIRE (bloc TÂCHES) traités comme des tableaux — renommer et mise en forme de leurs lignes */
+        const hh = !th && key === "v" && btn.closest(".ins-hcol .bdg-h-head"), tt = th || hh;
+        const lt = tt && tt.querySelector(".cf-lt, .cf-tt"), def = tt ? String(tt.dataset.svcolDef || (lt ? lt.textContent : "")).replace(/\s+/g, " ").trim() : "";   /* correction G-7 : titre d'origine entier */
         const cell = th && th.closest("table").tBodies[0] && [...th.closest("table").tBodies[0].rows].find(r => r.cells.length === th.parentNode.cells.length);
         /* série I (I1) : la loupe du bloc des dates règle ses lignes (TOUT, années, mois, jours) — case de référence = 1re ligne du bloc */
-        const dh = !th && btn.closest(".novapp-date-head"), ce = cell ? cell.cells[[...th.parentNode.cells].indexOf(th)] : dh ? dh.parentElement.querySelector(".novapp-date-item") || dh.querySelector(".svi-stf-head") : null;
+        const dh = !th && btn.closest(".novapp-date-head"), ce = cell ? cell.cells[[...th.parentNode.cells].indexOf(th)] : dh ? dh.parentElement.querySelector(".novapp-date-item") || dh.querySelector(".svi-stf-head") : hh ? hh.closest(".ins-hcol").querySelector(".ins-li:not(.ins-new):not(.lot-grp)") : null;
         const fs0 = o.fs || (ce ? Math.round(parseFloat(getComputedStyle(ce).fontSize)) : 12);
         /* série I (I6) : G suit le gras réel de la colonne (les lignes sont déjà grasses par défaut) — allumé si elle est grasse */
         const b0 = o.b !== undefined ? !!o.b : ce ? (parseInt(getComputedStyle(ce).fontWeight, 10) || 400) >= 600 : false;
         const AL = { g: '<svg width="16" height="14" viewBox="0 0 16 14"><path d="M1 2h14M1 7h9M1 12h12" stroke="currentColor" stroke-width="2"/></svg>', c: '<svg width="16" height="14" viewBox="0 0 16 14"><path d="M1 2h14M4 7h8M2 12h12" stroke="currentColor" stroke-width="2"/></svg>', d: '<svg width="16" height="14" viewBox="0 0 16 14"><path d="M1 2h14M6 7h9M3 12h12" stroke="currentColor" stroke-width="2"/></svg>' };
-        return (th ? `<input type="text" class="ins-in cf-ren" value="${esc(o.lab || def)}" data-def="${esc(def)}" autocomplete="off" aria-label="Titre de la colonne">` : "")
+        return (tt ? `<input type="text" class="ins-in cf-ren" value="${esc(o.lab || def)}" data-def="${esc(def)}" autocomplete="off" aria-label="Titre de la colonne">` : "")
           + (typeof sviColhHide === "function" && sviColhInfo(btn.closest("table")) ? '<button type="button" class="cf-hide">MASQUER LA COLONNE</button>' : "")
           + `<button type="button" class="cf-fmt-h">MISE EN FORME ›</button><div class="cf-fmt" hidden>
             <div class="cf-fr"><button type="button" data-cff="fs-">−</button><span class="cf-fsv">${fs0}</span><button type="button" data-cff="fs+">+</button></div>
