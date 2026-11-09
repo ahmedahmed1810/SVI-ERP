@@ -496,8 +496,11 @@
       ied.textContent = ""; ied.appendChild(inp); inp.focus(); try { inp.select(); } catch (er) {}
       const t0 = Date.now();
       let done = false; const fin = ok => { if (done) return; if (ok === "blur" && Date.now() - t0 < 600 && inp.isConnected) { setTimeout(() => { inp.__edit = true; inp.focus(); }, 0); return; } done = true; const nv = String(inp.value || "").trim().toUpperCase().replace(/\s+/g, " ");
+        const keep = ok && nv ? nv : v0;
         if (ok && nv && nv !== v0) { const L = sviInstGet(), it = L.find(x => x.ref === ref); if (it) { it.intitule = nv; sviInstSet(L); try { histLog("BUDGET", "INTITULÉ MODIFIÉ DANS LA LISTE", ref + " : " + nv); } catch (er) {} } }
-        renderBudgetList(); };
+        /* 09/11 : la case est remise en place SANS redessiner la liste — la case touchée ensuite garde sa sélection (cadre + point) */
+        ied.textContent = keep; ied.title = keep; delete ied.dataset.sel1;
+        try { (bdgRows || []).forEach(r => { if (r && r.ref === ref) r.intitule = keep; }); } catch (er) {} };
       inp.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); fin(true); } if (ev.key === "Escape") { ev.preventDefault(); fin(false); } });
       inp.addEventListener("blur", () => fin("blur")); return;
     }
