@@ -7548,7 +7548,8 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
     if (act && act.matches && act.matches("input, textarea") && !act.classList.contains("svi-nav") && !act.readOnly && !act.disabled) { if (H) H.style.display = "none"; return; }
     const td = cell.tagName === "TD" ? cell : null;
     let end = cell;
-    if (td && td.closest("tbody") && S.tbl && S.a && td.closest("table") === S.tbl) end = tdAt(S.tbl, (S.b || S.a).r, (S.b || S.a).c) || td;
+    /* 09/11 : une plage ancienne (tableau redessiné, colonne déplacée) ne déplace plus le point : seule une case de la plage en cours le fait */
+    if (td && td.closest("tbody") && S.tbl && S.a && td.closest("table") === S.tbl && S.b && td.classList.contains("svi-cs")) end = tdAt(S.tbl, S.b.r, S.b.c) || td;
     else if (!td && window.__sviLS) end = window.__sviLS.end(cell) || cell;   /* v513 : fin de la plage d'une liste */
     const vis = sviCellVis(end);
     if (!vis) { if (H) H.style.display = "none"; return; }
@@ -7584,7 +7585,7 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
     if (!tbl) { handle(); return; }
     if (S.keep) { S.keep = false; handle(); return; }
     const p = posOf(td); if (!p) return;
-    if (S.tbl !== tbl || !S.a || S.a.r !== p.r || S.a.c !== p.c) { S.tbl = tbl; S.tk = (sviCellKey(td) || {}).t || null; S.a = p; S.b = null; S.extra.clear(); paint(); }
+    if (S.tbl !== tbl || !S.a || S.a.r !== p.r || S.a.c !== p.c || (S.b && !td.classList.contains("svi-cs"))) { S.tbl = tbl; S.tk = (sviCellKey(td) || {}).t || null; S.a = p; S.b = null; S.extra.clear(); paint(); }
     else handle();
   });
   document.addEventListener("pointerdown", e => {
