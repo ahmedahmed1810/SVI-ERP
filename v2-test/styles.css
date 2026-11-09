@@ -3802,3 +3802,5 @@ td.bdg-ied input.nv-edin { width: 100%; height: 100%; box-sizing: border-box; bo
 .svi-stf-head .dt-arr, .svi-stf-head .svi-cnt { flex: none; }
 #sviStfTip { position: fixed; z-index: 40000; box-sizing: border-box; display: flex; align-items: center; padding: 4px 10px; background: #fff; border: 1px solid #c9d1dc; border-radius: 8px; box-shadow: 0 6px 14px rgba(16,24,40,.16); font: 700 12px/1.3 Arial, sans-serif; color: #172033; white-space: nowrap; pointer-events: none; }
 html.svi-nuit #sviStfTip { background: #1f2937; color: #f8fafc; border-color: #334155; }
+/* 09/11 : curseur visible même à la fin du texte (petite marge à droite du champ) */
+td.bdg-ied input.nv-edin { padding-right: 4px !important; }

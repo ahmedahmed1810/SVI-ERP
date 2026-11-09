@@ -398,9 +398,9 @@ sviRowHApply();
     document.addEventListener("touchmove", e => { if (!T3 || e.touches.length !== 1) return; e.preventDefault(); const i = T3.t, x = e.touches[0].clientX, r = i.getBoundingClientRect();
       /* doigt au bord : le texte défile pour atteindre le début ou la fin */
       if (x > r.right - 18) i.scrollLeft += 10; else if (x < r.left + 18) i.scrollLeft = Math.max(0, i.scrollLeft - 10);
-      try { const k = caretAt(i, x); i.setSelectionRange(k, k); } catch (er) {} }, { passive: false, capture: true });
+      try { const k = caretAt(i, x); i.setSelectionRange(k, k); if (k >= String(i.value || "").length) i.scrollLeft = i.scrollWidth; } catch (er) {} }, { passive: false, capture: true });
     document.addEventListener("touchend", e => { if (!T3) return; const c = e.changedTouches[0], P = T3; T3 = null;
-      try { const k = caretAt(P.t, c.clientX); P.t.setSelectionRange(k, k); } catch (er) {} }, { passive: true, capture: true }); }
+      try { const k = caretAt(P.t, c.clientX); P.t.setSelectionRange(k, k); if (k >= String(P.t.value || "").length) P.t.scrollLeft = P.t.scrollWidth; } catch (er) {} }, { passive: true, capture: true }); }
   /* jamais la bulle de Safari (Copier / Rechercher la sélection) sur les cases des tableaux */
   document.addEventListener("selectstart", e => { const t = e.target && e.target.nodeType === 1 ? e.target : e.target && e.target.parentElement; if (t && t.closest && t.closest("table tbody td, .ins-hcol .ins-li") && !t.closest("input, textarea")) e.preventDefault(); }, true);
   document.addEventListener("pointerdown", e => { if (!e.target.closest || !e.target.closest(".cell-all, #sviEtatMenu")) document.querySelectorAll(".cell-all").forEach(x => x.classList.remove("cell-all")); }, true);
