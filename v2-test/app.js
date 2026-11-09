@@ -4731,7 +4731,10 @@ document.addEventListener("click", e => {
   sviHdrMenu(b, [sviColhItems(t), EX.flatMap(x => x.items), [{ k: "apr", lab: "APERÇU" }], [{ k: "__fmt", lab: "MODIFIER LE FORMAT" }, { k: "__lay", lab: "DISPOSITION PAR DÉFAUT" }], delG].filter(g => g.length), async a => {
     if (a === "__ldel") { const ok = CK.filter(SD.ok), no = CK.filter(x => !SD.ok(x));
       if (!ok.length) { svToast("AUCUNE LIGNE COCHÉE N'EST EN INSTANCE : RIEN À SUPPRIMER.", 3500, b); return; }
-      if (!(await svConfirm({ title: SD.lab, text: ok.length + " SUPPRIMÉE(S) : " + ok.map(SD.nom).join(", ") + "." + (no.length ? " NON SUPPRIMÉE(S) (PAS EN INSTANCE) : " + no.map(SD.nom).join(", ") + "." : ""), ok: "SUPPRIMER" }))) return;
+      /* 09/11 (remarque) : une pièce par ligne, précédée d'un tiret ; les pièces gardées en un seul nombre */
+      const nm = SD.lab.replace(/^SUPPRIMER LES /, ""), fem = / COCHÉES$/.test(nm);
+      const keepTxt = !no.length ? "" : no.length === 1 ? "1 LIGNE COCHÉE N'EST PAS EN INSTANCE : ELLE EST GARDÉE." : no.length + " " + nm + " NE SONT PAS EN INSTANCE : " + (fem ? "ELLES SONT GARDÉES." : "ILS SONT GARDÉS.");
+      if (!(await svConfirm({ title: SD.lab, html: ok.map(x => `<div>- ${esc(SD.nom(x))}</div>`).join("") + (keepTxt ? `<div style="margin-top:12px">${esc(keepTxt)}</div>` : ""), ok: "SUPPRIMER" }))) return;
       await SD.run(ok); svToast(ok.length + " LIGNE(S) SUPPRIMÉE(S).", 2500); return; }
     if (a === "__fmt") { sviFmtCurWin(); return; }   /* v927 (remarque 12) */
     { const x = EX.find(y => y.items.some(i => i.k === a)); if (x) { x.act(a); return; } }
