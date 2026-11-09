@@ -647,7 +647,9 @@ const sviSelBox = () => {
   /* v789 : cases choisies une à une (Ctrl / Cmd) — chacune son propre cadre ; le grand cadre seulement pour une plage continue */
   const area = els.reduce((s2, e) => { const R = e.getBoundingClientRect(); return s2 + (e.tagName === "TD" ? R.width : r - l) * R.height; }, 0);
   document.querySelectorAll(".svi-cs1").forEach(x => x.classList.remove("svi-cs1"));
-  if (area < 0.97 * (r - l) * (b - t)) { els.forEach(e => e.classList.add("svi-cs1")); SVI_SB.style.display = "none"; return; }
+  /* 09/11 : une plage qui saute une ligne sans cases (CRÉER UN AVENANT…) reste un seul grand cadre — on compare aux seules lignes touchées */
+  const rowsH = [...new Set(els.map(e => e.closest("tr, .ins-li")).filter(Boolean))].reduce((s2, rw) => s2 + rw.getBoundingClientRect().height, 0) || (b - t);
+  if (area < 0.97 * (r - l) * Math.min(b - t, rowsH)) { els.forEach(e => e.classList.add("svi-cs1")); SVI_SB.style.display = "none"; return; }
   const col = "#b91c1c";
   Object.assign(SVI_SB.style, { display: "block", left: (l + window.scrollX) + "px", top: (t + window.scrollY) + "px", width: (r - l) + "px", height: (b - t) + "px", borderColor: col, zIndex: SVI_FR ? SVI_FR.style.zIndex || "45" : "45" });
 };
