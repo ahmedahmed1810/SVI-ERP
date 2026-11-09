@@ -19621,7 +19621,7 @@ function sviBdgInstanceSaisie(C) {
   if (!window.__sviROon) {
     window.__sviROon = true; window.__sviNoWrap = 1;   /* v789 : écouteurs communs à tous les budgets */
     let roT = 0;
-    const roSay = () => { if (Date.now() - roT > 2500) { roT = Date.now(); try { svToast(window.__sviRO, 3500); } catch (e) {} } };
+    const roSay = () => { if (Date.now() - (window.__sviCutT || 0) < 900) return; if (Date.now() - roT > 2500) {   /* 09/11 : pas de message quand le toucher sert à lire un texte coupé */ roT = Date.now(); try { svToast(window.__sviRO, 3500); } catch (e) {} } };
     const EDIT_CLICK = ".ins-x, .ins-xall, .ins-delc, .dly-pred, .dly-pred-new, .dly-succ, .dly-gen, .dly-lev, .dly-jal, .dly-vd-x, #insUnlBtn, .blk-adj-btn, .blk-cfg-btn, .blk-hcfg-btn, [data-act=import], [data-act=paste], [data-act=cut], [data-act=del], .ins-rdbl, .cond-btn, .only-c";
     const DRAG = "[data-iid], .ins-dv, .gb, .gb-s, .gb-e, .gl-hit, .ghb, .dlyg-l, .grdc, .dlyhh-cfg";
     const guard = e => {

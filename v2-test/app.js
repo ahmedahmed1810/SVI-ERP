@@ -4446,18 +4446,34 @@ sviRowHApply();
 /* 08/11 (série G, G4, document unique 6.3) : VOIR ET COPIER UN TEXTE COUPÉ — toucher une case dont le texte est coupé agrandit sa ligne
    pour montrer tout le texte de CETTE case (les autres restent coupées, alignées en haut) ; elle reprend sa hauteur quand on sort de la case.
    Une case qui ouvre la pièce l'ouvre au 2e toucher. Appui long = petit menu de l'application : COPIER (tout le texte). Pas de sélection Safari. */
-{ let cur = null, tm = 0, x0 = 0, y0 = 0;
-  const cutTd = t => { const td = t && t.closest && t.closest("table tbody td"); if (!td || td.querySelector("input, select, textarea, .sv-sel") || td.closest("#svConf .cmpm-pick")) return null; return td; };
-  const isCut = td => td.scrollWidth > td.clientWidth + 1;
-  const off = () => { if (!cur) return; cur.classList.remove("cell-x"); cur.parentElement && cur.parentElement.classList.remove("row-x"); cur = null; };
-  document.addEventListener("pointerdown", e => { if (cur && !cur.contains(e.target)) off(); const td = cutTd(e.target); clearTimeout(tm); if (!td) return; x0 = e.clientX; y0 = e.clientY;
-    tm = setTimeout(() => { tm = 0; const txt = String(td.textContent || "").replace(/\s+/g, " ").trim(); if (!txt || typeof sviEtatMenu !== "function") return;
-      sviEtatMenu(td, [{ k: "copy", lab: "COPIER" }], "", () => { try { navigator.clipboard.writeText(txt); } catch (er) {} if (typeof svToast === "function") svToast("COPIÉ.", 1500, td); }); }, SVI_G.lp); }, true);
+/* 09/11 (remarque) : même geste partout — cases des tableaux, lignes du bloc TÂCHES (LOT, activités) et champs (fiches, fenêtres, listes),
+   en lecture seule comme modifiables ; détection au lâcher du doigt (Safari n'envoie pas toujours le « click » sur une case) ;
+   un champ coupé montre son texte entier dans une bulle sous lui ; le message « LECTURE SEULE » n'apparaît que si rien n'est coupé */
+{ let cur = null, tip = null, tm = 0, x0 = 0, y0 = 0, t0 = 0, eat = false;
+  const FLD = "input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=hidden]):not([type=file]), textarea";
+  const cutTd = t => { if (!t || !t.closest || t.closest("#cfMenu, .fmw-card, .cmpm-pick")) return null;
+    const td = t.closest("table tbody td"); if (td && !td.querySelector("input, select, textarea, .sv-sel")) return td;
+    const li = t.closest(".bdg-h-col .bdg-h-item, .ins-hcol .ins-li"); if (li) return li.querySelector(":scope input.ins-in, :scope .lot-in input.ins-in") || li;
+    const f = t.closest(FLD); return f && f.closest(".bdg-d-page, .nvp, #svConf, #docPop, .novapp-list-shell, table") ? f : null; };
+  const isCut = el => { if (el.matches(FLD)) return el.scrollWidth > el.clientWidth + 1; return el.scrollWidth > el.clientWidth + 1; };
+  const txtOf = el => String(el.matches(FLD) ? el.value : el.textContent || "").replace(/\s+/g, " ").trim();
+  const off = () => { if (cur) { cur.classList.remove("cell-x"); cur.parentElement && cur.parentElement.classList.remove("row-x"); cur = null; } if (tip) { tip.remove(); tip = null; } };
+  const show = el => { off(); if (el.matches(FLD)) { const r = el.getBoundingClientRect(); tip = document.createElement("div"); tip.id = "sviFullTip"; tip.textContent = txtOf(el);
+      Object.assign(tip.style, { left: Math.max(8, Math.min(window.innerWidth - 420, r.left)) + "px", top: (r.bottom + 4) + "px", minWidth: Math.min(400, Math.max(160, r.width)) + "px" }); document.body.appendChild(tip); tip.__el = el; return; }
+    cur = el; el.classList.add("cell-x"); el.tagName === "TD" && el.parentElement.classList.add("row-x"); };
+  document.addEventListener("pointerdown", e => { if ((cur && !cur.contains(e.target)) || (tip && tip.__el !== e.target)) off(); const el = cutTd(e.target); clearTimeout(tm); if (!el) return; x0 = e.clientX; y0 = e.clientY; t0 = Date.now();
+    if (isCut(el)) window.__sviCutT = Date.now();   /* le message LECTURE SEULE se tait : le toucher sert à lire */
+    tm = setTimeout(() => { tm = 0; const txt = txtOf(el); if (!txt || typeof sviEtatMenu !== "function") return;
+      sviEtatMenu(el, [{ k: "copy", lab: "COPIER" }], "", () => { try { navigator.clipboard.writeText(txt); } catch (er) {} if (typeof svToast === "function") svToast("COPIÉ.", 1500, el); }); }, SVI_G.lp); }, true);
   document.addEventListener("pointermove", e => { if (tm && Math.hypot(e.clientX - x0, e.clientY - y0) > SVI_G.drag) { clearTimeout(tm); tm = 0; } }, true);
-  ["pointerup", "pointercancel"].forEach(t => document.addEventListener(t, () => { clearTimeout(tm); tm = 0; }, true));
-  document.addEventListener("click", e => { const td = cutTd(e.target); if (!td || td === cur || e.target.closest("button, a, .ach-link, .nv-reflink, .cf-btn, [data-why]")) return; if (!isCut(td)) return;
-    off(); cur = td; td.classList.add("cell-x"); td.parentElement.classList.add("row-x");
-    if (!td.classList.contains("nv-ed")) { e.preventDefault(); e.stopPropagation(); } }, true);
+  document.addEventListener("pointercancel", () => { clearTimeout(tm); tm = 0; }, true);
+  document.addEventListener("pointerup", e => { const quick = !!tm; clearTimeout(tm); tm = 0; if (!quick || Math.hypot(e.clientX - x0, e.clientY - y0) > SVI_G.drag) return;
+    const el = cutTd(e.target); if (!el || el === cur || (tip && tip.__el === el) || e.target.closest("button, a, .ach-link, .nv-reflink, .cf-btn, [data-why], .lk-rd, .ins-rd, .lot-fold, .ins-cb")) return; if (!isCut(el)) return;
+    show(el); window.__sviCutT = Date.now();
+    /* une case qui ouvre la pièce l'ouvre au 2e toucher ; un champ modifiable garde son 1er toucher */
+    eat = el.tagName === "TD" ? !el.classList.contains("nv-ed") : el.classList.contains("bdg-h-item"); }, true);
+  document.addEventListener("click", e => { if (!eat) return; eat = false; e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); }, true);
+  document.addEventListener("scroll", () => { if (tip) off(); }, true);
   document.addEventListener("contextmenu", e => { if (cutTd(e.target)) e.preventDefault(); }, true);
 }
 

@@ -3755,3 +3755,8 @@ table.nv-one tbody td.bdg-ref-c .nv-bang { line-height: 1; vertical-align: middl
 .novapp-list-titlebar > .nvl-h { margin-right: auto; }
 /* H dans le bandeau des fenêtres i, juste après la référence */
 .svi-win-h { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin-left: 10px; border: 1px solid currentColor; border-radius: 6px; font-size: 12px; font-weight: 900; cursor: pointer; vertical-align: middle; background: transparent; }
+
+/* 09/11 (remarque) : texte entier d'une ligne du bloc TÂCHES ou d'un champ coupé */
+:is(.bdg-h-col .bdg-h-item, .ins-hcol .ins-li).cell-x { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; height: auto !important; max-height: none !important; word-break: break-word; }
+#sviFullTip { position: fixed; z-index: 40000; max-width: 420px; padding: 8px 10px; background: #fff; color: #172033; border: 1px solid #c9d1dc; border-radius: 8px; box-shadow: 0 6px 18px rgba(16,24,40,.18); font: 700 13px/1.4 Arial, sans-serif; white-space: normal; word-break: break-word; pointer-events: none; }
+html.svi-nuit #sviFullTip { background: #1f2937; color: #f8fafc; border-color: #334155; }
