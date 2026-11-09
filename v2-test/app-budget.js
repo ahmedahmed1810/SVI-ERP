@@ -19626,7 +19626,8 @@ function sviBdgInstanceSaisie(C) {
     window.__sviROon = true; window.__sviNoWrap = 1;   /* v789 : écouteurs communs à tous les budgets */
     let roT = 0;
     const roSay = () => { if (Date.now() - (window.__sviCutT || 0) < 900) return; if (Date.now() - roT > 2500) {   /* 09/11 : pas de message quand le toucher sert à lire un texte coupé */ roT = Date.now(); try { svToast(window.__sviRO, 3500); } catch (e) {} } };
-    const EDIT_CLICK = ".ins-x, .ins-xall, .ins-delc, .dly-pred, .dly-pred-new, .dly-succ, .dly-gen, .dly-lev, .dly-jal, .dly-vd-x, #insUnlBtn, .blk-adj-btn, .blk-cfg-btn, .blk-hcfg-btn, [data-act=import], [data-act=paste], [data-act=cut], [data-act=del], .ins-rdbl, .cond-btn, .only-c";
+    /* 09/11 : les cases à cocher restent utilisables en lecture seule (elles filtrent les blocs liés ; rien n'est enregistré) */
+    const EDIT_CLICK = ".ins-x, .ins-xall, .dly-pred, .dly-pred-new, .dly-succ, .dly-gen, .dly-lev, .dly-jal, .dly-vd-x, #insUnlBtn, .blk-adj-btn, .blk-cfg-btn, .blk-hcfg-btn, [data-act=import], [data-act=paste], [data-act=cut], [data-act=del], .ins-rdbl, .cond-btn, .only-c";
     const DRAG = "[data-iid], .ins-dv, .gb, .gb-s, .gb-e, .gl-hit, .ghb, .dlyg-l, .grdc, .dlyhh-cfg";
     const guard = e => {
       if (!window.__sviRO) return;
@@ -21099,7 +21100,7 @@ function sviBdgInstanceSaisie(C) {
     shell.addEventListener("change", e => {
       /* v664 (axe 9) : case d'un titre d'activités = toutes ses activités secondaires ; nom modifié = toutes ses activités (vide = titre retiré) */
       const ag = e.target.closest && e.target.closest("input.act-gcb");
-      if (ag) { INS.sec.forEach(r => { if (U_(r.g || "") === U_(ag.dataset.g)) r.on = ag.checked; }); insSave(); refreshAll(); return; }
+      if (ag) { const kk = ag.dataset.k || "sec"; (INS[kk] || []).forEach(r => { if (U_(actGrpOf(kk, r) || "") === U_(ag.dataset.g)) r.on = ag.checked; }); insSave(); refreshAll(); return; }
       const an = e.target.closest && e.target.closest("input.act-gname");
       if (an) {
         const o = an.dataset.g, v = an.value.trim().toUpperCase().replace(/\s+/g, " ");
@@ -21155,10 +21156,10 @@ function sviBdgInstanceSaisie(C) {
       if (done.has(U_(g))) return;
       done.add(U_(g));
       const rs = list.filter(x => U_(actGrpOf(k, x)) === U_(g));
-      const all = k === "sec" && rs.length && rs.every(x => x.on === true);
+      const all = rs.length && rs.every(x => x.on === true);
       out.push(`<div class="ins-li act-grp" data-ik="${k}" data-g="${esc(g)}"><span class="ins-rdc"></span>${INS_EDIT && k === "sec"
         ? `<input class="act-gname" data-g="${esc(g)}" value="${esc(g)}" autocomplete="off">` : `<span class="act-gtx">${esc(g)}</span>`}${svCnt(rs.length)}<span class="act-u"></span>
-        <span class="ins-delc">${INS_EDIT && k === "sec" ? `<input type="checkbox" class="act-gcb" data-g="${esc(g)}"${all ? " checked" : ""}>` : ""}</span></div>`);
+        <span class="ins-delc">${INS_EDIT ? `<input type="checkbox" class="act-gcb" data-k="${k}" data-g="${esc(g)}"${all ? " checked" : ""}>` : ""}</span></div>`);   /* 09/11 : case aussi sur les titres d'ACTIVITÉ PRIMAIRE */
       rs.forEach(x => out.push(rowHTML(x)));
     });
     return out.join("");

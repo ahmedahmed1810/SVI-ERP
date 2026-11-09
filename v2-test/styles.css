@@ -2745,7 +2745,7 @@ td.ins-pmp { position: relative; }
 .inst-todo.todo-on { color: #b45309; }
 /* v697 : lecture seule au format complet — pas de lignes SAISIR ICI ni de ✕ de suppression */
 .svi-ro .bdg-d-page tr.ins-new, .svi-ro .bdg-d-page .ins-li.ins-new { display: none !important; }
-.svi-ro .bdg-d-page :is(.ins-x, .ins-xall, .ins-delc) { visibility: hidden !important; }
+.svi-ro .bdg-d-page :is(.ins-x, .ins-xall) { visibility: hidden !important; }   /* 09/11 : cases à cocher visibles en lecture seule */
 .svi-ro .bdg-d-page .blk-adj-btn, .svi-ro .bdg-d-page .blk-cfg-btn { opacity: .35; }
 /* v698 : écran ouvert en haut au centre (à la place de VERSION TEST / BASE À JOUR) ; lignes SAISIR ICI de la liste mère */
 #sviScreenTag { position: fixed; left: 50%; top: 9px; transform: translateX(-50%); z-index: 20001; background: #172033; color: #fff; font: 800 13px Arial, sans-serif; letter-spacing: .5px; padding: 6px 16px; border-radius: 14px; pointer-events: none; white-space: nowrap; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; }
