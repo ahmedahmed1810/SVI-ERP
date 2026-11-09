@@ -182,7 +182,8 @@ function sviCfKit(o) {
       <div class="cf-rsz" title="Largeur et hauteur"></div>
       <button type="button" class="cf-x" aria-label="Fermer">✕</button>
       ${(() => { /* 08/11 (série G, G5) : renommer la colonne et sa MISE EN FORME, en haut du menu ; appliqué et gardé tout de suite (EFFACER / OK = tri et filtre seulement) */
-        if (typeof sviColSet !== "function") return ""; const th = btn.closest("th"), lab = th && th.querySelector(".cf-lab"), o = sviColSet()[t + "|" + key] || {};
+        if (typeof sviColSet !== "function" || (btn.closest(".bdg-h-head") && key !== "v")) return "";   /* 09/11 : colonne U des activités — pas de MISE EN FORME */
+        const th = btn.closest("th"), lab = th && th.querySelector(".cf-lab"), o = sviColSet()[t + "|" + key] || {};
         /* 09/11 (remarque) : LOT, ACTIVITÉ PRIMAIRE et SECONDAIRE (bloc TÂCHES) traités comme des tableaux — renommer et mise en forme de leurs lignes */
         const hh = !th && key === "v" && btn.closest(".bdg-h-col .bdg-h-head"), tt = th || hh;
         const lt = tt && tt.querySelector(".cf-lt, .cf-tt"), def = tt ? String(tt.dataset.svcolDef || (lt ? lt.textContent : "")).replace(/\s+/g, " ").trim() : "";   /* correction G-7 : titre d'origine entier */

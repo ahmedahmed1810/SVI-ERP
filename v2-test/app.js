@@ -3174,7 +3174,8 @@ function sviCfKit(o) {
       <div class="cf-rsz" title="Largeur et hauteur"></div>
       <button type="button" class="cf-x" aria-label="Fermer">✕</button>
       ${(() => { /* 08/11 (série G, G5) : renommer la colonne et sa MISE EN FORME, en haut du menu ; appliqué et gardé tout de suite (EFFACER / OK = tri et filtre seulement) */
-        if (typeof sviColSet !== "function") return ""; const th = btn.closest("th"), lab = th && th.querySelector(".cf-lab"), o = sviColSet()[t + "|" + key] || {};
+        if (typeof sviColSet !== "function" || (btn.closest(".bdg-h-head") && key !== "v")) return "";   /* 09/11 : colonne U des activités — pas de MISE EN FORME */
+        const th = btn.closest("th"), lab = th && th.querySelector(".cf-lab"), o = sviColSet()[t + "|" + key] || {};
         /* 09/11 (remarque) : LOT, ACTIVITÉ PRIMAIRE et SECONDAIRE (bloc TÂCHES) traités comme des tableaux — renommer et mise en forme de leurs lignes */
         const hh = !th && key === "v" && btn.closest(".bdg-h-col .bdg-h-head"), tt = th || hh;
         const lt = tt && tt.querySelector(".cf-lt, .cf-tt"), def = tt ? String(tt.dataset.svcolDef || (lt ? lt.textContent : "")).replace(/\s+/g, " ").trim() : "";   /* correction G-7 : titre d'origine entier */
@@ -3559,7 +3560,7 @@ const sviFmtDecl = (o, E) => { const d = [];
   if (o.b !== undefined) d.push(`font-weight:${o.b ? 800 : 400}!important`);
   if (o.i !== undefined) d.push(`font-style:${o.i ? "italic" : "normal"}!important`);
   if (o.u !== undefined) d.push(`text-decoration:${o.u ? "underline" : "none"}!important`);
-  if (+o.h >= 10 && +o.h <= 120) d.push(`height:${+o.h}px!important;min-height:0!important;box-sizing:border-box!important`);
+  if (+o.h >= 10 && +o.h <= 120) d.push(`height:${+o.h}px!important;min-height:0!important;max-height:none!important;box-sizing:border-box!important`);   /* 09/11 : max-height aussi (lignes du bloc TÂCHES plafonnées à 21 px) */
   return d; };
 /* 05/11 : RÉGLAGES COMMUNS en arbre — LISTE / FICHE / FENÊTRE, chacune EN INSTANCE et VALIDÉE ; seuls les éléments qui existent dans chacune
    (une liste validée n'a pas de ligne CRÉER … ICI) ; ils passent devant le réglage de tout le programme, derrière celui d'une interface */

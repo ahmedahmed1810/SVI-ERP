@@ -1601,6 +1601,7 @@ function sviBdgInstanceSaisie(C) {
   };
   const actNextTitle = () => { const used = new Set((INS.sec || []).map(s => U_(s.g || ""))); let n = 1; while (used.has("TITRE " + n)) n++; return "TITRE " + n; };
   const insRenderHier = only => {
+    if (!$("bdgHier")) return;   /* 09/11 (compte rendu) : budget fermé avant le redessin différé — plus d'erreur */
     grpFlush();
     LKS = lkLinked(); LKG = insUsed(); LKH = lkHits();
     const col = (title, k) => {

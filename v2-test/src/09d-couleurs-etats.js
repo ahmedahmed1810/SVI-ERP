@@ -146,7 +146,7 @@ const sviFmtDecl = (o, E) => { const d = [];
   if (o.b !== undefined) d.push(`font-weight:${o.b ? 800 : 400}!important`);
   if (o.i !== undefined) d.push(`font-style:${o.i ? "italic" : "normal"}!important`);
   if (o.u !== undefined) d.push(`text-decoration:${o.u ? "underline" : "none"}!important`);
-  if (+o.h >= 10 && +o.h <= 120) d.push(`height:${+o.h}px!important;min-height:0!important;box-sizing:border-box!important`);
+  if (+o.h >= 10 && +o.h <= 120) d.push(`height:${+o.h}px!important;min-height:0!important;max-height:none!important;box-sizing:border-box!important`);   /* 09/11 : max-height aussi (lignes du bloc TÂCHES plafonnées à 21 px) */
   return d; };
 /* 05/11 : RÉGLAGES COMMUNS en arbre — LISTE / FICHE / FENÊTRE, chacune EN INSTANCE et VALIDÉE ; seuls les éléments qui existent dans chacune
    (une liste validée n'a pas de ligne CRÉER … ICI) ; ils passent devant le réglage de tout le programme, derrière celui d'une interface */
