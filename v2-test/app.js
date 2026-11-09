@@ -4541,6 +4541,8 @@ sviRowHApply();
       const ro = !el0.matches(FLD) || el0.disabled || el0.readOnly || !!window.__sviRO;
       if (ro && lastT === el0 && Date.now() - lastTt < 8000) { lastT = null; allSel(el0); return; }
       lastT = el0; lastTt = Date.now(); } else lastT = null;
+    /* 09/11 : champ déjà en saisie (3e toucher) = le curseur se place, rien d'autre (pas de texte agrandi) */
+    if (el0 && el0.matches(FLD) && document.activeElement === el0 && !el0.classList.contains("svi-nav") && !el0.readOnly && !el0.disabled) return;
     const el = el0; if (!el || el === cur || (tip && tip.__el === el) || e.target.closest("button, a, .ach-link, .nv-reflink, .bdg-reflink, .cf-btn, [data-why], .lk-rd, .ins-rd, .lot-fold, .ins-cb")) return; if (!isCut(el)) return;
     show(el); window.__sviCutT = Date.now();
     /* une case qui ouvre la pièce l'ouvre au 2e toucher ; un champ modifiable garde son 1er toucher */
