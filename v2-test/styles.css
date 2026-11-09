@@ -3777,3 +3777,5 @@ body:not(.svi-multi) #sviSelHandle { background: var(--inst, #b91c1c) !important
 #budgetListTable .bdg-reflink, table.svi-bdgl .bdg-reflink { text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .cell-all, td.cell-all, input.cell-all { background-color: #bfdbfe !important; }
 html.svi-nuit .cell-all { background-color: #1e3a8a !important; }
+/* 09/11 (règle 2.10) : référence d'une liste toujours soulignée (elle ouvre la pièce), quel que soit le format */
+html body table.svi-bdgl .nv-reflink, html body #budgetListTable .bdg-reflink, html body table.svi-bdgl .bdg-reflink { text-decoration: underline !important; -webkit-text-decoration-line: underline !important; text-underline-offset: 3px; }
