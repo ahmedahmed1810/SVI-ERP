@@ -3759,5 +3759,5 @@ table.nv-one tbody td.bdg-ref-c .nv-bang { line-height: 1; vertical-align: middl
 
 /* 09/11 (remarque) : texte entier d'une ligne du bloc TÂCHES ou d'un champ coupé */
 :is(.bdg-h-col .bdg-h-item, .ins-hcol .ins-li).cell-x { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; height: auto !important; max-height: none !important; word-break: break-word; }
-#sviFullTip { position: fixed; z-index: 40000; box-sizing: border-box; padding-top: 2px; padding-bottom: 3px; background: #fff; border: 1px solid #c9d1dc; border-radius: 4px; box-shadow: 0 6px 14px rgba(16,24,40,.16); line-height: 1.35 !important; white-space: normal; word-break: break-word; overflow-wrap: anywhere; pointer-events: none; }
+#sviFullTip { position: fixed; z-index: 40000; box-sizing: border-box; padding-top: 2px; padding-bottom: 3px; background: #fff; border: 0; border-radius: 2px; box-shadow: 0 3px 8px rgba(16,24,40,.18); line-height: 1.35 !important; white-space: normal; word-break: break-word; overflow-wrap: anywhere; pointer-events: none; }
 html.svi-nuit #sviFullTip { background: #1f2937; color: #f8fafc; border-color: #334155; }

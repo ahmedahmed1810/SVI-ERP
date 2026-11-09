@@ -4460,11 +4460,14 @@ sviRowHApply();
   /* une case est coupée si elle-même ou un de ses morceaux de texte l'est (désignation dans un bloc, nom avec ses signes) */
   const isCut = el => { if (el.matches(FLD) || over(el)) return over(el); return [...el.querySelectorAll("*")].some(x => !x.matches("input, button, svg, svg *") && x.clientWidth && over(x)); };
   const txtOf = el => String(el.matches(FLD) ? el.value : el.textContent || "").replace(/\s+/g, " ").trim();
+  /* 09/11 : le texte agrandi garde la forme du champ — fond de la première couche non transparente (champ, case, ligne, bloc) */
+  const bgOf = el => { for (let x = el; x && x.nodeType === 1; x = x.parentElement) { const c = getComputedStyle(x).backgroundColor; if (c && !/rgba\(\d+, \d+, \d+, 0\)|transparent/.test(c)) return c; } return ""; };
   const off = () => { if (cur) { cur.classList.remove("cell-x"); cur.parentElement && cur.parentElement.classList.remove("row-x"); cur = null; } if (tip) { tip.remove(); tip = null; } };
   const show = el => { off(); if (el.matches(FLD)) { const r = el.getBoundingClientRect(); tip = document.createElement("div"); tip.id = "sviFullTip"; tip.textContent = txtOf(el);
       /* 09/11 (règle 6.9) : le texte entier s'affiche SUR le champ, à sa largeur exacte, sur plusieurs lignes — le champ semble s'agrandir vers le bas */
     const cs = getComputedStyle(el); Object.assign(tip.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px", minHeight: r.height + "px", font: cs.font, color: cs.color, textAlign: cs.textAlign,
-      paddingLeft: cs.paddingLeft, paddingRight: cs.paddingRight, letterSpacing: cs.letterSpacing, textTransform: cs.textTransform }); document.body.appendChild(tip); tip.__el = el; return; }
+      paddingLeft: cs.paddingLeft, paddingRight: cs.paddingRight, letterSpacing: cs.letterSpacing, textTransform: cs.textTransform, fontWeight: cs.fontWeight, fontStyle: cs.fontStyle, textDecoration: cs.textDecoration,
+      color: cs.webkitTextFillColor && !/rgba\(0, 0, 0, 0\)/.test(cs.webkitTextFillColor) ? cs.webkitTextFillColor : cs.color, background: bgOf(el) }); document.body.appendChild(tip); tip.__el = el; return; }
     cur = el; el.classList.add("cell-x"); el.tagName === "TD" && el.parentElement.classList.add("row-x"); };
   document.addEventListener("pointerdown", e => { const el = cutTd(e.target); if ((cur && !cur.contains(e.target)) || (tip && tip.__el !== el)) off(); clearTimeout(tm); if (!el) return; x0 = e.clientX; y0 = e.clientY; t0 = Date.now();
     if (isCut(el)) window.__sviCutT = Date.now();   /* le message LECTURE SEULE se tait : le toucher sert à lire */
