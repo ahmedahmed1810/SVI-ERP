@@ -3359,7 +3359,7 @@ thead th:last-child .col-rs { right: 0 !important; width: 9px !important; }
 td.svi-cs { box-shadow: none !important; }
 .ins-hcol input.svi-ls, .ins-hcol .act-u.svi-ls { box-shadow: none !important; background: transparent !important; }
 .ins-hcol .ins-li:has(.svi-ls) { background: var(--inst-bg, #eef0f3) !important; }
-#sviSelBox { position: absolute; display: none; box-sizing: border-box; border: 2px solid #111827; pointer-events: none; border-radius: 1px; }
+#sviSelBox { position: absolute; display: none; box-sizing: border-box; border: 2px solid var(--inst, #b91c1c); pointer-events: none; border-radius: 1px; }
 /* v788 (remarque 4) : COPIER / COLLER / EFFACER = petit menu de l'application (forme du ⋯), en colonne */
 #sviSelBar { flex-direction: column !important;   border-radius: 10px !important; }
 #sviSelBar button { text-align: left !important;  border-left: 0 !important; border-radius: 6px !important; font: 700 12px/1.2 Arial, sans-serif !important; }
@@ -3770,3 +3770,6 @@ html.svi-nuit .ins-table tr.lk-link td, html.svi-nuit .ins-hcol .ins-li.lk-link,
 html.svi-nuit .ins-table tr.lk-link td :is(input.ins-in, textarea.ins-in, .ins-dv), html.svi-nuit .ins-hcol .ins-li.lk-link :is(input.ins-in, textarea.ins-in, .ins-dv),
 html.svi-nuit .dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td :is(input, span:not(.lk-rd):not(.dly-pred), b),
 html.svi-nuit .bdg-d-page .dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td, html.svi-nuit .bdg-d-page .dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td *:not(.lk-rd):not(.lk-rd *) { color: #93c5fd !important; -webkit-text-fill-color: #93c5fd !important; }
+/* 09/11 : cadre et poignée de sélection d'une case = rouge, comme la case choisie (plus de noir) */
+body:not(.svi-multi) #sviSelBox { border-color: var(--inst, #b91c1c) !important; }
+body:not(.svi-multi) #sviSelHandle { background: var(--inst, #b91c1c) !important; }
