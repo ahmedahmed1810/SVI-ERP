@@ -3818,3 +3818,8 @@ thead th { -webkit-user-select: none; user-select: none; -webkit-touch-callout: 
 /* 09/11 : règle 8.2 aussi dans les fenêtres (conditionnement, comparatifs, versions, approvisionnement) */
 :is(table.cond-t, table.cmp-t, table.ver-t, table.apr-t, table.gc-t) tbody td { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 :is(table.cond-t, table.cmp-t, table.ver-t, table.apr-t, table.gc-t) td:is(.svi-tdon, .svi-tdf, :focus) { box-shadow: none !important; outline: none !important; }
+/* 09/11 : barre de la plage et menu de l'appui long au-dessus des fenêtres */
+#sviSelBar, #sviLpBar { z-index: 100010 !important; }
+#sviSelHandle { z-index: 100006; }
+/* 09/11 : fenêtre INF en palette NUIT — champs sombres comme la fenêtre */
+html.svi-nuit #docPop :is(input:not([type=checkbox]):not([type=radio]), textarea, select, .sv-sel), html.svi-nuit #svConf :is(input:not([type=checkbox]):not([type=radio]), textarea, .sv-sel) { background: #111827 !important; color: #f8fafc !important; -webkit-text-fill-color: #f8fafc !important; border-color: #334155 !important; }

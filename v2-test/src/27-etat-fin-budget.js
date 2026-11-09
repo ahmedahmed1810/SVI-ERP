@@ -501,6 +501,7 @@
         if (ok && nv && nv !== v0 && typeof sviUndoPush === "function") sviUndoPush(dir => { const L = sviInstGet(), it = L.find(x => x.ref === ref); if (!it) return; it.intitule = dir === "undo" ? v0 : nv; sviInstSet(L); renderBudgetList(); }, "MODIFICATION DE L'INTITULÉ");
         /* 09/11 : la case est remise en place SANS redessiner la liste — la case touchée ensuite garde sa sélection (cadre + point) */
         ied.textContent = keep; ied.title = keep; delete ied.dataset.sel1;
+        if (ok !== "blur") { if (!ied.hasAttribute("tabindex")) ied.setAttribute("tabindex", "-1"); ied.classList.add("svi-tdf"); try { ied.focus({ preventScroll: true }); } catch (er) {} }   /* ENTRÉE / ÉCHAP : la case reste sélectionnée (cadre + point) */
         try { (bdgRows || []).forEach(r => { if (r && r.ref === ref) r.intitule = keep; }); } catch (er) {} };
       inp.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); fin(true); } if (ev.key === "Escape") { ev.preventDefault(); fin(false); } });
       inp.addEventListener("blur", () => fin("blur")); return;

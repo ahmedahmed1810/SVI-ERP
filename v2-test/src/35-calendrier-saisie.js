@@ -628,8 +628,9 @@ const sviFrame = () => {
     if (v.bottom - v.top < 4 || v.right - v.left < 4) { SVI_FR.style.display = "none"; return; } }
   const col = "#b91c1c";   /* 09/11 (Ahmed) : cadre ROUGE partout, avec son point rouge (plus de noir, plus de gris en lecture seule) */
   /* au-dessus d'une fenêtre (SAISIE DIRECTE en fenêtre, fenêtres d'import…) quand la cellule y est */
-  SVI_FR.style.zIndex = (c.closest("#sdW:not(.sd-inplace), #docPop, #blkPop, .svc-wrap") || (c.closest("[role=dialog]") && !c.closest(".sd-inplace"))) ? "10096" : "45";
-  if (window.__sviHandleZ) window.__sviHandleZ(SVI_FR.style.zIndex === "45" ? "46" : "10097");
+  /* 09/11 : dans une fenêtre, le cadre et le point passent au-dessus de TOUTES les fenêtres (#svConf est à 100001) */
+  SVI_FR.style.zIndex = (c.closest("#sdW:not(.sd-inplace), #docPop, #blkPop, .svc-wrap, #svConf") || (c.closest("[role=dialog]") && !c.closest(".sd-inplace"))) ? "100005" : "45";
+  if (window.__sviHandleZ) window.__sviHandleZ(SVI_FR.style.zIndex === "45" ? "46" : "100006");
   Object.assign(SVI_FR.style, { display: "block", left: (v.left + window.scrollX) + "px", top: (v.top + window.scrollY) + "px", width: (v.right - v.left) + "px", height: (v.bottom - v.top) + "px", borderColor: col });
 };
 window.sviFrame = sviFrame;
@@ -780,7 +781,9 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
       H.addEventListener("pointerdown", e => {
         e.preventDefault(); e.stopPropagation(); try { H.setPointerCapture(e.pointerId); } catch (err) {}
         const x0 = e.clientX, y0 = e.clientY; let moved = false;
-        const mv = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 6) moved = true; else return; const el = document.elementFromPoint(ev.clientX, ev.clientY), t2 = el && el.closest && el.closest("td"); if (t2 && t2.closest("table") === S.tbl) { const p = posOf(t2); if (p) { S.b = p; paint(); } } else if (window.__sviLS) { window.__sviLS.drag(el); handle(); } };
+        const mv = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 6) moved = true; else return; const el = document.elementFromPoint(ev.clientX, ev.clientY), t2 = el && el.closest && el.closest("td"); if (t2 && (t2.colSpan > 1 || t2.parentElement.cells.length !== (tdAt(S.tbl, S.a.r, 0) || t2).parentElement.cells.length)) return;   /* 09/11 : ligne CRÉER… (une seule case) ignorée */
+          if (window.__sviLbOff) window.__sviLbOff();
+          if (t2 && t2.closest("table") === S.tbl) { const p = posOf(t2); if (p) { S.b = p; paint(); } } else if (window.__sviLS) { window.__sviLS.drag(el); handle(); } };
         const up = ev => { H.removeEventListener("pointermove", mv); H.removeEventListener("pointerup", up); H.removeEventListener("pointercancel", up);
           /* 09/11 : un simple toucher sur le point (sans tirer) = toucher la case dessous (2e toucher = modification) */
           if (!moved && ev && ev.type === "pointerup") { const d = H.style.display; H.style.display = "none"; const el = document.elementFromPoint(ev.clientX, ev.clientY); H.style.display = d;
@@ -1343,7 +1346,11 @@ window.__sviCells = (() => {
   };
   const count = () => { const k = kind(); return k === "list" ? LS().count() : k === "table" ? TS().count() : 0; };
   const copy = () => { const k = kind(); const n = k === "list" ? LS().copy() : k === "table" ? TS().copy() : 0; if (n && typeof svToast === "function") svToast(n + " CASE(S) COPIÉE(S) — PRÊTES À COLLER (GOOGLE SHEETS, EXCEL…).", 2200); return n; };
+  /* 09/11 : budget en lecture seule — COLLER, EFFACER, retour arrière = le message LECTURE SEULE, rien ne change */
+  const roPg = () => { const a = document.activeElement, c = document.querySelector("td.svi-cs") || a; return !!(window.__sviRO && c && c.closest && c.closest(".bdg-d-page")); };
+  const roMsg = () => { if (typeof svToast === "function") svToast(window.__sviRO, 3000); return 0; };
   const clear = () => {
+    if (roPg()) return roMsg();
     const k = kind(); if (!k) return 0;
     if (k === "table") { const tbl = document.querySelector("td.svi-cs, :focus")?.closest("table.sd-t"); if (tbl) tbl.dispatchEvent(new CustomEvent("svimark", { bubbles: true })); }
     const n = k === "list" ? LS().clear() : TS().clear();
@@ -1351,7 +1358,7 @@ window.__sviCells = (() => {
     return n;
   };
   const paste = async () => {
-    if (window.__sviRO && document.activeElement && document.activeElement.closest && document.activeElement.closest(".bdg-d-page")) return 0;   /* 09/11 : lecture seule — seul le message LECTURE SEULE s'affiche */
+    if (roPg()) return roMsg();   /* 09/11 : lecture seule — seul le message LECTURE SEULE s'affiche */
     const k = kind(); if (!k) return 0;
     if (k === "table") {
       const n = await TS().paste();
@@ -1382,7 +1389,8 @@ window.__sviCells = (() => {
       if (v === "seldown") { window.__sviJump("ArrowDown", true); setTimeout(place, 50); return; }
       /* 09/11 : plusieurs INTITULÉ de budgets EN INSTANCE dans la liste — COLLER / EFFACER sur chaque case (une ligne collée par case, ou la même partout) */
       const SI = [...document.querySelectorAll("td.svi-cs")].filter(x => x.offsetParent !== null);
-      if (v !== "copy" && SI.length && SI.every(x => x.matches("td.bdg-ied")) && typeof sviInstGet === "function") {
+      if (v !== "copy" && SI.length && SI.every(x => x.matches("td.bdg-ied")) && window.__sviIedApply) { window.__sviIedApply(v, SI); setTimeout(place, 50); return; }
+      if (false) {
         (async () => { let lines = [""];
           if (v === "paste") { let t = ""; try { t = await navigator.clipboard.readText(); } catch (er) {} if (!t) t = window.__sviSelClip || "";
             lines = String(t).split(/\r?\n/).map(x => x.split("\t")[0].trim()).filter(Boolean); if (!lines.length) { if (typeof svToast === "function") svToast("RIEN À COLLER : COPIEZ D'ABORD DES CASES.", 2200); return; } }
@@ -1418,6 +1426,16 @@ window.__sviCells = (() => {
     B.style.top = y + "px"; B.style.left = x + "px";
   };
   window.__sviSelBar = place;
+  /* 09/11 : COLLER / EFFACER sur un ou plusieurs INTITULÉ de budgets en instance (liste) — annulable */
+  window.__sviIedApply = async (v, SI) => { if (typeof sviInstGet !== "function") return; let lines = [""];
+    if (v === "paste") { let t = ""; try { t = await navigator.clipboard.readText(); } catch (er) {} if (!t) t = window.__sviSelClip || "";
+      lines = String(t).split(/\r?\n/).map(x => x.split("\t")[0].trim()).filter(Boolean); if (!lines.length) { if (typeof svToast === "function") svToast("RIEN À COLLER : COPIEZ D'ABORD DES CASES.", 2200); return; } }
+    const L = sviInstGet(); let n = 0; const B4 = new Map(), AF = new Map();
+    SI.forEach((td, i) => { const it = L.find(x => x.ref === td.dataset.ied); if (!it) return; const nv = v === "clear" ? "À COMPLÉTER" : String(lines.length > 1 ? (lines[i] || "") : lines[0]).toUpperCase().replace(/\s+/g, " ");
+      if (!nv || nv === it.intitule) return; B4.set(it.ref, it.intitule || ""); AF.set(it.ref, nv); it.intitule = nv; n++; });
+    if (n) { sviInstSet(L); try { histLog("BUDGET", v === "clear" ? "INTITULÉS EFFACÉS DANS LA LISTE" : "INTITULÉS COLLÉS DANS LA LISTE", n + " BUDGET(S)"); } catch (er) {}
+      if (typeof sviUndoPush === "function") sviUndoPush(dir => { const L2 = sviInstGet(), M = dir === "undo" ? B4 : AF; L2.forEach(x => { if (M.has(x.ref)) x.intitule = M.get(x.ref); }); sviInstSet(L2); if (typeof renderBudgetList === "function") renderBudgetList(); }, v === "clear" ? "EFFACEMENT DES INTITULÉS" : "COLLAGE DES INTITULÉS"); }
+    if (typeof renderBudgetList === "function") renderBudgetList(); if (typeof svToast === "function") svToast(n + " CASE(S) " + (v === "clear" ? "EFFACÉE(S)." : "COLLÉE(S)."), 1800); };
   let q = 0; const later = () => { if (!q) q = requestAnimationFrame(() => { q = 0; try { place(); } catch (e) {} }); };
   ["focusin", "pointerup", "keyup", "scroll", "resize"].forEach(t => (t === "resize" ? window : document).addEventListener(t, () => setTimeout(later, 0), true));
   new MutationObserver(later).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });

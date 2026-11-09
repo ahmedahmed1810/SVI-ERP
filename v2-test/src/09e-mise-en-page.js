@@ -273,7 +273,9 @@ document.addEventListener("click", e => { const b = e.target.closest && e.target
 document.addEventListener("click", e => {
   const b = e.target.closest && e.target.closest(".nvl-more"); if (!b) return;
   e.stopPropagation();
-  const shell = b.closest(".novapp-list-shell"), t = shell ? shell.querySelector("table") : sviColhTableNear(b), h1 = shell ? shell.querySelector(".novapp-list-titlebar h1") : b.closest("#ach")?.querySelector(".section-head h2, .section-head h1");
+  /* 09/11 : la liste VISIBLE (une liste cachée d'un autre écran ne prête plus son nom ni ses cases cochées) */
+  const shell = b.closest(".novapp-list-shell"), t0 = shell ? shell.querySelector("table") : sviColhTableNear(b), tv = [...document.querySelectorAll("table[data-sdel]")].find(x => x.offsetParent !== null),
+    t = t0 && t0.offsetParent !== null ? t0 : tv || t0, h1 = shell ? shell.querySelector(".novapp-list-titlebar h1") : b.closest("#ach")?.querySelector(".section-head h2, .section-head h1");
   /* v818 : actions propres à une liste, ajoutées par son module (SVI_LIST_EXTRA : { when(titre), items, act(k) }) */
   const ttl = h1 ? (h1.childNodes[0] ? h1.childNodes[0].textContent : h1.textContent).trim() : "", EX = (window.SVI_LIST_EXTRA || []).filter(x => { try { return x.when(ttl); } catch (er) { return false; } });
   /* série J (J4) : SUPPRIMER LES … COCHÉ(E)S — remplace la corbeille des lignes ; grisé sans case cochée ; compteur des cases cochées */

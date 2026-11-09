@@ -389,12 +389,20 @@ sviRowHApply();
   const canEd = el => el.matches(FLD) && !el.disabled && !el.readOnly && !(window.__sviRO && el.closest(".bdg-d-page"));
   const setVal = (el, v) => { el.value = v; el.dispatchEvent(new InputEvent("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); };
   /* 09/11 (Ahmed) : petit menu de l'application (forme du menu des cases) — chaque ligne à la hauteur d'une ligne du tableau, largeur selon le contenu */
-  let LB = null; const lbOff = () => { if (LB) LB.style.display = "none"; };
+  let LB = null; const lbOff = () => { if (LB) LB.style.display = "none"; }; window.__sviLbOff = () => lbOff();
+  const lbBar = (el, html, act) => { if (!LB) { LB = document.createElement("div"); LB.id = "sviLpBar"; document.body.appendChild(LB); LB.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); }); }
+    LB.innerHTML = html.join(""); const tr = el.closest("tr, .ins-li"), rh = Math.round(Math.max(18, Math.min(44, (tr || el).getBoundingClientRect().height))); LB.style.setProperty("--lph", rh + "px"); LB.style.display = "flex";
+    const r = el.getBoundingClientRect(), h = LB.offsetHeight, w = LB.offsetWidth; let y = r.bottom + 4; if (y + h > innerHeight - 4) y = Math.max(4, r.top - h - 4);
+    LB.style.left = Math.max(4, Math.min(innerWidth - w - 4, r.left)) + "px"; LB.style.top = y + "px";
+    LB.onclick = e => { const b = e.target.closest("[data-lp]"); if (!b) return; e.preventDefault(); e.stopPropagation(); lbOff(); act(b.dataset.lp); }; };
   document.addEventListener("pointerdown", e => { if (LB && !LB.contains(e.target)) lbOff(); }, true);
   document.addEventListener("scroll", lbOff, true);
   const lpMenu = el => { const sel = el.tagName === "TD" ? el.querySelector("select") : null, txt = sel ? (typeof sviSelLab === "function" ? sviSelLab(sel) : "") : txtOf(el), ed = sel ? !sel.disabled && !(window.__sviRO && el.closest(".bdg-d-page")) : canEd(el);
     /* une plage de cases a déjà sa barre (COPIER, COLLER, EFFACER) : un seul menu */
     { const c = el.closest("td.svi-cs"); if (c && [...document.querySelectorAll("td.svi-cs")].filter(x => x.offsetParent !== null).length > 1) { if (window.__sviSelBar) window.__sviSelBar(); return; } }
+    /* 09/11 : INTITULÉ d'un budget en instance dans la liste (case modifiable sans champ) = COPIER, COLLER, EFFACER */
+    if (el.matches && el.matches("td.bdg-ied") && window.__sviIedApply) { lbBar(el, ['<button type="button" data-lp="copy">COPIER</button><button type="button" data-lp="paste">COLLER</button><div class="blk-sep"></div><button type="button" data-lp="clear" class="sb-del">EFFACER</button>'], async k => {
+        if (k === "copy") { try { await navigator.clipboard.writeText(txtOf(el)); } catch (er) {} window.__sviSelClip = txtOf(el); if (typeof svToast === "function") svToast("COPIÉ.", 1500, el); } else window.__sviIedApply(k, [el]); }); return; }
     if (window.__sviCells && window.__sviCells.count() > 1 && (el.closest("td.svi-cs") || (el.closest(".ins-li") && el.closest(".ins-li").querySelector(".svi-ls")))) return;
     if (!LB) { LB = document.createElement("div"); LB.id = "sviLpBar"; document.body.appendChild(LB);
       LB.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); }); }
@@ -444,7 +452,8 @@ sviRowHApply();
       paddingLeft: cs.paddingLeft, paddingRight: cs.paddingRight, letterSpacing: cs.letterSpacing, textTransform: cs.textTransform, fontWeight: cs.fontWeight, fontStyle: cs.fontStyle, textDecoration: cs.textDecoration,
       color: cs.webkitTextFillColor && !/rgba\(0, 0, 0, 0\)/.test(cs.webkitTextFillColor) ? cs.webkitTextFillColor : cs.color, background: bgOf(el) }); document.body.appendChild(tip); tip.__el = el; tip.__t0 = Date.now(); tip.__y = r.top; tip.__x = r.left; return; }
     cur = el; el.classList.add("cell-x"); el.tagName === "TD" && el.parentElement.classList.add("row-x"); };
-  document.addEventListener("pointerdown", e => { const el = cutTd(e.target); if ((cur && !cur.contains(e.target)) || (tip && (tip.__el !== el || document.activeElement === el))) off();   /* 2e toucher sur le champ = saisie : le texte agrandi s'efface */ clearTimeout(tm); if (!el) return; x0 = e.clientX; y0 = e.clientY; t0 = Date.now();
+  document.addEventListener("pointerdown", e => { if (e.target && (e.target.id === "sviSelHandle" || (e.target.closest && e.target.closest("#sviLpBar, #sviSelBar")))) return;   /* 09/11 : toucher le point ou un menu ne referme pas le texte agrandi */
+    const el = cutTd(e.target); if ((cur && !cur.contains(e.target)) || (tip && (tip.__el !== el || document.activeElement === el))) off();   /* 2e toucher sur le champ = saisie : le texte agrandi s'efface */ clearTimeout(tm); if (!el) return; x0 = e.clientX; y0 = e.clientY; t0 = Date.now();
     if (isCut(el)) window.__sviCutT = Date.now();   /* le message LECTURE SEULE se tait : le toucher sert à lire */
     tm = setTimeout(() => { tm = 0; lastT = null; lpMenu(el); }, SVI_G.lp); }, true);
   document.addEventListener("pointermove", e => { if (tm && Math.hypot(e.clientX - x0, e.clientY - y0) > SVI_G.drag) { clearTimeout(tm); tm = 0; } }, true);

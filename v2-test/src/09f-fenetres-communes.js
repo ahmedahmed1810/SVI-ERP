@@ -31,7 +31,7 @@ function sviSelUp(s) {
   b.addEventListener("click", e => {
     e.preventDefault(); e.stopPropagation();
     /* 09/11 (règle 8.2) : liste de choix dans un tableau — 1er toucher = la case sélectionnée (cadre rouge), 2e = la liste s'ouvre */
-    { const td = b.closest("table tbody td"); if (td && document.activeElement !== td && document.activeElement !== b) { td.classList.add("svi-tdf"); if (!td.hasAttribute("tabindex")) td.setAttribute("tabindex", "-1"); td.focus({ preventScroll: true }); return; } }
+    { const td = b.closest("table tbody td"); if (td && window.__svSelTd !== td) { window.__svSelTd = td; td.classList.add("svi-tdf"); if (!td.hasAttribute("tabindex")) td.setAttribute("tabindex", "-1"); td.focus({ preventScroll: true }); return; } }
     if (s.disabled) return;
     const items = [...s.options].filter(o => !o.disabled).map(o => ({ k: o.value, lab: String(o.textContent || "").trim().toUpperCase() || "—" }));
     sviEtatMenu(b, items, s.value, v => {
@@ -45,6 +45,8 @@ function sviSelUp(s) {
   });
   s.addEventListener("change", () => sviSelSync(s));
 }
+/* la case choisie au 1er toucher n'est plus « choisie » dès qu'une autre case prend la main */
+document.addEventListener("focusin", e => { const td = window.__svSelTd; if (td && e.target !== td && !(td.contains(e.target))) window.__svSelTd = null; }, true);
 function sviFileUp(f) {
   if (f.__svBtn || f.hasAttribute("data-native")) return;
   const w = document.createElement("span");
