@@ -403,7 +403,7 @@ const sviStfLab = (key, L) => { const s = sviStfGet(key); if (s === null) return
   { const d = sviStfDef(key); if (s.length === d.length && d.every(k => s.includes(k))) return "SANS LES ANNULÉS"; }
   if (s.length === 1) return (L && L[s[0]]) || (SVI_STF.find(x => x[0] === s[0]) || [s[0], s[0]])[1]; return s.length + " ÉTATS"; };
 const SVI_CF_IC = '<svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><path d="M1 2h11M3 5h7M5 8h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>';
-const sviStfHead = (key, n, L, dcf) => `<button type="button" class="novapp-date-filter svi-stf-head" data-stfm="${esc(key)}"><span>${esc(sviStfLab(key, L))} <i class="dt-arr">▾</i></span>${svCnt(n)}</button>`
+const sviStfHead = (key, n, L, dcf) => `<button type="button" class="novapp-date-filter svi-stf-head" data-stfm="${esc(key)}"><span class="stf-lab"><span class="stf-t">${esc(sviStfLab(key, L))}</span> <i class="dt-arr">▾</i></span>${svCnt(n)}</button>`
   + (dcf ? `<span class="cf-btn svi-stf-cf" data-cf="${esc(dcf)}" data-col="_jour" role="button" aria-label="Filtrer les dates">${SVI_CF_IC}</span>` : "");
 const sviStfItems = (key, C, keys, L) => { const sel = sviStfGet(key), lab = k => (L && L[k]) || (SVI_STF.find(x => x[0] === k) || [k, k])[1], on = sel === null;
   return `<button type="button" class="svi-stf-r svi-stf-all" data-stfk="tout"><span><input type="checkbox" tabindex="-1"${on ? " checked" : ""}${!on && sel.length ? ' class="part"' : ""}> TOUT</span>${svCnt(C.tout || 0)}</button>`
@@ -414,7 +414,14 @@ const sviStfHtml = () => "";   /* plus de cases affichées en permanence */
 /* registre des listes (clé → { keys, L, counts, redraw }) : un seul écouteur pour tous les boutons ▾ des états */
 const SVI_STF_REG = {};
 document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-stfm]"); if (!b) return; const o = SVI_STF_REG[b.dataset.stfm]; if (!o) return;
-  e.preventDefault(); e.stopPropagation(); sviStfMenu(b, { key: b.dataset.stfm, ...o }); }, true);
+  e.preventDefault(); e.stopPropagation();
+  /* 09/11 (Ahmed) : nom coupé — 1er toucher = le nom en entier, 2e = le menu des états */
+  const t = b.querySelector(".stf-t"), old = document.getElementById("sviStfTip");
+  if (t && t.scrollWidth > t.clientWidth + 1 && !old) { const r = b.getBoundingClientRect(), d = document.createElement("div"); d.id = "sviStfTip"; d.textContent = t.textContent;
+    Object.assign(d.style, { left: r.left + "px", top: r.top + "px", minWidth: r.width + "px", minHeight: r.height + "px" }); document.body.appendChild(d);
+    setTimeout(() => document.addEventListener("pointerdown", function off(ev) { if (!b.contains(ev.target)) { d.remove(); document.removeEventListener("pointerdown", off, true); } }, true), 0); return; }
+  if (old) old.remove();
+  sviStfMenu(b, { key: b.dataset.stfm, ...o }); }, true);
 function sviStfMenu(btn, o) {
   const old = document.getElementById("sviEtatMenu"); if (old) { const same = old.__key === o.key; old.remove(); if (same) return; }
   const m = document.createElement("div"); m.id = "sviEtatMenu"; m.className = "svi-stf-menu"; m.__key = o.key;

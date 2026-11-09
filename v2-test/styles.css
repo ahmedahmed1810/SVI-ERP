@@ -3795,3 +3795,10 @@ table tbody td input, table tbody td textarea { -webkit-user-select: text; user-
 :is(table.novapp-budget-table, table.bdg-d-table) td:is(.svi-tdon, .svi-tdf, .cell-x, :focus, :focus-visible) { box-shadow: none !important; outline: none !important; }
 /* 09/11 : INTITULÉ modifié dans la liste — même place, même couleur que le texte de la ligne */
 td.bdg-ied input.nv-edin { width: 100%; height: 100%; box-sizing: border-box; border: 0 !important; background: transparent !important; padding: 0 !important; margin: 0 !important; font: inherit !important; color: inherit !important; -webkit-text-fill-color: currentColor !important; box-shadow: none !important; outline: none !important; text-transform: uppercase; }
+/* 09/11 (Ahmed) : filtre des états sur une seule ligne — nom coupé avec « … », ▾ et nombre toujours visibles ; 1er toucher = nom entier */
+.svi-stf-head { display: flex !important; align-items: center; flex-wrap: nowrap !important; white-space: nowrap !important; min-width: 0; }
+.svi-stf-head .stf-lab { display: inline-flex; align-items: center; gap: 4px; min-width: 0; flex: 1 1 auto; overflow: hidden; }
+.svi-stf-head .stf-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.svi-stf-head .dt-arr, .svi-stf-head .svi-cnt { flex: none; }
+#sviStfTip { position: fixed; z-index: 40000; box-sizing: border-box; display: flex; align-items: center; padding: 4px 10px; background: #fff; border: 1px solid #c9d1dc; border-radius: 8px; box-shadow: 0 6px 14px rgba(16,24,40,.16); font: 700 12px/1.3 Arial, sans-serif; color: #172033; white-space: nowrap; pointer-events: none; }
+html.svi-nuit #sviStfTip { background: #1f2937; color: #f8fafc; border-color: #334155; }
