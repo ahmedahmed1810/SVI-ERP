@@ -3835,3 +3835,4 @@ html.svi-nuit #docPop :is(input:not([type=checkbox]):not([type=radio]), textarea
 html.svi-nuit #sviTxtBar { background: #1f2937; border-color: #334155; } html.svi-nuit #sviTxtBar button { color: #e5e7eb; }
 /* jamais la loupe ni les poignées de Safari dans une case en saisie */
 table tbody td input, table tbody td textarea { -webkit-touch-callout: none; }
+#sviTxtHi { position: fixed; display: none; z-index: 100011; pointer-events: none; background: rgba(185,28,28,.18); border-radius: 2px; }

@@ -4572,13 +4572,17 @@ sviRowHApply();
     const xOf = (i, k) => { const g = geo(i); return g.r.left + g.pl + g.off + g.W(k) - i.scrollLeft; };
     const inCell = t => t && t.matches && t.matches(FLD) && t.closest("table tbody td, .ins-hcol .ins-li, .bdg-h-col .bdg-h-item");
     /* poignées et menu de la sélection */
-    let HA = null, HB = null, SB = null, cur = null;
+    let HA = null, HB = null, SB = null, HI = null, cur = null, V = null, own = false;
+    /* sélection DESSINÉE par l'application : le champ ne garde qu'un curseur, Safari n'a donc rien à montrer */
+    const setV = (i, a, b) => { a = Math.max(0, Math.min(a, b)); b = Math.max(a, b); V = a === b ? null : { i, a, b }; own = true; try { i.setSelectionRange(b, b); } catch (er) {} setTimeout(() => { own = false; }, 0); };
+    const getS = i => V && V.i === i ? [V.a, V.b] : [i.selectionStart, i.selectionEnd];
     const mk = cls => { const d = document.createElement("div"); d.className = "svi-th " + cls; d.innerHTML = '<i></i>'; document.body.appendChild(d); return d; };
-    const hide = () => { [HA, HB, SB].forEach(x => { if (x) x.style.display = "none"; }); cur = null; };
-    const place = () => { const i = cur; if (!i || document.activeElement !== i || i.selectionStart === i.selectionEnd) { hide(); return; }
+    const hide = () => { [HA, HB, SB, HI].forEach(x => { if (x) x.style.display = "none"; }); cur = null; V = null; };
+    const place = () => { const i = cur; const S = i ? getS(i) : null; if (!i || document.activeElement !== i || S[0] === S[1]) { hide(); return; }
       if (!HA) { HA = mk("svi-th-a"); HB = mk("svi-th-b"); [HA, HB].forEach(h => h.addEventListener("pointerdown", dragH, { passive: false }));
-        SB = document.createElement("div"); SB.id = "sviTxtBar"; document.body.appendChild(SB); SB.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); }); SB.addEventListener("click", act); }
-      const r = i.getBoundingClientRect(), a = Math.max(r.left, Math.min(r.right, xOf(i, i.selectionStart))), b = Math.max(r.left, Math.min(r.right, xOf(i, i.selectionEnd))), h = Math.max(14, r.height - 6);
+        SB = document.createElement("div"); SB.id = "sviTxtBar"; document.body.appendChild(SB); SB.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); }); SB.addEventListener("click", act); HI = document.createElement("div"); HI.id = "sviTxtHi"; document.body.appendChild(HI); }
+      const r = i.getBoundingClientRect(), a = Math.max(r.left, Math.min(r.right, xOf(i, S[0]))), b = Math.max(r.left, Math.min(r.right, xOf(i, S[1]))), h = Math.max(14, r.height - 6);
+      if (V) Object.assign(HI.style, { display: "block", left: a + "px", top: (r.top + 3) + "px", width: Math.max(1, b - a) + "px", height: h + "px" }); else HI.style.display = "none";
       Object.assign(HA.style, { display: "block", left: a + "px", top: (r.top + 3) + "px", height: h + "px" }); Object.assign(HB.style, { display: "block", left: b + "px", top: (r.top + 3) + "px", height: h + "px" });
       const ro = i.readOnly || i.disabled;
       SB.innerHTML = (ro ? "" : '<button type="button" data-tx="cut">COUPER</button>') + '<button type="button" data-tx="copy">COPIER</button>' + (ro ? "" : '<button type="button" data-tx="paste">COLLER</button><button type="button" data-tx="clear" class="sb-del">EFFACER</button>');
@@ -4587,20 +4591,25 @@ sviRowHApply();
       SB.style.left = Math.max(4, Math.min(innerWidth - sw - 4, (a + b) / 2 - sw / 2)) + "px"; SB.style.top = y + "px"; };
     const show = i => { cur = i; requestAnimationFrame(place); };
     const dragH = e => { e.preventDefault(); e.stopPropagation(); const i = cur, isA = e.currentTarget === HA; if (!i) return; try { e.currentTarget.setPointerCapture(e.pointerId); } catch (er) {}
-      SB.style.display = "none"; const fixed = isA ? i.selectionEnd : i.selectionStart;
+      SB.style.display = "none"; const S0 = getS(i), fixed = isA ? S0[1] : S0[0];
       const mv = ev => { ev.preventDefault(); const r = i.getBoundingClientRect(); if (ev.clientX > r.right - 14) i.scrollLeft += 8; else if (ev.clientX < r.left + 14) i.scrollLeft = Math.max(0, i.scrollLeft - 8);
-        const k = caretAt(i, ev.clientX); i.setSelectionRange(Math.min(k, fixed), Math.max(k, fixed)); place(); SB.style.display = "none"; };
+        const k = caretAt(i, ev.clientX); setV(i, Math.min(k, fixed), Math.max(k, fixed)); place(); SB.style.display = "none"; };
       const up = () => { e.currentTarget && e.currentTarget.releasePointerCapture && 0; document.removeEventListener("pointermove", mv, true); document.removeEventListener("pointerup", up, true); document.removeEventListener("pointercancel", up, true); place(); };
       document.addEventListener("pointermove", mv, true); document.addEventListener("pointerup", up, true); document.addEventListener("pointercancel", up, true); };
-    const act = async e => { const b = e.target.closest("[data-tx]"); if (!b || !cur) return; e.preventDefault(); e.stopPropagation(); const i = cur, a = i.selectionStart, z = i.selectionEnd, v = String(i.value || ""), sel = v.slice(a, z), k = b.dataset.tx;
+    const act = async e => { const b = e.target.closest("[data-tx]"); if (!b || !cur) return; e.preventDefault(); e.stopPropagation(); const i = cur, S = getS(i), a = S[0], z = S[1], v = String(i.value || ""), sel = v.slice(a, z), k = b.dataset.tx; V = null;
       const put = t => { i.value = v.slice(0, a) + t + v.slice(z); const c = a + t.length; i.setSelectionRange(c, c); i.dispatchEvent(new InputEvent("input", { bubbles: true })); };
       if (k === "copy" || k === "cut") { try { await navigator.clipboard.writeText(sel); } catch (er) {} window.__sviSelClip = sel; if (k === "cut") put(""); else { i.setSelectionRange(z, z); } if (typeof svToast === "function") svToast(k === "cut" ? "COUPÉ." : "COPIÉ.", 1400, i); }
       else if (k === "paste") { let t = ""; try { t = await navigator.clipboard.readText(); } catch (er) {} if (!t) t = window.__sviSelClip || ""; put(String(t).replace(/[\r\n]+/g, " ").toUpperCase()); }
       else if (k === "clear") put("");
       i.focus({ preventScroll: true }); hide(); };
-    document.addEventListener("selectionchange", () => { if (cur && document.activeElement === cur) requestAnimationFrame(place); });
+    document.addEventListener("selectionchange", () => { if (!cur || document.activeElement !== cur) return; if (V && !own && (cur.selectionStart !== V.b || cur.selectionEnd !== V.b)) V = null; requestAnimationFrame(place); });
+    /* frappe, collage, effacement au clavier : remplacent la sélection dessinée, comme une vraie sélection */
+    document.addEventListener("beforeinput", e => { const i = e.target; if (!V || V.i !== i || !e.cancelable) return; const t = e.inputType || "";
+      let ins = null; if (t === "insertText" || t === "insertReplacementText") ins = e.data || ""; else if (t.startsWith("delete")) ins = ""; else if (t === "insertFromPaste") ins = (e.dataTransfer && e.dataTransfer.getData("text/plain")) || e.data || ""; if (ins === null) return;
+      e.preventDefault(); const v = String(i.value || ""), a = V.a, b = V.b; ins = String(ins).replace(/[\r\n]+/g, " "); if (getComputedStyle(i).textTransform === "uppercase" || i.dataset.up !== undefined) ins = ins.toUpperCase();
+      hide(); i.value = v.slice(0, a) + ins + v.slice(b); const c = a + ins.length; i.setSelectionRange(c, c); i.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: t, data: ins })); }, true);
     document.addEventListener("focusout", e => { if (e.target === cur) setTimeout(() => { if (document.activeElement !== cur) hide(); }, 0); }, true);
-    document.addEventListener("input", e => { if (e.target === cur && e.inputType) hide(); }, true);
+    document.addEventListener("input", e => { if (e.target === cur && e.inputType && !V) hide(); }, true);
     document.addEventListener("scroll", () => { if (cur) requestAnimationFrame(place); }, true);
     /* 2e toucher d'ouverture : la case passe en saisie, TOUT le contenu sélectionné, sans menu de Safari */
     let pdNav = false; document.addEventListener("pointerdown", e => { const t = e.target; pdNav = !!(t && t.classList && t.classList.contains("svi-nav")); }, true);
@@ -4613,13 +4622,13 @@ sviRowHApply();
       try { const k = caretAt(i, x); i.setSelectionRange(k, k); if (k >= String(i.value || "").length) i.scrollLeft = i.scrollWidth; } catch (er) {} hide(); }, { passive: false, capture: true });
     let lastT3 = null;
     document.addEventListener("touchend", e => {
-      if (T2) { const i = T2; T2 = null; try { if (window.__sviNav) window.__sviNav.off(i); i.__edit = true; i.blur(); i.focus({ preventScroll: true }); i.setSelectionRange(0, String(i.value || "").length); } catch (er) {} show(i); return; }
+      if (T2) { const i = T2; T2 = null; try { if (window.__sviNav) window.__sviNav.off(i); i.__edit = true; i.blur(); i.focus({ preventScroll: true }); setV(i, 0, String(i.value || "").length); } catch (er) {} show(i); return; }
       if (!T3) return; const c = e.changedTouches[0], P = T3; T3 = null;
       try { const k = caretAt(P.t, c.clientX), v = String(P.t.value || ""), now = Date.now();
         if (lastT3 && lastT3.t === P.t && now - lastT3.at < (SVI_G.dbl || 350) && Math.abs(c.clientX - lastT3.x) < 24) {
           let a = k, b = k; while (a > 0 && !/\s/.test(v[a - 1])) a--; while (b < v.length && !/\s/.test(v[b])) b++;
           if (a === b && b < v.length) { while (b < v.length && /\s/.test(v[b])) b++; a = b; while (b < v.length && !/\s/.test(v[b])) b++; }   /* entre deux mots : le mot qui suit */
-          P.t.setSelectionRange(a, b); lastT3 = null; show(P.t); return; }
+          setV(P.t, a, b); lastT3 = null; show(P.t); return; }
         lastT3 = { t: P.t, at: now, x: c.clientX };
         P.t.setSelectionRange(k, k); if (k >= v.length) P.t.scrollLeft = P.t.scrollWidth; hide(); } catch (er) {} }, { passive: true, capture: true });
     /* ordinateur : sélection à la souris dans un champ ouvert = mêmes poignées et même menu */
