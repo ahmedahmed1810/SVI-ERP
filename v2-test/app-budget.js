@@ -3446,12 +3446,14 @@ function renderBudgetList() {
       if (!ied.dataset.sel1) { document.querySelectorAll("td.bdg-ied[data-sel1]").forEach(t => delete t.dataset.sel1); ied.dataset.sel1 = "1"; return; }
       const ref = ied.dataset.ied, L0 = sviInstGet(), it0 = L0.find(x => x.ref === ref); if (!it0) return;
       const v0 = it0.intitule || "", inp = document.createElement("input"); inp.className = "ins-in nv-edin"; inp.value = v0;
+      inp.__edit = true;   /* 09/11 : champ ouvert en saisie (clavier), pas en simple sélection */
       ied.textContent = ""; ied.appendChild(inp); inp.focus(); try { inp.select(); } catch (er) {}
-      let done = false; const fin = ok => { if (done) return; done = true; const nv = String(inp.value || "").trim().toUpperCase().replace(/\s+/g, " ");
+      const t0 = Date.now();
+      let done = false; const fin = ok => { if (done) return; if (ok === "blur" && Date.now() - t0 < 600 && inp.isConnected) { setTimeout(() => { inp.__edit = true; inp.focus(); }, 0); return; } done = true; const nv = String(inp.value || "").trim().toUpperCase().replace(/\s+/g, " ");
         if (ok && nv && nv !== v0) { const L = sviInstGet(), it = L.find(x => x.ref === ref); if (it) { it.intitule = nv; sviInstSet(L); try { histLog("BUDGET", "INTITULÉ MODIFIÉ DANS LA LISTE", ref + " : " + nv); } catch (er) {} } }
         renderBudgetList(); };
       inp.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); fin(true); } if (ev.key === "Escape") { ev.preventDefault(); fin(false); } });
-      inp.addEventListener("blur", () => fin(true)); return;
+      inp.addEventListener("blur", () => fin("blur")); return;
     }
     if (ied) return;
     if (row && !event.target.closest(".bdg-reflink")) { document.querySelectorAll("td.bdg-ied[data-sel1]").forEach(t => delete t.dataset.sel1); return; }

@@ -4484,8 +4484,8 @@ sviRowHApply();
     return "rgb(" + c.map(Math.round).join(", ") + ")"; };
   let lastT = null, lastTt = 0;
   /* 09/11 (Ahmed) : 2e toucher = tout le contenu sélectionné, SANS bulle ; les actions passent par l'appui long */
-  const allSel = el => { document.querySelectorAll(".cell-all").forEach(x => x.classList.remove("cell-all")); el.classList.add("cell-all");
-    if (el.matches(FLD)) { try { el.focus({ preventScroll: true }); el.setSelectionRange(0, String(el.value || "").length); } catch (er) {} } };
+  /* 09/11 (Ahmed) : case non modifiable — le 2e toucher ne colore rien (le cadre rouge suffit ; l'appui long copie) */
+  const allSel = el => { document.querySelectorAll(".cell-all").forEach(x => x.classList.remove("cell-all")); };
   /* appui long : case modifiable (rouge) = COUPER, COPIER, COLLER, EFFACER ; case non modifiable (noire, lecture seule) = COPIER */
   const canEd = el => el.matches(FLD) && !el.disabled && !el.readOnly && !window.__sviRO;
   const setVal = (el, v) => { el.value = v; el.dispatchEvent(new InputEvent("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); };
@@ -7482,8 +7482,9 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
     let vr = vis.right, vb = vis.bottom;
     /* 09/11 (Ahmed) : plusieurs cases = le point au coin du grand cadre, du côté où la sélection se termine (en bas à droite en descendant, en haut à droite en montant) */
     { const C = [...document.querySelectorAll("td.svi-cs")].filter(x => x.offsetParent !== null);
-      if (td && S.b && S.a && C.length > 1) { let t = 1e9, b = -1e9, r = -1e9; C.forEach(x => { const R = x.getBoundingClientRect(); t = Math.min(t, R.top); b = Math.max(b, R.bottom); r = Math.max(r, R.right); });
-        H.style.background = "#b91c1c"; H.style.display = "block"; H.style.left = (r - 5 + window.scrollX) + "px"; H.style.top = ((S.b.r < S.a.r ? t : b) - 5 + window.scrollY) + "px"; return; } }
+      if (td && S.b && S.a && C.length > 1) { let t = 1e9, b = -1e9, r = -1e9, l = 1e9; C.forEach(x => { const R = x.getBoundingClientRect(); t = Math.min(t, R.top); b = Math.max(b, R.bottom); r = Math.max(r, R.right); l = Math.min(l, R.left); });
+        const hw = (H.offsetWidth || 9) / 2;   /* le centre du point pile sur le coin extérieur où la sélection se termine */
+        H.style.background = "#b91c1c"; H.style.display = "block"; H.style.left = ((S.b.c < S.a.c ? l : r) - hw + window.scrollX) + "px"; H.style.top = ((S.b.r < S.a.r ? t : b) - hw + window.scrollY) + "px"; return; } }
     { const F = document.getElementById("sviSelFrame"); if (end === cell && F && F.style.display === "block") { const fr = F.getBoundingClientRect(); vr = fr.right; vb = fr.bottom; } }
     H.style.display = "block"; H.style.left = (vr - 7 + window.scrollX) + "px"; H.style.top = (vb - 7 + window.scrollY) + "px";
   };

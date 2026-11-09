@@ -358,8 +358,8 @@ sviRowHApply();
     return "rgb(" + c.map(Math.round).join(", ") + ")"; };
   let lastT = null, lastTt = 0;
   /* 09/11 (Ahmed) : 2e toucher = tout le contenu sélectionné, SANS bulle ; les actions passent par l'appui long */
-  const allSel = el => { document.querySelectorAll(".cell-all").forEach(x => x.classList.remove("cell-all")); el.classList.add("cell-all");
-    if (el.matches(FLD)) { try { el.focus({ preventScroll: true }); el.setSelectionRange(0, String(el.value || "").length); } catch (er) {} } };
+  /* 09/11 (Ahmed) : case non modifiable — le 2e toucher ne colore rien (le cadre rouge suffit ; l'appui long copie) */
+  const allSel = el => { document.querySelectorAll(".cell-all").forEach(x => x.classList.remove("cell-all")); };
   /* appui long : case modifiable (rouge) = COUPER, COPIER, COLLER, EFFACER ; case non modifiable (noire, lecture seule) = COPIER */
   const canEd = el => el.matches(FLD) && !el.disabled && !el.readOnly && !window.__sviRO;
   const setVal = (el, v) => { el.value = v; el.dispatchEvent(new InputEvent("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); };
