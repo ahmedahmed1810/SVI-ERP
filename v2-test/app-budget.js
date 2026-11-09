@@ -11167,9 +11167,11 @@ function sviBdgDelaisDisposition(C) {
   const layMinOf = u => {
     if (u === "detail") return layDetMin();
     const pg = page$(); if (!pg) return 0;
-    if (u === "hier") { const c = [...pg.querySelectorAll(".bdg-h-col")].find(x => x.offsetHeight); if (!c) return 44;
-      const hd = c.querySelector(".bdg-h-head"), nw = c.querySelector(".ins-li.ins-new"), li = [...c.querySelectorAll(".ins-li, .bdg-h-item")].find(x => x !== nw && x.offsetHeight);
-      return Math.ceil((hd ? hd.getBoundingClientRect().height : 0) + ((li ? li.getBoundingClientRect().height : 0) + (nw ? nw.getBoundingClientRect().height : 0) || 21) + Math.max(0, c.offsetHeight - c.clientHeight)) + 1; }
+    /* 09/11 (remarque) : TÂCHES suit aussi le nombre de lignes du mode réduit (réglage des blocs) — colonne la plus remplie, r lignes entières + CRÉER */
+    if (u === "hier") { const CS = [...pg.querySelectorAll(".bdg-h-col")].filter(x => x.offsetHeight); if (!CS.length) return 44;
+      const its = c => { const nw = c.querySelector(".ins-li.ins-new"); return [...c.querySelectorAll(".ins-li, .bdg-h-item")].filter(x => x !== nw && x.offsetHeight); };
+      const c = CS.reduce((a, b) => its(b).length > its(a).length ? b : a, CS[0]), hd = c.querySelector(".bdg-h-head"), nw = c.querySelector(".ins-li.ins-new"), L = its(c).slice(0, sviBlkRows().r);
+      return Math.ceil((hd ? hd.getBoundingClientRect().height : 0) + (L.reduce((t, x) => t + x.getBoundingClientRect().height, 0) + (nw ? nw.getBoundingClientRect().height : 0) || 21) + Math.max(0, c.offsetHeight - c.clientHeight)) + 1; }
     const scr = pg.querySelector(LAY_SC[u]); if (!scr || !scr.offsetHeight) return { client: 65 }[u] || 44;
     const tb = [...scr.querySelectorAll("table")].find(t => t.offsetHeight && t.tHead); if (!tb) return 44;
     const top = tb.getBoundingClientRect().top - scr.getBoundingClientRect().top + scr.scrollTop;
