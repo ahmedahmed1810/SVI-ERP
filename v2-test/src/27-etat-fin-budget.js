@@ -143,13 +143,13 @@
         svConfirm(RC ? { title: "SUPPRIMER CE RECALAGE R" + budget.inst.rcn, text: "LE RECALAGE EN COURS R" + budget.inst.rcn + " SERA SUPPRIMÉ ; L'ÉTAPE " + RC + " NE CHANGE PAS.", ok: "SUPPRIMER" }
           : { title: "SUPPRIMER CE BUDGET", text: "LE BUDGET EN INSTANCE " + fullRef + " SERA SUPPRIMÉ, AVEC SES AVENANTS ET SES RECALAGES.", ok: "SUPPRIMER" }).then(go => {
           if (!go) return;
-          /* v750 (point 1) : après la suppression, le budget précédent de la liste s'ouvre (le suivant s'il n'y en a pas) ;
+          /* v750 (point 1), 09/11 : après la suppression, le budget suivant de la liste s'ouvre (le précédent s'il n'y en a pas) ;
              retour à la liste seulement s'il n'en reste aucun ; un avenant supprimé ouvre l'étape d'avant */
           const nxt = (() => {
             if (RC) return null;
             if (budget.inst.parent) { const S = sviAvStages(budget.inst.parent).filter(x => x.ref !== ref); return S.length ? S[S.length - 1].ref : null; }
             const ord = Array.isArray(window.__sviBdgOrder) ? window.__sviBdgOrder : [], i = ord.indexOf(ref);
-            const L = ord.filter(r => r !== ref && groups.has(r)), j = i < 0 ? 0 : Math.min(Math.max(0, i - 1), L.length - 1);
+            const L = ord.filter(r => r !== ref && groups.has(r)), j = i < 0 ? 0 : Math.min(i, L.length - 1);   /* 09/11 (décision d'Ahmed) : le SUIVANT de la liste s'ouvre (le précédent s'il était le dernier) */
             const r = L.length ? L[j] : null;
             return r && sviAvStages(r).length > 1 ? r + "-GLOBAL" : r;
           })();

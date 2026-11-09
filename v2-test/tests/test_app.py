@@ -2818,10 +2818,12 @@ def main():
             document.querySelector('#blkMenu [data-a="cmp"]')?.click(); await w(300); const d = document.getElementById('svConf');
             const pre = d ? [...d.querySelectorAll('input[data-cv]:checked')].map(i => i.dataset.cv).join(',') : 'pas de fenêtre', go0 = d ? d.querySelector('[data-cumgo]').disabled : null;
             const o1 = d && d.querySelector('[data-cv="o:X-1"]'); if (o1) { o1.checked = true; o1.dispatchEvent(new Event('change', { bubbles: true })); } const go1 = d ? d.querySelector('[data-cumgo]').disabled : null; d && d.querySelector('[data-x]').click();
+            const O = (window.__sviBdgOrder || []).slice(), io = O.indexOf('X-2'), O2 = O.filter(r => r !== 'X-2'), exp = O2[Math.min(io, O2.length - 1)] || '';
             document.getElementById('instDel')?.click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(1200);
-            return [mn, pre, go0, go1, localStorage.getItem('svi_lastbdg_v1'), !!document.getElementById('budgetBackBtn'), sviInstGet().some(x => x.ref === 'X-2')]; }""")
-        check("v750 / v771 : menu ⋯ — IMPRIMER et CUMUL (fenêtre de SÉLECTION : état actuel coché, autre budget au choix, CUMULER grisé sous deux) ; suppression depuis la fiche → le budget précédent de la liste s'ouvre",
-              d750 == [[True, True], "cur", True, False, "F-1-GLOBAL", True, False], d750)
+            const lb = localStorage.getItem('svi_lastbdg_v1') || '';
+            return [mn, pre, go0, go1, !!exp && (lb === exp || lb === exp + '-GLOBAL') ? 'suivant' : lb + ' / attendu ' + exp, !!document.getElementById('budgetBackBtn'), sviInstGet().some(x => x.ref === 'X-2')]; }""")
+        check("v750 / v771 : menu ⋯ — IMPRIMER et CUMUL (fenêtre de SÉLECTION : état actuel coché, autre budget au choix, CUMULER grisé sous deux) ; suppression depuis la fiche → le budget SUIVANT de la liste s'ouvre (09/11)",
+              d750 == [[True, True], "cur", True, False, "suivant", True, False], d750)
         pg.evaluate("() => { document.getElementById('budgetBackBtn')?.click(); sviInstSet(JSON.parse(window.__kp750)); localStorage.setItem('svi_listmode_v1', 'inst'); localStorage.removeItem('svi_bdgfold_v1'); renderBudgetList(); }"); pg.wait_for_timeout(400)
         # v751 : menu ☰ — ACHAT se déplie (CONSULTATIONS … ACC, dans l'ordre), BESOIN à part dessous ; ARTICLES ouvre l'écran des achats
         m751 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), M = document.getElementById('navMenu');
@@ -2879,7 +2881,7 @@ def main():
             const keepE = localStorage.getItem('svi_bdgetat_v1'); localStorage.removeItem('svi_bdgetat_v1');
             localStorage.setItem('svi_listmode_v1', 'valid'); localStorage.setItem('svi_bdgfold_v1', JSON.stringify(['F-1'])); renderBudgetList(); await w(300);
             /* 06/11 : une seule liste, cases à cocher des états (TOUT en haut) — sviStfSet('bdg', [...]) = cocher ces états seulement */
-            localStorage.removeItem('svi_stf_v1:bdg'); const pick = L => { sviStfSet('bdg', L); renderBudgetList(); return w(250); };
+            sviStfSet('bdg', null); const pick = L => { sviStfSet('bdg', L); renderBudgetList(); return w(250); };
             const lab = () => { const s = sviStfGet('bdg'); return s === null ? 'TOUT' : s.join(','); };
             const refs = () => [...document.querySelectorAll('#budgetListTable tbody tr[data-budget-ref]')].map(r => r.dataset.budgetRef);
             const r = [lab()];
@@ -2904,11 +2906,11 @@ def main():
             const keepA = localStorage.getItem('svi_ach_art_v1'), keepAE = localStorage.getItem('svi_ach_etat_v1'); localStorage.removeItem('svi_ach_art_etat2_v1'); const L = [];
             achArtNew(L, { des: 'SABLE', u: 'M3' }); const b2 = achArtNew(L, { des: 'GRAVIER', u: 'M3' }); b2.actif = false; const b3 = achArtNew(L, { des: 'CHAUX', u: 'T' }); b3.del = '2026-11-01'; achArtsSave(L);
             localStorage.removeItem('svi_ach_etat_v1'); const v = document.getElementById('ach'); v.__achTab('art'); await w(200);
-            localStorage.removeItem('svi_stf_v1:ach_art'); v.__achTab('art'); await w(200);
+            sviStfSet('ach_art', null); v.__achTab('art'); await w(200);
             const eb = v.querySelector('[data-stfm]'), aRows = () => [...v.querySelectorAll('#achArtT tbody tr[data-id]')].length;
             const a = [eb ? eb.textContent.replace(/\\s+/g, ' ').trim() : '', aRows()]; eb.click(); await w(150);
             a.push([...document.querySelectorAll('#sviEtatMenu .svi-stf-r:not([data-stfk="tout"])')].map(b => b.textContent.replace(/\\s+/g, ' ').trim()).join('|'));
-            document.querySelector('#sviEtatMenu [data-stfk="annule"]').click(); await w(200); a.push(aRows()); document.getElementById('sviEtatMenu')?.remove(); localStorage.removeItem('svi_stf_v1:ach_art');
+            document.querySelector('#sviEtatMenu [data-stfk="annule"]').click(); await w(200); a.push(aRows()); document.getElementById('sviEtatMenu')?.remove(); sviStfSet('ach_art', null);
             if (keepA === null) localStorage.removeItem('svi_ach_art_v1'); else localStorage.setItem('svi_ach_art_v1', keepA);
             if (keepAE === null) localStorage.removeItem('svi_ach_etat_v1'); else localStorage.setItem('svi_ach_etat_v1', keepAE);
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(400); return [r, a]; }""")

@@ -385,8 +385,11 @@ function sviEtatMenu(btn, items, cur, pick) {
 const SVI_STF = [["instance", "EN INSTANCE"], ["fige", "FIGÉ"], ["remis", "REMISE"], ["encours", "EN COURS DE VALIDATION"], ["partiel", "PARTIELLEMENT ACHEVÉ"],
   ["valide", "VALIDÉ / CLÔTURÉ"], ["expire", "EXPIRÉ"], ["bloque", "BLOQUÉ"], ["archive", "ARCHIVÉ"], ["annule", "ANNULÉ"], ["alerte", "ALERTE"]];
 const SVI_STF_PIECE = SVI_STF.map(x => x[0]).filter(k => k !== "fige");   /* pièces d'achat : plus de FIGÉ (document unique 2.9) */
-const sviStfGet = key => { try { const v = JSON.parse(localStorage.getItem("svi_stf_v1:" + key) || "null"); if (Array.isArray(v)) return v.filter(k => SVI_STF.some(x => x[0] === k)); } catch (e) {} return null; };
-const sviStfSet = (key, v) => { try { if (v === null) localStorage.removeItem("svi_stf_v1:" + key); else localStorage.setItem("svi_stf_v1:" + key, JSON.stringify(v)); } catch (e) {} };
+/* 09/11 (décision d'Ahmed) : par défaut (aucun choix gardé), les pièces ANNULÉES sont masquées ; TOUT les remontre (gardé « * ») */
+const sviStfDef = key => { const R = typeof SVI_STF_REG === "object" && SVI_STF_REG[key]; return (R && R.keys ? R.keys : SVI_STF.map(x => x[0])).filter(k => k !== "annule"); };
+const sviStfGet = key => { try { const raw = localStorage.getItem("svi_stf_v1:" + key); if (raw === null) return sviStfDef(key); const v = JSON.parse(raw);
+    if (v === "*") return null; if (Array.isArray(v)) return v.filter(k => SVI_STF.some(x => x[0] === k)); } catch (e) {} return null; };
+const sviStfSet = (key, v) => { try { localStorage.setItem("svi_stf_v1:" + key, JSON.stringify(v === null ? "*" : v)); } catch (e) {} };
 /* une ligne passe si l'un de ses états est coché ; ALERTE décochée = lignes en alerte cachées ; ALERTE seule = toutes les lignes en alerte */
 const sviStfOk = (sel, S) => { if (!sel) return true; S = S || []; const al = S.includes("alerte"), M = sel.filter(k => k !== "alerte");
   if (!M.length) return al && sel.includes("alerte"); return S.some(k => k !== "alerte" && M.includes(k)) && (!al || sel.includes("alerte")); };
@@ -397,6 +400,7 @@ const sviStfPick = (key, k, keys) => { const sel = sviStfGet(key);
 /* 06/11 (soir, décision) : les états ne sont plus affichés en permanence — en haut du panneau, « TOUT ▾ » (ou les états choisis) ouvre le menu des
    états à cocher (TOUT en haut) ; à côté, l'entonnoir = le filtre commun des DATES (tri, condition, valeurs) ; les deux se cumulent (intersection) */
 const sviStfLab = (key, L) => { const s = sviStfGet(key); if (s === null) return "TOUT"; if (!s.length) return "AUCUN";
+  { const d = sviStfDef(key); if (s.length === d.length && d.every(k => s.includes(k))) return "SANS LES ANNULÉS"; }
   if (s.length === 1) return (L && L[s[0]]) || (SVI_STF.find(x => x[0] === s[0]) || [s[0], s[0]])[1]; return s.length + " ÉTATS"; };
 const SVI_CF_IC = '<svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><path d="M1 2h11M3 5h7M5 8h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>';
 const sviStfHead = (key, n, L, dcf) => `<button type="button" class="novapp-date-filter svi-stf-head" data-stfm="${esc(key)}"><span>${esc(sviStfLab(key, L))} <i class="dt-arr">▾</i></span>${svCnt(n)}</button>`
