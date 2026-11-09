@@ -166,11 +166,23 @@ document.addEventListener("pointerdown", e => {
 }, true);
 /* v793 (DOCUMENT UNIQUE §6.4) : CASES À COCHER À DROITE des listes (budgets, achats) — dernière colonne ; case d'en-tête = toutes ;
    toucher la case (ou sa cellule) coche sans ouvrir la ligne ; l'APERÇU de la liste prend les lignes cochées s'il y en a */
-const sviListCbTh = () => `<th class="center nvl-cbh"><input type="checkbox" class="nvl-all" aria-label="Tout cocher"></th>`;
+/* 09/11 (Ahmed) : en tête de la colonne des cases, un entonnoir comme les autres colonnes (plus de case) :
+   TOUT COCHER, TOUT DÉCOCHER, SEULEMENT LES COCHÉES, TOUT AFFICHER */
+const SVI_NVL_ONLY = new Set();
+const sviListCbTh = () => `<th class="center nvl-cbh"><input type="checkbox" class="nvl-all" hidden aria-label="Tout cocher"><span class="cf-btn nvl-cff" role="button" aria-label="Cases cochées">${SVI_CF_IC}</span></th>`;
 const sviListCbTd = () => `<td class="center nvl-cbc"><input type="checkbox" class="nvl-cb" aria-label="Cocher"></td>`;
 document.addEventListener("click", e => {
   const c = e.target.closest && e.target.closest("td.nvl-cbc, th.nvl-cbh"); if (!c) return;
   e.stopPropagation();
+  if (c.matches("th")) { e.preventDefault(); const table = c.closest("table"), key = table.id || table.dataset.svcw || "", btn = c.querySelector(".nvl-cff") || c;
+    const cbs = () => [...table.querySelectorAll("tbody .nvl-cb")], setAll = v => { const all = table.querySelector(".nvl-all"); if (all) { all.checked = v; all.dispatchEvent(new Event("change", { bubbles: true })); } };
+    const only = SVI_NVL_ONLY.has(key);
+    if (typeof sviEtatMenu === "function") sviEtatMenu(btn, [{ k: "all", lab: "TOUT COCHER" }, { k: "none", lab: "TOUT DÉCOCHER" }, { k: "only", lab: "SEULEMENT LES COCHÉES" }, { k: "show", lab: "TOUT AFFICHER" }], only ? "only" : "show", k => {
+      if (k === "all") setAll(true); else if (k === "none") setAll(false);
+      else if (k === "only") { if (!cbs().some(x => x.checked)) { if (typeof svToast === "function") svToast("AUCUNE LIGNE COCHÉE.", 1800, btn); return; } SVI_NVL_ONLY.add(key); }
+      else SVI_NVL_ONLY.delete(key);
+      sviNvlPaint(); });
+    return; }
   if (!e.target.matches("input")) { const i = c.querySelector("input"); if (i) { i.checked = !i.checked; i.dispatchEvent(new Event("change", { bubbles: true })); } }
 }, true);
 document.addEventListener("change", e => {
@@ -183,6 +195,9 @@ document.addEventListener("change", e => {
   cbs.forEach(x => x.closest("tr").classList.toggle("nvl-on", x.checked));
 });
 
+function sviNvlPaint() { document.querySelectorAll("table").forEach(t => { const k = t.id || t.dataset.svcw || ""; if (!t.querySelector("th.nvl-cbh")) return; const on = SVI_NVL_ONLY.has(k);
+  t.classList.toggle("nvl-only", on); const b = t.querySelector(".nvl-cff"); if (b) b.classList.toggle("cf-on", on); }); }
+{ let q = 0; new MutationObserver(() => { if (SVI_NVL_ONLY.size && !q) q = requestAnimationFrame(() => { q = 0; sviNvlPaint(); }); }).observe(document.documentElement, { childList: true, subtree: true }); }
 /* v929 (remarque 16 du 04/11/2026, document unique 9.4) : SUR ORDINATEUR — appui long = clic droit (ou Ctrl + clic sur Mac) :
    le menu du navigateur est remplacé par un appui long au même endroit (toucher = clic, double toucher = double clic et glisser = cliquer-glisser
    passent déjà par les mêmes événements). Un champ qui a son propre clic droit (masque de saisie) le garde. */

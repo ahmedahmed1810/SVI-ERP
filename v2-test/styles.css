@@ -3806,3 +3806,6 @@ html.svi-nuit #sviStfTip { background: #1f2937; color: #f8fafc; border-color: #3
 td.bdg-ied input.nv-edin { padding-right: 4px !important; }
 /* 09/11 : mot TOTAL collé à droite, juste avant le montant */
 td.svi-totlab { text-align: right !important; white-space: nowrap; }
+/* 09/11 : SEULEMENT LES COCHÉES — les lignes non cochées se cachent (tant qu'au moins une est cochée) */
+table.nvl-only:has(tbody .nvl-cb:checked) tbody tr:has(.nvl-cb):not(.nvl-on) { display: none !important; }
+th.nvl-cbh .nvl-cff { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
