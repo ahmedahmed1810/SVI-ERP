@@ -272,7 +272,8 @@ function sviColSetWin(t, k, def) {
    Remplace les écouteurs qui n'étaient posés qu'à l'ouverture d'un budget (11-budget-ouverture : window.__sviSwipe déjà vrai). */
 window.__sviSwipe = true; window.__sviNoWrap = 0;
 { let st = null, eat = false;
-  const begin = (t, x, y) => { const hdr = t && t.closest && t.closest(".bdg-d-sticky"), ach = hdr && hdr.closest(".nvp");
+  /* 09/11 (compte rendu) : le texte du centre de la barre (#sviScreenTag, posé hors de la barre) compte comme la barre — balayage au doigt et à la souris */
+  const begin = (t, x, y) => { const tg = t && t.closest && t.closest("#sviScreenTag"), hdr = tg ? document.querySelector(".view.active-view .bdg-d-sticky") : t && t.closest && t.closest(".bdg-d-sticky"), ach = hdr && hdr.closest(".nvp");
     const nav = ach ? { go: d => ach.querySelector(`[data-nvp="${d > 0 ? "next" : "prev"}"]`)?.click() } : window.__sviBdgNav;
     if (!hdr || !nav || !document.querySelector(".bdg-d-page")) return null;
     if (t.closest("#docPop, #blkPop, #blkMenu, #svConf, #svCal, .av-list-ov, input, textarea, select")) return null;
