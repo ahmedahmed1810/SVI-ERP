@@ -345,7 +345,7 @@ sviRowHApply();
       /* 09/11 (règle 6.9) : le texte entier s'affiche SUR le champ, à sa largeur exacte, sur plusieurs lignes — le champ semble s'agrandir vers le bas */
     const cs = getComputedStyle(el); Object.assign(tip.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px", minHeight: r.height + "px", font: cs.font, color: cs.color, textAlign: cs.textAlign,
       paddingLeft: cs.paddingLeft, paddingRight: cs.paddingRight, letterSpacing: cs.letterSpacing, textTransform: cs.textTransform, fontWeight: cs.fontWeight, fontStyle: cs.fontStyle, textDecoration: cs.textDecoration,
-      color: cs.webkitTextFillColor && !/rgba\(0, 0, 0, 0\)/.test(cs.webkitTextFillColor) ? cs.webkitTextFillColor : cs.color, background: bgOf(el) }); document.body.appendChild(tip); tip.__el = el; return; }
+      color: cs.webkitTextFillColor && !/rgba\(0, 0, 0, 0\)/.test(cs.webkitTextFillColor) ? cs.webkitTextFillColor : cs.color, background: bgOf(el) }); document.body.appendChild(tip); tip.__el = el; tip.__t0 = Date.now(); tip.__y = r.top; tip.__x = r.left; return; }
     cur = el; el.classList.add("cell-x"); el.tagName === "TD" && el.parentElement.classList.add("row-x"); };
   document.addEventListener("pointerdown", e => { const el = cutTd(e.target); if ((cur && !cur.contains(e.target)) || (tip && tip.__el !== el)) off(); clearTimeout(tm); if (!el) return; x0 = e.clientX; y0 = e.clientY; t0 = Date.now();
     if (isCut(el)) window.__sviCutT = Date.now();   /* le message LECTURE SEULE se tait : le toucher sert à lire */
@@ -359,7 +359,10 @@ sviRowHApply();
     /* une case qui ouvre la pièce l'ouvre au 2e toucher ; un champ modifiable garde son 1er toucher */
     eat = el.tagName === "TD" ? !el.classList.contains("nv-ed") : el.classList.contains("bdg-h-item"); }, true);
   document.addEventListener("click", e => { if (!eat) return; eat = false; e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); }, true);
-  document.addEventListener("scroll", () => { if (tip) off(); }, true);
+  /* 09/11 : le défilement que l'application fait elle-même juste après le toucher (case choisie, champ mis en vue) ne ferme pas le texte : il le suit ;
+     ensuite, seul un vrai défilement du doigt (le champ bouge) le ferme */
+  document.addEventListener("scroll", () => { if (!tip) return; const r = tip.__el.getBoundingClientRect(), moved = Math.abs(r.top - tip.__y) > 6 || Math.abs(r.left - tip.__x) > 6;
+    if (Date.now() - tip.__t0 < 700 || !moved) { tip.style.left = r.left + "px"; tip.style.top = r.top + "px"; if (Date.now() - tip.__t0 < 700) { tip.__y = r.top; tip.__x = r.left; } return; } off(); }, true);
   document.addEventListener("contextmenu", e => { if (cutTd(e.target)) e.preventDefault(); }, true);
 }
 
