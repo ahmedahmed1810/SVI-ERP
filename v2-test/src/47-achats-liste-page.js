@@ -193,7 +193,9 @@ function achNvList(ctx, o) {
       x.del = achNow(); x.mod = x.del; o.save(L); achHist(o.code(x), "CORBEILLE", o.nom(x)); draw(); return true; }
     if (e.target.closest("[data-nvnew]")) { o.add(id => { draw();
       if (id && id !== "x" && o.page && o.all().some(x => x.id === id)) o.page(id); }); return true; }   /* v800 (3.6) : la page de la nouvelle pièce s'ouvre */
-    const r = e.target.closest("button, .cf-btn, thead") ? e.target.closest("button[data-nvo]") : e.target.closest("[data-nvo]");
+    /* 09/11 (règle 2.10) : une ligne qui a sa référence soulignée ne s'ouvre que par elle ; la partie vide suit la règle commune (sélection) */
+    const tr0 = e.target.closest("tr[data-nvo]"), viaLink = tr0 && tr0.querySelector("button[data-nvo]");
+    const r = e.target.closest("button, .cf-btn, thead") || viaLink ? e.target.closest("button[data-nvo]") : e.target.closest("[data-nvo]");
     if (r) { o.page(r.dataset.nvo || r.dataset.id); return true; }
     return false;
   };

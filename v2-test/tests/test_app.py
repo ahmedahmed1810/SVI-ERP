@@ -2813,7 +2813,7 @@ def main():
         check("v750 / v789 : filtre commun sur la liste (tri, puis condition, puis recherche et cases — ordre Google Sheets, EFFACER), conditions des dates complètes, pliage par la flèche, bascule vers les validés (avec VALIDÉ LE)",
               f750[0] == "cf-sort,cf-sort,cf-cond,cf-search,cf-list,cf-foot" and f750[1].startswith("F-1,F-1,F-1-AV1") and f750[2] == ",eq,ne,gt,ge,lt,le,bt" and f750[3] >= 4 and f750[4] and f750[5] == [True, True], f750)
         d750 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms));
-            document.querySelector('#budgetListTable tr[data-budget-ref="X-2"] td:nth-child(5)').click(); await w(900);
+            document.querySelector('#budgetListTable tr[data-budget-ref="X-2"] .bdg-reflink').click(); await w(900);
             document.getElementById('bdgMore')?.click(); await w(200); const mn = ['prt', 'cmp'].map(a => !!document.querySelector(`#blkMenu [data-a="${a}"]`));
             document.querySelector('#blkMenu [data-a="cmp"]')?.click(); await w(300); const d = document.getElementById('svConf');
             const pre = d ? [...d.querySelectorAll('input[data-cv]:checked')].map(i => i.dataset.cv).join(',') : 'pas de fenêtre', go0 = d ? d.querySelector('[data-cumgo]').disabled : null;
@@ -2895,7 +2895,7 @@ def main():
             await pick(['expire']);
             r.push(refs().join(','), (document.querySelector('#budgetListTable tr[data-budget-ref="F-1-AV1"]') || {}).className || '');
             await pick(null);
-            document.querySelector('#budgetListTable tr[data-budget-ref="G-1"] td:nth-child(4)').click(); await w(900);
+            document.querySelector('#budgetListTable tr[data-budget-ref="G-1"] .bdg-reflink').click(); await w(900);
             document.getElementById('bdgMore').click(); await w(200); const acts = ['blk', 'arch'].map(a => !!document.querySelector(`#blkMenu [data-a="${a}"]`));
             document.querySelector('#blkMenu [data-a="blk"]').click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(900);
             r.push(acts, !!(sviInstGet().find(x => x.ref === 'G-1') || {}).blk, window.__sviRO || '');
@@ -2968,7 +2968,7 @@ def main():
             const fc = document.querySelector('.bsn-card'); const tache = fc.querySelector('.bsn-x[data-k="tache"]').value;
             fc.querySelector('.bsn-x[data-k="q"]').value = '4'; fc.querySelector('.bsn-x[data-k="datePrevue"]').value = '2026-11-10'; fc.querySelector('[data-save]').click(); await w(300);
             const S = achBsn(); r.push(tache, S.length, S[0] && S[0].ref.startsWith('BSN '), v.querySelectorAll('#achBsnT tbody tr[data-id]').length);
-            v.querySelector('#achBsnT [data-nvo]').click(); await w(250); v.querySelector('[data-nvp="info"]').click(); await w(200); document.querySelector('.bsn-card [data-valid]').click(); await w(300); r.push(achBsn()[0].state);
+            (v.querySelector('#achBsnT button[data-nvo]') || v.querySelector('#achBsnT [data-nvo]')).click(); await w(250); v.querySelector('[data-nvp="info"]').click(); await w(200); document.querySelector('.bsn-card [data-valid]').click(); await w(300); r.push(achBsn()[0].state);
             sviInstSet(keepI); if (keepB === null) localStorage.removeItem('svi_ach_bsn_v1'); else localStorage.setItem('svi_ach_bsn_v1', keepB);
             if (keepE === null) localStorage.removeItem('svi_ach_bsn_etat_v1'); else localStorage.setItem('svi_ach_bsn_etat_v1', keepE);
             v.__achTab('art'); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
@@ -3116,7 +3116,7 @@ def main():
             r.push(h(), !v.querySelector('table.nv-one [data-nvdel]'));   /* J4 : plus de corbeille par ligne — SUPPRIMER LES CONSULTATIONS COCHÉES (⋯) = ANNULÉE avec motif */
             const pr = SVI_LDEL[v.querySelector('table.nv-one').dataset.sdel].run(['c1']); await w(200); { const q = document.querySelector('#svConf .ask-v'); if (q) { q.value = 'ERREUR'; document.querySelector('#svConf [data-ok]').click(); } } await pr; await w(250);
             r.push(achCaf().find(c => c.id === 'c1').state);
-            v.querySelector('[data-nvo]').click(); await w(250); v.querySelector('[data-nvp="info"]')?.click(); await w(200); r.push(!!document.querySelector('.caf-card') && !!v.querySelector('.nvp-ref')); document.querySelector('.caf-card [data-x]')?.click(); await w(150); v.querySelector('[data-nvp="close"]')?.click(); await w(150);
+            (v.querySelector('button[data-nvo]') || v.querySelector('[data-nvo]')).click(); await w(250); v.querySelector('[data-nvp="info"]')?.click(); await w(200); r.push(!!document.querySelector('.caf-card') && !!v.querySelector('.nvp-ref')); document.querySelector('.caf-card [data-x]')?.click(); await w(150); v.querySelector('[data-nvp="close"]')?.click(); await w(150);
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); });
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v765 : listes des achats au format du budget — sans onglets, titre EN INSTANCE / VALIDÉS avec nombre et bascule, dates, sans H, sans étiquette du budget ; corbeille = ANNULÉ ; ligne → fiche",
@@ -3250,7 +3250,7 @@ def main():
             const K = ['svi_ach_dvf_v1', 'svi_ach_frs_v1'], keep = K.map(k => localStorage.getItem(k));
             const F = []; const f1 = achFrsNew(F, { nom: 'AFRA' }); achFrsSave(F); achDvfSave([{ id: 'v1', ref: 'DVF 1', frs: f1.id, state: 'recu', lignes: [{ des: 'SABLE', u: 'M3', q: 5, pu: 100, tva: 20 }] }]);
             const v = document.getElementById('ach'); document.querySelector('#navMenu .nav-btn[data-ach="dvf"]').click(); await w(300);
-            v.querySelector('[data-nvo]')?.click(); await w(300);
+            (v.querySelector('button[data-nvo]') || v.querySelector('[data-nvo]'))?.click(); await w(300);
             const lt = v.querySelector('.nvp-blk table[data-svcw]'), st = v.querySelector('.nvp-rec table');
             r.push(!!lt && lt.querySelectorAll('colgroup col[data-k]').length >= 6, !!st && st.tHead.querySelectorAll('.cf-btn').length >= 3);
             v.querySelector('[data-nvp="close"]')?.click(); await w(200);
@@ -3264,7 +3264,7 @@ def main():
             const F = []; const f1 = achFrsNew(F, { nom: 'AFRA' }); achFrsSave(F); achDvfSave([{ id: 'v1', ref: 'DVF 26-1101/001', frs: f1.id, state: 'recu', date: '2026-11-01', lignes: [{ des: 'SABLE', u: 'M3', q: 5, pu: 100, tva: 20 }] }]); achFafSave([]);
             const st = document.getElementById('bdgListRuntimeStyle'); const had = !!st; st && st.remove(); sviAchInit && document.getElementById('ach').__achOn && sviBdgRuntimeStyle();
             const v = document.getElementById('ach'); document.querySelector('#navMenu .nav-btn[data-ach="dvf"]').click(); await w(300);
-            if (!v.querySelector('[data-nvo]')) v.querySelector('[data-nvsw]')?.click(); await w(150); v.querySelector('[data-nvo]').click(); await w(300);
+            if (!(v.querySelector('button[data-nvo]') || v.querySelector('[data-nvo]'))) v.querySelector('[data-nvsw]')?.click(); await w(150); (v.querySelector('button[data-nvo]') || v.querySelector('[data-nvo]')).click(); await w(300);
             const b = [...v.querySelectorAll('.nvp .bdg-d-block')].find(x => x.offsetParent), t = b.querySelector('.bdg-d-block-title .ttl'), cs = getComputedStyle(t);
             const tb = b.querySelector('table'), r0 = tb.tBodies[0].rows[0];
             const r = [!!document.getElementById('bdgListRuntimeStyle'), cs.fontSize, cs.fontWeight, getComputedStyle(b.querySelector('.bdg-d-block-title')).borderLeftWidth, Math.round(tb.tHead.rows[0].getBoundingClientRect().height), Math.round(r0.getBoundingClientRect().height), !!tb.tHead.rows[0].lastElementChild.querySelector('input[type=checkbox]')];
@@ -3942,7 +3942,7 @@ def main():
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check('DOCUMENT UNIQUE 6.13 / 6.4 (J4) : aucune liste des achats n\'a de colonne de corbeille ; panneau des dates resserré', c613.get('v', {}).get('act') == 0 and c613['v']['cols'] == c613['v']['ths'] and c613.get('i', {}).get('act', 1) == 0 and c613['i']['cols'] == c613['i']['ths'] and c613.get('pw', 999) < 240, c613)   # 06/11 : le panneau porte aussi les cases des états
         fmtu = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, keep = localStorage.getItem('svi_format_v1');
-  const F = sviFmt(); F.el = F.el || {}; F.el.blk = Object.assign({}, F.el.blk, { b: 0 }); F.el.taba = Object.assign({}, F.el.taba, { c: '#0000a3' }); F.el.ttl = Object.assign({}, F.el.ttl, { c: '#0000a5' }); F.el.top = Object.assign({}, F.el.top, { bg: '#0000a9' }); F.to = null; sviFmtSave(F); await w(200); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); if (!document.getElementById('bdgDetailHead')) window.__sviAvOpen('TEST-1', null); await w(800); if (!document.getElementById('bdgDetailHead')) { (document.querySelector('#budgetListTable tbody tr[data-budget-ref="TEST-1"] .budget-link') || document.querySelector('#budgetListTable tbody tr[data-budget-ref] .budget-link, #budgetListTable tbody tr[data-budget-ref] td'))?.click(); await w(1500); }
+  const F = sviFmt(); F.el = F.el || {}; F.el.blk = Object.assign({}, F.el.blk, { b: 0 }); F.el.taba = Object.assign({}, F.el.taba, { c: '#0000a3' }); F.el.ttl = Object.assign({}, F.el.ttl, { c: '#0000a5' }); F.el.top = Object.assign({}, F.el.top, { bg: '#0000a9' }); F.to = null; sviFmtSave(F); await w(200); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); if (!document.getElementById('bdgDetailHead')) window.__sviAvOpen('TEST-1', null); await w(800); if (!document.getElementById('bdgDetailHead')) { (document.querySelector('#budgetListTable tbody tr[data-budget-ref="TEST-1"] .budget-link') || document.querySelector('#budgetListTable tbody tr[data-budget-ref] .bdg-reflink'))?.click(); await w(1500); }
   const d = document.getElementById('bdgDetailHead'); r.det = d ? getComputedStyle(d).fontWeight : 'absent';
   const ra = document.querySelector('.rec-tab.active'); r.reca = ra ? getComputedStyle(ra).webkitTextFillColor : 'absent';
   const css = document.getElementById('sviFmtStyle').textContent; r.vars = /--ttl-c:#0000a5/.test(css); r.chs = /#chs > \.section-head[^{]*\{[^}]*#0000a9/.test(css);

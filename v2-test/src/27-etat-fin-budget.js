@@ -486,6 +486,8 @@
         "tr[data-budget-ref]"
       );
 
+    /* 09/11 (règle 2.10) : seule la référence soulignée ouvre le budget ; la partie vide d'une case suit la règle commune (sélection) */
+    if (row && !event.target.closest(".bdg-reflink")) return;
     if (row) {
       /* v687 : budget à avenants → liste de ses étapes (au format de la liste mère), ouverte sur EN INSTANCE ;
          composition du consolidé remise par défaut (étapes validées) */

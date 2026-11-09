@@ -4482,6 +4482,11 @@ sviRowHApply();
     let c = document.documentElement.classList.contains("svi-nuit") ? [11, 18, 32] : [255, 255, 255];
     for (let i = L.length - 1; i >= 0; i--) { const [r, g, b, a] = L[i]; c = [r * a + c[0] * (1 - a), g * a + c[1] * (1 - a), b * a + c[2] * (1 - a)]; }
     return "rgb(" + c.map(Math.round).join(", ") + ")"; };
+  let lastT = null, lastTt = 0;
+  const allSel = el => { document.querySelectorAll(".cell-all").forEach(x => x.classList.remove("cell-all")); el.classList.add("cell-all");
+    const txt = txtOf(el); if (!txt || typeof sviEtatMenu !== "function") return;
+    sviEtatMenu(el, [{ k: "copy", lab: "COPIER" }], "", () => { try { navigator.clipboard.writeText(txt); } catch (er) {} el.classList.remove("cell-all"); if (typeof svToast === "function") svToast("COPIÉ.", 1500, el); }); };
+  document.addEventListener("pointerdown", e => { if (!e.target.closest || !e.target.closest(".cell-all, #sviEtatMenu")) document.querySelectorAll(".cell-all").forEach(x => x.classList.remove("cell-all")); }, true);
   const off = () => { if (cur) { cur.classList.remove("cell-x"); cur.parentElement && cur.parentElement.classList.remove("row-x"); cur = null; } if (tip) { tip.remove(); tip = null; } };
   const show = el => { off(); if (el.matches(FLD)) { const r = el.getBoundingClientRect(); tip = document.createElement("div"); tip.id = "sviFullTip"; tip.textContent = txtOf(el);
       /* 09/11 (règle 6.9) : le texte entier s'affiche SUR le champ, à sa largeur exacte, sur plusieurs lignes — le champ semble s'agrandir vers le bas */
@@ -4496,7 +4501,13 @@ sviRowHApply();
   document.addEventListener("pointermove", e => { if (tm && Math.hypot(e.clientX - x0, e.clientY - y0) > SVI_G.drag) { clearTimeout(tm); tm = 0; } }, true);
   document.addEventListener("pointercancel", () => { clearTimeout(tm); tm = 0; }, true);
   document.addEventListener("pointerup", e => { const quick = !!tm; clearTimeout(tm); tm = 0; if (!quick || Math.hypot(e.clientX - x0, e.clientY - y0) > SVI_G.drag) return;
-    const el = cutTd(e.target); if (!el || el === cur || (tip && tip.__el === el) || e.target.closest("button, a, .ach-link, .nv-reflink, .cf-btn, [data-why], .lk-rd, .ins-rd, .lot-fold, .ins-cb")) return; if (!isCut(el)) return;
+    const el0 = cutTd(e.target);
+    /* 09/11 (règle 8.2) : 2e toucher sur une case qu'on ne modifie pas (listes, lecture seule) = tout son contenu sélectionné, prêt à copier */
+    if (el0 && !e.target.closest("button, a, .bdg-reflink, input[type=checkbox], .lk-rd, .cf-btn, [data-why]")) {
+      const ro = !el0.matches(FLD) || el0.disabled || el0.readOnly || !!window.__sviRO;
+      if (ro && lastT === el0 && Date.now() - lastTt < 8000) { lastT = null; allSel(el0); return; }
+      lastT = el0; lastTt = Date.now(); } else lastT = null;
+    const el = el0; if (!el || el === cur || (tip && tip.__el === el) || e.target.closest("button, a, .ach-link, .nv-reflink, .bdg-reflink, .cf-btn, [data-why], .lk-rd, .ins-rd, .lot-fold, .ins-cb")) return; if (!isCut(el)) return;
     show(el); window.__sviCutT = Date.now();
     /* une case qui ouvre la pièce l'ouvre au 2e toucher ; un champ modifiable garde son 1er toucher */
     /* 09/11 : le toucher garde aussi son effet habituel (sélection, 2e toucher = modification) — plus rien n'est avalé */

@@ -3773,3 +3773,7 @@ html.svi-nuit .bdg-d-page .dlyg-l tr.dly-task.dly-lnk:not(.dly-pick) > td, html.
 /* 09/11 : cadre et poignée de sélection d'une case = rouge, comme la case choisie (plus de noir) */
 body:not(.svi-multi) #sviSelBox { border-color: var(--inst, #b91c1c) !important; }
 body:not(.svi-multi) #sviSelHandle { background: var(--inst, #b91c1c) !important; }
+/* 09/11 (règles 2.10 et 8.2) : référence soulignée dans la liste des budgets ; 2e toucher = tout le contenu de la case sélectionné */
+#budgetListTable .bdg-reflink, table.svi-bdgl .bdg-reflink { text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.cell-all, td.cell-all, input.cell-all { background-color: #bfdbfe !important; }
+html.svi-nuit .cell-all { background-color: #1e3a8a !important; }

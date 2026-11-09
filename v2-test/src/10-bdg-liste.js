@@ -1618,7 +1618,7 @@ function renderBudgetList() {
     /* une case par colonne, dans l'ordre des colonnes ; PROJET souligné = lien vers la fiche projet (règle : souligné = lien vers la fiche source) */
     const cell = (k, x) => {
       switch (k) {
-        case "ref": return `<td class="bdg-ref-c">${x.fam ? `<span class="bdg-fold" data-fold-bdg="${esc(x.ref)}" role="button" aria-label="${x.open ? "Plier" : "Déplier"}">${x.open ? "⌄" : "›"}</span>` : ""}<span class="bang-slot">${obsBang(x.ref)}</span>${esc(sviRefDisp(x.fam ? x.ref + "-GLOBAL" : x.ref, x.budget))}${sviPinMk(x.ref)}</td>`;
+        case "ref": return `<td class="bdg-ref-c">${x.fam ? `<span class="bdg-fold" data-fold-bdg="${esc(x.ref)}" role="button" aria-label="${x.open ? "Plier" : "Déplier"}">${x.open ? "⌄" : "›"}</span>` : ""}<span class="bang-slot">${obsBang(x.ref)}</span><span class="bdg-reflink" role="button">${esc(sviRefDisp(x.fam ? x.ref + "-GLOBAL" : x.ref, x.budget))}</span>${sviPinMk(x.ref)}</td>`;   /* 09/11 : référence soulignée = elle seule ouvre le budget */
         case "validated": return `<td title="${esc(x.late || x.validated || "")}">${lateBang(x.late)}${esc(x.validated || "")}</td>`;
         case "budget": return `<td title="${esc(x.budget)}"><button type="button" class="budget-link" data-open-project="${esc(x.ref)}">${esc(x.budget)}</button></td>`;
         case "ttc": return `<td class="number">${money(x.ttc)}</td>`;
