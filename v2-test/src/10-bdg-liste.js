@@ -474,7 +474,7 @@ if (!$("bdgListRuntimeStyle")) {
       height: 34px; padding: 0 16px; border: 1px solid #d6dbe3; border-radius: 6px;
       background: #fff; font-size: 12px; font-weight: 800; cursor: pointer; color: #172033;
     }
-    #docPop .doc-save { background: #eef3fb; border-color: #9fb6d9; }
+    /* 09/11 : plus de style propre au bouton ENREGISTRER de la fenêtre INF — il suit MODIFIER LE FORMAT › FENÊTRES */
     #docPop .doc-grid-2 { grid-template-columns: max-content 1fr; }
     #docPop .doc-grid-2 > .doc-lab { margin-left: 0 !important; }
     #docPop .doc-grid > .doc-lab:nth-child(4n+3) { margin-left: 12px; }

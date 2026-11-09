@@ -3457,7 +3457,7 @@ def main():
             sviFmtWin('frs_f'); await w(150); const g0 = document.querySelectorAll('#svConf .fmt-grp').length, rows0 = document.querySelectorAll('#svConf .fmt-el tbody tr[data-el]').length;
             document.querySelector('#svConf [data-fgrp="ecran"]').click(); await w(100);
             r.win1 = [!!document.querySelector('#svConf .fmw-st[data-f="bg"]'), g0 >= 4 && rows0 === 0, /FICHE FOURNISSEUR/.test(document.querySelector('#svConf .svc-t').textContent)].join(',');
-            const c = document.querySelector('#svConf .fmw-st[data-f="bg"]'); c.value = '#112233'; c.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('#svConf [data-save]').click(); await w(150);
+            const c = document.querySelector('#svConf .fmw-st[data-f="bg"]'); c.value = '#112233'; c.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('#svConf [data-save]:not([data-all])').click();   /* v1018 : APPLIQUER PARTOUT est aussi un [data-save] */ await w(150);
             r.saved = (sviFmt().by.frs_f || { st: {} }).st.bg;
             sviFmtWin(null); await w(150); r.win2 = [!!document.querySelector('#svConf .fmt-cols'), document.querySelectorAll('#svConf .fmt-el tbody tr.fmt-grp').length, !!document.querySelector('#svConf .fmt-blk')].join(',');
             document.querySelector('#svConf [data-save]').click(); await w(150); r.cleared = Object.keys(sviFmt().by).length;
@@ -4022,7 +4022,7 @@ def main():
   document.getElementById('sviEtatMenu')?.remove(); const f = achFrs().find(x => x.id === a.id); r.mig = f.actif === undefined && !!f.bloq; r.newNoActif = !('actif' in achFrsNew([], { nom: 'X' }));
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check('SÉRIE D, D3 : filtre des fournisseurs = statuts (FRÉQUENTS, NORMAUX, OCCASIONNELS, DORMANTS, BLOQUÉS, ARCHIVÉS) + CORBEILLE et TOUT, TOUT par défaut ; plus de case ACTIF (ancienne fiche inactive → bloquée)', d3.get('lab', '').startswith('TOUT') and d3.get('menu') == 'EN INSTANCE|VALIDÉ / CLÔTURÉ|EXPIRÉ|BLOQUÉ|ARCHIVÉ|ANNULÉ|ALERTE' and d3.get('mig') and d3.get('newNoActif'), d3)
-        d5 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); document.documentElement.classList.add('svi-nuit'); svConfirm({ title: 'TEST', text: 'X', ok: 'OK' }); await w(200);
+        d5 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); document.documentElement.classList.add('svi-nuit'); sviFmtApply(); svConfirm({ title: 'TEST', text: 'X', ok: 'OK' }); await w(200);   /* v1019 : le format des fenêtres se recalcule en NUIT */
   const x = document.querySelector('#svConf .svc-close'), r = x ? [getComputedStyle(x).color, getComputedStyle(x).webkitTextFillColor].join('|') : 'absente';
   document.querySelector('#svConf [data-r="0"]')?.click(); document.querySelectorAll('#svConf').forEach(e => e.remove()); document.documentElement.classList.remove('svi-nuit'); sviPalApply(); return r; }""")
         check('SÉRIE D, D5 (document unique 10.2) : la ✕ des fenêtres reste bien visible en palette NUIT', d5 == 'rgb(248, 250, 252)|rgb(248, 250, 252)', d5)

@@ -169,6 +169,9 @@ def main():
         res["bdg_w"] = win_checks(pg); close_all(pg)
         pg.evaluate(SEED)
         pg.evaluate("""() => { const add = (L, sv) => { L.forEach(x => { (x.lignes || []).push({ id: 'z' + x.id, des: 'SABLE', u: 'M3', q: 2, pu: 100, tva: 20 }); }); sv(L); }; add(achDvf(), achDvfSave); add(achCmf(), achCmfSave); add(achFaf(), achFafSave); }""")
+        # 09/11 (compte rendu) : au moins 2 pièces par liste, pour que le balayage (3.4) ait une pièce suivante
+        pg.evaluate("""() => { const P = [[achBsn, achBsnSave], [achDvf, achDvfSave], [achCmf, achCmfSave], [achRcp, achRcpSave], [achFaf, achFafSave], [achPaf, achPafSave]];
+            P.forEach(([g, sv]) => { try { const L = g(); if (L.length === 1) { const c = JSON.parse(JSON.stringify(L[0])); c.id = c.id + 'b'; c.ref = (c.ref || '') + '-B'; L.push(c); sv(L); } } catch (e) {} }); }""")
         pg.evaluate("""async () => { const now = new Date().toISOString(); const L = achCaf(); L.push({ id: 'C2', ref: 'CFA 2', state: 'ouverte', cree: now, frs: [], rep: {}, lignes: [], lf: {}, ld: {}, lc: {}, fd: {}, fc: {} }); achCafSave(L); }""")
         for t, i in IDS.items():
             pg.evaluate("""t => document.querySelector(`.nav-btn[data-view="ach"][data-ach="${t}"]`)?.click()""", t); pg.wait_for_timeout(900)

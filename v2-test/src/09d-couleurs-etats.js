@@ -183,7 +183,7 @@ function sviFmtCss(F) {
   SVI_FMT_EL.forEach(E => {
     /* 09/11 (remarque) : les parties des FENÊTRES ont toujours le format affiché dans MODIFIER LE FORMAT, même sans y toucher
        (valeurs de départ écrites à l'écran — plus d'anciens styles propres à une fenêtre) ; palette de nuit : seulement ce qui est réglé */
-    const o0 = E.win && all && !nuit ? { ...E.def, ...(EL[E.k] || {}) } : EL[E.k]; if (!o0) return;
+    const o0 = E.win && all ? { ...(nuit ? SVI_FMT_NUITW[E.k] || {} : E.def), ...(EL[E.k] || {}) } : EL[E.k]; if (!o0 || !Object.keys(o0).length) return;
     const o = E.f ? Object.fromEntries(Object.entries(o0).filter(([f]) => E.f.includes(f))) : o0;   /* v923 : seulement les réglages permis */
     const d = sviFmtDecl(o, E);   /* v924 : hauteur ; E1 : traits */
     if (!d.length) return;
@@ -214,6 +214,10 @@ function sviFmtApply() {
 const SVI_PAL_K = "svi_pal_v1";
 const sviPal = () => { let o = null; try { o = JSON.parse(localStorage.getItem(SVI_PAL_K) || "null"); } catch (e) {} return o && typeof o === "object" ? o : { mode: "jour" }; };
 const sviPalSave = o => { try { localStorage.setItem(SVI_PAL_K, JSON.stringify(o)); } catch (e) {} };
+/* 09/11 (compte rendu) : valeurs de départ des parties des fenêtres en palette NUIT (boutons, sections, onglets, tableaux, ⚠, champs non saisissables, ✕) */
+const SVI_FMT_NUITW = { winbg: { bg: "#111827" }, winlab: { c: "#cbd5e1", fs: 11, b: 1 }, winin: { bg: "#1f2937", c: "#f8fafc", fs: 13, h: 34 },
+  wincan: { bg: "#1f2937", c: "#f8fafc", fs: 13, b: 1, h: 38 }, winok: { bg: "#1f2937", c: "#fca5a5", fs: 13, b: 1, h: 38 }, wsec: { bg: "#111827", c: "#e5e7eb", fs: 12, b: 1 },
+  wtab: { bg: "#1f2937", c: "#cbd5e1", fs: 12, b: 1 }, wtbl: { bg: "#1f2937", c: "#e5e7eb", fs: 11, b: 1 }, walrt: { bg: "#3f1d1d", c: "#fecaca", fs: 12, b: 1 }, wro: { bg: "#1e293b", c: "#cbd5e1" }, wx: { bg: "#111827", c: "#f8fafc", fs: 16 } };
 const SVI_NUIT = { el: { top: { bg: "#0f172a", c: "#e2e8f0" }, blk: { bg: "#1f2937", c: "#e5e7eb" }, tabs: { bg: "#111827" }, tab: { bg: "#1f2937", c: "#cbd5e1" }, taba: { bg: "#334155", c: "#ffffff" }, tabm: { bg: "#1f2a24", c: "#cbd5e1" }, tabsub: { bg: "#111827", c: "#cbd5e1" },
   th: { bg: "#1f2937", c: "#e5e7eb" }, ttl: { bg: "#1e293b", c: "#e5e7eb" }, row: { bg: "#0b1220", c: "#e5e7eb" }, new: { bg: "#3f1d1d", c: "#fecaca" }, tot: { bg: "#1e293b", c: "#ffffff" },
   win: { bg: "#0f172a", c: "#e2e8f0" }, winbg: { bg: "#111827" }, winlab: { c: "#cbd5e1" }, winin: { bg: "#1f2937", c: "#f8fafc" }, grid: { c: "#334155" } }, blk: {}, to: null, by: {} };

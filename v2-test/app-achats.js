@@ -131,7 +131,9 @@ const achArtNew = (L, o) => {
   return a;
 };
 /* historique d'un article : même format que celui du budget (H) */
-const achHist = (code, action, detail) => { try { const k = "svi_hist_v1:ACH-" + code, l = JSON.parse(localStorage.getItem(k) || "[]") || []; l.push({ t: new Date().toISOString(), b: "ARTICLE", a: action, d: achU(detail), u: typeof sviUser === "function" ? sviUser() : "" }); localStorage.setItem(k, JSON.stringify(l.slice(-500))); } catch (e) {} };
+/* 09/11 (compte rendu) : type de la pièce dans l'historique d'après sa référence (CONSULTATION, DEVIS, COMMANDE…), ARTICLE sinon */
+const achHistB = code => { try { const R = achPrm().refs || {}; for (const [k, lab] of ACH_REF_T) { const m = (R[k] || {}).m; if (m && achRefRx(m).test(String(code))) return lab.replace(/\s*\(.*\)$/, ""); } } catch (e) {} return /^FRS/.test(String(code)) ? "FOURNISSEUR" : "ARTICLE"; };
+const achHist = (code, action, detail) => { try { const k = "svi_hist_v1:ACH-" + code, l = JSON.parse(localStorage.getItem(k) || "[]") || []; l.push({ t: new Date().toISOString(), b: achHistB(code), a: action, d: achU(detail), u: typeof sviUser === "function" ? sviUser() : "" }); localStorage.setItem(k, JSON.stringify(l.slice(-500))); } catch (e) {} };
 const achHistGet = code => (typeof achHistNov === "function" ? achHistNov(code) : []).concat(achJ("svi_hist_v1:ACH-" + code, []) || []);   /* v767 : historique NovApp devant */
 /* fusion de doublons : l'article gardé reprend l'origine de l'autre ; l'autre va à la corbeille avec la mention */
 const achArtMerge = (L, keepId, dropIds) => {
