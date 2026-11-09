@@ -12569,6 +12569,7 @@ function sviBdgAnnulerLiaisons(C) {
     sviMarkEmptyTabs(shell);
   };
 
+  window.__sviBdgRefresh = () => refreshAll();   /* 09/11 : ANNULER d'un réglage d'affichage redessine le budget */
   const refreshAll = () => {
     if (shell.__impDry) return;   /* v758 */
     grpFlush();

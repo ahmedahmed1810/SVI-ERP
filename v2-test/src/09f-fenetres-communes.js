@@ -212,3 +212,35 @@ const sviPinBtn = ref => ref ? `<span class="bdg-d-badge svi-pin${sviPinOn(ref) 
 document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-pin]"); if (!b) return; e.preventDefault(); e.stopPropagation();
   const on = sviPinTog(b.dataset.pin); b.classList.toggle("on", on); b.title = on ? "Retirer l'épingle" : "Épingler en haut de la liste";
   if (typeof svToast === "function") svToast(on ? "ÉPINGLÉE EN HAUT DE LA LISTE." : "ÉPINGLE RETIRÉE.", 1800, b); }, true);
+
+/* 09/11 (remarque, document unique 3.1) : ANNULER / RÉTABLIR REPRENNENT AUSSI LES RÉGLAGES D'AFFICHAGE — loupe (mise en forme, nom, colonnes masquées),
+   ordre et largeur des colonnes, hauteur des lignes et des blocs, épingles, MODIFIER LE FORMAT (après ENREGISTRER).
+   Chaque écriture d'une de ces clés garde l'ancienne valeur (les écritures rapprochées d'une même clé comptent pour une) ;
+   listes : ANNULER / RÉTABLIR = ces réglages ; pages et budget : le réglage passe avant la saisie s'il est plus récent qu'elle. */
+const SVI_SETUNDO = { u: [], r: [], on: false, lastData: 0, lastAct: "" };
+{ const RX = /^svi_(colset_v1|colh_v1|colw_v1|colorder_v1|rowh_v1|ach_nvh_v1|layout_v1|pin_v1:.*|format_v1|colors_v1)$/, DRX = /^svi_(ach_[a-z]+_v1|bdg_inst_v1)$/;
+  const S = Storage.prototype, st = S.setItem, rm = S.removeItem, nk = k => String(k).replace(/^svitest:/, "");
+  const rec = (k, prev) => { const U = SVI_SETUNDO.u, t = Date.now(), last = U[U.length - 1]; if (last && last.k === k && t - last.t < 1200) { last.t = t; } else { U.push({ k, prev, t }); if (U.length > 100) U.shift(); } SVI_SETUNDO.r.length = 0; SVI_SETUNDO.lastAct = "set"; };
+  S.setItem = function (k, v) { if (this === window.localStorage && !SVI_SETUNDO.on) { const n = nk(k); if (RX.test(n)) { let p = null; try { p = this.getItem(k); } catch (e) {} if (p !== String(v)) rec(k, p); } else if (DRX.test(n)) { SVI_SETUNDO.lastData = Date.now(); SVI_SETUNDO.lastAct = "data"; } } return st.call(this, k, v); };
+  S.removeItem = function (k) { if (this === window.localStorage && !SVI_SETUNDO.on && RX.test(nk(k))) { let p = null; try { p = this.getItem(k); } catch (e) {} if (p !== null) rec(k, p); } return rm.call(this, k); };
+  /* saisie (budget, pièces, fenêtres de pièce) : heure de la dernière modification de données */
+  const dat = e => { const t = e.target; if (!t || !t.closest || t.closest("#cfMenu, .fmw-card")) return; if (t.closest(".bdg-d-page, .nvp, #docPop, #svConf, .novapp-list-shell")) { SVI_SETUNDO.lastData = Date.now(); SVI_SETUNDO.lastAct = "data"; } };
+  document.addEventListener("input", dat, true); document.addEventListener("change", dat, true);
+}
+const sviSetRefresh = () => { try { sviFmtApply(); } catch (e) {} try { if (typeof sviColorsApply === "function") sviColorsApply(); } catch (e) {} try { if (typeof sviRowHApply === "function") sviRowHApply(); } catch (e) {}
+  document.querySelectorAll("[data-svcol-s]").forEach(x => { delete x.dataset.svcolS; }); document.querySelectorAll("[data-svcol-al]").forEach(x => { delete x.dataset.svcolAl; });
+  try { if (typeof sviColSetRun === "function") sviColSetRun(); } catch (e) {}
+  const v = document.querySelector(".view.active-view"); if (!v) return;
+  if (v.id === "ach" && v.__achDraw) { v.__achDraw(); return; }
+  if (v.id === "bdg") { if (v.querySelector(".bdg-d-page") && window.__sviBdgRefresh) { try { window.__sviBdgRefresh(); } catch (e) {} } else if (typeof renderBudgetList === "function") renderBudgetList(); } };
+const sviSetUndo = redo => { const A = redo ? SVI_SETUNDO.r : SVI_SETUNDO.u, B = redo ? SVI_SETUNDO.u : SVI_SETUNDO.r, e = A.pop(); if (!e) return false;
+  let cur = null; try { cur = localStorage.getItem(e.k); } catch (er) {} B.push({ k: e.k, prev: cur, t: Date.now() });
+  SVI_SETUNDO.on = true; try { if (e.prev === null) localStorage.removeItem(e.k); else localStorage.setItem(e.k, e.prev); } catch (er) {} finally { SVI_SETUNDO.on = false; }
+  SVI_SETUNDO.lastAct = "set"; sviSetRefresh(); if (typeof svToast === "function") svToast(redo ? "RÉGLAGE D'AFFICHAGE RÉTABLI." : "RÉGLAGE D'AFFICHAGE ANNULÉ.", 1600); return true; };
+window.addEventListener("click", e => { const b = e.target.closest && e.target.closest('[data-nvl="undo"], [data-nvl="redo"], [data-nvp="undo"], [data-nvp="redo"], [data-prmh="undo"], [data-prmh="redo"], #instUndo, #instRedo'); if (!b) return;
+  const redo = b.id === "instRedo" || /redo/.test(Object.values(b.dataset).join(" ")), list = !!b.closest(".novapp-list-shell") || b.dataset.nvl !== undefined || b.dataset.prmh !== undefined;
+  const A = redo ? SVI_SETUNDO.r : SVI_SETUNDO.u; if (!A.length) return;
+  /* pages et budget : la saisie plus récente que le dernier réglage garde la main */
+  if (!list && !redo && A[A.length - 1].t < SVI_SETUNDO.lastData) return;
+  if (!list && redo && SVI_SETUNDO.lastAct === "data") return;
+  e.preventDefault(); e.stopImmediatePropagation(); sviSetUndo(redo); }, true);
