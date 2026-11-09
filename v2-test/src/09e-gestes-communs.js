@@ -294,16 +294,25 @@ window.__sviSwipe = true; window.__sviNoWrap = 0;
    À l'ordinateur : Ctrl / Cmd + molette sur les lignes (9.4). Le Gantt et le DÉTAIL DÉLAIS gardent leur propre pincement. */
 const SVI_ROWH_K = "svi_rowh_v1";
 const sviRowHGet = () => { try { return JSON.parse(localStorage.getItem(SVI_ROWH_K) || "{}") || {}; } catch (e) { return {}; } };
-const sviRowKey = t => t.dataset.svcw || t.dataset.colh || t.dataset.ik || t.id || "";
+/* 09/11 : partout, pas seulement dans les listes — tableaux des fiches (clé du filtre de colonne, ou bloc de la fiche) et lignes du bloc TÂCHES */
+const sviRowKey = t => { if (t.matches(".ins-hcol, .bdg-h-col")) return t.dataset.ik ? "h:" + t.dataset.ik : "";
+  const k = t.dataset.svcw || t.dataset.colh || t.dataset.ik || t.id; if (k) return k;
+  const cf = t.tHead && t.tHead.querySelector(".cf-btn[data-cf]"); if (cf) return "cf:" + cf.dataset.cf;
+  const nb = t.closest(".nvp-blk[data-nvb]"); return nb ? "nvb:" + nb.dataset.nvb : ""; };
 function sviRowHApply() { let st = document.getElementById("sviRowHStyle"); if (!st) { st = document.createElement("style"); st.id = "sviRowHStyle"; (document.head || document.documentElement).appendChild(st); }
   const H = sviRowHGet(), q = v => String(v).replace(/["\\]/g, "\\$&");
-  st.textContent = Object.keys(H).map(k => { const s = `table:is([data-svcw="${q(k)}"], [data-colh="${q(k)}"], [data-ik="${q(k)}"], [id="${q(k)}"]):not(#svi-z1):not(#svi-z2):not(#svi-z3) tbody tr:not(.ins-title):not(.nvp-gt) td`;
-    return `${s} { height: ${H[k]}px !important; min-height: 0 !important; box-sizing: border-box !important; }`; }).join("\n"); }
+  const Z = ":not(#svi-z1):not(#svi-z2):not(#svi-z3)", TR = " tbody tr:not(.ins-title):not(.nvp-gt) td";
+  st.textContent = Object.keys(H).map(k => { const v = q(k.replace(/^(h|cf|nvb):/, ""));
+    const s = k.startsWith("h:") ? `:is(.ins-hcol[data-ik="${v}"] .ins-li:not(.ins-new):not(.lot-grp), .bdg-h-col[data-ik="${v}"] .bdg-h-item)${Z}`
+      : k.startsWith("cf:") ? `table:has(> thead .cf-btn[data-cf="${v}"])${Z}${TR}` : k.startsWith("nvb:") ? `.nvp-blk[data-nvb="${v}"] table${Z}${TR}`
+      : `table:is([data-svcw="${q(k)}"], [data-colh="${q(k)}"], [data-ik="${q(k)}"], [id="${q(k)}"])${Z}${TR}`;
+    return `${s} { height: ${H[k]}px !important; min-height: 0 !important; max-height: none !important; box-sizing: border-box !important; }`; }).join("\n"); }
 sviRowHApply();
 { const zone = t => { if (!t || !t.closest) return null; if (t.closest("#dlyGantt, .dlyg-foot, .dlyg-l, .dly-table, .ghist, #svConf, #docPop")) return null;
+    const li = t.closest(".ins-hcol .ins-li, .bdg-h-col .bdg-h-item"), hc = li && li.closest(".ins-hcol, .bdg-h-col"); if (hc) return sviRowKey(hc) ? hc : null;
     const td = t.closest("table tbody td"), tb = td && td.closest("table"); return tb && sviRowKey(tb) ? tb : null; };
   const set = (tb, h) => { const H = sviRowHGet(), k = sviRowKey(tb); H[k] = Math.round(Math.max(18, Math.min(60, h))); try { localStorage.setItem(SVI_ROWH_K, JSON.stringify(H)); } catch (e) {} sviRowHApply(); };
-  const rowH = tb => { const td = tb.querySelector("tbody tr:not(.ins-title) td"); return td ? td.getBoundingClientRect().height : 21; };
+  const rowH = tb => { const td = tb.matches(".ins-hcol, .bdg-h-col") ? tb.querySelector(".ins-li:not(.ins-new):not(.lot-grp), .bdg-h-item") : tb.querySelector("tbody tr:not(.ins-title) td"); return td ? td.getBoundingClientRect().height : 21; };
   let P = null;
   const dy = T => Math.abs(T[0].clientY - T[1].clientY), d = T => Math.hypot(T[0].clientX - T[1].clientX, T[0].clientY - T[1].clientY);
   document.addEventListener("touchstart", e => { if (e.touches.length !== 2) { P = null; return; } const tb = zone(e.touches[0].target), tb2 = zone(e.touches[1].target);
