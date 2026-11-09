@@ -24,9 +24,11 @@ function sviBdgAnnulerLiaisons(C) {
     let tm = null;
     const paint = () => {
       const a = $("instUndo"), b = $("instRedo");
-      if (a) { a.disabled = !st.u.length; a.classList.toggle("off", !st.u.length); }
-      if (b) { b.disabled = !st.r.length; b.classList.toggle("off", !st.r.length); }
+      const su = typeof SVI_SETUNDO !== "undefined" ? SVI_SETUNDO : { u: [], r: [] };   /* 09/11 : un réglage d'affichage à annuler garde le bouton actif */
+      if (a) { const n = st.u.length || su.u.length; a.disabled = !n; a.classList.toggle("off", !n); }
+      if (b) { const n = st.r.length || su.r.length; b.disabled = !n; b.classList.toggle("off", !n); }
     };
+    window.__sviUndoPaint = paint;
     shell.__undoTick = () => {
       clearTimeout(tm);
       if (shell.__undoHold) return;   /* v703 : geste en cours (barre CAPACITÉ) — un seul pas d'annulation au lâcher */
@@ -35,6 +37,7 @@ function sviBdgAnnulerLiaisons(C) {
         if (Date.now() < st.quiet) { st.cur = s; shell.__undoLab = ""; return; }
         if (s === st.cur) return;
         st.u.push({ snap: st.cur, lab: shell.__undoLab || "MODIFICATION" });
+        if (typeof SVI_SETUNDO !== "undefined") { SVI_SETUNDO.lastData = Date.now(); SVI_SETUNDO.lastAct = "data"; }   /* 09/11 : heure de la dernière saisie du budget */
         if (st.u.length > 50) st.u.shift();
         st.r = []; st.cur = s; shell.__undoLab = "";
         paint();
