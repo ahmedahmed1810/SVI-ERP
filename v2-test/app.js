@@ -5022,6 +5022,9 @@ const sviPinOn = ref => !!ref && sviPins().includes(ref);
 const sviPinTog = ref => { if (!ref) return false; const L = sviPins(), on = !L.includes(ref); try { localStorage.setItem(sviPinK(), JSON.stringify(on ? L.concat([ref]) : L.filter(x => x !== ref))); } catch (e) {} return on; };
 const sviPinSort = (rows, refOf) => { const P = new Set(sviPins()); if (!P.size) return rows; return rows.filter(x => P.has(refOf(x))).concat(rows.filter(x => !P.has(refOf(x)))); };
 const SVI_PIN_IC = '<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3l6 6-3 1-4 4 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 4-4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
+/* 09/11 : dans les listes, une fiche épinglée montre l'épingle juste après sa référence (simple repère, sans action) */
+const sviPinMk = ref => sviPinOn(ref) ? `<span class="svi-pinmk" title="Épinglée">${SVI_PIN_IC}</span>` : "";
+window.sviPinMk = sviPinMk;
 const sviPinBtn = ref => ref ? `<span class="bdg-d-badge svi-pin${sviPinOn(ref) ? " on" : ""}" data-pin="${esc(ref)}" role="button" title="${sviPinOn(ref) ? "Retirer l'épingle" : "Épingler en haut de la liste"}">${SVI_PIN_IC}</span>` : "";
 document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-pin]"); if (!b) return; e.preventDefault(); e.stopPropagation();
   const on = sviPinTog(b.dataset.pin); b.classList.toggle("on", on); b.title = on ? "Retirer l'épingle" : "Épingler en haut de la liste";

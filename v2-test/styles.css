@@ -3761,3 +3761,7 @@ table.nv-one tbody td.bdg-ref-c .nv-bang { line-height: 1; vertical-align: middl
 :is(.bdg-h-col .bdg-h-item, .ins-hcol .ins-li).cell-x { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; height: auto !important; max-height: none !important; word-break: break-word; }
 #sviFullTip { position: fixed; z-index: 40000; box-sizing: border-box; padding-top: 2px; padding-bottom: 3px; background: #fff; border: 0; border-radius: 2px; box-shadow: 0 3px 8px rgba(16,24,40,.18); line-height: 1.35 !important; white-space: normal; word-break: break-word; overflow-wrap: anywhere; pointer-events: none; }
 html.svi-nuit #sviFullTip { background: #1f2937; color: #f8fafc; border-color: #334155; }
+
+/* 09/11 : épingle après la référence d'une fiche épinglée (listes) */
+.svi-pinmk { display: inline-flex; vertical-align: -2px; margin-left: 5px; color: #1d4ed8; pointer-events: none; } .svi-pinmk svg path { fill: currentColor; }
+html.svi-nuit .svi-pinmk { color: #93c5fd; }

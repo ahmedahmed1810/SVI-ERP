@@ -3494,7 +3494,7 @@ function achNvList(ctx, o) {
     const edOf = (k, x) => { const E = ED[k]; return typeof E === "function" ? E(x) : E; };
     const cell = (x, c) => { const v = c[2](x), cl = c[3] === "number" ? "number" : c[3] === "center" ? "center" : "";
       /* F7 (série F) : la RÉFÉRENCE est soulignée — elle ouvre la pièce */
-      if (c[0] === "ref") { const w = o.why(x, all); return `<td class="bdg-ref-c ${cl}"><span class="nv-bslot">${w.length ? `<b class="obs-bang val-bang nv-bang" role="button" data-why="${esc(w.join(" · "))}">!</b>` : ""}</span><button type="button" class="nv-reflink" data-nvo="${esc(x.id)}">${esc(v)}</button></td>`; }
+      if (c[0] === "ref") { const w = o.why(x, all); return `<td class="bdg-ref-c ${cl}"><span class="nv-bslot">${w.length ? `<b class="obs-bang val-bang nv-bang" role="button" data-why="${esc(w.join(" · "))}">!</b>` : ""}</span><button type="button" class="nv-reflink" data-nvo="${esc(x.id)}">${esc(v)}</button>${sviPinMk(x.ref || x.code)}</td>`; }
       /* F17 (série F), 2.10 : fournisseurs = noms soulignés, chacun dans la couleur de son propre état ; toucher = sa fiche */
       const edOk = edOf(c[0], x) && isI(x) && !x.del;
       if (c[0] === "frs" && x.frs && !(o.mOf && o.mOf(x))) { const F = (Array.isArray(x.frs) ? x.frs : [x.frs]).filter(Boolean);
