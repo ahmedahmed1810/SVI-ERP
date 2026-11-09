@@ -2943,7 +2943,7 @@ def main():
             v.querySelector('[data-nvp="info"]').click(); await w(300); document.querySelector('.frs-card [data-ribok]').click(); await w(100); document.querySelector('.frs-card [data-save]').click(); await w(250);
             const ok = !achFrs().find(x => x.id === a.id).ribChg;
             if (keepF === null) localStorage.removeItem('svi_ach_frs_v1'); else localStorage.setItem('svi_ach_frs_v1', keepF);
-            if (keepE === null) localStorage.removeItem('svi_ach_frs_etat_v1'); else localStorage.setItem('svi_ach_frs_etat_v1', keepE);
+            if (keepE === null) localStorage.removeItem('svi_ach_frs_etat_v1'); else localStorage.setItem('svi_ach_frs_etat_v1', keepE); localStorage.removeItem('svi_stf_v1:ach_frs');   /* choix des états remis par défaut */
             v.__achTab('art'); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300);
             return [r1, wc.length, wa.join('|'), h1, n0, n1, secs, conf, sig, hist, ok && pgOk]; }""")
         check("v759 : FOURNISSEURS — ICE (15 chiffres, unique), RIB 24 chiffres, occasionnel sans ICE ni RIB, document expiré ; onglet, création, fiche ; changement de RIB confirmé, signalé, noté dans H, puis RIB VÉRIFIÉ",
@@ -4015,7 +4015,7 @@ def main():
   r.col = [...document.querySelectorAll('#chs .ach-pref thead th')].map(t => t.textContent.trim()).includes('MODÈLE DES DÉTAILS');
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")
         check("SÉRIE C, C6 (document unique 6.14) : lignes d'une pièce = {PARENT}-{LLL} par défaut (DVF …/001-001, -002) ; modèle des lignes réglable dans RÉFÉRENCES", c6.get('def') == 'DVF 26-0101/001-001,DVF 26-0101/001-002' and c6.get('mod') == 'DVF 26-0101/001.01,DVF 26-0101/001.02' and c6.get('col'), c6)
-        d3 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_frs_etat2_v1'], keep = K.map(k => localStorage.getItem(k)); await sviAchLoad(); localStorage.removeItem('svi_ach_frs_etat2_v1');
+        d3 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), r = {}, K = ['svi_ach_frs_v1', 'svi_ach_frs_etat2_v1'], keep = K.map(k => localStorage.getItem(k)); await sviAchLoad(); localStorage.removeItem('svi_stf_v1:ach_frs'); localStorage.removeItem('svi_ach_frs_etat2_v1');
   const L = achFrs(); const a = achFrsNew(L, { nom: 'ANCIEN INACTIF' }); a.actif = false; a.st = 'valide'; achFrsSave(L);
   document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(500);
   /* 06/11 : cases à cocher des états communs (TOUT en haut) ; la fréquence est une colonne (loupe) */

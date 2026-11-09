@@ -141,6 +141,7 @@
       $("instDel")?.addEventListener("click", () => {
         const RC = budget.inst.rclOf;
         svConfirm(RC ? { title: "SUPPRIMER CE RECALAGE R" + budget.inst.rcn, text: "LE RECALAGE EN COURS R" + budget.inst.rcn + " SERA SUPPRIMÉ ; L'ÉTAPE " + RC + " NE CHANGE PAS.", ok: "SUPPRIMER" }
+          : budget.inst.parent ? { title: "SUPPRIMER CET AVENANT", text: "L'AVENANT EN INSTANCE " + fullRef + " SERA SUPPRIMÉ.", ok: "SUPPRIMER" }   /* 09/11 : même nom que le menu */
           : { title: "SUPPRIMER CE BUDGET", text: "LE BUDGET EN INSTANCE " + fullRef + " SERA SUPPRIMÉ, AVEC SES AVENANTS ET SES RECALAGES.", ok: "SUPPRIMER" }).then(go => {
           if (!go) return;
           /* v750 (point 1), 09/11 : après la suppression, le budget suivant de la liste s'ouvre (le précédent s'il n'y en a pas) ;
