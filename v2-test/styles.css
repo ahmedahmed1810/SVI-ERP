@@ -3737,3 +3737,11 @@ table thead th :is(input, textarea) { -webkit-user-select: text; user-select: te
    (nombres à droite, unités au centre : seulement dans les cases) ; la loupe suit le titre ; la case « tout cocher » reste centrée */
 table thead th:has(.cf-wrap), table.prm-table thead th:not(:has(input[type=checkbox])), table.frs-sub thead th:not(:has(input[type=checkbox])), table.ins-table thead th:not(:has(input[type=checkbox])) { text-align: left !important; }
 table thead th .cf-wrap { justify-content: flex-start !important; }
+
+/* 09/11 (remarque) : le NOM de la colonne (v1001, élément à part) n'est plus poussé à droite par l'ancienne règle des petits textes de titre (float à droite) —
+   il commence à gauche et se coupe à la fin (« MOINS-DISA… ») */
+.novapp-budget-table th :is(.cf-wrap, .cf-lab, .cf-lt, .cf-tt), table thead th :is(.cf-lab, .cf-lt) { float: none !important; }
+.novapp-budget-table th :is(.cf-lab, .cf-lt) { color: inherit; font-size: inherit; }
+/* 09/11 (remarque) : le signe « ! » et la référence ne grandissent plus la ligne — même hauteur pour toutes les lignes, le pincement agit aussi sur les rouges */
+table.nv-one tbody td.bdg-ref-c > :is(.nv-bslot, .nv-reflink) { vertical-align: middle; line-height: 1; }
+table.nv-one tbody td.bdg-ref-c .nv-bang { line-height: 1; vertical-align: middle; }
