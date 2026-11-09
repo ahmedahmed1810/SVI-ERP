@@ -3591,9 +3591,12 @@ function sviFmtCss(F) {
   const out = [], all = !F.to || F.to.length >= SVI_FMT_IF.length;
   const SC = all ? null : SVI_FMT_IF.filter(x => F.to.includes(x.k)).flatMap(x => x.sc);
   /* E1 : palette NUIT sans réglage des traits — traits sombres de la nuit (plus de règle écrite en dur dans la feuille de styles) */
+  let nuit = false; try { nuit = document.documentElement.classList.contains("svi-nuit"); } catch (e) {}
   const EL = { ...F.el }; try { if (!EL.grid && document.documentElement.classList.contains("svi-nuit")) EL.grid = { c: "#334155" }; } catch (e) {}
   SVI_FMT_EL.forEach(E => {
-    const o0 = EL[E.k]; if (!o0) return;
+    /* 09/11 (remarque) : les parties des FENÊTRES ont toujours le format affiché dans MODIFIER LE FORMAT, même sans y toucher
+       (valeurs de départ écrites à l'écran — plus d'anciens styles propres à une fenêtre) ; palette de nuit : seulement ce qui est réglé */
+    const o0 = E.win && all && !nuit ? { ...E.def, ...(EL[E.k] || {}) } : EL[E.k]; if (!o0) return;
     const o = E.f ? Object.fromEntries(Object.entries(o0).filter(([f]) => E.f.includes(f))) : o0;   /* v923 : seulement les réglages permis */
     const d = sviFmtDecl(o, E);   /* v924 : hauteur ; E1 : traits */
     if (!d.length) return;
