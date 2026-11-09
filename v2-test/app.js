@@ -4509,9 +4509,16 @@ sviRowHApply();
       else if (k === "paste") { let v = ""; try { v = await navigator.clipboard.readText(); } catch (er) {} if (!v) v = window.__sviSelClip || ""; setVal(el, String(v || "").toUpperCase()); }
       else if (k === "clear") setVal(el, "");
       el.classList.remove("cell-all"); }; };
-  /* 09/11 (Ahmed) : 3e toucher sur une case déjà en saisie = RIEN (ni bulle de Safari Couper / Copier / Coller, ni curseur déplacé) */
-  document.addEventListener("touchstart", e => { const t = e.target; if (e.touches.length !== 1 || !t || !t.matches || !t.matches(FLD) || t !== document.activeElement || t.classList.contains("svi-nav")) return;
-    if (t.closest("table tbody td, .ins-hcol .ins-li, .bdg-h-col .bdg-h-item")) e.preventDefault(); }, { passive: false, capture: true });
+  /* 09/11 (Ahmed) : 3e toucher sur une case déjà en saisie = le curseur se place là où on touche, et c'est tout (jamais la bulle de Safari) */
+  { let T3 = null; const cv = document.createElement("canvas").getContext("2d");
+    const caretAt = (i, x) => { const cs = getComputedStyle(i), r = i.getBoundingClientRect(); cv.font = cs.font; const v = String(i.value || "");
+      const pl = parseFloat(cs.paddingLeft) + parseFloat(cs.borderLeftWidth), tw = cv.measureText(v).width, w = r.width - pl - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth);
+      const off = cs.textAlign === "right" || cs.textAlign === "end" ? Math.max(0, w - tw) : cs.textAlign === "center" ? Math.max(0, (w - tw) / 2) : 0;
+      const px = x - r.left - pl - off + i.scrollLeft; let best = 0, bd = 1e9; for (let k = 0; k <= v.length; k++) { const d = Math.abs(cv.measureText(v.slice(0, k)).width - px); if (d < bd) { bd = d; best = k; } } return best; };
+    document.addEventListener("touchstart", e => { const t = e.target; T3 = null; if (e.touches.length !== 1 || !t || !t.matches || !t.matches(FLD) || t !== document.activeElement || t.classList.contains("svi-nav")) return;
+      if (!t.closest("table tbody td, .ins-hcol .ins-li, .bdg-h-col .bdg-h-item")) return; e.preventDefault(); T3 = { t, x: e.touches[0].clientX, y: e.touches[0].clientY }; }, { passive: false, capture: true });
+    document.addEventListener("touchend", e => { if (!T3) return; const c = e.changedTouches[0], P = T3; T3 = null; if (Math.hypot(c.clientX - P.x, c.clientY - P.y) > 10) return;
+      try { const k = caretAt(P.t, c.clientX); P.t.setSelectionRange(k, k); } catch (er) {} }, { passive: true, capture: true }); }
   /* jamais la bulle de Safari (Copier / Rechercher la sélection) sur les cases des tableaux */
   document.addEventListener("selectstart", e => { const t = e.target && e.target.nodeType === 1 ? e.target : e.target && e.target.parentElement; if (t && t.closest && t.closest("table tbody td, .ins-hcol .ins-li") && !t.closest("input, textarea")) e.preventDefault(); }, true);
   document.addEventListener("pointerdown", e => { if (!e.target.closest || !e.target.closest(".cell-all, #sviEtatMenu")) document.querySelectorAll(".cell-all").forEach(x => x.classList.remove("cell-all")); }, true);
