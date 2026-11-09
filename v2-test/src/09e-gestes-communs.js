@@ -440,8 +440,16 @@ sviRowHApply();
       /* doigt au bord : le texte défile pour atteindre le début ou la fin */
       if (x > r.right - 18) i.scrollLeft += 10; else if (x < r.left + 18) i.scrollLeft = Math.max(0, i.scrollLeft - 10);
       try { const k = caretAt(i, x); i.setSelectionRange(k, k); if (k >= String(i.value || "").length) i.scrollLeft = i.scrollWidth; } catch (er) {} }, { passive: false, capture: true });
+    /* 09/11 (Ahmed) : champ ouvert, DOUBLE TOUCHER sur un mot = ce mot seul sélectionné */
+    let lastT3 = null;
     document.addEventListener("touchend", e => { if (!T3) return; const c = e.changedTouches[0], P = T3; T3 = null;
-      try { const k = caretAt(P.t, c.clientX); P.t.setSelectionRange(k, k); if (k >= String(P.t.value || "").length) P.t.scrollLeft = P.t.scrollWidth; } catch (er) {} }, { passive: true, capture: true }); }
+      try { const k = caretAt(P.t, c.clientX), v = String(P.t.value || ""), now = Date.now();
+        if (lastT3 && lastT3.t === P.t && now - lastT3.at < (SVI_G.dbl || 350) && Math.abs(c.clientX - lastT3.x) < 24) {
+          let a = k, b = k; while (a > 0 && !/\s/.test(v[a - 1])) a--; while (b < v.length && !/\s/.test(v[b])) b++;
+          if (a === b && b < v.length) { while (b < v.length && /\s/.test(v[b])) b++; }   /* toucher entre deux mots : le mot qui suit */
+          P.t.setSelectionRange(a, b); lastT3 = null; return; }
+        lastT3 = { t: P.t, at: now, x: c.clientX };
+        P.t.setSelectionRange(k, k); if (k >= v.length) P.t.scrollLeft = P.t.scrollWidth; } catch (er) {} }, { passive: true, capture: true }); }
   /* jamais la bulle de Safari (Copier / Rechercher la sélection) sur les cases des tableaux */
   document.addEventListener("selectstart", e => { const t = e.target && e.target.nodeType === 1 ? e.target : e.target && e.target.parentElement; if (t && t.closest && t.closest("table tbody td, .ins-hcol .ins-li") && !t.closest("input, textarea")) e.preventDefault(); }, true);
   document.addEventListener("pointerdown", e => { if (!e.target.closest || !e.target.closest(".cell-all, #sviEtatMenu")) document.querySelectorAll(".cell-all").forEach(x => x.classList.remove("cell-all")); }, true);
