@@ -1663,9 +1663,9 @@ function renderBudgetList() {
   };
 
   const coDragList = e => { const th = e.target.closest("th"); if (!th || e.target.closest(".cf-btn, input") || !th.querySelector(".cf-btn")) return;
-    const ths = () => [...thead.querySelectorAll("tr:first-child > th")].filter(x => x.querySelector(".cf-btn")), x0 = e.clientX; let on = false, target = null, ghost = null;
+    const ths = () => [...thead.querySelectorAll("tr:first-child > th")].filter(x => x.querySelector(".cf-btn")), x0 = e.clientX; let on = false, target = null, ghost = null; const arm = sviColArm(e, th);
     const clear = () => ths().forEach(x => x.classList.remove("co-before", "co-after"));
-    const mv = ev => { if (!on) { if (Math.abs(ev.clientX - x0) < SVI_G.drag) return; on = true; th.classList.add("co-src"); ghost = document.createElement("div"); ghost.id = "coGhost"; ghost.textContent = (th.querySelector(".cf-lab")?.textContent || "").trim(); document.body.appendChild(ghost); }
+    const mv = ev => { if (!on) { if (Math.abs(ev.clientX - x0) < SVI_G.drag) return; if (!arm(ev)) return; on = true; th.classList.add("co-src"); ghost = document.createElement("div"); ghost.id = "coGhost"; ghost.textContent = (th.querySelector(".cf-lab")?.textContent || "").trim(); document.body.appendChild(ghost); }
       ev.preventDefault(); ghost.style.left = ev.clientX + 8 + "px"; ghost.style.top = ev.clientY - 28 + "px"; clear(); target = null;
       const L = ths(); for (const x of L) { const r = x.getBoundingClientRect(); if (ev.clientX >= r.left && ev.clientX < r.right) { if (x !== th) { x.classList.add(L.indexOf(x) > L.indexOf(th) ? "co-after" : "co-before"); target = x; } break; } } };
     const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);

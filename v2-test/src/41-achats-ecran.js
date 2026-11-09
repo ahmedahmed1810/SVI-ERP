@@ -441,10 +441,10 @@ function sviAchInit() {
     const th = e.target.closest("th"); if (!th || e.target.closest(".cf-btn, input") || !th.querySelector(".cf-btn")) return;
     const table = th.closest("table"), t = th.querySelector(".cf-btn").dataset.cf;
     const ths = () => [...table.querySelectorAll("thead tr:first-child > th")].filter(x => x.querySelector(".cf-btn"));
-    const x0 = e.clientX; let on = false, target = null, ghost = null;
+    const x0 = e.clientX; let on = false, target = null, ghost = null; const arm = sviColArm(e, th);
     const clear = () => ths().forEach(x => x.classList.remove("co-before", "co-after"));
     const mv = ev => {
-      if (!on) { if (Math.abs(ev.clientX - x0) < 8) return; on = true; th.classList.add("co-src"); ghost = document.createElement("div"); ghost.id = "coGhost"; ghost.textContent = (th.querySelector(".cf-lab")?.textContent || "").trim(); document.body.appendChild(ghost); }
+      if (!on) { if (Math.abs(ev.clientX - x0) < 8) return; if (!arm(ev)) return; on = true; th.classList.add("co-src"); ghost = document.createElement("div"); ghost.id = "coGhost"; ghost.textContent = (th.querySelector(".cf-lab")?.textContent || "").trim(); document.body.appendChild(ghost); }
       ev.preventDefault(); ghost.style.left = ev.clientX + 8 + "px"; ghost.style.top = ev.clientY - 28 + "px"; clear(); target = null;
       const L = ths(); for (const x of L) { const r = x.getBoundingClientRect(); if (ev.clientX >= r.left && ev.clientX < r.right) { if (x !== th) { x.classList.add(L.indexOf(x) > L.indexOf(th) ? "co-after" : "co-before"); target = x; } break; } }
     };

@@ -616,13 +616,14 @@ function sviBdgDelaisDisposition(C) {
       ? x.querySelector(".cf-btn")?.dataset.cf
       : x.querySelector(".cf-btn")?.dataset.col;
     const x0 = event.clientX, y0 = event.clientY;
-    let on = false, target = null, ghost = null, mv = 0;
+    let on = false, target = null, ghost = null, mv = 0; const arm = sviColArm(event, th);
     const clear = () => ths().forEach(x => x.classList.remove("co-before", "co-after"));
     const move = e => {
       const dx = e.clientX - x0, dy = e.clientY - y0;
       mv = Math.max(mv, Math.abs(dx), Math.abs(dy));
       if (!on) {
         if (Math.abs(dx) < 8) return;
+        if (!arm(e)) return;
         on = true;
         th.classList.add("co-src");
         ghost = document.createElement("div");

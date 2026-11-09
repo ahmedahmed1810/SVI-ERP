@@ -3809,3 +3809,5 @@ td.svi-totlab { text-align: right !important; white-space: nowrap; }
 /* 09/11 : SEULEMENT LES COCHÉES — les lignes non cochées se cachent (tant qu'au moins une est cochée) */
 table.nvl-only:has(tbody .nvl-cb:checked) tbody tr:has(.nvl-cb):not(.nvl-on) { display: none !important; }
 th.nvl-cbh .nvl-cff { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+/* 09/11 : appui long sur un titre = la colonne est prise (prête à glisser) */
+th.co-arm, .bdg-h-head.co-arm { background: #fde2e2 !important; box-shadow: inset 0 0 0 2px #b91c1c !important; }
