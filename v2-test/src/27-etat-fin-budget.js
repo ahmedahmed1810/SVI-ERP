@@ -487,7 +487,20 @@
       );
 
     /* 09/11 (règle 2.10) : seule la référence soulignée ouvre le budget ; la partie vide d'une case suit la règle commune (sélection) */
-    if (row && !event.target.closest(".bdg-reflink")) return;
+    const ied = event.target.closest("td.bdg-ied");
+    if (ied && !event.target.closest("input")) {
+      if (!ied.dataset.sel1) { document.querySelectorAll("td.bdg-ied[data-sel1]").forEach(t => delete t.dataset.sel1); ied.dataset.sel1 = "1"; return; }
+      const ref = ied.dataset.ied, L0 = sviInstGet(), it0 = L0.find(x => x.ref === ref); if (!it0) return;
+      const v0 = it0.intitule || "", inp = document.createElement("input"); inp.className = "ins-in nv-edin"; inp.value = v0;
+      ied.textContent = ""; ied.appendChild(inp); inp.focus(); try { inp.select(); } catch (er) {}
+      let done = false; const fin = ok => { if (done) return; done = true; const nv = String(inp.value || "").trim().toUpperCase().replace(/\s+/g, " ");
+        if (ok && nv && nv !== v0) { const L = sviInstGet(), it = L.find(x => x.ref === ref); if (it) { it.intitule = nv; sviInstSet(L); try { histLog("BUDGET", "INTITULÉ MODIFIÉ DANS LA LISTE", ref + " : " + nv); } catch (er) {} } }
+        renderBudgetList(); };
+      inp.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); fin(true); } if (ev.key === "Escape") { ev.preventDefault(); fin(false); } });
+      inp.addEventListener("blur", () => fin(true)); return;
+    }
+    if (ied) return;
+    if (row && !event.target.closest(".bdg-reflink")) { document.querySelectorAll("td.bdg-ied[data-sel1]").forEach(t => delete t.dataset.sel1); return; }
     if (row) {
       /* v687 : budget à avenants → liste de ses étapes (au format de la liste mère), ouverte sur EN INSTANCE ;
          composition du consolidé remise par défaut (étapes validées) */

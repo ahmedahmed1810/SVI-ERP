@@ -781,6 +781,10 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
     H.style.background = "#b91c1c";   /* 09/11 : point rouge partout */   /* v505 (remarque 55) ; v736 : gris en lecture seule */
     /* v736 : une seule case = le point pile au coin du cadre (cadre rétréci au nom, colonnes de noms) */
     let vr = vis.right, vb = vis.bottom;
+    /* 09/11 (Ahmed) : plusieurs cases = le point au coin du grand cadre, du côté où la sélection se termine (en bas à droite en descendant, en haut à droite en montant) */
+    { const C = [...document.querySelectorAll("td.svi-cs")].filter(x => x.offsetParent !== null);
+      if (td && S.b && S.a && C.length > 1) { let t = 1e9, b = -1e9, r = -1e9; C.forEach(x => { const R = x.getBoundingClientRect(); t = Math.min(t, R.top); b = Math.max(b, R.bottom); r = Math.max(r, R.right); });
+        H.style.background = "#b91c1c"; H.style.display = "block"; H.style.left = (r - 5 + window.scrollX) + "px"; H.style.top = ((S.b.r < S.a.r ? t : b) - 5 + window.scrollY) + "px"; return; } }
     { const F = document.getElementById("sviSelFrame"); if (end === cell && F && F.style.display === "block") { const fr = F.getBoundingClientRect(); vr = fr.right; vb = fr.bottom; } }
     H.style.display = "block"; H.style.left = (vr - 7 + window.scrollX) + "px"; H.style.top = (vb - 7 + window.scrollY) + "px";
   };
@@ -1329,6 +1333,7 @@ window.__sviCells = (() => {
     return n;
   };
   const paste = async () => {
+    if (window.__sviRO && document.activeElement && document.activeElement.closest && document.activeElement.closest(".bdg-d-page")) return 0;   /* 09/11 : lecture seule — seul le message LECTURE SEULE s'affiche */
     const k = kind(); if (!k) return 0;
     if (k === "table") {
       const n = await TS().paste();
@@ -1368,6 +1373,10 @@ window.__sviCells = (() => {
     const sel = [...document.querySelectorAll("td.svi-cs, .ins-hcol .svi-ls")].filter(x => x.offsetParent !== null);
     if (n < 2 || !sel.length) { if (B) B.style.display = "none"; return; }
     if (!B) build();
+    /* 09/11 (Ahmed) : une case non modifiable (noire, liste, lecture seule) dans la sélection = COPIER seulement */
+    { const edOk = x => { if (window.__sviRO) return false; const i = x.matches && x.matches(SVI_ED) ? x : x.querySelector && x.querySelector(SVI_ED); return !!i && !i.disabled && !i.readOnly; };
+      const ro = sel.some(x => !edOk(x)); B.querySelectorAll('[data-sb="paste"], [data-sb="clear"], .blk-sep').forEach(b => { b.style.display = ro ? "none" : ""; });
+      const rh = Math.round(Math.max(18, Math.min(44, sel[0].getBoundingClientRect().height))); B.style.setProperty("--lph", rh + "px"); }
     let top = Infinity, left = Infinity, bottom = -Infinity;
     sel.forEach(x => { const r = x.getBoundingClientRect(); top = Math.min(top, r.top); left = Math.min(left, r.left); bottom = Math.max(bottom, r.bottom); });
     B.style.display = "flex";

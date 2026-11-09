@@ -76,7 +76,9 @@ function sviBdgInstanceSaisie(C) {
       if (e.type === "focusin") { if (t.matches("input:not([type=checkbox]):not([type=radio]), textarea")) { t.readOnly = true; return; }
         if (t.matches("select, [contenteditable]")) { try { t.blur(); } catch (er) {} roSay(); } return; }
       if (e.type === "beforeinput" || e.type === "paste" || e.type === "drop" || e.type === "dragstart") return stop(true);
-      if (e.type === "keydown") { if (/^(Delete|Backspace)$/.test(e.key) || ((e.ctrlKey || e.metaKey) && /^[vx]$/i.test(e.key))) stop(true); return; }
+      if (e.type === "keydown") { if (/^(Delete|Backspace)$/.test(e.key) || ((e.ctrlKey || e.metaKey) && /^[vx]$/i.test(e.key))) stop(true);
+        else if (e.key && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && t.matches("input, textarea")) stop(true);   /* 09/11 : taper une lettre en lecture seule = message */
+        return; }
       if (e.type === "pointerdown" || e.type === "touchstart" || e.type === "mousedown") { if (t.closest(DRAG) && !t.closest("input[type=checkbox], .lk-rd, .ins-rd, .ins-tfz, .lot-fold, .dly-fold")) { e.stopPropagation(); e.stopImmediatePropagation(); } return; }
       if (e.type === "click" && t.closest(EDIT_CLICK)) return stop(true);
     };

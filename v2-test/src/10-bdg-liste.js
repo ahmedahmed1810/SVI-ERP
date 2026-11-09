@@ -1622,6 +1622,8 @@ function renderBudgetList() {
         case "validated": return `<td title="${esc(x.late || x.validated || "")}">${lateBang(x.late)}${esc(x.validated || "")}</td>`;
         case "budget": return `<td title="${esc(x.budget)}"><button type="button" class="budget-link" data-open-project="${esc(x.ref)}">${esc(x.budget)}</button></td>`;
         case "ttc": return `<td class="number">${money(x.ttc)}</td>`;
+        /* 09/11 (Ahmed) : INTITULÉ d'un budget EN INSTANCE modifiable dans la liste — 1er toucher = sélection, 2e = modification */
+        case "intitule": return x.state === "instance" && !x.fam && !x.kind ? `<td class="bdg-ied" data-ied="${esc(x.ref)}" title="${esc(x.intitule || "")}">${esc(x.intitule || "")}</td>` : `<td title="${esc(x.intitule || "")}">${esc(x.intitule || "")}</td>`;
         default: return `<td title="${esc(x[k] || "")}">${esc(x[k] || "")}</td>`;
       }
     };

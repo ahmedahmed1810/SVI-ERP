@@ -3779,3 +3779,17 @@ body:not(.svi-multi) #sviSelHandle { background: var(--inst, #b91c1c) !important
 html.svi-nuit .cell-all { background-color: #1e3a8a !important; }
 /* 09/11 (règle 2.10) : référence d'une liste toujours soulignée (elle ouvre la pièce), quel que soit le format */
 html body table.svi-bdgl .nv-reflink, html body #budgetListTable .bdg-reflink, html body table.svi-bdgl .bdg-reflink { text-decoration: underline !important; -webkit-text-decoration-line: underline !important; text-underline-offset: 3px; }
+/* 09/11 (Ahmed) : menu de l'appui long = forme du menu des cases ; lignes à la hauteur d'une ligne du tableau, largeur selon le contenu */
+#sviLpBar { position: fixed; display: none; z-index: 10099; flex-direction: column; width: max-content; padding: 3px; background: #fff; border: 1px solid #d0d5dd; border-radius: 10px; box-shadow: 0 8px 24px rgba(16,24,40,.16); touch-action: manipulation; }
+#sviLpBar button, #sviSelBar button { height: var(--lph, 24px) !important; min-height: 0 !important; padding: 0 12px !important; display: flex !important; align-items: center; }
+#sviLpBar button { border: 0; background: transparent; text-align: left; border-radius: 6px; font: 700 11.5px/1.2 Arial, sans-serif; color: #172033; cursor: pointer; -webkit-user-select: none; user-select: none; }
+#sviLpBar button:active { background: #f2f4f7; }
+#sviLpBar .blk-sep { height: 1px; background: #e5e9ef; margin: 2px 4px; }
+#sviLpBar .sb-del { color: #b91c1c; }
+html.svi-nuit #sviLpBar { background: #1f2937; border-color: #334155; } html.svi-nuit #sviLpBar button { color: #e5e7eb; }
+/* jamais de cadre noir (anneau de Safari) sur un champ des listes ; jamais la bulle de Safari sur les cases */
+table.novapp-budget-table input:focus, table.bdg-d-table input:focus, table.novapp-budget-table td:focus, table.bdg-d-table td:focus { outline: none !important; }
+table.novapp-budget-table tbody td, table.bdg-d-table tbody td { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+table tbody td input, table tbody td textarea { -webkit-user-select: text; user-select: text; }
+/* 09/11 (retour agent) : listes et tableaux des fiches — pas de filet noir autour du cadre rouge (anneau du focus, ombre de la case) */
+:is(table.novapp-budget-table, table.bdg-d-table) td:is(.svi-tdon, .svi-tdf, .cell-x, :focus, :focus-visible) { box-shadow: none !important; outline: none !important; }

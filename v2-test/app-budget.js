@@ -2191,6 +2191,8 @@ function renderBudgetList() {
         case "validated": return `<td title="${esc(x.late || x.validated || "")}">${lateBang(x.late)}${esc(x.validated || "")}</td>`;
         case "budget": return `<td title="${esc(x.budget)}"><button type="button" class="budget-link" data-open-project="${esc(x.ref)}">${esc(x.budget)}</button></td>`;
         case "ttc": return `<td class="number">${money(x.ttc)}</td>`;
+        /* 09/11 (Ahmed) : INTITULÉ d'un budget EN INSTANCE modifiable dans la liste — 1er toucher = sélection, 2e = modification */
+        case "intitule": return x.state === "instance" && !x.fam && !x.kind ? `<td class="bdg-ied" data-ied="${esc(x.ref)}" title="${esc(x.intitule || "")}">${esc(x.intitule || "")}</td>` : `<td title="${esc(x.intitule || "")}">${esc(x.intitule || "")}</td>`;
         default: return `<td title="${esc(x[k] || "")}">${esc(x[k] || "")}</td>`;
       }
     };
@@ -3439,7 +3441,20 @@ function renderBudgetList() {
       );
 
     /* 09/11 (règle 2.10) : seule la référence soulignée ouvre le budget ; la partie vide d'une case suit la règle commune (sélection) */
-    if (row && !event.target.closest(".bdg-reflink")) return;
+    const ied = event.target.closest("td.bdg-ied");
+    if (ied && !event.target.closest("input")) {
+      if (!ied.dataset.sel1) { document.querySelectorAll("td.bdg-ied[data-sel1]").forEach(t => delete t.dataset.sel1); ied.dataset.sel1 = "1"; return; }
+      const ref = ied.dataset.ied, L0 = sviInstGet(), it0 = L0.find(x => x.ref === ref); if (!it0) return;
+      const v0 = it0.intitule || "", inp = document.createElement("input"); inp.className = "ins-in nv-edin"; inp.value = v0;
+      ied.textContent = ""; ied.appendChild(inp); inp.focus(); try { inp.select(); } catch (er) {}
+      let done = false; const fin = ok => { if (done) return; done = true; const nv = String(inp.value || "").trim().toUpperCase().replace(/\s+/g, " ");
+        if (ok && nv && nv !== v0) { const L = sviInstGet(), it = L.find(x => x.ref === ref); if (it) { it.intitule = nv; sviInstSet(L); try { histLog("BUDGET", "INTITULÉ MODIFIÉ DANS LA LISTE", ref + " : " + nv); } catch (er) {} } }
+        renderBudgetList(); };
+      inp.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); fin(true); } if (ev.key === "Escape") { ev.preventDefault(); fin(false); } });
+      inp.addEventListener("blur", () => fin(true)); return;
+    }
+    if (ied) return;
+    if (row && !event.target.closest(".bdg-reflink")) { document.querySelectorAll("td.bdg-ied[data-sel1]").forEach(t => delete t.dataset.sel1); return; }
     if (row) {
       /* v687 : budget à avenants → liste de ses étapes (au format de la liste mère), ouverte sur EN INSTANCE ;
          composition du consolidé remise par défaut (étapes validées) */
@@ -19642,7 +19657,9 @@ function sviBdgInstanceSaisie(C) {
       if (e.type === "focusin") { if (t.matches("input:not([type=checkbox]):not([type=radio]), textarea")) { t.readOnly = true; return; }
         if (t.matches("select, [contenteditable]")) { try { t.blur(); } catch (er) {} roSay(); } return; }
       if (e.type === "beforeinput" || e.type === "paste" || e.type === "drop" || e.type === "dragstart") return stop(true);
-      if (e.type === "keydown") { if (/^(Delete|Backspace)$/.test(e.key) || ((e.ctrlKey || e.metaKey) && /^[vx]$/i.test(e.key))) stop(true); return; }
+      if (e.type === "keydown") { if (/^(Delete|Backspace)$/.test(e.key) || ((e.ctrlKey || e.metaKey) && /^[vx]$/i.test(e.key))) stop(true);
+        else if (e.key && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && t.matches("input, textarea")) stop(true);   /* 09/11 : taper une lettre en lecture seule = message */
+        return; }
       if (e.type === "pointerdown" || e.type === "touchstart" || e.type === "mousedown") { if (t.closest(DRAG) && !t.closest("input[type=checkbox], .lk-rd, .ins-rd, .ins-tfz, .lot-fold, .dly-fold")) { e.stopPropagation(); e.stopImmediatePropagation(); } return; }
       if (e.type === "click" && t.closest(EDIT_CLICK)) return stop(true);
     };

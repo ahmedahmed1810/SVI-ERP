@@ -363,13 +363,26 @@ sviRowHApply();
   /* appui long : case modifiable (rouge) = COUPER, COPIER, COLLER, EFFACER ; case non modifiable (noire, lecture seule) = COPIER */
   const canEd = el => el.matches(FLD) && !el.disabled && !el.readOnly && !window.__sviRO;
   const setVal = (el, v) => { el.value = v; el.dispatchEvent(new InputEvent("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); };
-  const lpMenu = el => { const txt = txtOf(el); if (typeof sviEtatMenu !== "function") return;
-    const ed = canEd(el), It = ed ? [{ k: "cut", lab: "COUPER" }, { k: "copy", lab: "COPIER" }, { k: "paste", lab: "COLLER" }, { k: "clear", lab: "EFFACER" }] : [{ k: "copy", lab: "COPIER" }];
-    sviEtatMenu(el, It, "", async k => { const say = m => { if (typeof svToast === "function") svToast(m, 1500, el); };
-      if (k === "copy" || k === "cut") { try { await navigator.clipboard.writeText(txt); } catch (er) {} if (k === "cut") setVal(el, ""); say(k === "cut" ? "COUPÉ." : "COPIÉ."); }
-      else if (k === "paste") { let v = ""; try { v = await navigator.clipboard.readText(); } catch (er) {} setVal(el, String(v || "").toUpperCase()); }
+  /* 09/11 (Ahmed) : petit menu de l'application (forme du menu des cases) — chaque ligne à la hauteur d'une ligne du tableau, largeur selon le contenu */
+  let LB = null; const lbOff = () => { if (LB) LB.style.display = "none"; };
+  document.addEventListener("pointerdown", e => { if (LB && !LB.contains(e.target)) lbOff(); }, true);
+  document.addEventListener("scroll", lbOff, true);
+  const lpMenu = el => { const txt = txtOf(el), ed = canEd(el);
+    if (!LB) { LB = document.createElement("div"); LB.id = "sviLpBar"; document.body.appendChild(LB);
+      LB.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); }); }
+    LB.innerHTML = ed ? '<button type="button" data-lp="cut">COUPER</button><button type="button" data-lp="copy">COPIER</button><button type="button" data-lp="paste">COLLER</button><div class="blk-sep"></div><button type="button" data-lp="clear" class="sb-del">EFFACER</button>' : '<button type="button" data-lp="copy">COPIER</button>';
+    const tr = el.closest("tr, .ins-li"), rh = Math.round(Math.max(18, Math.min(44, (tr || el).getBoundingClientRect().height)));
+    LB.style.setProperty("--lph", rh + "px"); LB.style.display = "flex";
+    const r = el.getBoundingClientRect(), h = LB.offsetHeight, w = LB.offsetWidth; let y = r.bottom + 4; if (y + h > innerHeight - 4) y = Math.max(4, r.top - h - 4);
+    LB.style.left = Math.max(4, Math.min(innerWidth - w - 4, r.left)) + "px"; LB.style.top = y + "px";
+    LB.onclick = async e => { const b = e.target.closest("[data-lp]"); if (!b) return; e.preventDefault(); e.stopPropagation(); const k = b.dataset.lp; lbOff();
+      const say = m => { if (typeof svToast === "function") svToast(m, 1500, el); };
+      if (k === "copy" || k === "cut") { try { await navigator.clipboard.writeText(txt); } catch (er) {} window.__sviSelClip = txt; if (k === "cut") setVal(el, ""); say(k === "cut" ? "COUPÉ." : "COPIÉ."); }
+      else if (k === "paste") { let v = ""; try { v = await navigator.clipboard.readText(); } catch (er) {} if (!v) v = window.__sviSelClip || ""; setVal(el, String(v || "").toUpperCase()); }
       else if (k === "clear") setVal(el, "");
-      el.classList.remove("cell-all"); }); };
+      el.classList.remove("cell-all"); }; };
+  /* jamais la bulle de Safari (Copier / Rechercher la sélection) sur les cases des tableaux */
+  document.addEventListener("selectstart", e => { const t = e.target && e.target.nodeType === 1 ? e.target : e.target && e.target.parentElement; if (t && t.closest && t.closest("table tbody td, .ins-hcol .ins-li") && !t.closest("input, textarea")) e.preventDefault(); }, true);
   document.addEventListener("pointerdown", e => { if (!e.target.closest || !e.target.closest(".cell-all, #sviEtatMenu")) document.querySelectorAll(".cell-all").forEach(x => x.classList.remove("cell-all")); }, true);
   const off = () => { if (cur) { cur.classList.remove("cell-x"); cur.parentElement && cur.parentElement.classList.remove("row-x"); cur = null; } if (tip) { tip.remove(); tip = null; } };
   const show = el => { off(); if (el.matches(FLD)) { const r = el.getBoundingClientRect(); tip = document.createElement("div"); tip.id = "sviFullTip"; tip.textContent = txtOf(el);
@@ -386,7 +399,7 @@ sviRowHApply();
   document.addEventListener("pointerup", e => { const quick = !!tm; clearTimeout(tm); tm = 0; if (!quick || Math.hypot(e.clientX - x0, e.clientY - y0) > SVI_G.drag) return;
     const el0 = cutTd(e.target);
     /* 09/11 (règle 8.2) : 2e toucher sur une case qu'on ne modifie pas (listes, lecture seule) = tout son contenu sélectionné, prêt à copier */
-    if (el0 && !e.target.closest("button, a, .bdg-reflink, input[type=checkbox], .lk-rd, .cf-btn, [data-why]")) {
+    if (el0 && !e.target.closest("button, a, .bdg-reflink, input[type=checkbox], .lk-rd, .cf-btn, [data-why], td.bdg-ied, td.nv-ed, input.nv-edin")) {
       const ro = !el0.matches(FLD) || el0.disabled || el0.readOnly || !!window.__sviRO;
       if (ro && lastT === el0 && Date.now() - lastTt < 8000) { lastT = null; allSel(el0); return; }
       lastT = el0; lastTt = Date.now(); } else lastT = null;
