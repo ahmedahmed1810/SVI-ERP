@@ -773,8 +773,11 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
       H = document.createElement("div"); H.id = "sviSelHandle"; document.body.appendChild(H);
       H.addEventListener("pointerdown", e => {
         e.preventDefault(); e.stopPropagation(); try { H.setPointerCapture(e.pointerId); } catch (err) {}
-        const mv = ev => { const el = document.elementFromPoint(ev.clientX, ev.clientY), t2 = el && el.closest && el.closest("td"); if (t2 && t2.closest("table") === S.tbl) { const p = posOf(t2); if (p) { S.b = p; paint(); } } else if (window.__sviLS) { window.__sviLS.drag(el); handle(); } };
-        const up = () => { H.removeEventListener("pointermove", mv); H.removeEventListener("pointerup", up); H.removeEventListener("pointercancel", up); };
+        const x0 = e.clientX, y0 = e.clientY; let moved = false;
+        const mv = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 6) moved = true; else return; const el = document.elementFromPoint(ev.clientX, ev.clientY), t2 = el && el.closest && el.closest("td"); if (t2 && t2.closest("table") === S.tbl) { const p = posOf(t2); if (p) { S.b = p; paint(); } } else if (window.__sviLS) { window.__sviLS.drag(el); handle(); } };
+        const up = ev => { H.removeEventListener("pointermove", mv); H.removeEventListener("pointerup", up); H.removeEventListener("pointercancel", up);
+          /* 09/11 : un simple toucher sur le point (sans tirer) = toucher la case dessous (2e toucher = modification) */
+          if (!moved && ev && ev.type === "pointerup") { const d = H.style.display; H.style.display = "none"; const el = document.elementFromPoint(ev.clientX, ev.clientY); H.style.display = d; if (el && el !== H) el.click(); } };
         H.addEventListener("pointermove", mv); H.addEventListener("pointerup", up); H.addEventListener("pointercancel", up);
       });
     }
