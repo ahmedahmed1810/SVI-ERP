@@ -8066,6 +8066,18 @@ window.__sviCells = (() => {
       const v = b.dataset.sb, X = window.__sviCells;
       if (v === "multi") { sviMultiSet(!window.__sviMulti); setTimeout(place, 50); return; }
       if (v === "seldown") { window.__sviJump("ArrowDown", true); setTimeout(place, 50); return; }
+      /* 09/11 : plusieurs INTITULÉ de budgets EN INSTANCE dans la liste — COLLER / EFFACER sur chaque case (une ligne collée par case, ou la même partout) */
+      const SI = [...document.querySelectorAll("td.svi-cs")].filter(x => x.offsetParent !== null);
+      if (v !== "copy" && SI.length && SI.every(x => x.matches("td.bdg-ied")) && typeof sviInstGet === "function") {
+        (async () => { let lines = [""];
+          if (v === "paste") { let t = ""; try { t = await navigator.clipboard.readText(); } catch (er) {} if (!t) t = window.__sviSelClip || "";
+            lines = String(t).split(/\r?\n/).map(x => x.split("\t")[0].trim()).filter(Boolean); if (!lines.length) { if (typeof svToast === "function") svToast("RIEN À COLLER : COPIEZ D'ABORD DES CASES.", 2200); return; } }
+          const L = sviInstGet(); let n = 0;
+          SI.forEach((td, i) => { const it = L.find(x => x.ref === td.dataset.ied); if (!it) return; const nv = v === "clear" ? "À COMPLÉTER" : String(lines.length > 1 ? (lines[i] || "") : lines[0]).toUpperCase().replace(/\s+/g, " ");
+            if (!nv || nv === it.intitule) return; it.intitule = nv; n++; });
+          if (n) { sviInstSet(L); try { histLog("BUDGET", v === "clear" ? "INTITULÉS EFFACÉS DANS LA LISTE" : "INTITULÉS COLLÉS DANS LA LISTE", n + " BUDGET(S)"); } catch (er) {} }
+          if (typeof renderBudgetList === "function") renderBudgetList(); if (typeof svToast === "function") svToast(n + " CASE(S) " + (v === "clear" ? "EFFACÉE(S)." : "COLLÉE(S)."), 1800); })();
+        setTimeout(place, 50); return; }
       if (v === "copy") X.copy(); else if (v === "clear") X.clear(); else X.paste();
       setTimeout(place, 50);
     });
@@ -8078,7 +8090,7 @@ window.__sviCells = (() => {
     if (n < 2 || !sel.length) { if (B) B.style.display = "none"; return; }
     if (!B) build();
     /* 09/11 (Ahmed) : une case non modifiable (noire, liste, lecture seule) dans la sélection = COPIER seulement */
-    { const edOk = x => { if (window.__sviRO) return false; const i = x.matches && x.matches(SVI_ED) ? x : x.querySelector && x.querySelector(SVI_ED); return !!i && !i.disabled && !i.readOnly; };
+    { const edOk = x => { if (window.__sviRO) return false; if (x.matches && x.matches("td.bdg-ied")) return true; const i = x.matches && x.matches(SVI_ED) ? x : x.querySelector && x.querySelector(SVI_ED); return !!i && !i.disabled && !i.readOnly; };
       const ro = sel.some(x => !edOk(x)); B.querySelectorAll('[data-sb="paste"], [data-sb="clear"], .blk-sep').forEach(b => { b.style.display = ro ? "none" : ""; });
       const rh = Math.round(Math.max(18, Math.min(44, sel[0].getBoundingClientRect().height))); B.style.setProperty("--lph", rh + "px"); }
     let top = Infinity, left = Infinity, bottom = -Infinity;
