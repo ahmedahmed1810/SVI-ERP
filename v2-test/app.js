@@ -3704,7 +3704,7 @@ function sviFmtWin(ifk) {
     d.innerHTML = sviWinCard({ cls: "fmw-card", close: "data-x", title: `<span class="fmw-ttl">${ifk ? "MODIFIER LE FORMAT — " + esc(IF.lab) : "RÉGLAGES COMMUNS — TOUT LE PROGRAMME"}</span>${sviPalBtns()}`,   /* C10, D4 : choix de la palette dans le bandeau */
       body: `<div class="fmw-scroll">${stRow}${elT}${catT}${blkT}</div>`,
       /* I10 : interface = ANNULER, PAR DÉFAUT, ENREGISTRER ; réglages communs = ANNULER, PAR DÉFAUT, DÉFINIR COMME PAR DÉFAUT, APPLIQUER PARTOUT, ENREGISTRER */
-      foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b" data-def>PAR DÉFAUT</button><button type="button" class="svc-b" data-setdef>DÉFINIR COMME PAR DÉFAUT</button>${ifk ? "" : `<button type="button" class="svc-b" data-save data-all>APPLIQUER PARTOUT</button>`}<button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER</button>` });
+      foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b" data-def>PAR DÉFAUT</button><button type="button" class="svc-b" data-setdef>DÉFINIR COMME PAR DÉFAUT</button><button type="button" class="svc-b" data-save data-all>APPLIQUER PARTOUT</button><button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER</button>` });
   };
   draw(); sviWinShow(d);
   const num = (v, a, b) => { const n = parseInt(String(v).replace(/\D/g, ""), 10); return n >= a && n <= b ? n : null; };
@@ -3747,12 +3747,14 @@ function sviFmtWin(ifk) {
         if (u) { Object.keys(D).forEach(k => delete D[k]); Object.assign(D, JSON.parse(JSON.stringify(u.F))); Object.keys(CD).forEach(k => delete CD[k]); Object.assign(CD, u.CD); }
         else if (P.mode === "nuit") { Object.keys(D).forEach(k => delete D[k]); Object.assign(D, JSON.parse(JSON.stringify(SVI_NUIT))); Object.assign(CD, SVI_COL_DEF); }
         else { D.el = {}; D.blk = {}; D.cat = {}; Object.assign(CD, SVI_COL_DEF); } } preview(); draw(); return; }
-    if (e.target.closest("[data-save]")) { const ALL = !ifk && !!e.target.closest("[data-all]");   /* I10 : ENREGISTRER (réglages communs) garde les réglages propres aux interfaces ; APPLIQUER PARTOUT les efface */
-      if (ifk) { if (!Object.keys(S.el).length && !Object.keys(S.st).length) delete D.by[ifk]; if (SW && !Object.keys(SW.el).length && !Object.keys(SW.st).length) delete D.by[WK]; } else if (ALL) D.by = {};
+    if (e.target.closest("[data-save]")) { const ALL = !!e.target.closest("[data-all]");
+      /* 09/11 (remarque) : APPLIQUER PARTOUT depuis une interface — son réglage (et celui du groupe FENÊTRES) devient celui de toutes les interfaces ; les réglages propres sont effacés */
+      if (ifk && ALL) { const mg = src => Object.keys((src && src.el) || {}).forEach(k => { D.el[k] = { ...(D.el[k] || {}), ...src.el[k] }; }); D.el = D.el || {}; mg(S); if (SW) mg(SW); D.by = {}; }   /* I10 : ENREGISTRER (réglages communs) garde les réglages propres aux interfaces ; APPLIQUER PARTOUT les efface */
+      if (ifk && !ALL) { if (!Object.keys(S.el).length && !Object.keys(S.st).length) delete D.by[ifk]; if (SW && !Object.keys(SW.el).length && !Object.keys(SW.st).length) delete D.by[WK]; } else if (ALL) D.by = {};
       /* 08/11 (remarque d'Ahmed) : APPLIQUER PARTOUT efface aussi les hauteurs de blocs gardées à la poignée (budget et pages d'achat) — tous les blocs suivent le format */
       if (ALL) { try { localStorage.removeItem("svi_ach_nvh_v1"); const L = JSON.parse(localStorage.getItem("svi_layout_v1") || "{}") || {}; if (L.h) { L.h = {}; localStorage.setItem("svi_layout_v1", JSON.stringify(L)); } } catch (er) {}
         document.querySelectorAll(".nvp").forEach(p => [...p.style].filter(n => n.startsWith("--nvh-")).forEach(n => p.style.removeProperty(n))); }
-      sviFmtSave(D); sviColorsSave(CD); d.remove(); svToast(ifk ? "FORMAT DE CETTE INTERFACE ENREGISTRÉ." : ALL ? "RÉGLAGES COMMUNS APPLIQUÉS PARTOUT." : "RÉGLAGES COMMUNS ENREGISTRÉS.", 2500); } });
+      sviFmtSave(D); sviColorsSave(CD); d.remove(); svToast(ALL ? (ifk ? "FORMAT DE CETTE INTERFACE APPLIQUÉ PARTOUT." : "RÉGLAGES COMMUNS APPLIQUÉS PARTOUT.") : ifk ? "FORMAT DE CETTE INTERFACE ENREGISTRÉ." : "RÉGLAGES COMMUNS ENREGISTRÉS.", 2500); } });
   return d;
 }
 const sviFmtCurWin = () => sviFmtWin(document.documentElement.dataset.svif || sviIfCur() || "bdg");
