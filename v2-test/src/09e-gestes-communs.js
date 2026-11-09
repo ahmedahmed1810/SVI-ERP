@@ -469,6 +469,9 @@ sviRowHApply();
       else if (k === "paste") { let t = ""; try { t = await navigator.clipboard.readText(); } catch (er) {} if (!t) t = window.__sviSelClip || ""; put(String(t).replace(/[\r\n]+/g, " ").toUpperCase()); }
       else if (k === "clear") put("");
       i.focus({ preventScroll: true }); hide(); };
+    /* au toucher, toute vraie sélection posée dans un champ ouvert (select(), 2e toucher d'un autre module…) devient la sélection dessinée : jamais les poignées bleues de Safari */
+    let ptT = false; document.addEventListener("pointerdown", e => { ptT = e.pointerType === "touch" || e.pointerType === "pen"; }, true);
+    document.addEventListener("selectionchange", () => { const i = document.activeElement; if (own || !ptT || !inCell(i) || i.selectionStart === i.selectionEnd) return; setV(i, i.selectionStart, i.selectionEnd); show(i); });
     document.addEventListener("selectionchange", () => { if (!cur || document.activeElement !== cur) return; if (V && !own && (cur.selectionStart !== V.b || cur.selectionEnd !== V.b)) V = null; requestAnimationFrame(place); });
     /* frappe, collage, effacement au clavier : remplacent la sélection dessinée, comme une vraie sélection */
     document.addEventListener("beforeinput", e => { const i = e.target; if (!V || V.i !== i || !e.cancelable) return; const t = e.inputType || "";
@@ -500,6 +503,8 @@ sviRowHApply();
         P.t.setSelectionRange(k, k); if (k >= v.length) P.t.scrollLeft = P.t.scrollWidth; hide(); } catch (er) {} }, { passive: true, capture: true });
     /* ordinateur : sélection à la souris dans un champ ouvert = mêmes poignées et même menu */
     document.addEventListener("mouseup", e => { const t = e.target; if (inCell(t) && document.activeElement === t && !t.classList.contains("svi-nav")) setTimeout(() => { if (t.selectionStart !== t.selectionEnd) show(t); }, 0); }, true);
+    { const sel0 = HTMLInputElement.prototype.select; HTMLInputElement.prototype.select = function () { if (ptT && inCell(this) && document.activeElement === this) { setV(this, 0, String(this.value || "").length); show(this); return; } return sel0.apply(this, arguments); };
+      const ssr0 = HTMLInputElement.prototype.setSelectionRange; HTMLInputElement.prototype.setSelectionRange = function (a, b) { if (!own && ptT && a !== b && inCell(this) && document.activeElement === this) { setV(this, a, b); show(this); return; } return ssr0.apply(this, arguments); }; }
     window.__sviTxtSel = { show, hide }; }
   /* jamais la bulle de Safari (Copier / Rechercher la sélection) sur les cases des tableaux */
   document.addEventListener("selectstart", e => { const t = e.target && e.target.nodeType === 1 ? e.target : e.target && e.target.parentElement; if (t && t.closest && t.closest("table tbody td, .ins-hcol .ins-li") && !t.closest("input, textarea")) e.preventDefault(); }, true);
