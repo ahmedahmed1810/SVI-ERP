@@ -3804,3 +3804,5 @@ td.bdg-ied input.nv-edin { width: 100%; height: 100%; box-sizing: border-box; bo
 html.svi-nuit #sviStfTip { background: #1f2937; color: #f8fafc; border-color: #334155; }
 /* 09/11 : curseur visible même à la fin du texte (petite marge à droite du champ) */
 td.bdg-ied input.nv-edin { padding-right: 4px !important; }
+/* 09/11 : mot TOTAL collé à droite, juste avant le montant */
+td.svi-totlab { text-align: right !important; white-space: nowrap; }

@@ -463,3 +463,15 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
   document.addEventListener("pointerup", () => { if (!rec) return; const r0 = rec;
     if (rec.tb.isConnected) { rec.S = scr(rec.tb).map(p => [p.scrollLeft, p.scrollTop]); rec.wx = window.scrollX; rec.wy = window.scrollY; }   /* position au lâcher */ [0, 60, 200, 450].forEach(t => setTimeout(() => { if (rec === r0) fix(); }, t)); setTimeout(() => { if (rec === r0) rec = null; }, 500); }, true);
 }
+
+/* 09/11 (Ahmed, document unique 6.7) : le mot TOTAL (ou TOTAL PARTIEL) d'une ligne de total n'est plus en première colonne :
+   il va dans la case juste avant le premier montant, collé à droite. Pour tous les tableaux, sans toucher au code de chacun. */
+{ const NUM = /^-?[\d   ]+(,\d+)?\s*%?$/, LAB = /^TOTAL( PARTIEL)?$/;
+  const fix = () => { document.querySelectorAll("table tfoot tr, table tr.bdg-d-total-row, table tr.caf-tot, table tr.cmp-tot, table tr.stot, table tr.nvp-tot").forEach(tr => {
+      const C = [...tr.cells]; if (C.length < 2) return; const lab = C.find(c => LAB.test(String(c.textContent || "").trim()) && !c.querySelector("input, button, select")); if (!lab) return;
+      const iL = C.indexOf(lab), iN = C.findIndex((c, i) => i > iL && NUM.test(String(c.textContent || "").trim()) && /\d/.test(c.textContent || "")); if (iN < 0) return;
+      const prev = C[iN - 1]; if (prev === lab) { lab.style.textAlign = "right"; return; }
+      if (String(prev.textContent || "").trim() || prev.querySelector("input, button, select")) return;
+      prev.textContent = String(lab.textContent || "").trim(); prev.classList.add("svi-totlab"); lab.textContent = ""; }); };
+  let q = 0; new MutationObserver(() => { if (!q) q = requestAnimationFrame(() => { q = 0; try { fix(); } catch (e) {} }); }).observe(document.documentElement, { childList: true, subtree: true });
+  window.sviTotFix = fix; }
