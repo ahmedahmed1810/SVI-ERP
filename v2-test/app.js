@@ -4578,7 +4578,7 @@ sviRowHApply();
     const getS = i => V && V.i === i ? [V.a, V.b] : [i.selectionStart, i.selectionEnd];
     const mk = cls => { const d = document.createElement("div"); d.className = "svi-th " + cls; d.innerHTML = '<i></i>'; document.body.appendChild(d); return d; };
     const hide = () => { [HA, HB, SB, HI].forEach(x => { if (x) x.style.display = "none"; }); cur = null; V = null; };
-    const place = () => { const i = cur; const S = i ? getS(i) : null; if (!i || document.activeElement !== i || S[0] === S[1]) { hide(); return; }
+    const place = () => { const i = cur; const S = i ? getS(i) : null; if (!i || !i.isConnected || document.activeElement !== i || S[0] === S[1]) { hide(); return; }
       if (!HA) { HA = mk("svi-th-a"); HB = mk("svi-th-b"); [HA, HB].forEach(h => h.addEventListener("pointerdown", dragH, { passive: false }));
         SB = document.createElement("div"); SB.id = "sviTxtBar"; document.body.appendChild(SB); SB.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); }); SB.addEventListener("click", act); HI = document.createElement("div"); HI.id = "sviTxtHi"; document.body.appendChild(HI); }
       const r = i.getBoundingClientRect(), a = Math.max(r.left, Math.min(r.right, xOf(i, S[0]))), b = Math.max(r.left, Math.min(r.right, xOf(i, S[1]))), h = Math.max(14, r.height - 6);
@@ -4603,7 +4603,9 @@ sviRowHApply();
       else if (k === "clear") put("");
       i.focus({ preventScroll: true }); hide(); };
     /* au toucher, toute vraie sélection posée dans un champ ouvert (select(), 2e toucher d'un autre module…) devient la sélection dessinée : jamais les poignées bleues de Safari */
-    let ptT = false; document.addEventListener("pointerdown", e => { ptT = e.pointerType === "touch" || e.pointerType === "pen"; }, true);
+    let ptT = false; document.addEventListener("pointerdown", e => { ptT = e.pointerType === "touch" || e.pointerType === "pen";
+      /* toucher ailleurs (autre case, autre champ) = la sélection d'avant disparaît, poignées et menu compris */
+      const t = e.target; if (cur && t !== cur && !(t.closest && t.closest(".svi-th, #sviTxtBar"))) hide(); }, true);
     document.addEventListener("selectionchange", () => { const i = document.activeElement; if (own || !ptT || !inCell(i) || i.selectionStart === i.selectionEnd) return; setV(i, i.selectionStart, i.selectionEnd); show(i); });
     document.addEventListener("selectionchange", () => { if (!cur || document.activeElement !== cur) return; if (V && !own && (cur.selectionStart !== V.b || cur.selectionEnd !== V.b)) V = null; requestAnimationFrame(place); });
     /* frappe, collage, effacement au clavier : remplacent la sélection dessinée, comme une vraie sélection */
