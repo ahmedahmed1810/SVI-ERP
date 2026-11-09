@@ -2933,7 +2933,7 @@ def main():
             /* v800 (document unique 3.6) : le nouveau fournisseur s'ouvre sur sa page ; on revient à la liste */
             const pg800 = !!v.querySelector('.nvp-ref'); v.querySelector('[data-nvp="close"]')?.click(); await w(250); if (!pg800) return 'v800 : page du nouveau fournisseur non ouverte';
             const n1 = achFrs().filter(f => !f.del).length + (v.querySelectorAll('#achFrsT tbody tr[data-id]').length === 4 ? 0 : 100);
-            v.querySelector(`#achFrsT [data-nvo="${a.id}"]`).click(); await w(250);
+            (v.querySelector(`#achFrsT button[data-nvo="${a.id}"]`) || v.querySelector(`#achFrsT [data-nvo="${a.id}"]`)).click(); await w(250);
             const pgOk = /^FOURNISSEUR — BETON SUD/.test((document.getElementById('sviScreenTag') || {}).textContent || '') && /^FRS \\d{2}-\\d{4}\\/\\d{3}$/.test(v.querySelector('.nvp-ref').textContent) && v.querySelectorAll('.nvp-blk').length === 12;   /* D1 : plus de blocs RETOURS / AVOIRS (dans COMMANDES, RÉCEPTIONS, FACTURES) */   /* v921 (remarque 4) : + CONSULTATIONS, RÉCEPTIONS, RETOURS, AVOIRS */
             v.querySelector('[data-nvp="info"]').click(); await w(300); const fc = document.querySelector('.frs-card');
             const secs = fc ? [...fc.querySelectorAll('.frs-st')].map(x => x.textContent.replace(/\\s*\\d+$/, '').split(' ')[0]).join(',') + '|' + [...fc.querySelectorAll('.frs-tabs .rec-tab')].map(x => x.textContent.trim()).join(',') + '|' + [...fc.querySelectorAll('.frs-sec')].filter(x => !x.hidden).length : 'pas de fiche';
@@ -3084,7 +3084,7 @@ def main():
             if (!v.querySelector('.nvp-ref')) return 'v800 : page du nouvel article non ouverte'; document.querySelector('#svConf')?.remove(); v.querySelector('[data-nvp="close"]')?.click(); await w(250);
             const A = achArts().find(a => a.des === 'CIMENT CPJ45');
             r.push(!!A && A.st, (v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim(), v.querySelectorAll('#achArtT tbody tr[data-id]').length, !v.querySelector('table.nv-one [data-nvdel]'), !!v.querySelector('[data-nvnew]'));   /* J4 : plus de corbeille par ligne */
-            v.querySelector(`[data-nvo="${A.id}"]`).click(); await w(250);
+            (v.querySelector(`button[data-nvo="${A.id}"]`) || v.querySelector(`[data-nvo="${A.id}"]`)).click(); await w(250);
             r.push(/^ARA \\d{2}-\\d{4}\\/0\\d[1-9]$/.test(v.querySelector('.nvp-ref').textContent) ? 'ART-0003' : v.querySelector('.nvp-ref').textContent, !!v.querySelector('.nvp.bdg-inst-instance'), v.querySelectorAll('.nvp-rec .rec-tab').length);
             v.querySelector('[data-nvr="obs"]').click(); await w(100); v.querySelector('[data-nvradd]').click(); await w(200);
             document.querySelector('#svConf .nr-t').value = 'livrer avant 10h'; document.querySelector('#svConf .nr-i').checked = true; document.querySelector('#svConf [data-ok]').click(); await w(250);
@@ -3099,7 +3099,7 @@ def main():
             v.querySelector('[data-nvp="more"]').click(); await w(150); document.querySelector('#blkMenu [data-a="val"]').click(); await w(250); document.querySelector('#svConf [data-r="1"]')?.click(); await w(300);
             r.push(achArts().find(a => a.id === A.id).st, !v.querySelector('.nvp.bdg-inst-instance'));
             v.querySelector('[data-nvp="close"]').click(); await w(200); r.push((v.querySelector('.novapp-list-titlebar h1') || v.querySelector('.section-head h1')).textContent.trim());
-            v.querySelector(`[data-nvo="${s1.id}"]`).click(); await w(250); r.push([...v.querySelectorAll('.nvp-blk')].some(b => b.textContent.includes('DVF 1')));
+            (v.querySelector(`button[data-nvo="${s1.id}"]`) || v.querySelector(`[data-nvo="${s1.id}"]`)).click(); await w(250); r.push([...v.querySelectorAll('.nvp-blk')].some(b => b.textContent.includes('DVF 1')));
             const t0 = v.querySelector('.nvp-ref').textContent; v.querySelector('[data-nvp="prev"]').click(); await w(200); r.push(t0 !== v.querySelector('.nvp-ref').textContent);   /* 06/11 : liste du plus récent au plus ancien — SABLE est le dernier */
             v.__achTab('art'); await w(150); r.push(!v.querySelector('.nvp'));
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); });

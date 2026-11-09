@@ -19637,7 +19637,10 @@ function sviBdgInstanceSaisie(C) {
       const pg = t.closest(".bdg-d-page"); if (!pg) return;
       if (t.closest(".cf-btn, .col-rs, [data-tab], .blk-max-btn, .blk-more, .blk-grip, .blk-rsz, .ibd-board, .blk-scn, .blk-ver, .blk-rcl, .blk-etp, .blk-suivi")) return;
       const stop = say => { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); if (say) roSay(); };
-      if (e.type === "focusin") { if (t.matches("input:not([type=checkbox]):not([type=radio]), textarea, select, [contenteditable]")) { try { t.blur(); } catch (er) {} roSay(); } return; }
+      /* 09/11 (règle 8.2) : en lecture seule, la case se sélectionne quand même (cadre rouge, 2e toucher = tout sélectionné pour COPIER) :
+         le champ devient non modifiable au lieu d'être quitté ; le message ne vient qu'à une vraie tentative de modification */
+      if (e.type === "focusin") { if (t.matches("input:not([type=checkbox]):not([type=radio]), textarea")) { t.readOnly = true; return; }
+        if (t.matches("select, [contenteditable]")) { try { t.blur(); } catch (er) {} roSay(); } return; }
       if (e.type === "beforeinput" || e.type === "paste" || e.type === "drop" || e.type === "dragstart") return stop(true);
       if (e.type === "keydown") { if (/^(Delete|Backspace)$/.test(e.key) || ((e.ctrlKey || e.metaKey) && /^[vx]$/i.test(e.key))) stop(true); return; }
       if (e.type === "pointerdown" || e.type === "touchstart" || e.type === "mousedown") { if (t.closest(DRAG) && !t.closest("input[type=checkbox], .lk-rd, .ins-rd, .ins-tfz, .lot-fold, .dly-fold")) { e.stopPropagation(); e.stopImmediatePropagation(); } return; }

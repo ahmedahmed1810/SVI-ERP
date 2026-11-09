@@ -502,7 +502,7 @@ document.addEventListener("input", e => {
    ET les listes du bloc TÂCHES : LOT, ACTIVITÉ PRIMAIRE, ACTIVITÉ SECONDAIRE (.ins-hcol, une ligne = .ins-li).
    Une « cellule » = la case d'un tableau (td) ou, dans une liste, la case de saisie (intitulé) ou la case d'unité (.act-u).
    ========================================================= */
-const SVI_TS = "table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table";
+const SVI_TS = "table.ins-table, table.sd-t, table.dly-table, table.inc-table, table.prm-table, table.qq-table, table.novapp-budget-table, table.bdg-d-table";   /* 09/11 (règle 8.2) : listes et tableaux des fiches aussi — toute case se sélectionne */
 const SVI_ED = 'input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]):not(.sv-date):not(.dlp-in), textarea.ins-in';
 /* cellule d'un élément (ou null) */
 const sviCellOf = el => {
@@ -626,8 +626,7 @@ const sviFrame = () => {
   { v.left = Math.max(v.left, v.full.left); v.right = Math.min(v.right, v.full.right);
     v.top = Math.max(v.top, v.full.top); v.bottom = Math.min(v.bottom, v.full.bottom);
     if (v.bottom - v.top < 4 || v.right - v.left < 4) { SVI_FR.style.display = "none"; return; } }
-  let col = (getComputedStyle(c).getPropertyValue("--inst") || "").trim() || "#111827";
-  { const pgS = c.closest('[class*="bdg-inst-"]'); if (pgS && !pgS.matches(".bdg-inst-instance, .bdg-inst-fige")) col = "#98a2b3"; }   /* figé : vert gardé (31/10/2026) */   /* v736 : lecture seule = cadre gris */
+  const col = "#b91c1c";   /* 09/11 (Ahmed) : cadre ROUGE partout, avec son point rouge (plus de noir, plus de gris en lecture seule) */
   /* au-dessus d'une fenêtre (SAISIE DIRECTE en fenêtre, fenêtres d'import…) quand la cellule y est */
   SVI_FR.style.zIndex = (c.closest("#sdW:not(.sd-inplace), #docPop, #blkPop, .svc-wrap") || (c.closest("[role=dialog]") && !c.closest(".sd-inplace"))) ? "10096" : "45";
   if (window.__sviHandleZ) window.__sviHandleZ(SVI_FR.style.zIndex === "45" ? "46" : "10097");
@@ -649,7 +648,7 @@ const sviSelBox = () => {
   const area = els.reduce((s2, e) => { const R = e.getBoundingClientRect(); return s2 + (e.tagName === "TD" ? R.width : r - l) * R.height; }, 0);
   document.querySelectorAll(".svi-cs1").forEach(x => x.classList.remove("svi-cs1"));
   if (area < 0.97 * (r - l) * (b - t)) { els.forEach(e => e.classList.add("svi-cs1")); SVI_SB.style.display = "none"; return; }
-  const col = (getComputedStyle(els[0]).getPropertyValue("--inst") || "").trim() || "#111827";
+  const col = "#b91c1c";
   Object.assign(SVI_SB.style, { display: "block", left: (l + window.scrollX) + "px", top: (t + window.scrollY) + "px", width: (r - l) + "px", height: (b - t) + "px", borderColor: col, zIndex: SVI_FR ? SVI_FR.style.zIndex || "45" : "45" });
 };
 window.sviSelBox = sviSelBox;
@@ -730,7 +729,7 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
    ========================================================= */
 (() => {
   /* v619 (remarque 88) : sélection de cases (Maj = plage, Ctrl / Cmd = case ajoutée ou retirée) dans tous les tableaux, comme en SAISIE DIRECTE */
-  const TSEL = "table.ins-table, table.sd-t, table.dly-table, table.qq-table, table.inc-table, table.prm-table, table.mg-table, table.lk-table, table.dpk-t, table.bdg-d-table";
+  const TSEL = "table.ins-table, table.sd-t, table.dly-table, table.qq-table, table.inc-table, table.prm-table, table.mg-table, table.lk-table, table.dpk-t, table.bdg-d-table, table.novapp-budget-table";
   const S = { tbl: null, a: null, b: null, extra: new Set(), cut: new Set() };
   const posOf = td => { const tr = td.closest("tr"); return tr && tr.parentElement && tr.parentElement.tagName === "TBODY" ? { r: tr.sectionRowIndex, c: td.cellIndex } : null; };
   const tdAt = (tbl, r, c) => { const tr = tbl.tBodies[0] && tbl.tBodies[0].rows[r]; return tr ? tr.cells[c] || null : null; };
@@ -779,7 +778,7 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
         H.addEventListener("pointermove", mv); H.addEventListener("pointerup", up); H.addEventListener("pointercancel", up);
       });
     }
-    { const c = getComputedStyle(end).getPropertyValue("--inst").trim(), pgS = end.closest('[class*="bdg-inst-"]'); H.style.background = pgS && !pgS.matches(".bdg-inst-instance, .bdg-inst-fige") ? "#98a2b3" : (c || "#111827"); }   /* v505 (remarque 55) ; v736 : gris en lecture seule */
+    H.style.background = "#b91c1c";   /* 09/11 : point rouge partout */   /* v505 (remarque 55) ; v736 : gris en lecture seule */
     /* v736 : une seule case = le point pile au coin du cadre (cadre rétréci au nom, colonnes de noms) */
     let vr = vis.right, vb = vis.bottom;
     { const F = document.getElementById("sviSelFrame"); if (end === cell && F && F.style.display === "block") { const fr = F.getBoundingClientRect(); vr = fr.right; vb = fr.bottom; } }

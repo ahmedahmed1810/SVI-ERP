@@ -357,9 +357,19 @@ sviRowHApply();
     for (let i = L.length - 1; i >= 0; i--) { const [r, g, b, a] = L[i]; c = [r * a + c[0] * (1 - a), g * a + c[1] * (1 - a), b * a + c[2] * (1 - a)]; }
     return "rgb(" + c.map(Math.round).join(", ") + ")"; };
   let lastT = null, lastTt = 0;
+  /* 09/11 (Ahmed) : 2e toucher = tout le contenu sélectionné, SANS bulle ; les actions passent par l'appui long */
   const allSel = el => { document.querySelectorAll(".cell-all").forEach(x => x.classList.remove("cell-all")); el.classList.add("cell-all");
-    const txt = txtOf(el); if (!txt || typeof sviEtatMenu !== "function") return;
-    sviEtatMenu(el, [{ k: "copy", lab: "COPIER" }], "", () => { try { navigator.clipboard.writeText(txt); } catch (er) {} el.classList.remove("cell-all"); if (typeof svToast === "function") svToast("COPIÉ.", 1500, el); }); };
+    if (el.matches(FLD)) { try { el.focus({ preventScroll: true }); el.setSelectionRange(0, String(el.value || "").length); } catch (er) {} } };
+  /* appui long : case modifiable (rouge) = COUPER, COPIER, COLLER, EFFACER ; case non modifiable (noire, lecture seule) = COPIER */
+  const canEd = el => el.matches(FLD) && !el.disabled && !el.readOnly && !window.__sviRO;
+  const setVal = (el, v) => { el.value = v; el.dispatchEvent(new InputEvent("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); };
+  const lpMenu = el => { const txt = txtOf(el); if (typeof sviEtatMenu !== "function") return;
+    const ed = canEd(el), It = ed ? [{ k: "cut", lab: "COUPER" }, { k: "copy", lab: "COPIER" }, { k: "paste", lab: "COLLER" }, { k: "clear", lab: "EFFACER" }] : [{ k: "copy", lab: "COPIER" }];
+    sviEtatMenu(el, It, "", async k => { const say = m => { if (typeof svToast === "function") svToast(m, 1500, el); };
+      if (k === "copy" || k === "cut") { try { await navigator.clipboard.writeText(txt); } catch (er) {} if (k === "cut") setVal(el, ""); say(k === "cut" ? "COUPÉ." : "COPIÉ."); }
+      else if (k === "paste") { let v = ""; try { v = await navigator.clipboard.readText(); } catch (er) {} setVal(el, String(v || "").toUpperCase()); }
+      else if (k === "clear") setVal(el, "");
+      el.classList.remove("cell-all"); }); };
   document.addEventListener("pointerdown", e => { if (!e.target.closest || !e.target.closest(".cell-all, #sviEtatMenu")) document.querySelectorAll(".cell-all").forEach(x => x.classList.remove("cell-all")); }, true);
   const off = () => { if (cur) { cur.classList.remove("cell-x"); cur.parentElement && cur.parentElement.classList.remove("row-x"); cur = null; } if (tip) { tip.remove(); tip = null; } };
   const show = el => { off(); if (el.matches(FLD)) { const r = el.getBoundingClientRect(); tip = document.createElement("div"); tip.id = "sviFullTip"; tip.textContent = txtOf(el);
@@ -370,8 +380,7 @@ sviRowHApply();
     cur = el; el.classList.add("cell-x"); el.tagName === "TD" && el.parentElement.classList.add("row-x"); };
   document.addEventListener("pointerdown", e => { const el = cutTd(e.target); if ((cur && !cur.contains(e.target)) || (tip && (tip.__el !== el || document.activeElement === el))) off();   /* 2e toucher sur le champ = saisie : le texte agrandi s'efface */ clearTimeout(tm); if (!el) return; x0 = e.clientX; y0 = e.clientY; t0 = Date.now();
     if (isCut(el)) window.__sviCutT = Date.now();   /* le message LECTURE SEULE se tait : le toucher sert à lire */
-    tm = setTimeout(() => { tm = 0; const txt = txtOf(el); if (!txt || typeof sviEtatMenu !== "function") return;
-      sviEtatMenu(el, [{ k: "copy", lab: "COPIER" }], "", () => { try { navigator.clipboard.writeText(txt); } catch (er) {} if (typeof svToast === "function") svToast("COPIÉ.", 1500, el); }); }, SVI_G.lp); }, true);
+    tm = setTimeout(() => { tm = 0; lastT = null; lpMenu(el); }, SVI_G.lp); }, true);
   document.addEventListener("pointermove", e => { if (tm && Math.hypot(e.clientX - x0, e.clientY - y0) > SVI_G.drag) { clearTimeout(tm); tm = 0; } }, true);
   document.addEventListener("pointercancel", () => { clearTimeout(tm); tm = 0; }, true);
   document.addEventListener("pointerup", e => { const quick = !!tm; clearTimeout(tm); tm = 0; if (!quick || Math.hypot(e.clientX - x0, e.clientY - y0) > SVI_G.drag) return;
