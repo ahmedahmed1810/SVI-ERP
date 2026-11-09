@@ -4579,7 +4579,7 @@ sviRowHApply();
       try { const k = caretAt(P.t, c.clientX), v = String(P.t.value || ""), now = Date.now();
         if (lastT3 && lastT3.t === P.t && now - lastT3.at < (SVI_G.dbl || 350) && Math.abs(c.clientX - lastT3.x) < 24) {
           let a = k, b = k; while (a > 0 && !/\s/.test(v[a - 1])) a--; while (b < v.length && !/\s/.test(v[b])) b++;
-          if (a === b && b < v.length) { while (b < v.length && /\s/.test(v[b])) b++; }   /* toucher entre deux mots : le mot qui suit */
+          if (a === b && b < v.length) { while (b < v.length && /\s/.test(v[b])) b++; a = b; while (b < v.length && !/\s/.test(v[b])) b++; }   /* toucher entre deux mots : le mot qui suit */
           P.t.setSelectionRange(a, b); lastT3 = null; return; }
         lastT3 = { t: P.t, at: now, x: c.clientX };
         P.t.setSelectionRange(k, k); if (k >= v.length) P.t.scrollLeft = P.t.scrollWidth; } catch (er) {} }, { passive: true, capture: true }); }
