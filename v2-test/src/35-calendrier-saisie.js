@@ -508,7 +508,7 @@ const SVI_ED = 'input:not([type=checkbox]):not([type=radio]):not([type=file]):no
 const sviCellOf = el => {
   if (!el || !el.closest) return null;
   const td = el.closest("td");
-  if (td && td.closest(SVI_TS) && td.closest("tbody")) return td;
+  if (td && td.closest(SVI_TS) && (td.closest("tbody") || td.closest("tfoot"))) return td;   /* 09/11 : ligne TOTAL aussi (case non modifiable) */
   const li = el.closest(".ins-hcol .ins-li");
   if (!li) return null;
   const u = el.closest(".act-u");
@@ -518,7 +518,7 @@ const sviCellOf = el => {
 const sviCellInput = c => !c ? null : c.matches && c.matches(SVI_ED) ? c : c.querySelector(SVI_ED);
 /* lignes visibles et cellules d'une ligne */
 const sviGridRows = c => {
-  if (c.tagName === "TD") { const tb = c.closest("tbody"); return [...tb.rows].filter(tr => tr.offsetParent !== null); }
+  if (c.tagName === "TD") { const tb = c.closest("tbody, tfoot"); return [...tb.rows].filter(tr => tr.offsetParent !== null); }
   const col = c.closest(".ins-hcol"); return [...col.querySelectorAll(".ins-li")].filter(r => r.offsetParent !== null);
 };
 const sviRowOf = c => c.tagName === "TD" ? c.parentElement : c.closest(".ins-li");
@@ -763,9 +763,11 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
     /* v553 (partie 11, remarque 5) : case de date (calendrier) = ni contour ni point au coin */
     const isDate = !!(document.getElementById("svCal") && act && act.matches && act.matches("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]")) || !!(act && act.matches && act.matches("input.sv-date")) || !!(cell && cell.querySelector && cell.querySelector("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]"));
     if (!cell || isDate || !matchMedia("(pointer: coarse)").matches) { if (H) H.style.display = "none"; return; }
+    /* 09/11 : champ ouvert en saisie = pas de point (le bord droit sert au curseur) */
+    if (act && act.matches && act.matches("input, textarea") && !act.classList.contains("svi-nav") && !act.readOnly && !act.disabled) { if (H) H.style.display = "none"; return; }
     const td = cell.tagName === "TD" ? cell : null;
     let end = cell;
-    if (td && S.tbl && S.a && td.closest("table") === S.tbl) end = tdAt(S.tbl, (S.b || S.a).r, (S.b || S.a).c) || td;
+    if (td && td.closest("tbody") && S.tbl && S.a && td.closest("table") === S.tbl) end = tdAt(S.tbl, (S.b || S.a).r, (S.b || S.a).c) || td;
     else if (!td && window.__sviLS) end = window.__sviLS.end(cell) || cell;   /* v513 : fin de la plage d'une liste */
     const vis = sviCellVis(end);
     if (!vis) { if (H) H.style.display = "none"; return; }
@@ -777,7 +779,8 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
         const mv = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 6) moved = true; else return; const el = document.elementFromPoint(ev.clientX, ev.clientY), t2 = el && el.closest && el.closest("td"); if (t2 && t2.closest("table") === S.tbl) { const p = posOf(t2); if (p) { S.b = p; paint(); } } else if (window.__sviLS) { window.__sviLS.drag(el); handle(); } };
         const up = ev => { H.removeEventListener("pointermove", mv); H.removeEventListener("pointerup", up); H.removeEventListener("pointercancel", up);
           /* 09/11 : un simple toucher sur le point (sans tirer) = toucher la case dessous (2e toucher = modification) */
-          if (!moved && ev && ev.type === "pointerup") { const d = H.style.display; H.style.display = "none"; const el = document.elementFromPoint(ev.clientX, ev.clientY); H.style.display = d; if (el && el !== H) el.click(); } };
+          if (!moved && ev && ev.type === "pointerup") { const d = H.style.display; H.style.display = "none"; const el = document.elementFromPoint(ev.clientX, ev.clientY); H.style.display = d;
+            if (el && el !== H) el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window, clientX: ev.clientX, clientY: ev.clientY, detail: 1 })); } };
         H.addEventListener("pointermove", mv); H.addEventListener("pointerup", up); H.addEventListener("pointercancel", up);
       });
     }
@@ -1373,9 +1376,10 @@ window.__sviCells = (() => {
         (async () => { let lines = [""];
           if (v === "paste") { let t = ""; try { t = await navigator.clipboard.readText(); } catch (er) {} if (!t) t = window.__sviSelClip || "";
             lines = String(t).split(/\r?\n/).map(x => x.split("\t")[0].trim()).filter(Boolean); if (!lines.length) { if (typeof svToast === "function") svToast("RIEN À COLLER : COPIEZ D'ABORD DES CASES.", 2200); return; } }
-          const L = sviInstGet(); let n = 0;
+          const L = sviInstGet(); let n = 0; const B4 = new Map(), AF = new Map();
           SI.forEach((td, i) => { const it = L.find(x => x.ref === td.dataset.ied); if (!it) return; const nv = v === "clear" ? "À COMPLÉTER" : String(lines.length > 1 ? (lines[i] || "") : lines[0]).toUpperCase().replace(/\s+/g, " ");
-            if (!nv || nv === it.intitule) return; it.intitule = nv; n++; });
+            if (!nv || nv === it.intitule) return; B4.set(it.ref, it.intitule || ""); AF.set(it.ref, nv); it.intitule = nv; n++; });
+          if (n && typeof sviUndoPush === "function") sviUndoPush(dir => { const L2 = sviInstGet(), M = dir === "undo" ? B4 : AF; L2.forEach(x => { if (M.has(x.ref)) x.intitule = M.get(x.ref); }); sviInstSet(L2); if (typeof renderBudgetList === "function") renderBudgetList(); }, v === "clear" ? "EFFACEMENT DES INTITULÉS" : "COLLAGE DES INTITULÉS");
           if (n) { sviInstSet(L); try { histLog("BUDGET", v === "clear" ? "INTITULÉS EFFACÉS DANS LA LISTE" : "INTITULÉS COLLÉS DANS LA LISTE", n + " BUDGET(S)"); } catch (er) {} }
           if (typeof renderBudgetList === "function") renderBudgetList(); if (typeof svToast === "function") svToast(n + " CASE(S) " + (v === "clear" ? "EFFACÉE(S)." : "COLLÉE(S)."), 1800); })();
         setTimeout(place, 50); return; }

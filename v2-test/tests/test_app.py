@@ -2889,7 +2889,7 @@ def main():
             sviInstSet(sviInstGet().map(x => x.ref === 'F-1-AV1' ? { ...x, xp: '2026-11-01' } : x.ref === 'H-1' ? { ...x, arch: '2026-11-01' } : x)); renderBudgetList(); await w(300);
             const sumAfter = sviAvMerge('F-1', true).des.reduce((t, x) => t + (+x.q || 0), 0);
             r.push(refs().includes('H-1'), refs().includes('F-1-AV1'), sumBefore, sumAfter);
-            document.querySelector('#bdgDatePanel [data-stfm]').click(); await w(150);   /* 06/11 (soir) : états dans le menu ▾ */
+            document.querySelector('#bdgDatePanel [data-stfm]').click(); await w(150); if (!document.getElementById('sviEtatMenu')) { document.querySelector('#bdgDatePanel [data-stfm]').click(); await w(150); }   /* 06/11 (soir) : états dans le menu ▾ */
             r.push([...document.querySelectorAll('#sviEtatMenu .svi-stf-r')].map(b => b.textContent.replace(/\\s+/g, ' ').trim()).join('|'));
             document.querySelector('#sviEtatMenu [data-stfk="tout"]').click(); await w(150); document.querySelector('#sviEtatMenu [data-stfk="archive"]').click(); await w(200); document.getElementById('sviEtatMenu')?.remove(); r.push(lab(), refs().join(','));
             await pick(['expire']);
@@ -4019,7 +4019,7 @@ def main():
   const L = achFrs(); const a = achFrsNew(L, { nom: 'ANCIEN INACTIF' }); a.actif = false; a.st = 'valide'; achFrsSave(L);
   document.querySelector('#navMenu .nav-btn[data-ach="frs"]').click(); await w(500);
   /* 06/11 : cases à cocher des états communs (TOUT en haut) ; la fréquence est une colonne (loupe) */
-  document.getElementById('sviEtatMenu')?.remove(); const b = document.querySelector('#ach [data-stfm]'); r.lab = b.textContent.replace(/\s+/g, ' ').trim(); b.click(); await w(150);
+  document.getElementById('sviEtatMenu')?.remove(); const b = document.querySelector('#ach [data-stfm]'); r.lab = b.textContent.replace(/\s+/g, ' ').trim(); b.click(); await w(150); if (!document.getElementById('sviEtatMenu')) { b.click(); await w(150); }   /* v1051 : nom coupé = 1er toucher pour le lire */
   r.menu = [...document.querySelectorAll('#sviEtatMenu .svi-stf-r:not([data-stfk="tout"])')].map(x => x.textContent.replace(/[\d✓]/g, '').trim()).filter(Boolean).join('|'); document.getElementById('sviEtatMenu')?.remove();
   document.getElementById('sviEtatMenu')?.remove(); const f = achFrs().find(x => x.id === a.id); r.mig = f.actif === undefined && !!f.bloq; r.newNoActif = !('actif' in achFrsNew([], { nom: 'X' }));
   K.forEach((k, i) => keep[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, keep[i])); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(200); return r; }""")

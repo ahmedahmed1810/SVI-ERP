@@ -4473,7 +4473,7 @@ sviRowHApply();
   const FLD = "input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=hidden]):not([type=file]), textarea";
   const cutTd = t => { if (!t || !t.closest || t.closest("#cfMenu, .fmw-card, .cmpm-pick")) return null;
     /* 09/11 : tous les champs — une case à champ grisé (disabled : le toucher arrive sur la case) montre aussi son champ */
-    const td = t.closest("table tbody td"); if (td) { if (td.querySelector("select, .sv-sel")) return null; const f = t.matches && t.matches(FLD) ? t : td.querySelector(FLD); return f || td; }
+    const td = t.closest("table tbody td, table tfoot td"); if (td) { if (td.querySelector("select, .sv-sel")) return td; const f = t.matches && t.matches(FLD) ? t : td.querySelector(FLD); return f || td; }
     const li = t.closest(".bdg-h-col .bdg-h-item, .ins-hcol .ins-li"); if (li) return li.querySelector(":scope input.ins-in, :scope .lot-in input.ins-in") || li;
     const f = t.closest(FLD); return f && f.closest(".bdg-d-page, .nvp, #svConf, #docPop, .novapp-list-shell, table") ? f : null; };
   const over = el => el.scrollWidth > el.clientWidth + 1 || (el.tagName === "TEXTAREA" && el.scrollHeight > el.clientHeight + 1);
@@ -4500,18 +4500,23 @@ sviRowHApply();
   let LB = null; const lbOff = () => { if (LB) LB.style.display = "none"; };
   document.addEventListener("pointerdown", e => { if (LB && !LB.contains(e.target)) lbOff(); }, true);
   document.addEventListener("scroll", lbOff, true);
-  const lpMenu = el => { const txt = txtOf(el), ed = canEd(el);
+  const lpMenu = el => { const sel = el.tagName === "TD" ? el.querySelector("select") : null, txt = sel ? (typeof sviSelLab === "function" ? sviSelLab(sel) : "") : txtOf(el), ed = sel ? !sel.disabled && !window.__sviRO : canEd(el);
     /* une plage de cases a déjà sa barre (COPIER, COLLER, EFFACER) : un seul menu */
     if (window.__sviCells && window.__sviCells.count() > 1 && (el.closest("td.svi-cs") || (el.closest(".ins-li") && el.closest(".ins-li").querySelector(".svi-ls")))) return;
     if (!LB) { LB = document.createElement("div"); LB.id = "sviLpBar"; document.body.appendChild(LB);
       LB.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); }); }
-    LB.innerHTML = ed ? '<button type="button" data-lp="cut">COUPER</button><button type="button" data-lp="copy">COPIER</button><button type="button" data-lp="paste">COLLER</button><div class="blk-sep"></div><button type="button" data-lp="clear" class="sb-del">EFFACER</button>' : '<button type="button" data-lp="copy">COPIER</button>';
+    LB.innerHTML = ed ? (sel ? "" : '<button type="button" data-lp="cut">COUPER</button>') + '<button type="button" data-lp="copy">COPIER</button><button type="button" data-lp="paste">COLLER</button><div class="blk-sep"></div><button type="button" data-lp="clear" class="sb-del">EFFACER</button>' : '<button type="button" data-lp="copy">COPIER</button>';
     const tr = el.closest("tr, .ins-li"), rh = Math.round(Math.max(18, Math.min(44, (tr || el).getBoundingClientRect().height)));
     LB.style.setProperty("--lph", rh + "px"); LB.style.display = "flex";
     const r = el.getBoundingClientRect(), h = LB.offsetHeight, w = LB.offsetWidth; let y = r.bottom + 4; if (y + h > innerHeight - 4) y = Math.max(4, r.top - h - 4);
     LB.style.left = Math.max(4, Math.min(innerWidth - w - 4, r.left)) + "px"; LB.style.top = y + "px";
     LB.onclick = async e => { const b = e.target.closest("[data-lp]"); if (!b) return; e.preventDefault(); e.stopPropagation(); const k = b.dataset.lp; lbOff();
       const say = m => { if (typeof svToast === "function") svToast(m, 1500, el); };
+      /* liste de choix : COLLER = le choix dont le nom correspond au texte copié ; EFFACER = aucun choix */
+      if (sel && (k === "paste" || k === "clear")) { let v = ""; if (k === "paste") { try { v = await navigator.clipboard.readText(); } catch (er) {} if (!v) v = window.__sviSelClip || ""; }
+        const U = String(v || "").trim().toUpperCase(), o = k === "clear" ? [...sel.options].find(x => !x.value) : [...sel.options].find(x => String(x.textContent || "").trim().toUpperCase() === U);
+        if (!o) { say("RIEN À COLLER : AUCUN CHOIX NE CORRESPOND."); return; } sel.value = o.value; if (typeof sviSelSync === "function") sviSelSync(sel);
+        sel.dispatchEvent(new Event("input", { bubbles: true })); sel.dispatchEvent(new Event("change", { bubbles: true })); return; }
       if (k === "copy" || k === "cut") { try { await navigator.clipboard.writeText(txt); } catch (er) {} window.__sviSelClip = txt; if (k === "cut") setVal(el, ""); say(k === "cut" ? "COUPÉ." : "COPIÉ."); }
       else if (k === "paste") { let v = ""; try { v = await navigator.clipboard.readText(); } catch (er) {} if (!v) v = window.__sviSelClip || ""; setVal(el, String(v || "").toUpperCase()); }
       else if (k === "clear") setVal(el, "");
@@ -4525,7 +4530,9 @@ sviRowHApply();
       /* 09/11 : toucher le bord droit (ou au-delà du texte) = la fin du champ, même si le texte dépasse */
       if (x >= r.right - parseFloat(cs.paddingRight) - 10 && W(v.length) + ls > w + i.scrollLeft - 2) return v.length;
       const px = x - r.left - pl - off + i.scrollLeft; let best = 0, bd = 1e9; for (let k = 0; k <= v.length; k++) { const d = Math.abs(W(k) - px); if (d < bd) { bd = d; best = k; } } return best; };
-    document.addEventListener("touchstart", e => { const t = e.target; T3 = null; if (e.touches.length !== 1 || !t || !t.matches || !t.matches(FLD) || t !== document.activeElement || t.classList.contains("svi-nav")) return;
+    /* le 2e toucher (le champ sort de la simple sélection) garde son effet : tout le contenu sélectionné */
+    let pdNav = false; document.addEventListener("pointerdown", e => { const t = e.target; pdNav = !!(t && t.classList && t.classList.contains("svi-nav")); }, true);
+    document.addEventListener("touchstart", e => { const t = e.target; T3 = null; if (pdNav || e.touches.length !== 1 || !t || !t.matches || !t.matches(FLD) || t !== document.activeElement || t.classList.contains("svi-nav")) return;
       if (!t.closest("table tbody td, .ins-hcol .ins-li, .bdg-h-col .bdg-h-item")) return; e.preventDefault(); T3 = { t, x: e.touches[0].clientX, y: e.touches[0].clientY }; }, { passive: false, capture: true });
     /* glisser le doigt dans le champ = le curseur suit le doigt */
     document.addEventListener("touchmove", e => { if (!T3 || e.touches.length !== 1) return; e.preventDefault(); const i = T3.t, x = e.touches[0].clientX, r = i.getBoundingClientRect();
@@ -4930,6 +4937,8 @@ function sviSelUp(s) {
   sviSelSync(s);
   b.addEventListener("click", e => {
     e.preventDefault(); e.stopPropagation();
+    /* 09/11 (règle 8.2) : liste de choix dans un tableau — 1er toucher = la case sélectionnée (cadre rouge), 2e = la liste s'ouvre */
+    { const td = b.closest("table tbody td"); if (td && document.activeElement !== td && document.activeElement !== b) { td.classList.add("svi-tdf"); if (!td.hasAttribute("tabindex")) td.setAttribute("tabindex", "-1"); td.focus({ preventScroll: true }); return; } }
     if (s.disabled) return;
     const items = [...s.options].filter(o => !o.disabled).map(o => ({ k: o.value, lab: String(o.textContent || "").trim().toUpperCase() || "—" }));
     sviEtatMenu(b, items, s.value, v => {
@@ -5141,7 +5150,12 @@ const sviSetRefresh = () => { try { sviFmtApply(); } catch (e) {} try { if (type
   const v = document.querySelector(".view.active-view"); if (!v) return;
   if (v.id === "ach" && v.__achDraw) { v.__achDraw(); return; }
   if (v.id === "bdg") { if (v.querySelector(".bdg-d-page") && window.__sviBdgRefresh) { try { window.__sviBdgRefresh(); } catch (e) {} } else if (typeof renderBudgetList === "function") renderBudgetList(); } };
+/* 09/11 : modification faite dans une liste (INTITULÉ…) annulable : sviUndoPush(fonction(sens)) — sens « undo » ou « redo » */
+const sviUndoPush = (cb, lab) => { SVI_SETUNDO.u.push({ items: [], t: Date.now(), cb, lab: lab || "MODIFICATION" }); SVI_SETUNDO.r.length = 0; SVI_SETUNDO.lastAct = "set"; setTimeout(sviSetSync, 0); };
+window.sviUndoPush = sviUndoPush;
 const sviSetUndo = redo => { const A = redo ? SVI_SETUNDO.r : SVI_SETUNDO.u, B = redo ? SVI_SETUNDO.u : SVI_SETUNDO.r, e = A.pop(); if (!e) return false;
+  if (e.cb) { try { e.cb(redo ? "redo" : "undo"); } catch (er) {} B.push(Object.assign({}, e, { t: Date.now() })); SVI_SETUNDO.lastAct = "set"; sviSetSync();
+    if (typeof svToast === "function") svToast(e.lab + (redo ? " RÉTABLIE." : " ANNULÉE."), 1600); return true; }
   B.push({ items: e.items.map(i => { let cur = null; try { cur = localStorage.getItem(i.k); } catch (er) {} return { k: i.k, prev: cur }; }), t: Date.now() });
   SVI_SETUNDO.on = true; try { e.items.slice().reverse().forEach(i => { if (i.prev === null) localStorage.removeItem(i.k); else localStorage.setItem(i.k, i.prev); }); } catch (er) {} finally { SVI_SETUNDO.on = false; }
   SVI_SETUNDO.lastAct = "set"; sviSetRefresh(); sviSetSync(); if (typeof svToast === "function") svToast(redo ? "RÉGLAGE D'AFFICHAGE RÉTABLI." : "RÉGLAGE D'AFFICHAGE ANNULÉ.", 1600); return true; };
@@ -7238,7 +7252,7 @@ const SVI_ED = 'input:not([type=checkbox]):not([type=radio]):not([type=file]):no
 const sviCellOf = el => {
   if (!el || !el.closest) return null;
   const td = el.closest("td");
-  if (td && td.closest(SVI_TS) && td.closest("tbody")) return td;
+  if (td && td.closest(SVI_TS) && (td.closest("tbody") || td.closest("tfoot"))) return td;   /* 09/11 : ligne TOTAL aussi (case non modifiable) */
   const li = el.closest(".ins-hcol .ins-li");
   if (!li) return null;
   const u = el.closest(".act-u");
@@ -7248,7 +7262,7 @@ const sviCellOf = el => {
 const sviCellInput = c => !c ? null : c.matches && c.matches(SVI_ED) ? c : c.querySelector(SVI_ED);
 /* lignes visibles et cellules d'une ligne */
 const sviGridRows = c => {
-  if (c.tagName === "TD") { const tb = c.closest("tbody"); return [...tb.rows].filter(tr => tr.offsetParent !== null); }
+  if (c.tagName === "TD") { const tb = c.closest("tbody, tfoot"); return [...tb.rows].filter(tr => tr.offsetParent !== null); }
   const col = c.closest(".ins-hcol"); return [...col.querySelectorAll(".ins-li")].filter(r => r.offsetParent !== null);
 };
 const sviRowOf = c => c.tagName === "TD" ? c.parentElement : c.closest(".ins-li");
@@ -7493,9 +7507,11 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
     /* v553 (partie 11, remarque 5) : case de date (calendrier) = ni contour ni point au coin */
     const isDate = !!(document.getElementById("svCal") && act && act.matches && act.matches("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]")) || !!(act && act.matches && act.matches("input.sv-date")) || !!(cell && cell.querySelector && cell.querySelector("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]"));
     if (!cell || isDate || !matchMedia("(pointer: coarse)").matches) { if (H) H.style.display = "none"; return; }
+    /* 09/11 : champ ouvert en saisie = pas de point (le bord droit sert au curseur) */
+    if (act && act.matches && act.matches("input, textarea") && !act.classList.contains("svi-nav") && !act.readOnly && !act.disabled) { if (H) H.style.display = "none"; return; }
     const td = cell.tagName === "TD" ? cell : null;
     let end = cell;
-    if (td && S.tbl && S.a && td.closest("table") === S.tbl) end = tdAt(S.tbl, (S.b || S.a).r, (S.b || S.a).c) || td;
+    if (td && td.closest("tbody") && S.tbl && S.a && td.closest("table") === S.tbl) end = tdAt(S.tbl, (S.b || S.a).r, (S.b || S.a).c) || td;
     else if (!td && window.__sviLS) end = window.__sviLS.end(cell) || cell;   /* v513 : fin de la plage d'une liste */
     const vis = sviCellVis(end);
     if (!vis) { if (H) H.style.display = "none"; return; }
@@ -7507,7 +7523,8 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
         const mv = ev => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 6) moved = true; else return; const el = document.elementFromPoint(ev.clientX, ev.clientY), t2 = el && el.closest && el.closest("td"); if (t2 && t2.closest("table") === S.tbl) { const p = posOf(t2); if (p) { S.b = p; paint(); } } else if (window.__sviLS) { window.__sviLS.drag(el); handle(); } };
         const up = ev => { H.removeEventListener("pointermove", mv); H.removeEventListener("pointerup", up); H.removeEventListener("pointercancel", up);
           /* 09/11 : un simple toucher sur le point (sans tirer) = toucher la case dessous (2e toucher = modification) */
-          if (!moved && ev && ev.type === "pointerup") { const d = H.style.display; H.style.display = "none"; const el = document.elementFromPoint(ev.clientX, ev.clientY); H.style.display = d; if (el && el !== H) el.click(); } };
+          if (!moved && ev && ev.type === "pointerup") { const d = H.style.display; H.style.display = "none"; const el = document.elementFromPoint(ev.clientX, ev.clientY); H.style.display = d;
+            if (el && el !== H) el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window, clientX: ev.clientX, clientY: ev.clientY, detail: 1 })); } };
         H.addEventListener("pointermove", mv); H.addEventListener("pointerup", up); H.addEventListener("pointercancel", up);
       });
     }
@@ -8103,9 +8120,10 @@ window.__sviCells = (() => {
         (async () => { let lines = [""];
           if (v === "paste") { let t = ""; try { t = await navigator.clipboard.readText(); } catch (er) {} if (!t) t = window.__sviSelClip || "";
             lines = String(t).split(/\r?\n/).map(x => x.split("\t")[0].trim()).filter(Boolean); if (!lines.length) { if (typeof svToast === "function") svToast("RIEN À COLLER : COPIEZ D'ABORD DES CASES.", 2200); return; } }
-          const L = sviInstGet(); let n = 0;
+          const L = sviInstGet(); let n = 0; const B4 = new Map(), AF = new Map();
           SI.forEach((td, i) => { const it = L.find(x => x.ref === td.dataset.ied); if (!it) return; const nv = v === "clear" ? "À COMPLÉTER" : String(lines.length > 1 ? (lines[i] || "") : lines[0]).toUpperCase().replace(/\s+/g, " ");
-            if (!nv || nv === it.intitule) return; it.intitule = nv; n++; });
+            if (!nv || nv === it.intitule) return; B4.set(it.ref, it.intitule || ""); AF.set(it.ref, nv); it.intitule = nv; n++; });
+          if (n && typeof sviUndoPush === "function") sviUndoPush(dir => { const L2 = sviInstGet(), M = dir === "undo" ? B4 : AF; L2.forEach(x => { if (M.has(x.ref)) x.intitule = M.get(x.ref); }); sviInstSet(L2); if (typeof renderBudgetList === "function") renderBudgetList(); }, v === "clear" ? "EFFACEMENT DES INTITULÉS" : "COLLAGE DES INTITULÉS");
           if (n) { sviInstSet(L); try { histLog("BUDGET", v === "clear" ? "INTITULÉS EFFACÉS DANS LA LISTE" : "INTITULÉS COLLÉS DANS LA LISTE", n + " BUDGET(S)"); } catch (er) {} }
           if (typeof renderBudgetList === "function") renderBudgetList(); if (typeof svToast === "function") svToast(n + " CASE(S) " + (v === "clear" ? "EFFACÉE(S)." : "COLLÉE(S)."), 1800); })();
         setTimeout(place, 50); return; }

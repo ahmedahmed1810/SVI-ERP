@@ -30,6 +30,8 @@ function sviSelUp(s) {
   sviSelSync(s);
   b.addEventListener("click", e => {
     e.preventDefault(); e.stopPropagation();
+    /* 09/11 (règle 8.2) : liste de choix dans un tableau — 1er toucher = la case sélectionnée (cadre rouge), 2e = la liste s'ouvre */
+    { const td = b.closest("table tbody td"); if (td && document.activeElement !== td && document.activeElement !== b) { td.classList.add("svi-tdf"); if (!td.hasAttribute("tabindex")) td.setAttribute("tabindex", "-1"); td.focus({ preventScroll: true }); return; } }
     if (s.disabled) return;
     const items = [...s.options].filter(o => !o.disabled).map(o => ({ k: o.value, lab: String(o.textContent || "").trim().toUpperCase() || "—" }));
     sviEtatMenu(b, items, s.value, v => {
@@ -241,7 +243,12 @@ const sviSetRefresh = () => { try { sviFmtApply(); } catch (e) {} try { if (type
   const v = document.querySelector(".view.active-view"); if (!v) return;
   if (v.id === "ach" && v.__achDraw) { v.__achDraw(); return; }
   if (v.id === "bdg") { if (v.querySelector(".bdg-d-page") && window.__sviBdgRefresh) { try { window.__sviBdgRefresh(); } catch (e) {} } else if (typeof renderBudgetList === "function") renderBudgetList(); } };
+/* 09/11 : modification faite dans une liste (INTITULÉ…) annulable : sviUndoPush(fonction(sens)) — sens « undo » ou « redo » */
+const sviUndoPush = (cb, lab) => { SVI_SETUNDO.u.push({ items: [], t: Date.now(), cb, lab: lab || "MODIFICATION" }); SVI_SETUNDO.r.length = 0; SVI_SETUNDO.lastAct = "set"; setTimeout(sviSetSync, 0); };
+window.sviUndoPush = sviUndoPush;
 const sviSetUndo = redo => { const A = redo ? SVI_SETUNDO.r : SVI_SETUNDO.u, B = redo ? SVI_SETUNDO.u : SVI_SETUNDO.r, e = A.pop(); if (!e) return false;
+  if (e.cb) { try { e.cb(redo ? "redo" : "undo"); } catch (er) {} B.push(Object.assign({}, e, { t: Date.now() })); SVI_SETUNDO.lastAct = "set"; sviSetSync();
+    if (typeof svToast === "function") svToast(e.lab + (redo ? " RÉTABLIE." : " ANNULÉE."), 1600); return true; }
   B.push({ items: e.items.map(i => { let cur = null; try { cur = localStorage.getItem(i.k); } catch (er) {} return { k: i.k, prev: cur }; }), t: Date.now() });
   SVI_SETUNDO.on = true; try { e.items.slice().reverse().forEach(i => { if (i.prev === null) localStorage.removeItem(i.k); else localStorage.setItem(i.k, i.prev); }); } catch (er) {} finally { SVI_SETUNDO.on = false; }
   SVI_SETUNDO.lastAct = "set"; sviSetRefresh(); sviSetSync(); if (typeof svToast === "function") svToast(redo ? "RÉGLAGE D'AFFICHAGE RÉTABLI." : "RÉGLAGE D'AFFICHAGE ANNULÉ.", 1600); return true; };
