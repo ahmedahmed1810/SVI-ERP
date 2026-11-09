@@ -184,11 +184,11 @@ function sviCfKit(o) {
       ${(() => { /* 08/11 (série G, G5) : renommer la colonne et sa MISE EN FORME, en haut du menu ; appliqué et gardé tout de suite (EFFACER / OK = tri et filtre seulement) */
         if (typeof sviColSet !== "function") return ""; const th = btn.closest("th"), lab = th && th.querySelector(".cf-lab"), o = sviColSet()[t + "|" + key] || {};
         /* 09/11 (remarque) : LOT, ACTIVITÉ PRIMAIRE et SECONDAIRE (bloc TÂCHES) traités comme des tableaux — renommer et mise en forme de leurs lignes */
-        const hh = !th && key === "v" && btn.closest(".ins-hcol .bdg-h-head"), tt = th || hh;
+        const hh = !th && key === "v" && btn.closest(".bdg-h-col .bdg-h-head"), tt = th || hh;
         const lt = tt && tt.querySelector(".cf-lt, .cf-tt"), def = tt ? String(tt.dataset.svcolDef || (lt ? lt.textContent : "")).replace(/\s+/g, " ").trim() : "";   /* correction G-7 : titre d'origine entier */
         const cell = th && th.closest("table").tBodies[0] && [...th.closest("table").tBodies[0].rows].find(r => r.cells.length === th.parentNode.cells.length);
         /* série I (I1) : la loupe du bloc des dates règle ses lignes (TOUT, années, mois, jours) — case de référence = 1re ligne du bloc */
-        const dh = !th && btn.closest(".novapp-date-head"), ce = cell ? cell.cells[[...th.parentNode.cells].indexOf(th)] : dh ? dh.parentElement.querySelector(".novapp-date-item") || dh.querySelector(".svi-stf-head") : hh ? hh.closest(".ins-hcol").querySelector(".ins-li:not(.ins-new):not(.lot-grp)") : null;
+        const dh = !th && btn.closest(".novapp-date-head"), ce = cell ? cell.cells[[...th.parentNode.cells].indexOf(th)] : dh ? dh.parentElement.querySelector(".novapp-date-item") || dh.querySelector(".svi-stf-head") : hh ? hh.closest(".bdg-h-col").querySelector(".ins-li:not(.ins-new):not(.lot-grp), .bdg-h-item") : null;
         const fs0 = o.fs || (ce ? Math.round(parseFloat(getComputedStyle(ce).fontSize)) : 12);
         /* série I (I6) : G suit le gras réel de la colonne (les lignes sont déjà grasses par défaut) — allumé si elle est grasse */
         const b0 = o.b !== undefined ? !!o.b : ce ? (parseInt(getComputedStyle(ce).fontWeight, 10) || 400) >= 600 : false;

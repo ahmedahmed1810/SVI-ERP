@@ -3176,11 +3176,11 @@ function sviCfKit(o) {
       ${(() => { /* 08/11 (série G, G5) : renommer la colonne et sa MISE EN FORME, en haut du menu ; appliqué et gardé tout de suite (EFFACER / OK = tri et filtre seulement) */
         if (typeof sviColSet !== "function") return ""; const th = btn.closest("th"), lab = th && th.querySelector(".cf-lab"), o = sviColSet()[t + "|" + key] || {};
         /* 09/11 (remarque) : LOT, ACTIVITÉ PRIMAIRE et SECONDAIRE (bloc TÂCHES) traités comme des tableaux — renommer et mise en forme de leurs lignes */
-        const hh = !th && key === "v" && btn.closest(".ins-hcol .bdg-h-head"), tt = th || hh;
+        const hh = !th && key === "v" && btn.closest(".bdg-h-col .bdg-h-head"), tt = th || hh;
         const lt = tt && tt.querySelector(".cf-lt, .cf-tt"), def = tt ? String(tt.dataset.svcolDef || (lt ? lt.textContent : "")).replace(/\s+/g, " ").trim() : "";   /* correction G-7 : titre d'origine entier */
         const cell = th && th.closest("table").tBodies[0] && [...th.closest("table").tBodies[0].rows].find(r => r.cells.length === th.parentNode.cells.length);
         /* série I (I1) : la loupe du bloc des dates règle ses lignes (TOUT, années, mois, jours) — case de référence = 1re ligne du bloc */
-        const dh = !th && btn.closest(".novapp-date-head"), ce = cell ? cell.cells[[...th.parentNode.cells].indexOf(th)] : dh ? dh.parentElement.querySelector(".novapp-date-item") || dh.querySelector(".svi-stf-head") : hh ? hh.closest(".ins-hcol").querySelector(".ins-li:not(.ins-new):not(.lot-grp)") : null;
+        const dh = !th && btn.closest(".novapp-date-head"), ce = cell ? cell.cells[[...th.parentNode.cells].indexOf(th)] : dh ? dh.parentElement.querySelector(".novapp-date-item") || dh.querySelector(".svi-stf-head") : hh ? hh.closest(".bdg-h-col").querySelector(".ins-li:not(.ins-new):not(.lot-grp), .bdg-h-item") : null;
         const fs0 = o.fs || (ce ? Math.round(parseFloat(getComputedStyle(ce).fontSize)) : 12);
         /* série I (I6) : G suit le gras réel de la colonne (les lignes sont déjà grasses par défaut) — allumé si elle est grasse */
         const b0 = o.b !== undefined ? !!o.b : ce ? (parseInt(getComputedStyle(ce).fontWeight, 10) || 400) >= 600 : false;
@@ -3460,12 +3460,12 @@ const SVI_FMT_EL = [
      sur une bande gris-vert, l'actif clair et raccordé à la rangée du dessous) et SOUS-ONGLETS (légers, l'actif marqué d'un trait dessous) */
   { k: "tabm", lab: "ONGLETS DE MODULE", sel: [".pg-grps .prm-grp:not(.on)"], def: { bg: "#cfd9d2", c: "#3f4d44", fs: 12, b: 1, h: 32 } },
   { k: "tabsub", lab: "SOUS-ONGLETS", sel: [".pg-tabs > .prm-tab"], def: { bg: "#f7f9f8", c: "#5b6670", fs: 11, b: 1, h: 30 } },
-  { k: "th", lab: "TITRES DES COLONNES (EN-TÊTE DE TABLEAU)", sel: ["table thead th", ".ins-hcol .bdg-h-head"], tsel: [".cf-lab", ".bdg-head-label"], def: { bg: "#f6f7f9", c: "#6b7480", fs: 11, b: 1, h: 22 } },
+  { k: "th", lab: "TITRES DES COLONNES (EN-TÊTE DE TABLEAU)", sel: ["table thead th", ".ins-hcol .bdg-h-head", ".bdg-h-col .bdg-h-head"], tsel: [".cf-lab", ".bdg-head-label"], def: { bg: "#f6f7f9", c: "#6b7480", fs: 11, b: 1, h: 22 } },
   { k: "ttl", lab: "LIGNES DE TITRE DANS UN TABLEAU", sel: ["tr.ins-title td", "tr.ins-gtitle td", ".dly-grp td", ".ins-hcol .ins-li.lot-grp"], def: { bg: "#ece8e1", c: "#2f2a24", fs: 12, b: 1, h: 21 } },
-  { k: "row", lab: "LIGNES D'UN TABLEAU", sel: ["table tbody td", ".ins-hcol .ins-li:not(.ins-new):not(.lot-grp)"],   /* 09/11 : LOT et activités du bloc TÂCHES comme un tableau */ def: { bg: "#ffffff", c: "#172033", fs: 12, b: 0, h: 21 } },
+  { k: "row", lab: "LIGNES D'UN TABLEAU", sel: ["table tbody td", ".ins-hcol .ins-li:not(.ins-new):not(.lot-grp)", ".bdg-h-col .bdg-h-item"],   /* 09/11 : LOT et activités du bloc TÂCHES comme un tableau */ def: { bg: "#ffffff", c: "#172033", fs: 12, b: 0, h: 21 } },
   { k: "new", lab: "LIGNE CRÉER … ICI", sel: ["tbody tr.ins-new td", "tbody tr.rec-new td", "tbody tr.scn-new td", "tbody tr.dly-new td", "tbody tr.bdg-newrow td", ".ins-hcol .ins-li.ins-new"], def: { bg: "#fdf0f0", c: "#b91c1c", fs: 12, b: 0, h: 21 } },
   /* E1 (série E, 06/11) : TRAITS DES TABLEAUX — couleur des traits entre les cases, réglée dans chaque palette (JOUR et NUIT indépendantes) */
-  { k: "grid", lab: "TRAITS DES TABLEAUX", sel: ["table td", "table th", ".ins-hcol .ins-li", ".ins-hcol .bdg-h-head"], def: { c: "#e5e8ed" }, f: ["c"], bd: 1 },
+  { k: "grid", lab: "TRAITS DES TABLEAUX", sel: ["table td", "table th", ".ins-hcol .ins-li", ".bdg-h-col .bdg-h-item", ".bdg-h-col .bdg-h-head"], def: { c: "#e5e8ed" }, f: ["c"], bd: 1 },
   { k: "tot", lab: "LIGNE TOTAL", sel: ["tfoot td", "tr.bdg-d-total-row td"], def: { bg: "#f6f7f9", c: "#6b7480", fs: 11, b: 1, h: 22 } },   /* G1 : par défaut au format des titres des colonnes */
   { k: "win", lab: "BANDEAU DES FENÊTRES", sel: ["#svConf .svc-card > .svc-t", "#docPop .doc-head"], def: { bg: "#dde2e9", c: "#172033", fs: 15, b: 1, h: 41 }, win: 1 },
   { k: "winbg", lab: "FENÊTRES — FOND DE LA FENÊTRE", sel: ["#svConf .svc-card", "#docPop .doc-card"], def: { bg: "#ffffff" }, f: ["bg"], win: 1 },
@@ -4313,12 +4313,13 @@ const sviColLab = (t, k, def) => (sviColSet()[t + "|" + k] || {}).lab || def;
 function sviColSetRun() { const S = sviColSet(); if (!Object.keys(S).length && !document.querySelector("[data-svcol-al], [data-svcol-s]")) return;
   /* 09/11 (remarque) : colonnes du bloc TÂCHES (LOT, ACTIVITÉ PRIMAIRE, SECONDAIRE) — nom et mise en forme de la loupe, comme une colonne de tableau */
   { const P = (c, k, v) => v ? c.style.setProperty(k, v, "important") : c.style.removeProperty(k);
-    document.querySelectorAll('.ins-hcol .bdg-h-head .cf-btn[data-cf][data-col="v"]').forEach(b => { const hd = b.closest(".bdg-h-head"), col = hd.closest(".ins-hcol"), o = S[b.dataset.cf + "|v"] || {}, lt = hd.querySelector(".cf-tt");
+    document.querySelectorAll('.bdg-h-col .bdg-h-head .cf-btn[data-cf][data-col="v"]').forEach(b => { const hd = b.closest(".bdg-h-head"), col = hd.closest(".bdg-h-col"), o = S[b.dataset.cf + "|v"] || {}, lt = hd.querySelector(".cf-tt");
       if (lt && hd.dataset.svcolDef === undefined) { hd.dataset.svcolDef = lt.textContent.replace(/\s+/g, " ").trim(); hd.dataset.svcolDefH = lt.innerHTML; }
       if (lt && !o.lab && hd.dataset.svcolDefH !== undefined && lt.innerHTML !== hd.dataset.svcolDefH) lt.innerHTML = hd.dataset.svcolDefH;
       if (lt && o.lab && lt.textContent !== o.lab) lt.textContent = o.lab;
       const al = { g: "left", c: "center", d: "right" }[o.al] || "", sig = [al, o.fs || "", o.b ?? "", o.i ?? "", o.u ?? ""].join("/");
-      col.querySelectorAll(".ins-li:not(.ins-new)").forEach(it => { if (it.dataset.svcolS === sig) return; it.dataset.svcolS = sig;
+      col.querySelectorAll(".ins-li:not(.ins-new), .bdg-h-item").forEach(it => {   /* budget validé : lignes .bdg-h-item (texte direct) */
+        if (it.classList.contains("bdg-h-item")) P(it, "text-align", al); if (it.dataset.svcolS === sig) return; it.dataset.svcolS = sig;
         [it, ...it.querySelectorAll(":scope > span:not(.ins-rdc):not(.ins-delc), :scope > input.ins-in")].forEach(z => { P(z, "font-size", o.fs ? o.fs + "px" : ""); P(z, "font-weight", o.b === undefined ? "" : o.b ? "800" : "400"); P(z, "font-style", o.i === undefined ? "" : o.i ? "italic" : "normal"); P(z, "text-decoration", o.u === undefined ? "" : o.u ? "underline" : "none"); });
         it.querySelectorAll(":scope > span:not(.ins-rdc):not(.ins-delc):not([class*='act-u']), :scope > input.ins-in").forEach(z => { P(z, "text-align", al); if (z.tagName === "SPAN") P(z, "flex", al ? "1 1 auto" : ""); }); }); }); }
   /* série I (I1) : bloc des dates à gauche des listes — la mise en forme de sa loupe s'applique à ses lignes (TOUT, années, mois, jours) */

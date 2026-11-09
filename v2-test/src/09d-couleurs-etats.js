@@ -47,12 +47,12 @@ const SVI_FMT_EL = [
      sur une bande gris-vert, l'actif clair et raccordé à la rangée du dessous) et SOUS-ONGLETS (légers, l'actif marqué d'un trait dessous) */
   { k: "tabm", lab: "ONGLETS DE MODULE", sel: [".pg-grps .prm-grp:not(.on)"], def: { bg: "#cfd9d2", c: "#3f4d44", fs: 12, b: 1, h: 32 } },
   { k: "tabsub", lab: "SOUS-ONGLETS", sel: [".pg-tabs > .prm-tab"], def: { bg: "#f7f9f8", c: "#5b6670", fs: 11, b: 1, h: 30 } },
-  { k: "th", lab: "TITRES DES COLONNES (EN-TÊTE DE TABLEAU)", sel: ["table thead th", ".ins-hcol .bdg-h-head"], tsel: [".cf-lab", ".bdg-head-label"], def: { bg: "#f6f7f9", c: "#6b7480", fs: 11, b: 1, h: 22 } },
+  { k: "th", lab: "TITRES DES COLONNES (EN-TÊTE DE TABLEAU)", sel: ["table thead th", ".ins-hcol .bdg-h-head", ".bdg-h-col .bdg-h-head"], tsel: [".cf-lab", ".bdg-head-label"], def: { bg: "#f6f7f9", c: "#6b7480", fs: 11, b: 1, h: 22 } },
   { k: "ttl", lab: "LIGNES DE TITRE DANS UN TABLEAU", sel: ["tr.ins-title td", "tr.ins-gtitle td", ".dly-grp td", ".ins-hcol .ins-li.lot-grp"], def: { bg: "#ece8e1", c: "#2f2a24", fs: 12, b: 1, h: 21 } },
-  { k: "row", lab: "LIGNES D'UN TABLEAU", sel: ["table tbody td", ".ins-hcol .ins-li:not(.ins-new):not(.lot-grp)"],   /* 09/11 : LOT et activités du bloc TÂCHES comme un tableau */ def: { bg: "#ffffff", c: "#172033", fs: 12, b: 0, h: 21 } },
+  { k: "row", lab: "LIGNES D'UN TABLEAU", sel: ["table tbody td", ".ins-hcol .ins-li:not(.ins-new):not(.lot-grp)", ".bdg-h-col .bdg-h-item"],   /* 09/11 : LOT et activités du bloc TÂCHES comme un tableau */ def: { bg: "#ffffff", c: "#172033", fs: 12, b: 0, h: 21 } },
   { k: "new", lab: "LIGNE CRÉER … ICI", sel: ["tbody tr.ins-new td", "tbody tr.rec-new td", "tbody tr.scn-new td", "tbody tr.dly-new td", "tbody tr.bdg-newrow td", ".ins-hcol .ins-li.ins-new"], def: { bg: "#fdf0f0", c: "#b91c1c", fs: 12, b: 0, h: 21 } },
   /* E1 (série E, 06/11) : TRAITS DES TABLEAUX — couleur des traits entre les cases, réglée dans chaque palette (JOUR et NUIT indépendantes) */
-  { k: "grid", lab: "TRAITS DES TABLEAUX", sel: ["table td", "table th", ".ins-hcol .ins-li", ".ins-hcol .bdg-h-head"], def: { c: "#e5e8ed" }, f: ["c"], bd: 1 },
+  { k: "grid", lab: "TRAITS DES TABLEAUX", sel: ["table td", "table th", ".ins-hcol .ins-li", ".bdg-h-col .bdg-h-item", ".bdg-h-col .bdg-h-head"], def: { c: "#e5e8ed" }, f: ["c"], bd: 1 },
   { k: "tot", lab: "LIGNE TOTAL", sel: ["tfoot td", "tr.bdg-d-total-row td"], def: { bg: "#f6f7f9", c: "#6b7480", fs: 11, b: 1, h: 22 } },   /* G1 : par défaut au format des titres des colonnes */
   { k: "win", lab: "BANDEAU DES FENÊTRES", sel: ["#svConf .svc-card > .svc-t", "#docPop .doc-head"], def: { bg: "#dde2e9", c: "#172033", fs: 15, b: 1, h: 41 }, win: 1 },
   { k: "winbg", lab: "FENÊTRES — FOND DE LA FENÊTRE", sel: ["#svConf .svc-card", "#docPop .doc-card"], def: { bg: "#ffffff" }, f: ["bg"], win: 1 },

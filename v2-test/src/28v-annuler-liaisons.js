@@ -846,7 +846,7 @@ function sviBdgAnnulerLiaisons(C) {
       const on = st.f.v || hSel[level].size;
       return `
       <div class="bdg-h-col">
-        <div class="bdg-h-head ${on ? "cf-on" : ""}"><span class="cf-wrap"><span class="cf-lab">${title}${svCnt(items.length, all.length)}</span><span class="cf-btn"
+        <div class="bdg-h-head ${on ? "cf-on" : ""}"><span class="cf-wrap"><span class="cf-lab"><span class="cf-tt">${title}</span>${svCnt(items.length, all.length)}</span><span class="cf-btn"
           data-cf="${level}" data-col="v" role="button" aria-label="Trier / filtrer">${cfIcon}</span></span><span
           class="col-rs" data-rs="hier" data-col="${level}"></span></div>
         ${
