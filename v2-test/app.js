@@ -7540,6 +7540,7 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
   const handle = () => {
     /* v512 (remarques 73, 80, 81) : point au coin de la cellule active (tableaux ET listes du bloc TÂCHES), ou de la fin de la plage ;
        seulement s'il y a une cellule active visible */
+    stale();
     const act = document.activeElement, cell = sviCellOf(act);
     /* v553 (partie 11, remarque 5) : case de date (calendrier) = ni contour ni point au coin */
     const isDate = !!(document.getElementById("svCal") && act && act.matches && act.matches("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]")) || !!(act && act.matches && act.matches("input.sv-date")) || !!(cell && cell.querySelector && cell.querySelector("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]"));
@@ -7578,14 +7579,20 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
     { const F = document.getElementById("sviSelFrame"); if (end === cell && F && F.style.display === "block") { const fr = F.getBoundingClientRect(); vr = fr.right; vb = fr.bottom; } }
     H.style.display = "block"; H.style.left = (vr - 7 + window.scrollX) + "px"; H.style.top = (vb - 7 + window.scrollY) + "px";
   };
-  window.__sviHandle = () => { if (S.b || S.extra.size) { const C = cells(); if (C.length > 1 && !C[0].classList.contains("svi-cs")) C.forEach(td => td.classList.add("svi-cs")); } handle(); };
+  /* 09/11 (reprise complète) : une plage n'a de sens que pour le tableau tel qu'il était quand elle a été faite. Tableau redessiné autrement
+     (tri, filtre, colonne déplacée, pliage, lignes ajoutées) = la plage est oubliée : ni cases marquées, ni point resté ailleurs */
+  const sigOf = t => { try { return t.tBodies[0].rows.length + "|" + [...(t.tHead ? t.tHead.rows[0].cells : [])].map(c => (c.querySelector(".cf-btn") || {}).dataset ? (c.querySelector(".cf-btn") || { dataset: {} }).dataset.col || c.textContent.trim() : c.textContent.trim()).join(","); } catch (e) { return ""; } };
+  const stale = () => { if (!S.tbl) return false; if (!S.tbl.isConnected || (S.sig !== undefined && sigOf(S.tbl) !== S.sig)) { S.b = null; S.extra.clear(); S.sig = sigOf(S.tbl);
+      document.querySelectorAll("td.svi-cs").forEach(x => x.classList.remove("svi-cs", "svi-cs1")); return true; } return false; };
+  window.__sviHandle = () => { stale(); if (S.b || S.extra.size) { const C = cells(); if (C.length > 1 && !C[0].classList.contains("svi-cs")) C.forEach(td => td.classList.add("svi-cs")); } handle(); };
   window.__sviHandleZ = z => { if (H) H.style.zIndex = z; };
   document.addEventListener("focusin", e => {
     const td = e.target.closest && e.target.closest("td"), tbl = td && td.closest(TSEL);
     if (!tbl) { handle(); return; }
     if (S.keep) { S.keep = false; handle(); return; }
     const p = posOf(td); if (!p) return;
-    if (S.tbl !== tbl || !S.a || S.a.r !== p.r || S.a.c !== p.c || (S.b && !td.classList.contains("svi-cs"))) { S.tbl = tbl; S.tk = (sviCellKey(td) || {}).t || null; S.a = p; S.b = null; S.extra.clear(); paint(); }
+    stale();
+    if (S.tbl !== tbl || !S.a || S.a.r !== p.r || S.a.c !== p.c || (S.b && !td.classList.contains("svi-cs"))) { S.tbl = tbl; S.sig = sigOf(tbl); S.tk = (sviCellKey(td) || {}).t || null; S.a = p; S.b = null; S.extra.clear(); paint(); }
     else handle();
   });
   document.addEventListener("pointerdown", e => {
