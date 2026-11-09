@@ -4507,6 +4507,9 @@ sviRowHApply();
       else if (k === "paste") { let v = ""; try { v = await navigator.clipboard.readText(); } catch (er) {} if (!v) v = window.__sviSelClip || ""; setVal(el, String(v || "").toUpperCase()); }
       else if (k === "clear") setVal(el, "");
       el.classList.remove("cell-all"); }; };
+  /* 09/11 (Ahmed) : 3e toucher sur une case déjà en saisie = RIEN (ni bulle de Safari Couper / Copier / Coller, ni curseur déplacé) */
+  document.addEventListener("touchstart", e => { const t = e.target; if (e.touches.length !== 1 || !t || !t.matches || !t.matches(FLD) || t !== document.activeElement || t.classList.contains("svi-nav")) return;
+    if (t.closest("table tbody td, .ins-hcol .ins-li, .bdg-h-col .bdg-h-item")) e.preventDefault(); }, { passive: false, capture: true });
   /* jamais la bulle de Safari (Copier / Rechercher la sélection) sur les cases des tableaux */
   document.addEventListener("selectstart", e => { const t = e.target && e.target.nodeType === 1 ? e.target : e.target && e.target.parentElement; if (t && t.closest && t.closest("table tbody td, .ins-hcol .ins-li") && !t.closest("input, textarea")) e.preventDefault(); }, true);
   document.addEventListener("pointerdown", e => { if (!e.target.closest || !e.target.closest(".cell-all, #sviEtatMenu")) document.querySelectorAll(".cell-all").forEach(x => x.classList.remove("cell-all")); }, true);
