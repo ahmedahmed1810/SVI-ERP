@@ -3815,3 +3815,6 @@ th.co-arm, .bdg-h-head.co-arm { background-image: linear-gradient(rgba(15, 23, 4
 td.svi-cs.svi-cs1, .ins-hcol .ins-li.svi-cs1 { box-shadow: inset 0 0 0 1.5px #b91c1c !important; }
 /* 09/11 : titres de colonnes — l'iPad laisse l'application gérer l'appui long (pas de loupe ni de sélection de texte) */
 thead th { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* 09/11 : règle 8.2 aussi dans les fenêtres (conditionnement, comparatifs, versions, approvisionnement) */
+:is(table.cond-t, table.cmp-t, table.ver-t, table.apr-t, table.gc-t) tbody td { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+:is(table.cond-t, table.cmp-t, table.ver-t, table.apr-t, table.gc-t) td:is(.svi-tdon, .svi-tdf, :focus) { box-shadow: none !important; outline: none !important; }
