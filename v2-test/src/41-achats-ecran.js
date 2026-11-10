@@ -17,7 +17,7 @@ function sviAchInit() {
   const aOk = (a, k) => k === "tout" ? true : k === "corbeille" ? !!a.del : !a.del && (k === "inactif" ? a.actif === false : a.actif !== false);
   const setEtat = k => { aEtat = k; showDel = k === "corbeille"; try { localStorage.setItem("svi_ach_etat_v1", k); } catch (e) {} };
   showDel = aEtat === "corbeille";
-  try { const t = localStorage.getItem("svi_ach_tab_v1"); if (["art", "prm", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "rtc", "rtr", "faf", "avf", "paf"].includes(t)) tab = achGoMap[t] || t;   /* D1 : plus d'interface RETOURS / AVOIRS */ } catch (e) {}
+  try { const t = localStorage.getItem("svi_ach_tab_v1"); if (["art", "prm", "frs", "cli", "prj", "bsn", "caf", "dvf", "cmf", "rcp", "rtc", "rtr", "faf", "avf", "paf"].includes(t)) tab = achGoMap[t] || t;   /* D1 : plus d'interface RETOURS / AVOIRS */ } catch (e) {}
   const SEL = new Set();
   const kit = sviCfKit({ key: "ach", shell: view, refresh: () => draw() });
   const { cfApply, cfHead, cfOpenMenu, cfT } = kit;
@@ -84,7 +84,7 @@ function sviAchInit() {
   /* ---------- COMMANDES, RÉCEPTIONS, RETOURS (v762, 45-achats-commandes.js) ---------- */
   const X = { view, body, cfApply, cfHead, cw, SEL, draw: () => draw(), F2 };
   /* v764 : ARTICLES et FOURNISSEURS au format du budget (47-achats-liste-page.js) — listes EN INSTANCE / VALIDÉS, page de l'élément */
-  const NV = { art: achArtNvMod(X), frs: achFrsNvMod(X) };
+  const NV = { art: achArtNvMod(X), frs: achFrsNvMod(X), cli: achCliNvMod(X), prj: achPrjNvMod(X) };   /* 10/11 : CLIENTS et PROJETS (49-clients-projets.js) */
   const MODS = { caf: CAFM, dvf: DVFM, cmf: achCmfMod(X), rcp: achRcpMod(X), rtc: achRtrMod(X, "cmd"), rtr: achRtrMod(X, "rcp"), faf: achFafMod(X), avf: achAvfMod(X), paf: achPafMod(X) };
   const TTL = { cmf: ["ACHATS — COMMANDES", "NATURE, LIVRAISON, AVANCE, REMISE, TRANSPORT ; VALIDER = ENGAGEMENT SUR LE BUDGET ; RÉCEPTIONNER, RETOUR DE COMMANDE, SOLDER, AVENANT"],
     rcp: ["ACHATS — RÉCEPTIONS", "BON DE LIVRAISON ET PHOTO, ACCEPTÉE / AVEC RÉSERVES / REFUSÉE PAR LIGNE, TOLÉRANCE DE QUANTITÉ ; LIVRAISON SANS COMMANDE À RÉGULARISER"],
@@ -234,7 +234,7 @@ function sviAchInit() {
   /* v750 : entrée du menu ☰ (ACHAT › ARTICLES…) — ouvre l'onglet correspondant */
   view.__achWhere = () => { const M = NV[tab] || MODS[tab] || (tab === "bsn" ? BSNM : null); return { t: tab, id: M && M.cur ? M.cur() : null }; };   /* série I (I3) : où l'on est */
   view.__achOpen = (t, id) => { const M = NV[t] || MODS[t] || (t === "bsn" ? BSNM : null); if (M && M.open) M.open(id); };   /* v779 : page d'une pièce liée */
-  view.__achTab = (t, noDraw) => { Object.values(NV).forEach(M => M.close()); Object.values(MODS).forEach(M => M.close && M.close()); if (BSNM.close) BSNM.close(); if (!["art", "prm", "frs", "bsn", "caf", "dvf", "cmf", "rcp", "rtc", "rtr", "faf", "avf", "paf"].includes(t)) return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} if (!noDraw) draw(); };   /* B48 : pas de dessin de la liste quand on ouvre directement une pièce */
+  view.__achTab = (t, noDraw) => { Object.values(NV).forEach(M => M.close()); Object.values(MODS).forEach(M => M.close && M.close()); if (BSNM.close) BSNM.close(); if (!["art", "prm", "frs", "cli", "prj", "bsn", "caf", "dvf", "cmf", "rcp", "rtc", "rtr", "faf", "avf", "paf"].includes(t)) return; tab = t; SEL.clear(); try { localStorage.setItem("svi_ach_tab_v1", tab); } catch (err) {} if (!noDraw) draw(); };   /* B48 : pas de dessin de la liste quand on ouvre directement une pièce */
   /* ---------- gestes ---------- */
   bar.addEventListener("click", e => {
     const b = e.target.closest(".prm-tab"); if (!b) return;

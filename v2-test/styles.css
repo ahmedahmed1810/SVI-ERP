@@ -3841,7 +3841,7 @@ html body table.nv-one tbody td.bdg-ref-c > .nv-reflink { line-height: 1.5; padd
 /* 10/11 (Ahmed) : fenêtre MODIFIER LE FORMAT — ni cadre ni point rouge sur les cases */
 html body table.fmt-t td:is(.svi-tdf, .svi-tdon, .svi-cs) { box-shadow: none !important; outline: none !important; }
 /* 10/11 (J1) : boutons et pastilles de la barre du haut — gardent leur propre couleur (la couleur du texte de la barre ne vaut que pour le titre) */
-html body :is(.novapp-list-titlebar, #chs > .section-head) :is(button, [role=button], .bdg-d-badge) { -webkit-text-fill-color: currentColor !important; }
+html body :is(.novapp-list-titlebar, #chs > .section-head, .bdg-d-block-title, .svc-t, .doc-head) :is(button, [role=button], .bdg-d-badge, .svc-close, .doc-x) { -webkit-text-fill-color: currentColor !important; }
 html.svi-ptm .svi-th { pointer-events: none; }
 /* 10/11 : repère jaune de la destination (regroupement de titres, déplacement) toujours devant la couleur des lignes de la palette */
 html body .ins-hcol .ins-li.ro-on:not(#svi-z1):not(#svi-z2):not(#svi-z3), html body .ins-table tr.ro-on td:not(#svi-z1):not(#svi-z2):not(#svi-z3), html body .dlyg-l tr.ro-on td:not(#svi-z1):not(#svi-z2):not(#svi-z3) { background: #fde68a !important; }

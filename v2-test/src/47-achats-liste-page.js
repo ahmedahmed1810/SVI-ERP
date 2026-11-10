@@ -12,7 +12,7 @@
 /* v921 (remarque 3 du 04/11/2026) : même cycle que le budget — EN INSTANCE (rouge) → FIGÉ (vert) → VALIDÉ (noir) ;
    un élément figé reste dans la liste EN INSTANCE (achSt = « instance »), en vert ; achStF dit l'état exact */
 /* B51 (05/11) : un nom lié (fournisseur, article, pièce) prend la couleur de SON état, simplement souligné — jamais de bleu par défaut */
-const ACH_LK_LIST = { frs: "frs", art: "art", caf: "caf", dvf: "dvf", cmf: "cmf", rcp: "rcp", faf: "faf", avf: "avf", paf: "paf", bsn: "bsn" };
+const ACH_LK_LIST = { frs: "frs", art: "art", caf: "caf", dvf: "dvf", cmf: "cmf", rcp: "rcp", faf: "faf", avf: "avf", paf: "paf", bsn: "bsn", cli: "cli", prj: "prj" };
 /* 05/11 (document unique 6.13) : liste validée — pas de colonne de corbeille (rien à supprimer) */
 /* B48 : lecture seule, mémorisée (index par id) — pas une lecture complète de la liste par nom lié */
 const achLkIdx = t => { const k = ACH_K[ACH_LK_LIST[t]]; return k ? achMemo("lk_" + t, [k], () => new Map((achJ(k, []) || []).map(x => [x.id, x]))) : new Map(); };
@@ -250,7 +250,7 @@ const achPcCirc = x => !!x.circ && !["valide", "bap", "emis", "encaisse", "solde
 /* 06/11 : ÉTAT d'une pièce, d'un fournisseur, d'un article — un des états communs de la palette (liste, fiche, fenêtre, noms liés) */
 const achPcSt = (t, x) => { if (!x) return "";
   if (x.del || x.state === "annule" || x.state === "rejete") return "annule";
-  if (t === "frs" || t === "art") { if (x.arch) return "archive"; if (x.bloq || x.actif === false) return "bloque";
+  if (t === "frs" || t === "art" || t === "cli" || t === "prj") { if (x.arch) return "archive"; if (x.bloq || x.actif === false) return "bloque";
     if (t === "frs" && achSt(x) !== "instance" && typeof achFrsAttExp === "function") { try { if (achFrsAttExp(x)) return "expire"; } catch (e) {} } return achSt(x); }
   if (achPcCirc(x)) return "encours";
   if (x.susp || x.litige) return "bloque";
@@ -268,7 +268,7 @@ const achPcSt = (t, x) => { if (!x) return "";
 /* E3 (série E) : colonne ÉTAT = l'étape exacte où en est la pièce */
 const achPcStep = (t, x) => { if (!x) return "";
   if (x.del) return "SUPPRIMÉ";
-  if (t === "frs" || t === "art") { const s = achPcSt(t, x); return { instance: "EN INSTANCE", valide: "VALIDÉ", bloque: "BLOQUÉ", archive: "ARCHIVÉ", expire: "ATTESTATION FISCALE EXPIRÉE" }[s] || ""; }
+  if (t === "frs" || t === "art" || t === "cli" || t === "prj") { const s = achPcSt(t, x); return { instance: "EN INSTANCE", valide: "VALIDÉ", bloque: "BLOQUÉ", archive: "ARCHIVÉ", expire: "ATTESTATION FISCALE EXPIRÉE" }[s] || ""; }
   if (achPcCirc(x)) return "EN COURS DE VALIDATION — " + achCircNext(x).map(achGradeLab).join(x.circ.h ? " PUIS " : " OU ");
   if (x.renv && x.renv.length && x.state === "instance" && !x.circ) return "RENVOYÉE PAR " + achGradeLab(x.renv[x.renv.length - 1].g);
   if (x.susp) return "SUSPENDUE"; if (x.litige) return "EN LITIGE";
