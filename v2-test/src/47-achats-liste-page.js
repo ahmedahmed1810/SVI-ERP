@@ -21,7 +21,7 @@ const achLkSt = (t, id) => { if (!ACH_LK_LIST[t]) return ""; let x = null; try {
   return achPcSt(t, x); };
 function achLkPaint(root) { (root || document).querySelectorAll(".ach-link[data-nvgo]").forEach(b => { const [t, id] = String(b.dataset.nvgo).split("|"), s = achLkSt(t, id);
   if (b.dataset.lk === s) return; ["instance", "partiel", "remis", "valide", "annule", "bloque", "encours", "expire", "archive"].forEach(k => b.classList.toggle("lk-" + k, k === s)); b.dataset.lk = s; }); }
-{ let raf = 0; new MutationObserver(() => { if (raf) return; raf = requestAnimationFrame(() => { raf = 0; const v = document.getElementById("ach"); if (v) achLkPaint(v); try { sviSyncState(); } catch (e) {} const c = document.getElementById("svConf"); if (c) achLkPaint(c); }); })
+{ let raf = 0; new MutationObserver(() => { if (raf) return; raf = requestAnimationFrame(() => { raf = 0; const v = document.getElementById("ach"); if (v) { achLkPaint(v); try { achListCloseSync(); } catch (e) {} } try { sviSyncState(); } catch (e) {} const c = document.getElementById("svConf"); if (c) achLkPaint(c); }); })
     .observe(document.documentElement, { childList: true, subtree: true }); }
 const achSt = x => x && (x.st === "instance" || x.st === "fige") ? "instance" : "valide";
 const achStF = x => achSt(x);
@@ -419,6 +419,15 @@ function achPosRestore(v, S) { if (!v || !S) return; const go = () => {
   requestAnimationFrame(() => requestAnimationFrame(go)); setTimeout(go, 220); }
 const achPathBack = () => { const w = ACH_PATH.pop(); if (!w) return false; achPathBack.on = true; try { achGo(w.t, w.id); } finally { achPathBack.on = false; } achPosRestore(document.getElementById("ach"), w.snap); return true; };
 document.addEventListener("click", e => { if (e.target.closest && e.target.closest("#navMenu .nav-btn")) ACH_PATH.length = 0; }, true);
+/* 10/11 (Ahmed, document unique 3.1 complément) : le ✕ D'UNE LISTE suit le même chemin — arrivé depuis un autre écran, il y ramène (à sa position) ;
+   ouverte depuis le menu ≡ (chemin vide), il reste grisé */
+const ACH_LCLOSE_WHY = "LISTE : RIEN À FERMER (MENU ☰ POUR CHANGER D'ÉCRAN).";
+function achListCloseSync() { const v = document.getElementById("ach"); if (!v) return; const on = ACH_PATH.length > 0;
+  v.querySelectorAll('[data-nvl="close"]').forEach(b => { if (b.classList.contains("hdr-off") === !on) return; b.classList.toggle("hdr-off", !on);
+    if (on) { b.removeAttribute("data-why"); b.title = "Fermer"; } else { b.dataset.why = ACH_LCLOSE_WHY; b.title = ACH_LCLOSE_WHY; } }); }
+document.addEventListener("pointerdown", e => { if (e.target.closest && e.target.closest('#ach [data-nvl="close"]')) achListCloseSync(); }, true);
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest('#ach [data-nvl="close"]'); if (!b || !ACH_PATH.length) return;
+  e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); achPathBack(); }, true);
 /* 07/11 : redessin de la page ouverte (gestes hors clic : glisser une ligne) */
 let ACH_NV_REDRAW = null;
 function achNvMod(ctx, cfg) {
