@@ -3858,3 +3858,17 @@ html body #svConf .cp-card input.ins-in[readonly]:not(#svi-z1):not(#svi-z2) { ba
 .k2-card .cp-fsec { margin: 4px 0 8px; } .k2-card .k2-wide { grid-column: 1 / -1; } .k2-card .k2-prj { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .k2-card .inf-calc { background: #eef1f5 !important; color: #475467 !important; -webkit-text-fill-color: #475467 !important; }
 .k2-card .k2-go { text-decoration: underline; text-underline-offset: 2px; border: 0; background: none; font: inherit; font-weight: 700; cursor: pointer; padding: 0; }
+/* 10/11 (Ahmed) : TABLEAUX DES BLOCS LISIBLES — lignes blanches, une sur deux très légèrement grisée ; ligne choisie ou liée en bleu pâle
+   (plus de fonds rosés / verts selon l'état : l'état ne se voit que par la couleur du texte et le trait à gauche du bloc) */
+:root { --svi-row-alt: #F7F9FC; --svi-row-sel: #DBEAFE; --svi-row-link: #EAF2FE; --svi-row-selc: #0B2545; }
+html.svi-nuit { --svi-row-alt: #1B222C; --svi-row-sel: #1E3A5F; --svi-row-link: #172A45; --svi-row-selc: #E5E9F0; }
+html body :is(table.ins-table, table.rec-table, table.dly-table, table.bdg-d-table, table.prm-table, table.novapp-budget-table, table.sd-t, table.cmp-t, table.cond-t, table.ver-t) > tbody > tr:nth-child(even):not(.ins-title):not(.ins-gtitle):not(.dly-grp):not(.ins-new):not(.rec-new):not(.scn-new):not(.dly-new):not(.bdg-newrow):not(.lk-sel):not(.lk-link):not(.lk-hit):not(.ro-on) > td:not(.svi-cs):not(#svi-z1):not(#svi-z2):not(#svi-z3) { background: var(--svi-row-alt) !important; }
+html body .ins-hcol .ins-li:nth-child(even):not(.lot-grp):not(.lot-par):not(.ins-new):not(.lk-sel):not(.lk-link):not(.lk-hit):not(.ro-on):not(#svi-z1):not(#svi-z2):not(#svi-z3) { background: var(--svi-row-alt) !important; }
+html body .ins-table tr:is(.lk-sel, .lk-hit) td:not(#svi-z1):not(#svi-z2):not(#svi-z3), html body .ins-hcol .ins-li:is(.lk-sel, .lk-hit):not(#svi-z1):not(#svi-z2):not(#svi-z3) { background: var(--svi-row-sel) !important; }
+html body .ins-table tr.lk-link:not(.lk-sel):not(.lk-hit) td:not(#svi-z1):not(#svi-z2):not(#svi-z3), html body .ins-hcol .ins-li.lk-link:not(.lk-sel):not(.lk-hit):not(#svi-z1):not(#svi-z2):not(#svi-z3) { background: var(--svi-row-link) !important; }
+html body td.svi-cs:not(#svi-z1):not(#svi-z2):not(#svi-z3), html body .ins-hcol .ins-li:has(.svi-ls):not(#svi-z1):not(#svi-z2):not(#svi-z3) { background: var(--svi-row-sel) !important; }
+html body .bdg-inst-fige .ins-table tr.lk-sel td:not(#svi-z1):not(#svi-z2):not(#svi-z3) { background: var(--svi-row-sel) !important; }
+/* NUIT : le fond des blocs et des colonnes du bloc TÂCHES suit la palette (plus de grandes zones blanches sous les lignes) */
+html.svi-nuit body :is(.bdg-d-block, .bdg-d-scroll, .bdg-d-client-scroll, .ins-hcol, .bdg-h-col, .rec-scroll, .nvp-blk):not(#svi-z1):not(#svi-z2) { background-color: #161C24 !important; }
+/* NUIT : rouge de l'état EN INSTANCE éclairci pour rester lisible sur fond sombre */
+html.svi-nuit .bdg-inst-instance { --inst: #F87171 !important; }
