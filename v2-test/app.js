@@ -4502,6 +4502,7 @@ sviRowHApply();
 /* 09/11 (remarque) : même geste partout — cases des tableaux, lignes du bloc TÂCHES (LOT, activités) et champs (fiches, fenêtres, listes),
    en lecture seule comme modifiables ; détection au lâcher du doigt (Safari n'envoie pas toujours le « click » sur une case) ;
    un champ coupé montre son texte entier dans une bulle sous lui ; le message « LECTURE SEULE » n'apparaît que si rien n'est coupé */
+const SVI_LK_CUT = ".ach-link, .nv-reflink, .bdg-reflink, .cafw-go, [data-nvgo], [data-gofrs], [data-goart]";
 { let cur = null, tip = null, tm = 0, x0 = 0, y0 = 0, t0 = 0, eat = false;
   const FLD = "input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=hidden]):not([type=file]), textarea";
   const cutTd = t => { if (!t || !t.closest || t.closest("#cfMenu, .fmw-card, .cmpm-pick")) return null;
@@ -4703,11 +4704,16 @@ sviRowHApply();
       lastT = el0; lastTt = Date.now(); } else lastT = null;
     /* 09/11 : champ déjà en saisie (3e toucher) = le curseur se place, rien d'autre (pas de texte agrandi) */
     if (el0 && el0.matches(FLD) && document.activeElement === el0 && !el0.classList.contains("svi-nav") && !el0.readOnly && !el0.disabled) return;
+    /* 10/11 (Ahmed, document unique 2.10 complément) : NOM SOULIGNÉ COUPÉ — 1er toucher = le nom en entier (la case s'agrandit, deux lignes ou plus),
+       2e toucher sur le même nom = sa fiche ; un nom entier ouvre sa fiche dès le 1er toucher */
+    { const lk = e.target.closest(SVI_LK_CUT), td = lk && lk.closest("table tbody td");
+      if (td && cur !== td && (isCut(lk) || isCut(td))) { show(td); window.__sviCutT = Date.now(); eat = true; return; } }
     const el = el0; if (!el || el === cur || (tip && tip.__el === el) || e.target.closest("button, a, .ach-link, .nv-reflink, .bdg-reflink, .cf-btn, [data-why], .lk-rd, .ins-rd, .lot-fold, .ins-cb")) return; if (!isCut(el)) return;
     show(el); window.__sviCutT = Date.now();
     /* une case qui ouvre la pièce l'ouvre au 2e toucher ; un champ modifiable garde son 1er toucher */
     /* 09/11 : le toucher garde aussi son effet habituel (sélection, 2e toucher = modification) — plus rien n'est avalé */
     eat = false; }, true);
+  document.addEventListener("pointerdown", () => { eat = false; }, true);
   document.addEventListener("click", e => { if (!eat) return; eat = false; e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); }, true);
   /* 09/11 : le défilement que l'application fait elle-même juste après le toucher (case choisie, champ mis en vue) ne ferme pas le texte : il le suit ;
      ensuite, seul un vrai défilement du doigt (le champ bouge) le ferme */

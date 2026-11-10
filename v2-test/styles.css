@@ -3872,3 +3872,6 @@ html body .bdg-inst-fige .ins-table tr.lk-sel td:not(#svi-z1):not(#svi-z2):not(#
 html.svi-nuit body :is(.bdg-d-block, .bdg-d-scroll, .bdg-d-client-scroll, .ins-hcol, .bdg-h-col, .rec-scroll, .nvp-blk):not(#svi-z1):not(#svi-z2) { background-color: #161C24 !important; }
 /* NUIT : rouge de l'état EN INSTANCE éclairci pour rester lisible sur fond sombre */
 html.svi-nuit .bdg-inst-instance { --inst: #F87171 !important; }
+
+/* v1091 (document unique 2.10 complément) : nom souligné coupé — au 1er toucher, le nom s'affiche en entier sur plusieurs lignes dans sa case */
+table tbody td.cell-x :is(.ach-link, .nv-reflink, .bdg-reflink, .cafw-go, [data-nvgo], [data-gofrs], [data-goart]) { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; max-width: none !important; height: auto !important; max-height: none !important; word-break: break-word; text-align: left; display: inline; }
