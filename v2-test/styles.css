@@ -3843,3 +3843,5 @@ html body table.fmt-t td:is(.svi-tdf, .svi-tdon, .svi-cs) { box-shadow: none !im
 /* 10/11 (J1) : boutons et pastilles de la barre du haut — gardent leur propre couleur (la couleur du texte de la barre ne vaut que pour le titre) */
 html body :is(.novapp-list-titlebar, #chs > .section-head) :is(button, [role=button], .bdg-d-badge) { -webkit-text-fill-color: currentColor !important; }
 html.svi-ptm .svi-th { pointer-events: none; }
+/* 10/11 : repère jaune de la destination (regroupement de titres, déplacement) toujours devant la couleur des lignes de la palette */
+html body .ins-hcol .ins-li.ro-on:not(#svi-z1):not(#svi-z2):not(#svi-z3), html body .ins-table tr.ro-on td:not(#svi-z1):not(#svi-z2):not(#svi-z3), html body .dlyg-l tr.ro-on td:not(#svi-z1):not(#svi-z2):not(#svi-z3) { background: #fde68a !important; }

@@ -1257,7 +1257,7 @@ def main():
         pg.evaluate("() => document.querySelector('.bdg-d-tab[data-tab=\"dly\"]')?.click()"); pg.wait_for_timeout(500)
         t2.append(pg.evaluate(C2, '#bdgTabBody tr.dly-grp input.dly-nm') or pg.evaluate(C2, '#bdgTabBody tr.dly-grp td'))
         check("v529 remarque 2 / v788 : titres même couleur sur ligne gris chaud partout (lots, désignations, planning) — jamais le bleu des filtres",
-              t2 == ["rgb(47, 42, 36)", "rgb(236, 232, 225)", "rgb(47, 42, 36)", "rgb(47, 42, 36)"], t2)
+              t2 == ["rgb(11, 37, 69)", "rgb(238, 243, 249)", "rgb(11, 37, 69)", "rgb(11, 37, 69)"], t2)   # v1076 : couleurs J1 des lignes de titre
         # remarque 3 : nom tapé sur un titre gardé même si l'écran est redessiné sans quitter la case (iPad)
         pg.evaluate("() => { const i = document.querySelector('.lot-grp[data-path=\"GROUPE 5\"] input.lot-gname'); i.focus(); i.value = 'SOUS-SOL'; i.dispatchEvent(new Event('input', { bubbles: true })); }")
         pg.evaluate("() => document.querySelector('.lot-fold[data-path=\"GROUPE 4\"]')?.click()"); pg.wait_for_timeout(500)
@@ -3213,7 +3213,7 @@ def main():
             const sh = [...document.querySelectorAll('*')].find(e => e.__ins), X = sh.__ins, I = X.INS, keepV = JSON.stringify(I.ver || null), keepL = localStorage.getItem('svi_layout_v1');
             /* SUIVI au noir du VALIDÉ, ligne CRÉER rouge */
             const su = document.querySelector('.blk-suivi > .bdg-d-block-title'), nw = document.querySelector('.blk-suivi tr.rec-new td');
-            r.push(getComputedStyle(su).color === 'rgb(23, 32, 51)' && !!nw && getComputedStyle(nw).color === 'rgb(185, 28, 28)');
+            r.push(getComputedStyle(su).color === 'rgb(255, 255, 255)' && !!nw && getComputedStyle(nw).color === 'rgb(148, 163, 184)');   /* v1076 : couleurs J1 (en-tête de bloc blanc, CRÉER gris clair) */
             /* une case de RÉVISIONS ne filtre aucun bloc ; une case de charge filtre les blocs liés */
             const n = s2 => [...document.querySelectorAll(s2)].filter(e => e.offsetParent).length, lots = () => n('.ins-hcol[data-ik="lot"] .ins-li:not(.ins-new)');
             const l0 = lots(); document.querySelector('#avTable tbody input[type=checkbox]')?.click(); await w(400); const l1 = lots(); document.querySelector('#avTable tbody input[type=checkbox]:checked')?.click(); await w(300);

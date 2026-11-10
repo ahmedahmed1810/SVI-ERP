@@ -133,15 +133,19 @@ const sviFmtTxt = (sels, E, o) => { if (!E || !E.tsel) return ""; const d = [];
   return d.length ? sels.flatMap(s => E.tsel.map(t => sviFmtZ(s + " " + t))).join(", ") + " { " + d.join("; ") + " }" : ""; };
 /* 07/11 (point 3, vérification du format) : les champs de saisie DANS une case de tableau (lignes, titres, CRÉER … ICI, TOTAL) suivent la couleur
    et la taille réglées — sans passer devant les couleurs de liaison du budget (règles !important) */
-const sviFmtIn = (sels, E, o) => { if (!E || !["row", "ttl", "new", "tot"].includes(E.k) || !(o.c || o.fs)) return ""; const d = [];
+/* 10/11 (J1, règles 2.1 et 2.10) : texte des LIGNES D'UN TABLEAU — jamais par-dessus la couleur d'un état (lignes d'une liste ou d'une pièce liée colorées par leur état) */
+const SVI_ROW_ST = ':not(tr[class*="inst-"] td):not(tr[class*="nvr-"] td):not(tr[class*="st-"] td):not(.bdg-inst-instance td):not(.bdg-inst-fige td)';
+const sviFmtRowC = (sels, E, o) => !(E && E.k === "row" && o.c) ? "" : sels.map(x => sviFmtZ(x + (/\btd$/.test(x) ? SVI_ROW_ST : ""))).join(", ") + ` { color:${o.c}!important; -webkit-text-fill-color:${o.c}!important }`;
+const sviFmtIn = (sels, E, o) => { const rc = sviFmtRowC(sels, E, o); const r0 = sviFmtIn0(sels, E, o); return [rc, r0].filter(Boolean).join("\n"); };
+const sviFmtIn0 = (sels, E, o) => { if (!E || !["row", "ttl", "new", "tot"].includes(E.k) || !(o.c || o.fs)) return ""; const d = [];
   if (o.c) d.push("color:inherit!important", "-webkit-text-fill-color:inherit!important"); if (o.fs) d.push("font-size:inherit!important");
-  const X = ":not(tr.lk-link *):not(tr.lk-sel *):not(tr.lk-hit *):not(tr.ins-unl *)";
+  const X = ":not(tr.lk-link *):not(tr.lk-sel *):not(tr.lk-hit *):not(tr.ins-unl *)" + (E.k === "row" ? ':not(.bdg-inst-instance *):not(.bdg-inst-fige *):not(tr[class*="inst-"] *):not(tr[class*="nvr-"] *)' : "");
   const S = sels.flatMap(s => [s + " input:not([type=checkbox]):not([type=radio]):not([type=color])" + X, s + " select" + X, s + " textarea" + X]);
   return S.map(sviFmtZ).join(", ") + " { " + d.join("; ") + " }" + (o.c ? "\n" + sels.flatMap(s => [s + " input", s + " textarea"]).map(x => sviFmtZ(x) + "::placeholder").join(", ") + " { color:inherit; -webkit-text-fill-color:inherit; opacity:.6 }" : ""); };
 const sviFmtDecl = (o, E) => { const d = [];
   if (E && E.bd) { if (o.c) d.push(`border-color:${o.c}!important`); return d; }   /* E1 : traits des tableaux */
   if (o.bg) d.push(`background:${o.bg}!important`);
-  if (o.c) d.push(`color:${o.c}!important;-webkit-text-fill-color:${o.c}!important`);
+  if (o.c && !(E && E.k === "row")) d.push(`color:${o.c}!important;-webkit-text-fill-color:${o.c}!important`);   /* LIGNES D'UN TABLEAU : couleur du texte à part (sviFmtIn), la couleur d'un état passe devant (2.10) */
   if (o.fs) d.push(`font-size:${+o.fs}px!important`);
   if (o.b !== undefined) d.push(`font-weight:${o.b ? 800 : 400}!important`);
   if (o.i !== undefined) d.push(`font-style:${o.i ? "italic" : "normal"}!important`);
