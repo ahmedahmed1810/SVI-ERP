@@ -217,7 +217,7 @@ function achCmfFiche(id, done) {
     /* B25, B45 : circuit de validation */
     if (e.target.closest("[data-circ]")) { pull(); if (!check()) return; const S = achCmfSeu(C); if (!S) { draw(); return; }
       { const no = achDirCmfCheck(C) || achCmfValNo(C); if (no) { svToast(no + ".", 5500); return; } }
-      if (!(await svConfirm({ title: "ENVOYER EN VALIDATION", text: C.ref + " : " + achF2(achCmfTot(C).ht) + " HT, AU-DELÀ DE " + achF2(S.mt) + " HT — VALIDATION PAR " + S.g.map(achGradeLab).join(S.h ? " PUIS " : " OU ") + ". LA COMMANDE EST VERROUILLÉE PENDANT LE CIRCUIT.", ok: "ENVOYER", tone: "neutral" }))) return;
+      if (!(await svConfirm({ title: "ENVOYER EN VALIDATION", text: C.ref + " : " + achF2(achCmfTot(C).ht) + " HT" + (S.mt ? ", AU-DELÀ DE " + achF2(S.mt) + " HT" : "") + (S.why ? " — CONTRÔLE DU BUDGET : " + S.why.join(" · ") : "") + " — VALIDATION PAR " + S.g.map(achGradeLab).join(S.h ? " PUIS " : " OU ") + ". LA COMMANDE EST VERROUILLÉE PENDANT LE CIRCUIT.", ok: "ENVOYER", tone: "neutral" }))) return;
       C.circ = { ...S, ok: [], t: achNow() }; store("ENVOYÉE EN VALIDATION"); draw(); return; }
     const ca = e.target.closest("[data-cacc]"), cr = e.target.closest("[data-cret]");
     if (ca || cr) { const g = (ca || cr).dataset.cacc || (ca || cr).dataset.cret; if (!achCircNext(C).includes(g)) { svToast("CE GRADE NE PEUT PAS VALIDER MAINTENANT (HIÉRARCHIE).", 3500); return; }

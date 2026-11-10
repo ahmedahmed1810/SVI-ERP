@@ -10,7 +10,7 @@
 const achCli = () => { const L = achJ(ACH_K.cli, []); return Array.isArray(L) ? L : []; };
 const achCliSave = L => achW(ACH_K.cli, L);
 const achPrj = () => { const L = achJ(ACH_K.prj, []); return Array.isArray(L) ? L : []; };
-const achPrjSave = L => achW(ACH_K.prj, L);
+const achPrjSave = L => { L.forEach(p => { try { p.dbutCalc = achPrjButoir(p); } catch (e) {} }); return achW(ACH_K.prj, L); };   /* série K : date butoir calculée gardée (lue par le budget) */
 const achCliNextCode = L => "CLI-" + String(L.reduce((m, a) => Math.max(m, Number(String(a.code || "").replace(/\D/g, "")) || 0), 0) + 1).padStart(4, "0");
 const achCliNew = (L, o) => { const now = achNow();
   const c = { id: "K" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), code: achCliNextCode(L), nom: achU(o.nom || ""), denom: "", forme: "", type: o.type || "", grp: "", pays: "", ville: "", adresse: "", lang: "", site: "",
@@ -291,3 +291,28 @@ function achPrjNvMod(ctx) {
           { t: "ACHATS DU CHANTIER", cols: [["RÉFÉRENCE"], ["PIÈCE"], ["DÉSIGNATION"], ["MONTANT TTC", "number"]], rows: BS.map(x => ({ cells: [x.ref || "", "BESOIN", x.des || "", achN(x.q) * achN(x.pu)], open: () => achGo("bsn", x.id) }))
             .concat(CM.map(cm => ({ cells: [cm.ref, "COMMANDE", (cm.lignes || []).map(l => l.des).join("; "), achCmfTot(cm).ttc], open: () => achGo("cmf", cm.id), cls: cm.state === "annule" ? "nv-strike" : "" }))) }] }; } });
 }
+
+/* ---------- série K (K2 §7, réponse d'Ahmed du 10/11) : CONTRÔLE DES DÉPENSES — jamais de blocage : la commande passe par la validation
+   d'un supérieur (circuit de la série E) quand (a) les commandes engagées (celle-ci comprise) atteignent le SEUIL (%) du budget d'une charge
+   ou de tout le budget, ou (b) le rapport CHARGES / PRODUITS réalisé dépasse celui du budget (produits réalisés = décomptes, à venir) ---------- */
+function achCmfBdgWhy(c) { try {
+  const B = achBsn(), lb = l => l.bsn ? B.find(b => b.id === l.bsn) : null, eng = new Map(), cur = new Map(), add = (M, k, v) => M.set(k, (M.get(k) || 0) + v);
+  const mtL = (cm, l) => achN(l.q) * achN(l.pu) * (1 - achN(cm.rem) / 100);
+  (c.lignes || []).forEach(l => { const b = lb(l); if (b && b.bdg) add(cur, b.bdg + "§" + (b.chg || ""), mtL(c, l)); });
+  if (!cur.size) return [];
+  achCmf().filter(x => x.id !== c.id && !x.del && ["valide", "solde", "partiel", "recu", "livre"].includes(x.state)).forEach(x => (x.lignes || []).forEach(l => { const b = lb(l); if (b && b.bdg) add(eng, b.bdg + "§" + (b.chg || ""), mtL(x, l)); }));
+  const out = [], refs = [...new Set([...cur.keys()].map(k => k.split("§")[0]))];
+  refs.forEach(ref => { const it = (sviInstGet() || []).find(b => b.ref === ref); if (!it) return; const D = it.data || {}, seuil = achN(((D.k2 || {}).seuil) ?? 90) || 90, CH = achBdgCharges(ref);
+    const totB = CH.reduce((t, x) => t + x.mt, 0); let totE = 0;
+    [...cur.keys()].filter(k => k.startsWith(ref + "§")).forEach(k => { const ch = CH.find(x => x.key === k.slice(ref.length + 1)); const e = (eng.get(k) || 0) + cur.get(k); totE += cur.get(k);
+      if (ch && ch.mt > 0 && e >= ch.mt * seuil / 100) out.push(ref + " — " + ch.des + " : " + Math.round(e / ch.mt * 100) + " % DU BUDGET (SEUIL " + seuil + " %)"); });
+    [...eng.keys()].filter(k => k.startsWith(ref + "§")).forEach(k => { totE += eng.get(k); });
+    if (totB > 0 && totE >= totB * seuil / 100) out.push(ref + " : " + Math.round(totE / totB * 100) + " % DU BUDGET ENGAGÉ (SEUIL " + seuil + " %)");
+    /* (b) rapport charges / produits : produits réalisés = décomptes du projet (module à venir) — inactif tant qu'il n'y en a pas */
+    const prdB = (D.des || []).filter(r => !r.t).reduce((t, r) => t + (typeof insLinkedQ === "function" ? (insLinkedQ(D, r.id) ?? achN(r.q)) : achN(r.q)) * achN(r.p), 0), prdR = achN(((D.k2 || {}).prdReal) || 0);
+    if (prdB > 0 && prdR > 0 && totB > 0 && totE / prdR > totB / prdB) out.push(ref + " : CHARGES / PRODUITS RÉALISÉ (" + (totE / prdR).toFixed(2) + ") AU-DESSUS DU BUDGET (" + (totB / prdB).toFixed(2) + ")"); });
+  return out; } catch (e) { return []; } }
+function achCmfSeuK(c, S) { const why = achCmfBdgWhy(c); if (!why.length) return S;
+  const G = (typeof sviPgL === "function" ? sviPgL("grades") : []).map(x => String(x.n)).filter(Boolean).sort((a, b) => +b - +a);
+  if (S) return { ...S, why };
+  return { mt: 0, g: G.length ? [G[0]] : ["1"], h: false, k: "cmf", why }; }

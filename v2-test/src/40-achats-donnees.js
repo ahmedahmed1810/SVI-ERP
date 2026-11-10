@@ -345,7 +345,7 @@ const achSeuL = k => achSeuOwn(k) ? achPrm().seuT[k] : achPrm().seuV;
 const achPcSeu = (k, ht) => { const S = achSeuL(k).filter(x => (x.g || []).length && (achN(x.mt) > 0 ? ht > achN(x.mt) : ht >= 0) && (x.fin === "" || x.fin === undefined || ht <= achN(x.fin)));
   if (!S.length) return null; const top = S.slice().sort((a, b) => achN(b.mt) - achN(a.mt))[0];
   return { mt: achN(top.mt), g: [...new Set(S.flatMap(x => x.g.map(String)))].sort((a, b) => +b - +a), h: S.some(x => x.h), k }; };
-const achCmfSeu = c => achPcSeu("cmf", achCmfTot(c).ht);
+const achCmfSeu = c => achCmfSeuK(c, achPcSeu("cmf", achCmfTot(c).ht));   /* série K : contrôle des dépenses du budget (49-clients-projets.js) */
 const achCircNext = c => { const K = c.circ; if (!K) return []; const done = new Set((K.ok || []).map(x => String(x.g))), rest = K.g.filter(g => !done.has(g)); return K.h ? rest.slice(0, 1) : rest; };
 const achCircDone = c => !!c.circ && achCircNext(c).length === 0;
 /* 06/11 : circuit d'une pièce autre que la commande (facture : BON À PAYER ; paiement : VALIDER) — rend true tant que la pièce ne peut pas être validée :

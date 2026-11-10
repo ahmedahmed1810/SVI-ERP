@@ -3854,3 +3854,7 @@ html body .ins-hcol .ins-li.ro-on:not(#svi-z1):not(#svi-z2):not(#svi-z3), html b
 .cp-card input.cp-calc { background: #eef1f5 !important; color: #475467 !important; -webkit-text-fill-color: #475467 !important; }
 /* 2.8 : champs calculés ou repris d'une autre liste en gris (fenêtres i des clients et projets) */
 html body #svConf .cp-card input.ins-in[readonly]:not(#svi-z1):not(#svi-z2) { background: #eef1f5 !important; color: #475467 !important; -webkit-text-fill-color: #475467 !important; resize: none; }
+/* série K (K2) : en-tête du budget en sections pliables */
+.k2-card .cp-fsec { margin: 4px 0 8px; } .k2-card .k2-wide { grid-column: 1 / -1; } .k2-card .k2-prj { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.k2-card .inf-calc { background: #eef1f5 !important; color: #475467 !important; -webkit-text-fill-color: #475467 !important; }
+.k2-card .k2-go { text-decoration: underline; text-underline-offset: 2px; border: 0; background: none; font: inherit; font-weight: 700; cursor: pointer; padding: 0; }

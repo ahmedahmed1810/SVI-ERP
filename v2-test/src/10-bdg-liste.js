@@ -1222,6 +1222,9 @@ function renderBudgetList() {
 
   /* bouton + : fenêtre rouge NOUVEAU BUDGET (date de création, nouveau projet) */
   function openNewBudget() {
+    /* série K : la liste des projets (reprise des budgets comprise) vient du module PROJETS */
+    if (typeof achPrjSync !== "function" && typeof sviAchLoad === "function" && !openNewBudget.__w) { openNewBudget.__w = 1; sviAchLoad().then(() => { openNewBudget.__w = 0; openNewBudget(); }).catch(() => { openNewBudget.__w = 0; }); return; }
+    try { if (typeof achPrjSync === "function") achPrjSync(); } catch (e) {}
     document.getElementById("docPop")?.remove();
     const now = new Date();
     const p2 = x => String(x).padStart(2, "0");
@@ -1239,9 +1242,10 @@ function renderBudgetList() {
             <label class="doc-lab" for="nbDate">DATE CRÉATION <b>*</b></label>
             <input id="nbDate" class="doc-in" type="datetime-local" value="${local}">
             <label class="doc-lab" for="nbPrj">PROJET <b>*</b></label>
-            <input id="nbPrj" class="doc-in" type="text" autocomplete="off" placeholder="CODE PROJET">
+            ${(() => { /* série K : le code projet se choisit dans la liste des PROJETS ; le client est celui du projet */ const P = sviAchRaw("svi_ach_prj_v1").filter(x => !x.del && !x.arch && !x.clot), C = sviAchRaw("svi_ach_cli_v1");
+              return `<select id="nbPrj" class="doc-in"><option value="">—</option>${P.map(x => { const c = C.find(y => y.id === x.cli); return `<option value="${esc(x.code)}" data-cli="${esc(c ? c.nom : "")}">${esc(x.code + (x.intitule ? " — " + x.intitule : ""))}</option>`; }).join("")}</select>`; })()}
             <label class="doc-lab" for="nbCli">CLIENT <b>*</b></label>
-            <input id="nbCli" class="doc-in" type="text" autocomplete="off" placeholder="NOM DU CLIENT" list="nbCliL"><datalist id="nbCliL">${[...new Set(sviClients().map(c => c.nom).concat(instLoad().map(b => String(b.client || "").trim().toUpperCase()).filter(Boolean)))].sort().map(n => `<option value="${esc(n)}">`).join("")}</datalist>
+            <input id="nbCli" class="doc-in" type="text" readonly tabindex="-1" placeholder="CLIENT DU PROJET">
             <label class="doc-lab" for="nbName">INTITULÉ</label>
             <input id="nbName" class="doc-in nb-wide" type="text" autocomplete="off" placeholder="INTITULÉ DU PROJET">
           </div>
@@ -1266,6 +1270,7 @@ function renderBudgetList() {
     refNow();
     p.addEventListener("input", refNow);
     p.addEventListener("change", refNow);
+    p.addEventListener("change", e => { if (e.target.id !== "nbPrj") return; const o = e.target.selectedOptions[0]; p.querySelector("#nbCli").value = o ? o.dataset.cli || "" : ""; });
     p.addEventListener("click", e => {
       if (e.target === p || e.target.closest("[data-cancel]")) p.remove();
     });
@@ -1293,6 +1298,7 @@ function renderBudgetList() {
       if (!r) miss.push("date");
       if (!prj) miss.push("projet");
       /* v820 (cahier, à coder) : client obligatoire à la création */
+      if (!cli && prj) { p.querySelector("#nbErr").textContent = "CLIENT DU PROJET " + prj + " À COMPLÉTER DANS SA FICHE (MENU PROJETS)."; return; }
       if (!cli) miss.push("client");
       if (miss.length) { p.querySelector("#nbErr").textContent = "À COMPLÉTER (*) : " + miss.join(", ").toUpperCase() + "."; return; }
       const list = instLoad();

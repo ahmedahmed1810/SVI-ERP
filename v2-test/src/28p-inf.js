@@ -2,7 +2,21 @@
    v869 : DÉCOUPE DU GRAND BLOC (programme, point 4) — INF sort de openBudgetDetail.
    Appelé depuis l'écran du budget (25-inf.js) avec ce dont il a besoin.
    ========================================================= */
+/* 10/11 (série K) : le budget LIT son projet (fiche du module PROJETS) — client, marché (type de client, AO, objet), GPS du chantier et date butoir ;
+   les lecteurs existants (bordereau, transport, planning) gardent INS.ao / INS.gps / INS.dbut, remplis ici depuis le projet, jamais saisis dans le budget */
+const sviAchRaw = k => { try { const raw = localStorage.getItem(k); if (!raw) return []; const L = JSON.parse(SVI_LZ.dec(raw)); return Array.isArray(L) ? L : []; } catch (e) { return []; } };
+function sviBdgPrjSync(budget, INS) { try {
+  const code = String((budget && budget.project) || "").trim().toUpperCase(); if (!code) return;
+  const P = sviAchRaw("svi_ach_prj_v1").find(x => !x.del && String(x.code || "").toUpperCase() === code); if (!P) return;
+  const C = sviAchRaw("svi_ach_cli_v1").find(x => x.id === P.cli) || null;
+  if (budget.inst) budget.inst.client = C ? C.nom : budget.inst.client || "";
+  if (!INS) return;
+  const A = INS.ao || {}; INS.ao = { ...A, pub: C && C.type ? C.type === "PUBLIC" : A.pub, cons: !!P.cons || (C && C.type === "PUBLIC"), num: P.aoNum || "", obj: P.aoObj || "" };
+  INS.gps = P.gps || ""; const but = P.dbutCalc || P.butoir || ""; if (but) INS.dbut = but;
+} catch (e) {} }
+window.sviBdgPrjSync = sviBdgPrjSync;
 function sviBdgInf(C) {
+  { try { sviBdgPrjSync(C.budget, C.INS); } catch (e) {} }
   const { ECR, INS, INS_EDIT, attFormHTML, attRead, budget, dlyDeb, dlyFin, dlyKeys, docsLoad, fullRef, histLog, insCal, insDlyKey, insSave, insSelIds, insUnlinked, insVis, keepScroll, lines, nextRecRef, openExportMenu, printMetre, printTasks, recLoad, recSave, recSorted, ref, refreshAll, shell, updPill } = C;
   /* ===== INF : dates du projet (v452) — DÉBUT (modifiable : tout le planning se décale), FIN et DURÉE calculées,
      DATE OBJECTIF et DATE BUTOIR (déplacées depuis PARAMÉTRAGE) ===== */
@@ -90,10 +104,10 @@ function sviBdgInf(C) {
     if (!budget.inst.created) add("DATE CRÉATION", true);
     if (!P.deb) add("DATE DE DÉBUT DU PROJET", true);
     /* v546 (R30) : DATE DE FIN DU PROJET calculée — n'est plus exigée */
-    if (!INS.dbut) add("DATE BUTOIR", true);
+    if (!INS.dbut) add("DATE BUTOIR (FICHE DU PROJET)", true);   /* série K : la date butoir et le client se lisent dans le projet */
     const it = String(budget.inst.intitule || "").trim();
     if (!it || it === "À COMPLÉTER") add("INTITULÉ", false);
-    if (!String(budget.inst.client || "").trim()) add("CLIENT", false);
+    if (!String(budget.inst.client || "").trim()) add("CLIENT (FICHE DU PROJET)", false);
     return out;
   };
   /* v663 (axe 12) : marché — CLIENT PUBLIC / PRIVÉ, SUR CONSULTATION (cochée d'office pour un client public),
@@ -107,128 +121,126 @@ function sviBdgInf(C) {
       <span class="doc-lab" data-tip="OU DE CONSULTATION">N° D'APPEL D'OFFRES</span>${ed ? `<input class="doc-in inf-int" id="infAoN" value="${esc(A.num || "")}" placeholder="${esc(fullRef)}" autocomplete="off">` : `<span class="doc-in doc-ro inf-val">${esc(A.num || "")}</span>`}
       <span class="doc-lab">OBJET DU MARCHÉ</span>${ed ? `<input class="doc-in inf-int" id="infAoO" value="${esc(A.obj || "")}" autocomplete="off">` : `<span class="doc-in doc-ro inf-val">${esc(A.obj || "")}</span>`}`;
   };
+  /* ===== 10/11 (série K, K2) : EN-TÊTE DU BUDGET (fenêtre i) — sections pliables (10.8), 1re dépliée ; ce qui vient du PROJET se lit dans sa fiche,
+     rien n'est recopié dans le budget (client, marché, GPS, dates du projet, date butoir : lus dans le projet par sviBdgPrjSync) ===== */
+  const K2 = () => { INS.k2 = INS.k2 || {}; return INS.k2; };
+  const k2Type0 = () => budget.inst.rclOf ? "RÉVISION" : budget.inst.parent ? "AVENANT" : "BUDGET D'EXÉCUTION";
+  const k2Nat = () => budget.inst.virtual ? "CONSOLIDÉ" : budget.inst.rclOf ? "RECALAGE" : budget.inst.parent ? "AVENANT " + (budget.inst.avn || 1) : "INITIAL";
+  const k2Coef = k => { const c = K2().coef || {}; return (1 + n0(c.fc) / 100) * (1 + n0(c.fg) / 100) * (1 + n0(c.al) / 100) * (1 + n0(c.mg) / 100); };
+  function n0(v) { const x = parseFloat(String(v ?? "").replace(/\s/g, "").replace(",", ".")); return isNaN(x) ? 0 : x; }
+  /* déboursé sec par désignation (charges liées, comptées une fois — comme le SOUS-DÉTAIL DES PRIX) */
+  const k2Sdp = () => { const seen = new Set(), M = new Map();
+    (INS.links || []).forEach(l => (l.chg || []).forEach(x => { if (seen.has(x.id)) return; const r = (INS.chg || []).find(y => y.id === x.id); if (!r || r.t) return; seen.add(x.id); if (!M.has(l.des)) M.set(l.des, []); M.get(l.des).push(r); }));
+    return (INS.des || []).filter(d => !d.t && M.has(d.id)).map(d => { const tot = M.get(d.id).reduce((t, r) => t + n0(r.q) * n0(r.p), 0), q = insLinkedQ(INS, d.id) ?? n0(d.q); return { d, tot, q, du: q ? tot / q : 0 }; }); };
   const openInfo = (focus) => {
+    /* le budget lit son projet : la liste des projets (module PROJETS) doit être chargée */
+    if (typeof achPrjSync !== "function" && typeof sviAchLoad === "function") { sviAchLoad().then(() => openInfo(focus)).catch(() => {}); return; }
+    try { achPrjSync(); } catch (e) {}
+    sviBdgPrjSync(budget, INS);
     const dt = typeof budgetDate === "function" ? budgetDate(ref) : null;
-    const prd = lines.filter(l => l.kind === "prd");
-    const chg = lines.filter(l => l.kind === "chg");
-    const sum = (arr, f) => arr.reduce((t, l) => t + (f(l) || 0), 0);
-    const prdHT = sum(prd, l => l.amount), prdTTC = sum(prd, l => l.ttcAmount);
-    const chgHT = sum(chg, l => l.amount), chgTTC = sum(chg, l => l.ttcAmount);
-    const marge = prdHT - chgHT;
-    const desig = new Set(lines.map(l => desigKey(l))).size;
-    const taf = recLoad("taf");
-    const obs = recLoad("obs");
-    const items = [
-      ["DATE CRÉATION", budget.inst && budget.inst.created ? String(budget.inst.created).replace(/^(\d{4})-(\d{2})-(\d{2})T?(\d{2}:\d{2})?.*$/, (m0, y, mo, d, h) => d + "/" + mo + "/" + y + (h ? " À " + h : "")) : (dt && dt.label) || ""],
-      ["PROJET", budget.project],
-      ["INTITULÉ", sviIntitule(ref, budget.project, budget.inst)],
-      ["CLIENT", sviClient(budget.inst)],
+    const prd = lines.filter(l => l.kind === "prd"), chg = lines.filter(l => l.kind === "chg"), sum = (arr, f) => arr.reduce((t, l) => t + (f(l) || 0), 0);
+    const prdHT = sum(prd, l => l.amount), prdTTC = sum(prd, l => l.ttcAmount), chgHT = sum(chg, l => l.amount);
+    const editInt = !!(budget.inst && (budget.inst.state || "instance") === "instance"), ed = editInt && !!INS;
+    const PR = typeof achPrj === "function" ? achPrj().filter(x => !x.del) : [], PJ = PR.find(x => String(x.code || "").toUpperCase() === String(budget.project || "").toUpperCase()) || null;
+    let k = INS ? JSON.parse(JSON.stringify(K2())) : {}; const TY = () => k.type || k2Type0(); const SD = INS ? k2Sdp() : [], DS = SD.reduce((t, x) => t + x.tot, 0) || chgHT;
+    const Kc = INS ? k2Coef() : 1, Kr = DS ? prdHT / DS : 0, PRV = DS * (INS ? (1 + n0((k.coef || {}).fc) / 100) * (1 + n0((k.coef || {}).fg) / 100) * (1 + n0((k.coef || {}).al) / 100) : 1);
+    const P = INS ? infProj() : {}, today = new Date().toISOString().slice(0, 10), but = PJ ? PJ.dbutCalc || PJ.butoir || "" : INS && INS.dbut || "";
+    const STB = { instance: "EN INSTANCE", fige: "FIGÉ", valide: "VALIDÉ", annule: "ANNULÉ" }[budget.inst.state || "instance"] || "";
+    const ro = (lab, v, tip) => `<span class="doc-lab"${tip ? ` data-tip="${esc(tip)}"` : ""}>${lab}</span><span class="doc-in doc-ro inf-val inf-calc">${esc(v ?? "")}</span>`;
+    const inp = (id, lab, v, q = {}) => `<span class="doc-lab">${lab}${q.req ? STAR : ""}</span>${ed ? `<input class="doc-in inf-int k2-x" id="${id}" value="${esc(v ?? "")}"${q.num ? ' inputmode="decimal"' : ""}${q.ph ? ` placeholder="${esc(q.ph)}"` : ""} autocomplete="off">` : `<span class="doc-in doc-ro inf-val">${esc(v ?? "")}</span>`}`;
+    const sel = (id, lab, opts, v, q = {}) => `<span class="doc-lab">${lab}${q.req ? STAR : ""}</span>${ed ? `<select class="doc-in k2-x" id="${id}"><option value="">—</option>${opts.map(o => { const a = Array.isArray(o) ? o[0] : o, t = Array.isArray(o) ? o[1] : o; return `<option value="${esc(a)}"${String(v ?? "") === String(a) ? " selected" : ""}>${esc(t)}</option>`; }).join("")}</select>` : `<span class="doc-in doc-ro inf-val">${esc((opts.find(o => (Array.isArray(o) ? o[0] : o) === v) || [v, v])[1] ?? v ?? "")}</span>`}`;
+    const PCOL = PJ ? (PJ.clot ? "valide" : PJ.arch ? "archive" : "instance") : "";
+    const SECS = [
+      ["id", "IDENTIFICATION", 5, () => `
+        <span class="doc-lab">DATE DE CRÉATION${STAR}</span>${editInt ? `<input class="doc-in inf-cre" type="datetime-local" value="${esc((String(budget.inst.created || "").slice(0, 10) || ((dt && dt.key) || "")) + "T" + (String(budget.inst.created || "").slice(11, 16) || "00:00"))}">` : `<span class="doc-in doc-ro inf-val">${esc(budget.inst && budget.inst.created ? svDT(budget.inst.created) : (dt && dt.label) || "")}</span>`}
+        <span class="doc-lab">PROJET${STAR}</span><span class="inf-cell k2-prj">${editInt ? `<select class="doc-in" id="infPrj">${PR.map(x => `<option value="${esc(x.code)}"${x === PJ ? " selected" : ""}>${esc(x.code + (x.intitule ? " — " + x.intitule : ""))}</option>`).join("")}${PJ ? "" : `<option value="${esc(budget.project || "")}" selected>${esc(budget.project || "")}</option>`}</select>` : ""}${PJ ? `<button type="button" class="ach-link k2-go lk-${PCOL}" data-k2prj="${esc(PJ.id)}">FICHE DU PROJET ${esc(PJ.code)}</button>` : ""}</span>
+        ${inp("infInt", "INTITULÉ DU BUDGET", (() => { const v = sviIntitule(ref, budget.project, budget.inst); return v === "À COMPLÉTER" ? "" : v; })(), { ph: "À COMPLÉTER" })}
+        ${sel("k2Lot", "LOT DU MARCHÉ", ((PJ && PJ.lots) || []).filter(x => x.no || x.intitule).map(x => [String(x.no || x.intitule), (x.no ? x.no + " — " : "") + (x.intitule || "")]), k.lot)}
+        ${inp("k2Ana", "CODE ANALYTIQUE", k.analyt || "", { ph: (PJ && PJ.analyt) || "REPRIS DU PROJET" })}`],
+      ["typ", "TYPE ET VERSION", 5, () => `
+        ${sel("k2Type", "TYPE", ["BUDGET DE SOUMISSION", "BUDGET D'EXÉCUTION", "AVENANT", "RÉVISION"], TY())}
+        ${TY() === "AVENANT" ? sel("k2Avn", "AVENANT N°", ((PJ && PJ.avn) || []).filter(x => x.no).map(x => [String(x.no), x.no + (x.objet ? " — " + x.objet : "")]), k.avn || String(budget.inst.avn || "")) : ""}
+        ${sel("k2Ref", "BUDGET DE RÉFÉRENCE", sviInstGet().filter(b => !b.del && b.ref !== ref && String(b.project || "").toUpperCase() === String(budget.project || "").toUpperCase()).map(b => [b.ref, b.ref + (b.intitule && b.intitule !== "À COMPLÉTER" ? " — " + b.intitule : "")]), k.ref || budget.inst.parent || "")}
+        ${TY() === "RÉVISION" ? inp("k2Mot", "MOTIF DE LA RÉVISION", k.motif || "") : ""}
+        ${ro("ANCIENNE NATURE", k2Nat(), "AVANT LA SÉRIE K ; CONSOLIDÉ RESTE UN ÉTAT, LES VERSIONS RESTENT DANS RÉVISIONS")}`],
+      ["et", "ÉTAT ET VALIDATION", 6, () => { const I = budget.inst, w = (d, u) => (d ? svDT(d) : "—") + (u ? " — " + u : "");
+        return `${ro("ÉTAT", budget.inst.virtual ? "CONSOLIDÉ" : STB)}${ro("ÉTABLI PAR", I.by || I.user || "—")}${ro("SOUMIS LE / PAR", w(I.submitted, I.subBy))}${ro("VALIDÉ LE / PAR", w(I.validated, I.valBy))}${ro("FIGÉ LE / PAR", w(I.figed || I.fige, I.figeBy))}`; }],
+      ["dat", "DATES ET DURÉES", 6, () => `
+        <span class="doc-lab" data-tip="VISÉE PAR GÉNÉRER / COMPRESSER">DATE OBJECTIF</span>${editInt ? `<input class="doc-in inf-date" type="date" data-f="obj" value="${esc(INS.dobj || "")}">` : `<span class="doc-in doc-ro inf-val">${esc(dFr(INS.dobj || ""))}</span>`}
+        <span class="doc-lab" data-tip="LU DANS LE PLANNING DU BUDGET (DÉTAIL › DÉLAIS) ; LE CHANGER DÉCALE TOUT LE PLANNING">DÉBUT DU BUDGET${STAR}</span>${editInt ? `<input class="doc-in inf-date" type="date" data-f="deb" value="${esc(P.deb || "")}">` : `<span class="doc-in doc-ro inf-val">${esc(dFr(P.deb || ""))}</span>`}
+        <span class="doc-lab" data-tip="FIN DU PLANNING">FIN DU BUDGET</span><span class="inf-cell"><span class="doc-in doc-ro inf-val inf-calc" data-v="pfin0">${esc(dFr(P.fin))}</span><small class="inf-sub" data-v="pfin"></small></span>
+        ${ro("DURÉE", infYMD(P.deb, P.fin))}${ro("DURÉE ÉCOULÉE", P.deb && P.deb <= today ? infYMD(P.deb, today < P.fin || !P.fin ? today : P.fin) : "—")}
+        ${ro("DATE BUTOIR DU PROJET", dFr(but) || "—", "LUE DANS LA FICHE DU PROJET")}
+        ${INS.dobj && but && INS.dobj > but ? `<div class="inf-note inf-late k2-wide">⚠ LA DATE OBJECTIF DÉPASSE LA DATE BUTOIR DU PROJET.</div>` : ""}`],
+      ["coef", "COEFFICIENTS DE PRIX", 6, () => { const c = k.coef || {};
+        return `${inp("k2Fc", "FRAIS DE CHANTIER (%)", c.fc ?? "", { num: 1 })}${inp("k2Fg", "FRAIS GÉNÉRAUX (%)", c.fg ?? "", { num: 1 })}${inp("k2Al", "ALÉAS / IMPRÉVUS (%)", c.al ?? "", { num: 1 })}${inp("k2Mg", "MARGE (%)", c.mg ?? "", { num: 1 })}
+        ${ro("COEFFICIENT K (COEFFICIENTS)", Kc.toFixed(4).replace(".", ","), "K = (1 + FRAIS DE CHANTIER) × (1 + FRAIS GÉNÉRAUX) × (1 + ALÉAS) × (1 + MARGE)")}${ro("K RÉEL (PRIX ÷ DÉBOURSÉ SEC)", Kr ? Kr.toFixed(4).replace(".", ",") : "—", "POUR INFORMATION")}
+        ${ed ? `<span class="doc-lab"></span><span class="inf-cell"><button type="button" class="doc-btn k2-propose">PROPOSER LES PRIX AVEC K</button></span>` : ""}`; }],
+      ["mt", "MONTANTS", 5, () => `${ro("DÉBOURSÉ SEC", money(DS))}${ro("PRIX DE REVIENT", money(PRV), "DÉBOURSÉ SEC × FRAIS DE CHANTIER × FRAIS GÉNÉRAUX × ALÉAS")}${ro("MONTANT HT", money(prdHT))}${ro("TVA", money(prdTTC - prdHT))}${ro("MONTANT TTC", money(prdTTC))}`],
+      ["ctl", "CONTRÔLE DES DÉPENSES", 3, () => `${inp("k2Seuil", "SEUIL DE VALIDATION (%)", k.seuil ?? 90, { num: 1 })}${ro("DEVISE", (PJ && PJ.devise) || "MAD", "REPRISE DU PROJET")}${inp("k2Taux", "TAUX DE CHANGE", k.taux ?? "", { num: 1, ph: "FIGÉ À LA VALIDATION" })}
+        <div class="inf-note k2-wide">AU-DELÀ DU SEUIL (PAR CHARGE OU POUR TOUT LE BUDGET), OU QUAND LE RAPPORT CHARGES / PRODUITS RÉALISÉ DÉPASSE CELUI DU BUDGET, UNE COMMANDE PASSE PAR LA VALIDATION D'UN SUPÉRIEUR (JAMAIS BLOQUÉE).</div>`]
     ];
-    /* budget en instance : l'INTITULÉ se saisit ici (repris dans les listes, exports et aperçus) */
-    const editInt = !!(budget.inst && (budget.inst.state || "instance") === "instance");
+    const OPEN = new Set([focus === "ao" ? "id" : focus || "id"]);
     const p = sviPopNew();
-    p.innerHTML = `
-      <div class="doc-card" role="dialog" aria-modal="true">
-        <div class="doc-head">
-          <span class="doc-title">INF ${esc(fullRef)}</span>
-          <button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button>
-        </div>
-        <div class="doc-body">
-          ${budget.inst && budget.inst.virtual && budget.inst.vname ? `<div class="inf-note">${esc(budget.inst.vname)} : PHOTO EN LECTURE SEULE — FILTRES, TRIS, APERÇUS ET EXPORTS PERMIS ; MENU ⋯ : RESTAURER CETTE VERSION, EN FAIRE UN SCÉNARIO.</div>` : ""}
+    const body = () => `${budget.inst && budget.inst.virtual && budget.inst.vname ? `<div class="inf-note">${esc(budget.inst.vname)} : PHOTO EN LECTURE SEULE — FILTRES, TRIS, APERÇUS ET EXPORTS PERMIS ; MENU ⋯ : RESTAURER CETTE VERSION, EN FAIRE UN SCÉNARIO.</div>` : ""}
           ${budget.inst && budget.inst.rclOf ? `<div class="inf-note">RECALAGE R${esc(budget.inst.rcn)} DE ${esc(budget.inst.rclOf)} — ${budget.inst.state === "valide" ? "ENREGISTRÉ : LECTURE SEULE." : "EN COURS : DÉSIGNATIONS CLIENT ET PRIX EN LECTURE SEULE ; 🔒 = ENREGISTRER LE RECALAGE."}</div>` : ""}
-          <div class="doc-grid inf-grid">
-            ${items.map(([k, v]) => `
-              <span class="doc-lab">${esc(k)}${INS && (k === "DATE CRÉATION" || k === "PROJET") ? STAR : ""}</span>
-              ${k === "DATE CRÉATION" && editInt
-                ? `<input class="doc-in inf-cre" type="datetime-local" value="${esc((String(budget.inst.created || "").slice(0, 10) || ((dt && dt.key) || "")) + "T" + (String(budget.inst.created || "").slice(11, 16) || "00:00"))}">`   /* v922 (remarque 8 du 04/11/2026) : un seul champ, date ET heure affichées en entier (JJ/MM/AAAA À HH:MM) */
-                : k === "PROJET" && editInt
-                ? `<input class="doc-in inf-int" id="infPrj" value="${esc(v || "")}" autocomplete="off">`
-                : (k === "INTITULÉ" || k === "CLIENT") && editInt
-                ? `<input class="doc-in inf-int" id="${k === "CLIENT" ? "infCli" : "infInt"}" value="${esc(v === "À COMPLÉTER" ? "" : v)}" placeholder="À COMPLÉTER" autocomplete="off">`
-                : `<span class="doc-in doc-ro inf-val">${esc(v)}</span>`}`).join("")}
-            ${INS ? infAoHTML(editInt) : ""}
-            ${INS ? infDatesHTML(editInt) : ""}
-            ${INS ? `<span class="doc-lab" data-tip="DISTANCE ET TRANSPORT DES ACHATS">GPS DU CHANTIER</span>${editInt ? `<input class="doc-in inf-gps" value="${esc(INS.gps || "")}" placeholder="LATITUDE, LONGITUDE" inputmode="decimal" autocomplete="off">` : `<span class="doc-in doc-ro inf-val">${esc(INS.gps || "")}</span>`}` : ""}
-          </div>
-        </div>
-        <div class="doc-foot">
-          ${editInt ? `<button type="button" class="doc-btn" data-cancel>FERMER</button><button type="button" class="doc-btn doc-save inf-save">ENREGISTRER</button>` : `<button type="button" class="doc-btn doc-save" data-cancel>FERMER</button>`}
-        </div>
+          ${SECS.filter(x => INS || x[0] === "id").map(([sk, t, n, f]) => { const on = OPEN.has(sk); return `<div class="frs-sec cp-fsec${on ? " on" : ""}" data-s="${sk}"><button type="button" class="frs-st cp-st" data-k2sec="${sk}"><span class="cp-ar">${on ? "⌄" : "›"}</span>${t} ${svCnt(n)}</button><div class="cp-body"${on ? "" : " hidden"}><div class="doc-grid inf-grid">${f()}</div></div></div>`; }).join("")}`;
+    p.innerHTML = `
+      <div class="doc-card cp-card k2-card" role="dialog" aria-modal="true">
+        <div class="doc-head"><span class="doc-title">${esc(fullRef)}</span><button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button></div>
+        <div class="doc-body">${body()}</div>
+        <div class="doc-foot">${editInt ? `<button type="button" class="doc-btn" data-cancel>ANNULER</button><button type="button" class="doc-btn doc-save inf-save">ENREGISTRER</button>` : `<button type="button" class="doc-btn doc-save" data-cancel>FERMER</button>`}</div>
       </div>`;
     sviPopShow(p);
     popEnhance(p, "inf");
-    /* v477 (remarque 5) : tout est modifiable en instance ; rien n'est retenu avant ENREGISTRER */
     const pend = {};
     if (INS) infDatesBind(p, editInt, pend);
-    /* v663 : client public = SUR CONSULTATION cochée d'office */
-    p.addEventListener("change", e => {
-      if (e.target.name !== "infAoT") return;
-      const c = p.querySelector("#infAoC"); if (!c) return;
-      if (e.target.value === "pub") { c.checked = true; c.disabled = true; } else c.disabled = false;
-    });
-    if (focus === "ao") setTimeout(() => { const i = p.querySelector("#infAoN"); if (i) { i.scrollIntoView({ block: "center" }); i.focus(); } }, 80);
-    p.querySelectorAll("#infInt, #infCli, #infPrj, #infAoN, #infAoO").forEach(i => i.addEventListener("input", e => { const c = e.target.selectionStart; e.target.value = e.target.value.toUpperCase(); try { e.target.setSelectionRange(c, c); } catch (err) {} }));
-    const cd = p.querySelector("input.inf-cre");
-    const collect = () => {
-      const out = { ...pend };
-      const gp = p.querySelector(".inf-gps"); if (gp) out.gps = gp.value.trim();
-      const pj = p.querySelector("#infPrj"); if (pj) out.project = pj.value.trim().toUpperCase().replace(/\s+/g, " ");
+    const up = i => i.addEventListener("input", e => { if (e.target.tagName !== "INPUT" || e.target.inputMode === "decimal") return; const c = e.target.selectionStart; e.target.value = e.target.value.toUpperCase(); try { e.target.setSelectionRange(c, c); } catch (err) {} });
+    p.querySelectorAll("#infInt, .k2-x").forEach(up);
+    const v = id => { const i = p.querySelector("#" + id); return i ? String(i.value || "").trim().toUpperCase() : undefined; };
+    const collect = () => { const out = { ...pend }, cd = p.querySelector("input.inf-cre");
+      const pj = p.querySelector("#infPrj"); if (pj) out.project = pj.value.trim().toUpperCase();
       const ii = p.querySelector("#infInt"); if (ii) out.intitule = ii.value.trim().toUpperCase();
-      const ic = p.querySelector("#infCli"); if (ic) out.client = ic.value.trim().toUpperCase();
       if (cd) out.created = cd.value ? cd.value.slice(0, 10) + "T" + (cd.value.slice(11, 16) || "00:00") : "";
-      if (INS && p.querySelector("#infAoN")) {
-        const t = p.querySelector('input[name="infAoT"]:checked'), A = INS.ao || {};
-        const pub = t ? t.value === "pub" : (A.pub === undefined ? undefined : A.pub);
-        out.ao = { pub, cons: pub === true || !!p.querySelector("#infAoC").checked,
-          num: p.querySelector("#infAoN").value.trim().toUpperCase(), obj: p.querySelector("#infAoO").value.trim().toUpperCase() };
-      }
-      return out;
-    };
+      if (INS) { const c0 = K2(), nk = { ...c0 }; const set = (f, id) => { const x = v(id); if (x !== undefined) nk[f] = x; };
+        set("lot", "k2Lot"); set("analyt", "k2Ana"); set("type", "k2Type"); set("avn", "k2Avn"); set("ref", "k2Ref"); set("motif", "k2Mot"); set("seuil", "k2Seuil"); set("taux", "k2Taux");
+        const cf = { ...(c0.coef || {}) }; [["fc", "k2Fc"], ["fg", "k2Fg"], ["al", "k2Al"], ["mg", "k2Mg"]].forEach(([f, id]) => { const x = v(id); if (x !== undefined) cf[f] = x; }); nk.coef = cf; out.k2 = nk; }
+      return out; };
     const changed = o => (o.project !== undefined && o.project !== String(budget.project || ""))
       || (o.intitule !== undefined && o.intitule !== String(budget.inst.intitule === "À COMPLÉTER" ? "" : budget.inst.intitule || "").trim().toUpperCase())
-      || (o.client !== undefined && o.client !== String(budget.inst.client || "").trim().toUpperCase())
-      || (o.created !== undefined && o.created && o.created !== String(budget.inst.created || ""))
-      || ["deb", "obj", "but"].some(f => o[f] !== undefined)
-      || (o.gps !== undefined && o.gps !== String((INS && INS.gps) || ""))
-      || (o.ao !== undefined && ["pub", "cons", "num", "obj"].some(f => (o.ao[f] ?? "") !== ((INS.ao || {})[f] ?? (f === "cons" ? false : ""))));
+      || (o.created !== undefined && o.created && o.created !== String(budget.inst.created || "")) || ["deb", "obj"].some(f => o[f] !== undefined)
+      || (o.k2 && JSON.stringify(o.k2) !== JSON.stringify({ ...K2(), coef: { ...(K2().coef || {}) } }));
+    /* type changé : seule la section TYPE ET VERSION est redessinée (les autres saisies restent en place) */
+    const redrawTyp = () => { const o = collect(); if (o.k2) k = o.k2; const g = p.querySelector('.cp-fsec[data-s="typ"] .doc-grid'); if (g) { g.innerHTML = SECS.find(x => x[0] === "typ")[3](); g.querySelectorAll(".k2-x").forEach(up); try { popEnhance(p, "inf"); } catch (e) {} } };
     const save = () => {
       const o = collect();
       if (o.project !== undefined && !o.project) { svToast("PROJET OBLIGATOIRE.", 3000, p.querySelector("#infPrj")); return false; }
       const patch = {};
-      if (o.project !== undefined && o.project !== String(budget.project || "")) {
-        budget.project = o.project; budget.inst.project = o.project; patch.project = o.project;
-        const h1 = $("refTxt"); if (h1) h1.textContent = o.project + " " + ref;
-        histLog("INF", "PROJET", o.project);
-      }
+      if (o.project !== undefined && o.project !== String(budget.project || "")) { budget.project = o.project; budget.inst.project = o.project; patch.project = o.project; const h1 = $("refTxt"); if (h1) h1.textContent = o.project + " " + ref; histLog("INF", "PROJET", o.project); sviBdgPrjSync(budget, INS); patch.client = budget.inst.client || ""; }
       if (o.created && o.created !== String(budget.inst.created || "")) { budget.inst.created = o.created; patch.created = o.created; histLog("INF", "DATE CRÉATION", o.created.replace("T", " À ")); }
-      [["intitule", "INTITULÉ", "À COMPLÉTER"], ["client", "CLIENT", ""]].forEach(([f, lab, def]) => {
-        if (o[f] === undefined || o[f] === String(budget.inst[f] === "À COMPLÉTER" ? "" : budget.inst[f] || "").trim().toUpperCase()) return;
-        budget.inst[f] = o[f] || def; patch[f] = budget.inst[f]; histLog("INF", lab, budget.inst[f] || "—");
-      });
+      if (o.intitule !== undefined && o.intitule !== String(budget.inst.intitule === "À COMPLÉTER" ? "" : budget.inst.intitule || "").trim().toUpperCase()) { budget.inst.intitule = o.intitule || "À COMPLÉTER"; patch.intitule = budget.inst.intitule; histLog("INF", "INTITULÉ", budget.inst.intitule); }
       if (Object.keys(patch).length) sviInstSet(sviInstGet().map(x => x.ref === ref ? { ...x, ...patch } : x));
-      if (INS && o.ao) {
-        const A = INS.ao || {}, n = { ...A, pub: o.ao.pub, cons: o.ao.cons, num: o.ao.num, obj: o.ao.obj };
-        if (["pub", "cons", "num", "obj"].some(f => (n[f] ?? "") !== (A[f] ?? ""))) {
-          INS.ao = n;
-          histLog("INF", "MARCHÉ", (n.pub === true ? "CLIENT PUBLIC" : n.pub === false ? "CLIENT PRIVÉ" : "CLIENT —") + (n.cons ? ", SUR CONSULTATION" : "") + (n.num ? ", N° " + n.num : ""));
-        }
-      }
-      if (INS && o.gps !== undefined && o.gps !== String(INS.gps || "")) {
-        if (o.gps && !sviGpsParse(o.gps)) { svToast("GPS DU CHANTIER : LATITUDE, LONGITUDE (EX. 33.5731, -7.5898).", 3500, p.querySelector(".inf-gps")); return false; }
-        INS.gps = o.gps; histLog("INF", "GPS DU CHANTIER", o.gps || "—"); }
+      if (INS && o.k2) { const a = JSON.stringify(K2()); INS.k2 = o.k2; if (a !== JSON.stringify(o.k2)) histLog("INF", "EN-TÊTE DU BUDGET", "TYPE " + (o.k2.type || k2Type0()) + (o.k2.lot ? ", LOT " + o.k2.lot : "") + ", SEUIL " + (o.k2.seuil || 90) + " %"); }
       if (INS) { infApplyDates(pend, p.querySelector(".doc-foot")); insSave(); }
-      /* partout où l'information est affichée : en-tête, listes, aperçus */
       try { keepScroll(() => refreshAll()); } catch (e) {}
       try { document.title = (budget.project || "") + " " + (fullRef || ""); } catch (e) {}
       return true;
     };
+    p.addEventListener("change", e => { if (e.target.closest("#k2Type")) redrawTyp(); });
     p.addEventListener("click", async e => {
+      const sc = e.target.closest("[data-k2sec]"); if (sc) { const sec = sc.closest(".cp-fsec"), on = !sec.classList.contains("on"); sec.classList.toggle("on", on); sec.querySelector(".cp-body").hidden = !on; sc.querySelector(".cp-ar").textContent = on ? "⌄" : "›"; return; }
+      const go = e.target.closest("[data-k2prj]"); if (go) { if (typeof achPrjFiche === "function") achPrjFiche(go.dataset.k2prj, () => {}); return; }
+      if (e.target.closest(".k2-propose")) { const o = collect(); const c = o.k2.coef || {}, Kx = (1 + n0(c.fc) / 100) * (1 + n0(c.fg) / 100) * (1 + n0(c.al) / 100) * (1 + n0(c.mg) / 100);
+        const T = k2Sdp().filter(x => !(n0(x.d.p) > 0) && x.du > 0);
+        if (!T.length) { svToast("AUCUNE DÉSIGNATION SANS PRIX AVEC DES CHARGES LIÉES.", 3500); return; }
+        if (!(await svConfirm({ title: "PROPOSER LES PRIX AVEC K", text: T.length + " DÉSIGNATION(S) SANS PRIX : PRIX = DÉBOURSÉ SEC UNITAIRE × " + Kx.toFixed(4).replace(".", ",") + ". LES PRIX DÉJÀ SAISIS NE CHANGENT PAS.", ok: "PROPOSER", tone: "neutral" }))) return;
+        INS.k2 = o.k2; T.forEach(x => { x.d.p = Math.round(x.du * Kx * 100) / 100; }); histLog("INF", "PRIX PROPOSÉS AVEC K", T.length + " DÉSIGNATION(S), K = " + Kx.toFixed(4)); insSave(); try { keepScroll(() => refreshAll()); } catch (er) {} svToast(T.length + " PRIX PROPOSÉ(S).", 2500); return; }
       if (e.target.closest(".inf-save")) { if (save()) { p.remove(); svToast("ENREGISTRÉ.", 1800); } return; }
       if (!(e.target === p || e.target.closest("[data-cancel]"))) return;
       if (editInt && changed(collect())) {
-        const v = await svChoose({ title: "MODIFICATIONS NON ENREGISTRÉES", text: "ENREGISTRER LES MODIFICATIONS D'INF ?", buttons: [{ v: "drop", label: "ABANDONNER", tone: "danger" }, { v: "save", label: "ENREGISTRER", tone: "neutral" }] });
-        if (!v) return;
-        if (v === "save" && !save()) return;
+        const r = await svChoose({ title: "MODIFICATIONS NON ENREGISTRÉES", text: "ENREGISTRER LES MODIFICATIONS ?", buttons: [{ v: "drop", label: "ABANDONNER", tone: "danger" }, { v: "save", label: "ENREGISTRER", tone: "neutral" }] });
+        if (!r) return;
+        if (r === "save" && !save()) return;
       }
       p.remove();
     });

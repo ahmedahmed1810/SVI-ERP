@@ -346,7 +346,7 @@ const achSeuL = k => achSeuOwn(k) ? achPrm().seuT[k] : achPrm().seuV;
 const achPcSeu = (k, ht) => { const S = achSeuL(k).filter(x => (x.g || []).length && (achN(x.mt) > 0 ? ht > achN(x.mt) : ht >= 0) && (x.fin === "" || x.fin === undefined || ht <= achN(x.fin)));
   if (!S.length) return null; const top = S.slice().sort((a, b) => achN(b.mt) - achN(a.mt))[0];
   return { mt: achN(top.mt), g: [...new Set(S.flatMap(x => x.g.map(String)))].sort((a, b) => +b - +a), h: S.some(x => x.h), k }; };
-const achCmfSeu = c => achPcSeu("cmf", achCmfTot(c).ht);
+const achCmfSeu = c => achCmfSeuK(c, achPcSeu("cmf", achCmfTot(c).ht));   /* série K : contrôle des dépenses du budget (49-clients-projets.js) */
 const achCircNext = c => { const K = c.circ; if (!K) return []; const done = new Set((K.ok || []).map(x => String(x.g))), rest = K.g.filter(g => !done.has(g)); return K.h ? rest.slice(0, 1) : rest; };
 const achCircDone = c => !!c.circ && achCircNext(c).length === 0;
 /* 06/11 : circuit d'une pièce autre que la commande (facture : BON À PAYER ; paiement : VALIDER) — rend true tant que la pièce ne peut pas être validée :
@@ -2854,7 +2854,7 @@ function achCmfFiche(id, done) {
     /* B25, B45 : circuit de validation */
     if (e.target.closest("[data-circ]")) { pull(); if (!check()) return; const S = achCmfSeu(C); if (!S) { draw(); return; }
       { const no = achDirCmfCheck(C) || achCmfValNo(C); if (no) { svToast(no + ".", 5500); return; } }
-      if (!(await svConfirm({ title: "ENVOYER EN VALIDATION", text: C.ref + " : " + achF2(achCmfTot(C).ht) + " HT, AU-DELÀ DE " + achF2(S.mt) + " HT — VALIDATION PAR " + S.g.map(achGradeLab).join(S.h ? " PUIS " : " OU ") + ". LA COMMANDE EST VERROUILLÉE PENDANT LE CIRCUIT.", ok: "ENVOYER", tone: "neutral" }))) return;
+      if (!(await svConfirm({ title: "ENVOYER EN VALIDATION", text: C.ref + " : " + achF2(achCmfTot(C).ht) + " HT" + (S.mt ? ", AU-DELÀ DE " + achF2(S.mt) + " HT" : "") + (S.why ? " — CONTRÔLE DU BUDGET : " + S.why.join(" · ") : "") + " — VALIDATION PAR " + S.g.map(achGradeLab).join(S.h ? " PUIS " : " OU ") + ". LA COMMANDE EST VERROUILLÉE PENDANT LE CIRCUIT.", ok: "ENVOYER", tone: "neutral" }))) return;
       C.circ = { ...S, ok: [], t: achNow() }; store("ENVOYÉE EN VALIDATION"); draw(); return; }
     const ca = e.target.closest("[data-cacc]"), cr = e.target.closest("[data-cret]");
     if (ca || cr) { const g = (ca || cr).dataset.cacc || (ca || cr).dataset.cret; if (!achCircNext(C).includes(g)) { svToast("CE GRADE NE PEUT PAS VALIDER MAINTENANT (HIÉRARCHIE).", 3500); return; }
@@ -4085,7 +4085,7 @@ const achHistNov = code => { const x = achNovOf(code); if (!x) return [];
 const achCli = () => { const L = achJ(ACH_K.cli, []); return Array.isArray(L) ? L : []; };
 const achCliSave = L => achW(ACH_K.cli, L);
 const achPrj = () => { const L = achJ(ACH_K.prj, []); return Array.isArray(L) ? L : []; };
-const achPrjSave = L => achW(ACH_K.prj, L);
+const achPrjSave = L => { L.forEach(p => { try { p.dbutCalc = achPrjButoir(p); } catch (e) {} }); return achW(ACH_K.prj, L); };   /* série K : date butoir calculée gardée (lue par le budget) */
 const achCliNextCode = L => "CLI-" + String(L.reduce((m, a) => Math.max(m, Number(String(a.code || "").replace(/\D/g, "")) || 0), 0) + 1).padStart(4, "0");
 const achCliNew = (L, o) => { const now = achNow();
   const c = { id: "K" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), code: achCliNextCode(L), nom: achU(o.nom || ""), denom: "", forme: "", type: o.type || "", grp: "", pays: "", ville: "", adresse: "", lang: "", site: "",
@@ -4366,3 +4366,28 @@ function achPrjNvMod(ctx) {
           { t: "ACHATS DU CHANTIER", cols: [["RÉFÉRENCE"], ["PIÈCE"], ["DÉSIGNATION"], ["MONTANT TTC", "number"]], rows: BS.map(x => ({ cells: [x.ref || "", "BESOIN", x.des || "", achN(x.q) * achN(x.pu)], open: () => achGo("bsn", x.id) }))
             .concat(CM.map(cm => ({ cells: [cm.ref, "COMMANDE", (cm.lignes || []).map(l => l.des).join("; "), achCmfTot(cm).ttc], open: () => achGo("cmf", cm.id), cls: cm.state === "annule" ? "nv-strike" : "" }))) }] }; } });
 }
+
+/* ---------- série K (K2 §7, réponse d'Ahmed du 10/11) : CONTRÔLE DES DÉPENSES — jamais de blocage : la commande passe par la validation
+   d'un supérieur (circuit de la série E) quand (a) les commandes engagées (celle-ci comprise) atteignent le SEUIL (%) du budget d'une charge
+   ou de tout le budget, ou (b) le rapport CHARGES / PRODUITS réalisé dépasse celui du budget (produits réalisés = décomptes, à venir) ---------- */
+function achCmfBdgWhy(c) { try {
+  const B = achBsn(), lb = l => l.bsn ? B.find(b => b.id === l.bsn) : null, eng = new Map(), cur = new Map(), add = (M, k, v) => M.set(k, (M.get(k) || 0) + v);
+  const mtL = (cm, l) => achN(l.q) * achN(l.pu) * (1 - achN(cm.rem) / 100);
+  (c.lignes || []).forEach(l => { const b = lb(l); if (b && b.bdg) add(cur, b.bdg + "§" + (b.chg || ""), mtL(c, l)); });
+  if (!cur.size) return [];
+  achCmf().filter(x => x.id !== c.id && !x.del && ["valide", "solde", "partiel", "recu", "livre"].includes(x.state)).forEach(x => (x.lignes || []).forEach(l => { const b = lb(l); if (b && b.bdg) add(eng, b.bdg + "§" + (b.chg || ""), mtL(x, l)); }));
+  const out = [], refs = [...new Set([...cur.keys()].map(k => k.split("§")[0]))];
+  refs.forEach(ref => { const it = (sviInstGet() || []).find(b => b.ref === ref); if (!it) return; const D = it.data || {}, seuil = achN(((D.k2 || {}).seuil) ?? 90) || 90, CH = achBdgCharges(ref);
+    const totB = CH.reduce((t, x) => t + x.mt, 0); let totE = 0;
+    [...cur.keys()].filter(k => k.startsWith(ref + "§")).forEach(k => { const ch = CH.find(x => x.key === k.slice(ref.length + 1)); const e = (eng.get(k) || 0) + cur.get(k); totE += cur.get(k);
+      if (ch && ch.mt > 0 && e >= ch.mt * seuil / 100) out.push(ref + " — " + ch.des + " : " + Math.round(e / ch.mt * 100) + " % DU BUDGET (SEUIL " + seuil + " %)"); });
+    [...eng.keys()].filter(k => k.startsWith(ref + "§")).forEach(k => { totE += eng.get(k); });
+    if (totB > 0 && totE >= totB * seuil / 100) out.push(ref + " : " + Math.round(totE / totB * 100) + " % DU BUDGET ENGAGÉ (SEUIL " + seuil + " %)");
+    /* (b) rapport charges / produits : produits réalisés = décomptes du projet (module à venir) — inactif tant qu'il n'y en a pas */
+    const prdB = (D.des || []).filter(r => !r.t).reduce((t, r) => t + (typeof insLinkedQ === "function" ? (insLinkedQ(D, r.id) ?? achN(r.q)) : achN(r.q)) * achN(r.p), 0), prdR = achN(((D.k2 || {}).prdReal) || 0);
+    if (prdB > 0 && prdR > 0 && totB > 0 && totE / prdR > totB / prdB) out.push(ref + " : CHARGES / PRODUITS RÉALISÉ (" + (totE / prdR).toFixed(2) + ") AU-DESSUS DU BUDGET (" + (totB / prdB).toFixed(2) + ")"); });
+  return out; } catch (e) { return []; } }
+function achCmfSeuK(c, S) { const why = achCmfBdgWhy(c); if (!why.length) return S;
+  const G = (typeof sviPgL === "function" ? sviPgL("grades") : []).map(x => String(x.n)).filter(Boolean).sort((a, b) => +b - +a);
+  if (S) return { ...S, why };
+  return { mt: 0, g: G.length ? [G[0]] : ["1"], h: false, k: "cmf", why }; }
