@@ -4781,9 +4781,17 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
     t.querySelectorAll("tbody textarea").forEach(ta => { if (!ta.style.height) return; ta.style.height = ""; if (ta.scrollHeight > ta.clientHeight + 2) ta.style.height = ta.scrollHeight + "px"; }); };
   const fit = (t, force) => { const cols = [...t.querySelectorAll(":scope > colgroup > col")], keys = cols.map(c => keyOf(t, c)).filter(Boolean); if (!keys.length) return false;
     const CW = cwLoad(); if (!force && keys.some(k => CW[k])) return false;   /* déjà réglé (à la main ou à une ouverture d'avant) */
-    const W = measure(t); if (!W) return false; apply(t, W); grow(t, W); Object.assign(CW, W); cwSave(CW);
-    setTimeout(() => { if (t.isConnected && grow(t, W)) { const C2 = cwLoad(); Object.assign(C2, W); cwSave(C2); } }, 700);   /* zones de texte ajustées après coup */
+    const W = measure(t); if (!W) return false; apply(t, W); grow(t, W); shrink(t, W); Object.assign(CW, W); cwSave(CW);
+    setTimeout(() => { if (t.isConnected && grow(t, W)) { shrink(t, W); const C2 = cwLoad(); Object.assign(C2, W); cwSave(C2); } }, 700);   /* zones de texte ajustées après coup */
     return true; };
+  /* le tableau reste dans la largeur de son bloc ou de sa liste (règles 6.11, DÉTAIL) : s'il déborde, les colonnes de texte long
+     (désignation, détail, intitulé, nom, objet, tâche) rendent la place, jusqu'à 120 px au plus étroit */
+  const LONG = /\.(designation|detail|des|intitule|nom|objet|tache|budget|txt|rtitle|rtext)$/;
+  const shrink = (t, W) => { const box = t.closest(".novapp-budget-table-wrap, .bdg-d-scroll, .bdg-d-client-scroll, .rec-scroll, .ach-scroll, .frs-scroll, .bdg-d-block") || t.parentElement; if (!box) return;
+    const avail = box.clientWidth - 4, tot = t.getBoundingClientRect().width; if (!(avail > 0) || tot <= avail) return;
+    const L = Object.keys(W).filter(k => LONG.test(k) && W[k] > 72); if (!L.length) return;
+    let over = tot - avail; const room = L.reduce((a, k) => a + (W[k] - 72), 0); if (room <= 0) return;
+    L.forEach(k => { const cut = Math.min(W[k] - 72, Math.ceil(over * (W[k] - 72) / room)); W[k] -= cut; }); apply(t, W); };
   /* contrôle à l'écran : une case encore coupée ou passée à la ligne élargit sa colonne (3 passes au plus) ; rend true si une colonne a changé */
   const grow = (t, W) => { let any = false;
     for (let pass = 0; pass < 3; pass++) { const cols2 = [...t.querySelectorAll(":scope > colgroup > col")], rows = [...t.tBodies[0].rows].filter(r => r.offsetParent !== null).slice(0, 200);
@@ -4803,8 +4811,8 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
   if (document.body) start(); else document.addEventListener("DOMContentLoaded", start);
   /* ⋯ d'un bloc, d'une liste ou d'une fiche : LARGEUR OPTIMISÉE (tous les tableaux de l'endroit) */
   let src = null; document.addEventListener("pointerdown", e => { const b = e.target.closest && e.target.closest(".blk-more, [data-nvmore], .nvl-more, .bdg-more-btn, [data-blkmore]"); if (b) src = b; }, true);
-  new MutationObserver(() => { const m = document.getElementById("blkMenu"); if (!m || m.__cwfit || !src) return; m.__cwfit = 1;
-    const host = src.closest(".bdg-d-block, .nvp-blk, .ins-hcol, .novapp-list-shell, .svc-card, .doc-card") || src.closest(".bdg-d-page, .nvp, .view"); if (!host) return;
+  new MutationObserver(() => { const m = document.getElementById("blkMenu"); if (!m || m.__cwfit) return; const b0 = m.__btn || src; if (!b0 || !b0.closest) return; m.__cwfit = 1;
+    const host = b0.closest(".bdg-d-block, .nvp-blk, .ins-hcol, .novapp-list-shell, .svc-card, .doc-card") || b0.closest(".bdg-d-page, .nvp, .view") || document.querySelector(".view.active-view"); if (!host) return;
     const T = [...host.querySelectorAll("table")].filter(t => t.offsetParent !== null && [...t.querySelectorAll(":scope > colgroup > col")].some(c => keyOf(t, c))); if (!T.length) return;
     m.insertAdjacentHTML("beforeend", `<div class="blk-sep"></div><button type="button" class="svi-cwfit"><i class="mi-sp"></i>LARGEUR OPTIMISÉE</button>`);
     m.querySelector(".svi-cwfit").addEventListener("click", e => { e.stopPropagation(); let n = 0; T.forEach(t => { if (fit(t, true)) n++; }); m.remove(); if (typeof svToast === "function") svToast(n ? "LARGEUR OPTIMISÉE." : "RIEN À MESURER (TABLEAU VIDE).", 1800); });
