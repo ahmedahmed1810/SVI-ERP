@@ -3845,3 +3845,12 @@ html body :is(.novapp-list-titlebar, #chs > .section-head, .bdg-d-block-title, .
 html.svi-ptm .svi-th { pointer-events: none; }
 /* 10/11 : repère jaune de la destination (regroupement de titres, déplacement) toujours devant la couleur des lignes de la palette */
 html body .ins-hcol .ins-li.ro-on:not(#svi-z1):not(#svi-z2):not(#svi-z3), html body .ins-table tr.ro-on td:not(#svi-z1):not(#svi-z2):not(#svi-z3), html body .dlyg-l tr.ro-on td:not(#svi-z1):not(#svi-z2):not(#svi-z3) { background: #fde68a !important; }
+/* 10/11 (série K) : sections pliables des fenêtres i (projet) — titre › / ⌄ et pastille */
+.cp-card .cp-st { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: none; padding: 6px 0; cursor: pointer; text-align: left; font: inherit; color: inherit; }
+.cp-card .cp-ar { display: inline-block; width: 14px; text-align: center; }
+.cp-card .frs-sst { font-size: 11px; font-weight: 800; margin: 10px 0 4px; color: #475467; }
+.cp-card .cp-wide { grid-column: 1 / -1; } .cp-card textarea.cp-x { min-height: 60px; resize: vertical; }
+.cp-card input.cp-col { width: 60px; height: 30px; padding: 0; border: 1px solid #d0d5dd; border-radius: 6px; }
+.cp-card input.cp-calc { background: #eef1f5 !important; color: #475467 !important; -webkit-text-fill-color: #475467 !important; }
+/* 2.8 : champs calculés ou repris d'une autre liste en gris (fenêtres i des clients et projets) */
+html body #svConf .cp-card input.ins-in[readonly]:not(#svi-z1):not(#svi-z2) { background: #eef1f5 !important; color: #475467 !important; -webkit-text-fill-color: #475467 !important; resize: none; }

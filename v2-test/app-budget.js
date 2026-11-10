@@ -3536,6 +3536,10 @@ function openProjectPopup(ref) {
 
   if (!group) return;
 
+  /* 10/11 (série K, K1 point 4) : la FICHE PROJET est la fenêtre i du projet (module PROJETS) — plus de popup propre à l'écran BDG */
+  if (typeof sviAchLoad === "function") { const code = String(group.project || "").trim().toUpperCase();
+    sviAchLoad().then(() => { try { achPrjSync(); const P = achPrj().find(x => !x.del && String(x.code || "").toUpperCase() === code); if (P) achPrjFiche(P.id); else svToast("PROJET " + code + " INTROUVABLE.", 3000); } catch (e) {} }).catch(() => {});
+    return; }
   const intitule = sviIntitule(ref, group.project, group.inst);
 
   const old = $("bdgProjectPopup");
