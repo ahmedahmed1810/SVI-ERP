@@ -34,27 +34,27 @@ sviColorsApply();
 const SVI_FMT_KEY = "svi_format_v1";
 const SVI_FMT_EL = [
   /* v924 (remarques 3 et 4 du 04/11/2026) : une HAUTEUR (h, px) pour chaque élément ; parties des fenêtres (win: réglées une fois pour toutes les fenêtres) */
-  { k: "top", lab: "BARRE DU HAUT DE L'INTERFACE", sel: [".bdg-d-sticky .novapp-list-titlebar", ".novapp-list-shell > .novapp-list-titlebar", "#chs > .section-head"], tsel: ["h1", ".bdg-d-h1", ".nvp-ref"], def: { bg: "#ffffff", c: "#172033", fs: 28, b: 1, h: 54 } },
+  { k: "top", lab: "BARRE DU HAUT DE L'INTERFACE", sel: [".bdg-d-sticky .novapp-list-titlebar", ".novapp-list-shell > .novapp-list-titlebar", "#chs > .section-head"], tsel: ["h1", ".bdg-d-h1", ".nvp-ref"], def: { bg: "#0B2545", c: "#FFFFFF", fs: 28, b: 1, h: 54 } },
   /* B5 (série B) : le bandeau du milieu de la barre du haut (« FOURNISSEUR — … ») fait partie de la barre */
   /* 05/11 : le bandeau du milieu n'est plus un élément à part — il prend le fond, la couleur, la police et la taille de la barre du haut */
   /* 05/11 : l'en-tête DÉTAIL du budget (hors .bdg-d-block) et l'onglet actif des blocs SUIVI / RÉVISIONS (.active) suivent aussi le format */
-  { k: "blk", lab: "EN-TÊTE DE BLOC", sel: [".bdg-d-block > .bdg-d-block-title", "#bdgDetailHead.bdg-d-block-title"], tsel: [".ttl"], def: { bg: "#dde2e9", c: "#b91c1c", fs: 11, b: 1, h: 29 } },
+  { k: "blk", lab: "EN-TÊTE DE BLOC", sel: [".bdg-d-block > .bdg-d-block-title", "#bdgDetailHead.bdg-d-block-title"], tsel: [".ttl"], def: { bg: "#13447A", c: "#FFFFFF", fs: 11, b: 1, h: 29 } },
   /* v923 (remarque 2) : FOND DES ONGLETS — seule la couleur du fond a un sens (f = réglages permis) */
-  { k: "tabs", lab: "FOND DES ONGLETS", sel: [".bdg-d-tabs:not(.pg-grps):not(.pg-tabs)", "#bdgTabs", ".rec-tabs"], def: { bg: "#eceff3" }, f: ["bg"] },
-  { k: "tab", lab: "ONGLET", sel: [".bdg-d-tab:not(.active):not(.on):not(.prm-grp):not(.prm-tab)", ".rec-tab:not(.on):not(.active)"], def: { bg: "#eceff3", c: "#6b7280", fs: 12, b: 1, h: 33 } },
-  { k: "taba", lab: "ONGLET ACTIF", sel: [".bdg-d-tab.active:not(.prm-grp):not(.prm-tab)", ".bdg-d-tab.on:not(.prm-grp):not(.prm-tab)", ".rec-tab.on", ".rec-tab.active"], def: { bg: "#ffffff", c: "#b91c1c", fs: 12, b: 1, h: 33 } },
+  { k: "tabs", lab: "FOND DES ONGLETS", sel: [".bdg-d-tabs:not(.pg-grps):not(.pg-tabs)", "#bdgTabs", ".rec-tabs"], def: { bg: "#FFFFFF" }, f: ["bg"] },
+  { k: "tab", lab: "ONGLET", sel: [".bdg-d-tab:not(.active):not(.on):not(.prm-grp):not(.prm-tab)", ".rec-tab:not(.on):not(.active)"], def: { bg: "#FFFFFF", c: "#5B6778", fs: 12, b: 1, h: 33 } },
+  { k: "taba", lab: "ONGLET ACTIF", sel: [".bdg-d-tab.active:not(.prm-grp):not(.prm-tab)", ".bdg-d-tab.on:not(.prm-grp):not(.prm-tab)", ".rec-tab.on", ".rec-tab.active"], def: { bg: "#E3ECF7", c: "#13447A", fs: 12, b: 1, h: 33 } },
   /* C9 (série C, document unique 5.4) : PARAMÉTRAGE — deux rangées d'onglets, réglées séparément : ONGLETS DE MODULE (onglets de classeur
      sur une bande gris-vert, l'actif clair et raccordé à la rangée du dessous) et SOUS-ONGLETS (légers, l'actif marqué d'un trait dessous) */
-  { k: "tabm", lab: "ONGLETS DE MODULE", sel: [".pg-grps .prm-grp:not(.on)"], def: { bg: "#cfd9d2", c: "#3f4d44", fs: 12, b: 1, h: 32 } },
-  { k: "tabsub", lab: "SOUS-ONGLETS", sel: [".pg-tabs > .prm-tab"], def: { bg: "#f7f9f8", c: "#5b6670", fs: 11, b: 1, h: 30 } },
-  { k: "th", lab: "TITRES DES COLONNES (EN-TÊTE DE TABLEAU)", sel: ["table thead th", ".ins-hcol .bdg-h-head", ".bdg-h-col .bdg-h-head"], tsel: [".cf-lab", ".bdg-head-label"], def: { bg: "#f6f7f9", c: "#6b7480", fs: 11, b: 1, h: 22 } },
-  { k: "ttl", lab: "LIGNES DE TITRE DANS UN TABLEAU", sel: ["tr.ins-title td", "tr.ins-gtitle td", ".dly-grp td", ".ins-hcol .ins-li.lot-grp"], def: { bg: "#ece8e1", c: "#2f2a24", fs: 12, b: 1, h: 21 } },
-  { k: "row", lab: "LIGNES D'UN TABLEAU", sel: ["table tbody td", ".ins-hcol .ins-li:not(.ins-new):not(.lot-grp)", ".bdg-h-col .bdg-h-item"],   /* 09/11 : LOT et activités du bloc TÂCHES comme un tableau */ def: { bg: "#ffffff", c: "#172033", fs: 12, b: 0, h: 21 } },
-  { k: "new", lab: "LIGNE CRÉER … ICI", sel: ["tbody tr.ins-new td", "tbody tr.rec-new td", "tbody tr.scn-new td", "tbody tr.dly-new td", "tbody tr.bdg-newrow td", ".ins-hcol .ins-li.ins-new"], def: { bg: "#fdf0f0", c: "#b91c1c", fs: 12, b: 0, h: 21 } },
+  { k: "tabm", lab: "ONGLETS DE MODULE", sel: [".pg-grps .prm-grp:not(.on)"], def: { bg: "#EEF3F9", c: "#13447A", fs: 12, b: 1, h: 32 } },
+  { k: "tabsub", lab: "SOUS-ONGLETS", sel: [".pg-tabs > .prm-tab"], def: { bg: "#FFFFFF", c: "#5B6778", fs: 11, b: 1, h: 30 } },
+  { k: "th", lab: "TITRES DES COLONNES (EN-TÊTE DE TABLEAU)", sel: ["table thead th", ".ins-hcol .bdg-h-head", ".bdg-h-col .bdg-h-head"], tsel: [".cf-lab", ".bdg-head-label"], def: { bg: "#E3ECF7", c: "#13447A", fs: 11, b: 1, h: 22 } },
+  { k: "ttl", lab: "LIGNES DE TITRE DANS UN TABLEAU", sel: ["tr.ins-title td", "tr.ins-gtitle td", ".dly-grp td", ".ins-hcol .ins-li.lot-grp"], def: { bg: "#EEF3F9", c: "#0B2545", fs: 12, b: 1, h: 21 } },
+  { k: "row", lab: "LIGNES D'UN TABLEAU", sel: ["table tbody td", ".ins-hcol .ins-li:not(.ins-new):not(.lot-grp)", ".bdg-h-col .bdg-h-item"],   /* 09/11 : LOT et activités du bloc TÂCHES comme un tableau */ def: { bg: "#FFFFFF", c: "#1E293B", fs: 12, b: 0, h: 21 } },
+  { k: "new", lab: "LIGNE CRÉER … ICI", sel: ["tbody tr.ins-new td", "tbody tr.rec-new td", "tbody tr.scn-new td", "tbody tr.dly-new td", "tbody tr.bdg-newrow td", ".ins-hcol .ins-li.ins-new"], def: { bg: "#FFFFFF", c: "#94A3B8", fs: 12, b: 0, h: 21, i: 1 } },
   /* E1 (série E, 06/11) : TRAITS DES TABLEAUX — couleur des traits entre les cases, réglée dans chaque palette (JOUR et NUIT indépendantes) */
-  { k: "grid", lab: "TRAITS DES TABLEAUX", sel: ["table td", "table th", ".ins-hcol .ins-li", ".bdg-h-col .bdg-h-item", ".bdg-h-col .bdg-h-head"], def: { c: "#e5e8ed" }, f: ["c"], bd: 1 },
-  { k: "tot", lab: "LIGNE TOTAL", sel: ["tfoot td", "tr.bdg-d-total-row td"], def: { bg: "#f6f7f9", c: "#6b7480", fs: 11, b: 1, h: 22 } },   /* G1 : par défaut au format des titres des colonnes */
-  { k: "win", lab: "BANDEAU DES FENÊTRES", sel: ["#svConf .svc-card > .svc-t", "#docPop .doc-head"], def: { bg: "#dde2e9", c: "#172033", fs: 15, b: 1, h: 41 }, win: 1 },
+  { k: "grid", lab: "TRAITS DES TABLEAUX", sel: ["table td", "table th", ".ins-hcol .ins-li", ".bdg-h-col .bdg-h-item", ".bdg-h-col .bdg-h-head"], def: { c: "#DCE3EC" }, f: ["c"], bd: 1 },
+  { k: "tot", lab: "LIGNE TOTAL", sel: ["tfoot td", "tr.bdg-d-total-row td"], def: { bg: "#13447A", c: "#FFFFFF", fs: 11, b: 1, h: 22 } },   /* G1 : par défaut au format des titres des colonnes */
+  { k: "win", lab: "BANDEAU DES FENÊTRES", sel: ["#svConf .svc-card > .svc-t", "#docPop .doc-head"], def: { bg: "#0B2545", c: "#FFFFFF", fs: 15, b: 1, h: 41 }, win: 1 },
   { k: "winbg", lab: "FENÊTRES — FOND DE LA FENÊTRE", sel: ["#svConf .svc-card", "#docPop .doc-card"], def: { bg: "#ffffff" }, f: ["bg"], win: 1 },
   { k: "winlab", lab: "FENÊTRES — NOMS DES CHAMPS", sel: ["#svConf .frs-f > span", "#svConf label > span:first-child", "#docPop .doc-lab"], def: { c: "#475467", fs: 11, b: 1 }, f: ["c", "fs", "b", "i", "u"], win: 1 },
   { k: "winin", lab: "FENÊTRES — CHAMPS DE SAISIE", sel: ["#svConf input:not([type=checkbox]):not([type=radio]):not([type=color])", "#svConf select", "#svConf textarea", "#docPop .doc-in:not(.doc-ro):not([readonly])"], def: { bg: "#ffffff", c: "#172033", fs: 13, b: 0, h: 34 }, win: 1 },
@@ -108,7 +108,7 @@ function sviIfCur() {
   if (document.body) start(); else document.addEventListener("DOMContentLoaded", start); }
 function sviFmt() {
   let v = null; try { v = JSON.parse(localStorage.getItem(SVI_FMT_KEY) || "null"); } catch (e) {}
-  if (!(v && typeof v === "object")) return { el: {}, to: null, blk: {}, by: {}, cat: {} };
+  if (!(v && typeof v === "object")) { let nt = false; try { nt = (JSON.parse(localStorage.getItem("svi_pal_v1") || "{}") || {}).mode === "nuit"; } catch (e) {} return { cat: {}, ...JSON.parse(JSON.stringify(nt ? SVI_NUIT : SVI_JOUR)) }; }
   /* 06/11 : anciens réglages EN INSTANCE / VALIDÉ repris dans la LISTE, la FICHE, la FENÊTRE de la pièce (le réglage EN INSTANCE passe devant) */
   const by = {}, B = v.by && typeof v.by === "object" ? v.by : {};
   Object.keys(B).sort((a, b) => /_lv$|_fv$|bdgl_v/.test(a) - /_lv$|_fv$|bdgl_v/.test(b)).forEach(k => { const n = sviIfNew(k); if (!by[n]) by[n] = B[k]; });
@@ -179,7 +179,7 @@ function sviFmtCss(F) {
   const SC = all ? null : SVI_FMT_IF.filter(x => F.to.includes(x.k)).flatMap(x => x.sc);
   /* E1 : palette NUIT sans réglage des traits — traits sombres de la nuit (plus de règle écrite en dur dans la feuille de styles) */
   let nuit = false; try { nuit = document.documentElement.classList.contains("svi-nuit"); } catch (e) {}
-  const EL = { ...F.el }; try { if (!EL.grid && document.documentElement.classList.contains("svi-nuit")) EL.grid = { c: "#334155" }; } catch (e) {}
+  const EL = { ...F.el }; try { if (!EL.grid && document.documentElement.classList.contains("svi-nuit")) EL.grid = { c: "#2A3441" }; } catch (e) {}
   SVI_FMT_EL.forEach(E => {
     /* 09/11 (remarque) : les parties des FENÊTRES ont toujours le format affiché dans MODIFIER LE FORMAT, même sans y toucher
        (valeurs de départ écrites à l'écran — plus d'anciens styles propres à une fenêtre) ; palette de nuit : seulement ce qui est réglé */
@@ -192,6 +192,8 @@ function sviFmtCss(F) {
     { const SS = sels.map(x => "html body " + x); out.push(SS.map(sviFmtZ).join(", ") + " { " + d.join("; ") + " }"); const tx = sviFmtTxt(SS, E, o); if (tx) out.push(tx); const ti = sviFmtIn(SS, E, o); if (ti) out.push(ti); }
     const vv = sviFmtVars(E, o); if (vv) out.push((SC ? SC.map(x => "html body " + x).join(", ") : "html body") + " { " + vv + " }");
   });
+  /* 10/11 (J1) : FOND DE L'ÉCRAN de la palette (une interface peut avoir le sien, réglé dans son groupe ÉCRAN) */
+  { let sc = F.scr; if (!sc) { try { sc = document.documentElement.classList.contains("svi-nuit") ? SVI_NUIT.scr : SVI_JOUR.scr; } catch (e) {} } if (sc) out.push(`html, html body, html body .view, html body .novapp-list-shell { background-color: ${sc}; }`); }
   const ca = sviFmtCssCat(F); if (ca) out.push(ca);
   const by = sviFmtCssBy(F); if (by) out.push(by);
   return out.join("\n");
@@ -218,9 +220,11 @@ const sviPalSave = o => { try { localStorage.setItem(SVI_PAL_K, JSON.stringify(o
 const SVI_FMT_NUITW = { winbg: { bg: "#111827" }, winlab: { c: "#cbd5e1", fs: 11, b: 1 }, winin: { bg: "#1f2937", c: "#f8fafc", fs: 13, h: 34 },
   wincan: { bg: "#1f2937", c: "#f8fafc", fs: 13, b: 1, h: 38 }, winok: { bg: "#1f2937", c: "#fca5a5", fs: 13, b: 1, h: 38 }, wsec: { bg: "#111827", c: "#e5e7eb", fs: 12, b: 1 },
   wtab: { bg: "#1f2937", c: "#cbd5e1", fs: 12, b: 1 }, wtbl: { bg: "#1f2937", c: "#e5e7eb", fs: 11, b: 1 }, walrt: { bg: "#3f1d1d", c: "#fecaca", fs: 12, b: 1 }, wro: { bg: "#1e293b", c: "#cbd5e1" }, wx: { bg: "#111827", c: "#f8fafc", fs: 16 } };
-const SVI_NUIT = { el: { top: { bg: "#0f172a", c: "#e2e8f0" }, blk: { bg: "#1f2937", c: "#e5e7eb" }, tabs: { bg: "#111827" }, tab: { bg: "#1f2937", c: "#cbd5e1" }, taba: { bg: "#334155", c: "#ffffff" }, tabm: { bg: "#1f2a24", c: "#cbd5e1" }, tabsub: { bg: "#111827", c: "#cbd5e1" },
-  th: { bg: "#1f2937", c: "#e5e7eb" }, ttl: { bg: "#1e293b", c: "#e5e7eb" }, row: { bg: "#0b1220", c: "#e5e7eb" }, new: { bg: "#3f1d1d", c: "#fecaca" }, tot: { bg: "#1e293b", c: "#ffffff" },
-  win: { bg: "#0f172a", c: "#e2e8f0" }, winbg: { bg: "#111827" }, winlab: { c: "#cbd5e1" }, winin: { bg: "#1f2937", c: "#f8fafc" }, grid: { c: "#334155" } }, blk: {}, to: null, by: {} };
+/* 10/11 (J1, ambiance « Marine et corail ») : couleurs par défaut des palettes JOUR et NUIT (fenêtre MODIFIER LE FORMAT, bouton PAR DÉFAUT) ;
+   seuls FOND et TEXTE (et ITALIQUE de la ligne CRÉER … ICI) ; scr = FOND DE L'ÉCRAN ; les parties des fenêtres sans couleur gardent leurs valeurs */
+const SVI_JOUR = { el: { top: { bg: "#0B2545", c: "#FFFFFF" }, blk: { bg: "#13447A", c: "#FFFFFF" }, tabs: { bg: "#FFFFFF" }, tab: { bg: "#FFFFFF", c: "#5B6778" }, taba: { bg: "#E3ECF7", c: "#13447A" }, tabm: { bg: "#EEF3F9", c: "#13447A" }, tabsub: { bg: "#FFFFFF", c: "#5B6778" }, th: { bg: "#E3ECF7", c: "#13447A" }, ttl: { bg: "#EEF3F9", c: "#0B2545" }, row: { bg: "#FFFFFF", c: "#1E293B" }, new: { bg: "#FFFFFF", c: "#94A3B8", i: 1 }, grid: { c: "#DCE3EC" }, tot: { bg: "#13447A", c: "#FFFFFF" }, win: { bg: "#0B2545", c: "#FFFFFF" } }, scr: "#EEF3F9", blk: {}, to: null, by: {} };
+const SVI_NUIT = { el: { top: { bg: "#081A33", c: "#FFFFFF" }, blk: { bg: "#1B4F8F", c: "#FFFFFF" }, tabs: { bg: "#161C24" }, tab: { bg: "#161C24", c: "#94A3B8" }, taba: { bg: "#15243A", c: "#7FB2FF" }, tabm: { bg: "#0B111A", c: "#7FB2FF" }, tabsub: { bg: "#161C24", c: "#94A3B8" }, th: { bg: "#15243A", c: "#7FB2FF" }, ttl: { bg: "#0B111A", c: "#E5E9F0" }, row: { bg: "#161C24", c: "#E5E9F0" }, new: { bg: "#161C24", c: "#5B6778", i: 1 }, grid: { c: "#2A3441" }, tot: { bg: "#1B4F8F", c: "#FFFFFF" }, win: { bg: "#081A33", c: "#FFFFFF" }, winbg: { bg: "#111827" }, winlab: { c: "#cbd5e1" }, winin: { bg: "#1f2937", c: "#f8fafc" } }, scr: "#0B111A", blk: {}, to: null, by: {} };
+try { if (!localStorage.getItem("svi_fmt_j1")) { const P0 = JSON.parse(localStorage.getItem("svi_pal_v1") || "null"); if (P0 && (P0.def || P0.defBy)) { delete P0.def; delete P0.defBy; localStorage.setItem("svi_pal_v1", JSON.stringify(P0)); } localStorage.setItem("svi_fmt_j1", "1"); } } catch (e) {}   /* J1 : anciennes couleurs par défaut oubliées */
 const sviPalApply = () => { try { document.documentElement.classList.toggle("svi-nuit", sviPal().mode === "nuit"); sviFmtApply(); } catch (e) {} };
 try { sviPalApply(); } catch (e) {}
 /* C10, D4 (document unique 1.9) : choix PALETTE en haut, dans le bandeau du titre de RÉGLAGES COMMUNS et de MODIFIER LE FORMAT */
@@ -236,7 +240,7 @@ const sviPalAutoMode = P => sviPalNight(sviPalAuto(P), sviTzMin()) ? "nuit" : "j
 const sviPalNextMs = P => { const A = sviPalAuto(P), m = sviTzMin(), d = x => { const v = sviHm(x); return v === null ? 1440 : ((v - m) % 1440 + 1440) % 1440 || 1440; }; return Math.min(d(A.deb), d(A.fin)) * 60000; };
 function sviPalSwitch(to) { const P = sviPal(), cur = P.mode === "nuit" ? "nuit" : "jour"; if (to === cur) return false;
   P[cur] = { F: JSON.parse(JSON.stringify(sviFmt())), CD: { ...sviColors() } };
-  const nx = P[to] || (to === "nuit" ? { F: JSON.parse(JSON.stringify(SVI_NUIT)), CD: { ...sviColors() } } : { F: { el: {}, blk: {}, to: null, by: {} }, CD: { ...SVI_COL_DEF } });
+  const nx = P[to] || (to === "nuit" ? { F: JSON.parse(JSON.stringify(SVI_NUIT)), CD: { ...sviColors() } } : { F: JSON.parse(JSON.stringify(SVI_JOUR)), CD: { ...SVI_COL_DEF } });
   P.mode = to; sviPalSave(P); sviFmtSave(JSON.parse(JSON.stringify(nx.F))); sviColorsSave({ ...nx.CD }); sviPalApply(); return true; }
 function sviPalTick() { try { const P = sviPal(), A = sviPalAuto(P); if (!A.on) return;
   if (P.man && Date.now() < P.man.until) return; if (P.man) { delete P.man; sviPalSave(P); }
@@ -274,7 +278,7 @@ function sviFmtWin(ifk) {
         <tbody>${SVI_FMT_GRP.map(([g, gl, ks]) => { const G = ELS.filter(E => ks ? ks.includes(E.k) : E.win || E.k === "win"), scr = g === "ecran" && ifk && !WIN;
           if (!G.length && !scr) return ""; const op = GOPEN.has(g);
           return `<tr class="fmt-catg fmt-grp" data-grp="${g}"><td colspan="8"><button type="button" class="pg-fold" data-fgrp="${g}">${op ? "⌄" : "›"}</button> <b>${gl}</b> ${svCnt(G.length + (scr ? 1 : 0))}</td></tr>`
-            + (!op ? "" : (scr ? `<tr><td><span class="fmt-ind"></span>FOND DE L'ÉCRAN</td><td class="center"><input type="color" class="fmw-st" data-f="bg" value="${esc(S.st.bg || "#f4f7fb")}"></td>${NA.repeat(6)}</tr>` : "")
+            + (!op ? "" : (scr ? `<tr><td><span class="fmt-ind"></span>FOND DE L'ÉCRAN</td><td class="center"><input type="color" class="fmw-st" data-f="bg" value="${esc(S.st.bg || D.scr || (sviPal().mode === "nuit" ? SVI_NUIT.scr : SVI_JOUR.scr))}"></td>${NA.repeat(6)}</tr>` : "")
             + G.map(E => `<tr data-el="${E.k}"><td><span class="fmt-ind"></span>${esc(E.lab)}</td>`
           + (ok(E, "bg") ? `<td class="center"><input type="color" class="fmw-in" data-f="bg" value="${esc(val(E, "bg") || "#ffffff")}"></td>` : NA)
           + (ok(E, "c") ? `<td class="center"><input type="color" class="fmw-in" data-f="c" value="${esc(val(E, "c") || "#000000")}"></td>` : NA)
@@ -329,7 +333,7 @@ function sviFmtWin(ifk) {
     if (pb && pb.dataset.pal !== "auto") { const P = sviPal(), cur = P.mode === "nuit" ? "nuit" : "jour", to = pb.dataset.pal;
       if (sviPalAuto(P).on && pb.isConnected && !pb.matches('[data-pal="auto"]') && to !== sviPalAutoMode(P)) { P.man = { until: Date.now() + sviPalNextMs(P) }; sviPalSave(P); }
       if (to === cur) { draw(); return; }
-      P[cur] = { F: JSON.parse(JSON.stringify(D)), CD: { ...CD } }; const nx = P[to] || (to === "nuit" ? { F: JSON.parse(JSON.stringify(SVI_NUIT)), CD: { ...CD } } : { F: { el: {}, blk: {}, to: null, by: {} }, CD: { ...SVI_COL_DEF } });
+      P[cur] = { F: JSON.parse(JSON.stringify(D)), CD: { ...CD } }; const nx = P[to] || (to === "nuit" ? { F: JSON.parse(JSON.stringify(SVI_NUIT)), CD: { ...CD } } : { F: JSON.parse(JSON.stringify(SVI_JOUR)), CD: { ...SVI_COL_DEF } });
       Object.keys(D).forEach(k => delete D[k]); Object.assign(D, JSON.parse(JSON.stringify(nx.F))); Object.keys(CD).forEach(k => delete CD[k]); Object.assign(CD, nx.CD); P.mode = to; sviPalSave(P);
       sviFmtSave(D); sviColorsSave(CD); sviPalApply(); preview(); draw(); svToast("PALETTE " + (to === "nuit" ? "DE NUIT" : "DE JOUR") + ".", 2000); return; }
     /* 09/11 (remarque) : DÉFINIR COMME PAR DÉFAUT aussi dans une interface — réglage de départ de CETTE interface (et du groupe FENÊTRES de la pièce), par palette */
@@ -340,7 +344,7 @@ function sviFmtWin(ifk) {
         const a = cp(u[ifk]); S.el = a.el || {}; S.st = a.st || {}; if (SW) { const b = cp(u[WK]); SW.el = b.el || {}; SW.st = b.st || {}; } } else { const P = sviPal(), u = (P.def || {})[P.mode === "nuit" ? "nuit" : "jour"];
         if (u) { Object.keys(D).forEach(k => delete D[k]); Object.assign(D, JSON.parse(JSON.stringify(u.F))); Object.keys(CD).forEach(k => delete CD[k]); Object.assign(CD, u.CD); }
         else if (P.mode === "nuit") { Object.keys(D).forEach(k => delete D[k]); Object.assign(D, JSON.parse(JSON.stringify(SVI_NUIT))); Object.assign(CD, SVI_COL_DEF); }
-        else { D.el = {}; D.blk = {}; D.cat = {}; Object.assign(CD, SVI_COL_DEF); } } preview(); draw(); return; }
+        else { const J0 = JSON.parse(JSON.stringify(SVI_JOUR)); D.el = J0.el; D.scr = J0.scr; D.blk = {}; D.cat = {}; Object.assign(CD, SVI_COL_DEF); } } preview(); draw(); return; }
     if (e.target.closest("[data-save]")) { const ALL = !!e.target.closest("[data-all]");
       /* 09/11 (remarque) : APPLIQUER PARTOUT depuis une interface — son réglage (et celui du groupe FENÊTRES) devient celui de toutes les interfaces ; les réglages propres sont effacés */
       if (ifk && ALL) { const mg = src => Object.keys((src && src.el) || {}).forEach(k => { D.el[k] = { ...(D.el[k] || {}), ...src.el[k] }; }); D.el = D.el || {}; mg(S); if (SW) mg(SW); D.by = {}; }   /* I10 : ENREGISTRER (réglages communs) garde les réglages propres aux interfaces ; APPLIQUER PARTOUT les efface */
