@@ -7457,6 +7457,7 @@ window.sviCellKey = sviCellKey; window.sviCellFind = sviCellFind; window.sviCell
    sur toute la cellule ; ils suivent le défilement et disparaissent dès qu'il n'y a plus de cellule active visible */
 const sviCellVis = c => {
   if (!c || !c.isConnected || c.offsetParent === null) return null;
+  if (c.closest(".fmt-t")) return null;   /* 10/11 (Ahmed) : fenêtre MODIFIER LE FORMAT — ni cadre ni point rouge */
   const r = c.getBoundingClientRect();
   let top = 0, bottom = window.innerHeight, left = 0, right = window.innerWidth;
   /* bandeau du budget et barre du haut (fixés) */
@@ -7518,7 +7519,7 @@ window.sviFrame = sviFrame;
 /* v788 (remarque 3) : plusieurs cases sélectionnées = UN SEUL bloc continu (fond teinté) entouré d'un seul cadre */
 let SVI_SB = null;
 const sviSelBox = () => {
-  const els = [...document.querySelectorAll("td.svi-cs")].filter(x => x.offsetParent !== null)
+  const els = [...document.querySelectorAll("td.svi-cs")].filter(x => x.offsetParent !== null && !x.closest(".fmt-t"))
     .concat([...document.querySelectorAll(".ins-hcol .svi-ls")].filter(x => x.offsetParent !== null).map(x => x.closest(".ins-li") || x));
   if (!SVI_SB) { SVI_SB = document.createElement("div"); SVI_SB.id = "sviSelBox"; document.body.appendChild(SVI_SB); }
   if (els.length < 2) { SVI_SB.style.display = "none"; document.querySelectorAll(".svi-cs1").forEach(x => x.classList.remove("svi-cs1")); return; }

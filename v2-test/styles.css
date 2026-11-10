@@ -3838,3 +3838,5 @@ table tbody td input, table tbody td textarea { -webkit-touch-callout: none; }
 #sviTxtHi { position: fixed; display: none; z-index: 100011; pointer-events: none; background: rgba(185,28,28,.18); border-radius: 2px; }
 /* 10/11 : référence des listes des achats — soulignement visible (la boîte du lien ne le coupe plus) */
 html body table.nv-one tbody td.bdg-ref-c > .nv-reflink { line-height: 1.5; padding-bottom: 1px; text-underline-offset: 2px; }
+/* 10/11 (Ahmed) : fenêtre MODIFIER LE FORMAT — ni cadre ni point rouge sur les cases */
+html body table.fmt-t td:is(.svi-tdf, .svi-tdon, .svi-cs) { box-shadow: none !important; outline: none !important; }
