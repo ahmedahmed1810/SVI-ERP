@@ -1907,7 +1907,7 @@ function achListPage(o, id) { const x = o.list().find(y => y.id === id); if (!x)
     act: async (k, redraw) => { if (k === "fiche") { o.open(id, redraw); return; } if (D.act) await D.act(k, redraw); }, links: D.links.map(L => ({ ...L, add: "" })) }; }
 function achGo(t, id) { t = achGoMap[t] || t; const v = document.getElementById("ach"); if (!v || !v.__achTab) return;
   /* série I (I3) : la page quittée entre dans le chemin suivi (sauf retour par FERMER) */
-  if (typeof ACH_PATH !== "undefined" && !(typeof achPathBack === "function" && achPathBack.on) && v.__achWhere) { const w = v.__achWhere(); if (w && w.id && !(w.t === t && w.id === id)) ACH_PATH.push(w); } v.__achTab(t, !!(id && v.__achOpen)); if (v.__achOpen) v.__achOpen(t, id); }
+  if (typeof ACH_PATH !== "undefined" && !(typeof achPathBack === "function" && achPathBack.on) && v.__achWhere) { const w = v.__achWhere(); if (w && !(w.t === t && (w.id || null) === (id || null))) { try { w.snap = achPosSnap(v); } catch (er) {} ACH_PATH.push(w); } } v.__achTab(t, !!(id && v.__achOpen)); if (v.__achOpen) v.__achOpen(t, id); }
 function achDocPage(k, x) {
   const fr = id => id ? achFrsNom(id) : "", ref = (L, id) => ((L.find(y => y.id === id) || {}).ref) || "";
   /* v800 (document unique 3.6 – 3.7) : toucher un article ou un fournisseur dans un tableau ouvre sa page */
@@ -3773,7 +3773,20 @@ function achMepOpen(cfg, P, rec, redraw, o) {
 const ACH_PATH = [];
 /* correction (compte rendu v1003) : le nom du tiers dans le bandeau du centre (#sviScreenTag, hors du corps de l'écran) ouvre sa fiche */
 document.addEventListener("click", e => { const g = e.target.closest && e.target.closest("#sviScreenTag [data-nvgo]"); if (!g) return; e.preventDefault(); e.stopPropagation(); const [t, id] = g.dataset.nvgo.split("|"); achGo(t, id); }, true);
-const achPathBack = () => { const w = ACH_PATH.pop(); if (!w) return false; achPathBack.on = true; try { achGo(w.t, w.id); } finally { achPathBack.on = false; } return true; };
+/* 10/11 (document unique 3.7, complément) : FERMER ramène EXACTEMENT à la position d'avant — liste ou fiche, défilement, ligne sélectionnée ; filtres et recherche restent ceux de la liste */
+const achPosKey = (el, root) => { const c = String(el.className && el.className.baseVal === undefined ? el.className : "").trim().split(/\s+/)[0] || ""; const sel = el.tagName.toLowerCase() + (c ? "." + CSS.escape(c) : ""); return [sel, [...root.querySelectorAll(sel)].indexOf(el)]; };
+function achPosSnap(v) { const S = { sc: [], win: [scrollX, scrollY], cell: null };
+  v.querySelectorAll("*").forEach(el => { if (el.scrollTop > 0 || el.scrollLeft > 0) S.sc.push([...achPosKey(el, v), el.scrollLeft, el.scrollTop]); });
+  const a = document.activeElement, l = achPosSnap.last, td = (a && v.contains(a) && a.closest("td")) || (l && l.isConnected && v.contains(l) && l.closest("td")), tr = td && td.closest("tr[data-id]");
+  if (tr) S.cell = [tr.dataset.id, td.cellIndex]; return S; }
+document.addEventListener("pointerdown", e => { achPosSnap.last = e.target; }, true); document.addEventListener("click", e => { achPosSnap.last = e.target; }, true);
+function achPosRestore(v, S) { if (!v || !S) return; const go = () => {
+    S.sc.forEach(([sel, i, l, t]) => { const el = v.querySelectorAll(sel)[i]; if (el) { el.scrollLeft = l; el.scrollTop = t; } });
+    if (S.win) window.scrollTo(S.win[0], S.win[1]);
+    if (S.cell) { const tr = [...v.querySelectorAll("tr[data-id]")].find(r => r.dataset.id === S.cell[0]), td = tr && tr.cells[S.cell[1]];
+      if (td && document.activeElement !== td) { if (!td.hasAttribute("tabindex")) td.setAttribute("tabindex", "-1"); td.classList.add("svi-tdf"); try { td.focus({ preventScroll: true }); } catch (er) {} } } };
+  requestAnimationFrame(() => requestAnimationFrame(go)); setTimeout(go, 220); }
+const achPathBack = () => { const w = ACH_PATH.pop(); if (!w) return false; achPathBack.on = true; try { achGo(w.t, w.id); } finally { achPathBack.on = false; } achPosRestore(document.getElementById("ach"), w.snap); return true; };
 document.addEventListener("click", e => { if (e.target.closest && e.target.closest("#navMenu .nav-btn")) ACH_PATH.length = 0; }, true);
 /* 07/11 : redessin de la page ouverte (gestes hors clic : glisser une ligne) */
 let ACH_NV_REDRAW = null;

@@ -63,7 +63,7 @@ function achListPage(o, id) { const x = o.list().find(y => y.id === id); if (!x)
     act: async (k, redraw) => { if (k === "fiche") { o.open(id, redraw); return; } if (D.act) await D.act(k, redraw); }, links: D.links.map(L => ({ ...L, add: "" })) }; }
 function achGo(t, id) { t = achGoMap[t] || t; const v = document.getElementById("ach"); if (!v || !v.__achTab) return;
   /* série I (I3) : la page quittée entre dans le chemin suivi (sauf retour par FERMER) */
-  if (typeof ACH_PATH !== "undefined" && !(typeof achPathBack === "function" && achPathBack.on) && v.__achWhere) { const w = v.__achWhere(); if (w && w.id && !(w.t === t && w.id === id)) ACH_PATH.push(w); } v.__achTab(t, !!(id && v.__achOpen)); if (v.__achOpen) v.__achOpen(t, id); }
+  if (typeof ACH_PATH !== "undefined" && !(typeof achPathBack === "function" && achPathBack.on) && v.__achWhere) { const w = v.__achWhere(); if (w && !(w.t === t && (w.id || null) === (id || null))) { try { w.snap = achPosSnap(v); } catch (er) {} ACH_PATH.push(w); } } v.__achTab(t, !!(id && v.__achOpen)); if (v.__achOpen) v.__achOpen(t, id); }
 function achDocPage(k, x) {
   const fr = id => id ? achFrsNom(id) : "", ref = (L, id) => ((L.find(y => y.id === id) || {}).ref) || "";
   /* v800 (document unique 3.6 – 3.7) : toucher un article ou un fournisseur dans un tableau ouvre sa page */
