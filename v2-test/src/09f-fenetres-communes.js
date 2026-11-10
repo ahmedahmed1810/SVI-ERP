@@ -256,8 +256,10 @@ const sviSetUndo = redo => { const A = redo ? SVI_SETUNDO.r : SVI_SETUNDO.u, B =
   SVI_SETUNDO.lastAct = "set"; sviSetRefresh(); sviSetSync(); if (typeof svToast === "function") svToast(redo ? "RÉGLAGE D'AFFICHAGE RÉTABLI." : "RÉGLAGE D'AFFICHAGE ANNULÉ.", 1600); return true; };
 /* boutons : actifs quand un réglage peut être annulé / rétabli (listes : plus grisés ; budget : plus désactivé) */
 function sviSetSync() { const U = SVI_SETUNDO.u.length, R = SVI_SETUNDO.r.length;
-  document.querySelectorAll('[data-nvl="undo"], [data-nvl="redo"]').forEach(b => { const n = b.dataset.nvl === "undo" ? U : R;
-    if (n) { if (b.dataset.why) { b.dataset.svWhy = b.dataset.why; delete b.dataset.why; } b.classList.remove("hdr-off"); } else if (b.dataset.svWhy) { b.dataset.why = b.dataset.svWhy; delete b.dataset.svWhy; b.classList.add("hdr-off"); } });
+  document.querySelectorAll('[data-nvl="undo"], [data-nvl="redo"], [data-nvp="undo"], [data-nvp="redo"]').forEach(b => { const ud = (b.dataset.nvl || b.dataset.nvp) === "undo", n = ud ? U : R;
+    /* 10/11 : la bulle d'aide suit (ANNULER : ce qui sera annulé), plus « RIEN À ANNULER » quand il y a quelque chose */
+    if (n) { if (b.dataset.why) { b.dataset.svWhy = b.dataset.why; delete b.dataset.why; } b.classList.remove("hdr-off"); const e = (ud ? SVI_SETUNDO.u : SVI_SETUNDO.r)[n - 1]; b.title = (ud ? "ANNULER" : "RÉTABLIR") + (e && e.lab ? " : " + e.lab : ""); }
+    else if (b.dataset.svWhy) { b.dataset.why = b.dataset.svWhy; b.title = b.dataset.svWhy; delete b.dataset.svWhy; b.classList.add("hdr-off"); } });
   try { if (window.__sviUndoPaint && document.getElementById("instUndo")) window.__sviUndoPaint(); } catch (e) {} }
 { let q = 0; new MutationObserver(() => { if (!q && (SVI_SETUNDO.u.length || SVI_SETUNDO.r.length)) q = requestAnimationFrame(() => { q = 0; sviSetSync(); }); }).observe(document.documentElement, { childList: true, subtree: true }); }
 window.addEventListener("click", e => { const b = e.target.closest && e.target.closest('[data-nvl="undo"], [data-nvl="redo"], [data-nvp="undo"], [data-nvp="redo"], [data-prmh="undo"], [data-prmh="redo"], #instUndo, #instRedo'); if (!b) return;

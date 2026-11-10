@@ -4582,7 +4582,8 @@ sviRowHApply();
     /* poignées et menu de la sélection */
     let HA = null, HB = null, SB = null, HI = null, cur = null, V = null, own = false;
     /* sélection DESSINÉE par l'application : le champ ne garde qu'un curseur, Safari n'a donc rien à montrer */
-    const setV = (i, a, b) => { a = Math.max(0, Math.min(a, b)); b = Math.max(a, b); V = a === b ? null : { i, a, b }; own = true; try { i.setSelectionRange(b, b); } catch (er) {} setTimeout(() => { own = false; }, 0); };
+    const setV = (i, a, b) => { try { const L = window.__sviTxtLog = window.__sviTxtLog || []; L.push({ t: Date.now(), a, b, ptT0, age: Date.now() - ptAt, mDown, src: (new Error().stack || "").split("\n").slice(2, 4).map(z => z.trim()).join(" < ") }); if (L.length > 20) L.shift(); } catch (er) {}   /* trace pour l'agent de test */
+      a = Math.max(0, Math.min(a, b)); b = Math.max(a, b); V = a === b ? null : { i, a, b }; own = true; try { i.setSelectionRange(b, b); } catch (er) {} setTimeout(() => { own = false; }, 0); };
     const getS = i => V && V.i === i ? [V.a, V.b] : [i.selectionStart, i.selectionEnd];
     const mk = cls => { const d = document.createElement("div"); d.className = "svi-th " + cls; d.innerHTML = '<i></i>'; document.body.appendChild(d); return d; };
     const hide = () => { [HA, HB, SB, HI].forEach(x => { if (x) x.style.display = "none"; }); cur = null; V = null; };
@@ -4607,7 +4608,7 @@ sviRowHApply();
       const up = () => { e.currentTarget && e.currentTarget.releasePointerCapture && 0; document.removeEventListener("pointermove", mv, true); document.removeEventListener("pointerup", up, true); document.removeEventListener("pointercancel", up, true); place(); };
       document.addEventListener("pointermove", mv, true); document.addEventListener("pointerup", up, true); document.addEventListener("pointercancel", up, true); };
     const act = async e => { const b = e.target.closest("[data-tx]"); if (!b || !cur) return; e.preventDefault(); e.stopPropagation(); const i = cur, S = getS(i), a = S[0], z = S[1], v = String(i.value || ""), sel = v.slice(a, z), k = b.dataset.tx; V = null;
-      const put = t => { i.value = v.slice(0, a) + t + v.slice(z); const c = a + t.length; i.setSelectionRange(c, c); i.dispatchEvent(new InputEvent("input", { bubbles: true })); };
+      const put = t => { i.value = v.slice(0, a) + t + v.slice(z); const c = a + t.length; i.setSelectionRange(c, c); i.__svDirty = true; i.dispatchEvent(new InputEvent("input", { bubbles: true })); };
       if (k === "copy") { window.__sviSelClip = sel; try { await navigator.clipboard.writeText(sel); } catch (er) {} if (typeof svToast === "function") svToast("COPIÉ.", 1400, i);
         if (document.activeElement !== i) i.focus({ preventScroll: true }); setV(i, a, z); show(i); return; }   /* COPIER : le champ reste ouvert, la sélection reste */
       if (k === "cut") { window.__sviSelClip = sel; try { await navigator.clipboard.writeText(sel); } catch (er) {} put(""); if (typeof svToast === "function") svToast("COUPÉ.", 1400, i); }
@@ -4629,7 +4630,13 @@ sviRowHApply();
     document.addEventListener("beforeinput", e => { const i = e.target; if (!V || V.i !== i || !e.cancelable) return; const t = e.inputType || "";
       let ins = null; if (t === "insertText" || t === "insertReplacementText") ins = e.data || ""; else if (t.startsWith("delete")) ins = ""; else if (t === "insertFromPaste") ins = (e.dataTransfer && e.dataTransfer.getData("text/plain")) || e.data || ""; if (ins === null) return;
       e.preventDefault(); const v = String(i.value || ""), a = V.a, b = V.b; ins = String(ins).replace(/[\r\n]+/g, " "); if (getComputedStyle(i).textTransform === "uppercase" || i.dataset.up !== undefined) ins = ins.toUpperCase();
-      hide(); i.value = v.slice(0, a) + ins + v.slice(b); const c = a + ins.length; i.setSelectionRange(c, c); i.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: t, data: ins })); }, true);
+      hide(); i.value = v.slice(0, a) + ins + v.slice(b); const c = a + ins.length; i.setSelectionRange(c, c); i.__svDirty = true; i.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: t, data: ins })); }, true);
+    /* 10/11 : une valeur remplacée par l'application (sélection dessinée) n'est pas vue par le navigateur, qui n'envoie alors pas « change » en quittant le champ :
+       l'application l'envoie elle-même (une seule fois ; rien si le navigateur l'a déjà envoyé) */
+    document.addEventListener("change", e => { if (e.isTrusted && e.target) e.target.__svDirty = false; }, true);
+    const flush = i => { if (!i || !i.__svDirty) return; i.__svDirty = false; i.dispatchEvent(new Event("change", { bubbles: true })); };
+    document.addEventListener("focusout", e => flush(e.target), true);
+    document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target && e.target.__svDirty && !e.target.matches("textarea")) flush(e.target); }, true);
     document.addEventListener("focusout", e => { if (e.target === cur) setTimeout(() => { if (document.activeElement !== cur) hide(); }, 0); }, true);
     document.addEventListener("input", e => { if (e.target === cur && e.inputType && !V) hide(); }, true);
     document.addEventListener("scroll", () => { if (cur) requestAnimationFrame(place); }, true);
@@ -5298,8 +5305,10 @@ const sviSetUndo = redo => { const A = redo ? SVI_SETUNDO.r : SVI_SETUNDO.u, B =
   SVI_SETUNDO.lastAct = "set"; sviSetRefresh(); sviSetSync(); if (typeof svToast === "function") svToast(redo ? "RÉGLAGE D'AFFICHAGE RÉTABLI." : "RÉGLAGE D'AFFICHAGE ANNULÉ.", 1600); return true; };
 /* boutons : actifs quand un réglage peut être annulé / rétabli (listes : plus grisés ; budget : plus désactivé) */
 function sviSetSync() { const U = SVI_SETUNDO.u.length, R = SVI_SETUNDO.r.length;
-  document.querySelectorAll('[data-nvl="undo"], [data-nvl="redo"]').forEach(b => { const n = b.dataset.nvl === "undo" ? U : R;
-    if (n) { if (b.dataset.why) { b.dataset.svWhy = b.dataset.why; delete b.dataset.why; } b.classList.remove("hdr-off"); } else if (b.dataset.svWhy) { b.dataset.why = b.dataset.svWhy; delete b.dataset.svWhy; b.classList.add("hdr-off"); } });
+  document.querySelectorAll('[data-nvl="undo"], [data-nvl="redo"], [data-nvp="undo"], [data-nvp="redo"]').forEach(b => { const ud = (b.dataset.nvl || b.dataset.nvp) === "undo", n = ud ? U : R;
+    /* 10/11 : la bulle d'aide suit (ANNULER : ce qui sera annulé), plus « RIEN À ANNULER » quand il y a quelque chose */
+    if (n) { if (b.dataset.why) { b.dataset.svWhy = b.dataset.why; delete b.dataset.why; } b.classList.remove("hdr-off"); const e = (ud ? SVI_SETUNDO.u : SVI_SETUNDO.r)[n - 1]; b.title = (ud ? "ANNULER" : "RÉTABLIR") + (e && e.lab ? " : " + e.lab : ""); }
+    else if (b.dataset.svWhy) { b.dataset.why = b.dataset.svWhy; b.title = b.dataset.svWhy; delete b.dataset.svWhy; b.classList.add("hdr-off"); } });
   try { if (window.__sviUndoPaint && document.getElementById("instUndo")) window.__sviUndoPaint(); } catch (e) {} }
 { let q = 0; new MutationObserver(() => { if (!q && (SVI_SETUNDO.u.length || SVI_SETUNDO.r.length)) q = requestAnimationFrame(() => { q = 0; sviSetSync(); }); }).observe(document.documentElement, { childList: true, subtree: true }); }
 window.addEventListener("click", e => { const b = e.target.closest && e.target.closest('[data-nvl="undo"], [data-nvl="redo"], [data-nvp="undo"], [data-nvp="redo"], [data-prmh="undo"], [data-prmh="redo"], #instUndo, #instRedo'); if (!b) return;
@@ -7897,9 +7906,9 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
     tap = i;
   }, true);
   /* 09/11 (8.2) : case en lecture seule (budget consolidé, validé…) — 2e clic = tout le contenu sélectionné, menu COPIER */
-  { let ro1 = null; document.addEventListener("pointerdown", e => { const i = e.target.closest && e.target.closest(ED); const ae = document.activeElement; ro1 = i && (i.readOnly || i.disabled || (window.__sviRO && i.closest(".bdg-d-page:not(.nvp)"))) && sviCellOf(i) && (ae === i || ae === sviCellOf(i) || (ae && ae.tagName === "TD" && ae.contains(i))) && e.pointerType === "mouse" ? i : null;
+  { let ro1 = null; document.addEventListener("pointerdown", e => { const td0 = e.target.closest && e.target.closest("td"), i = (e.target.closest && e.target.closest(ED)) || (td0 && td0.querySelector(ED)); const ae = document.activeElement; ro1 = i && (i.readOnly || i.disabled || (window.__sviRO && i.closest(".bdg-d-page:not(.nvp)"))) && sviCellOf(i) && (ae === i || ae === sviCellOf(i) || (ae && ae.tagName === "TD" && ae.contains(i))) && e.pointerType === "mouse" ? i : null;
       if (ro1 && ae !== i) ro1.__ro2 = false; }, true);
-    document.addEventListener("click", e => { const i = ro1; ro1 = null; if (!i || e.target !== i || i.__ro2) return; i.__ro2 = true; if (document.activeElement !== i) i.focus({ preventScroll: true }); i.readOnly = true; all(i); setTimeout(() => { if (document.activeElement === i) { all(i); if (window.__sviTxtSel) window.__sviTxtSel.show(i); } }, 0); }, true);
+    document.addEventListener("click", e => { const i = ro1; ro1 = null; if (!i || !(e.target === i || (e.target.closest && e.target.closest("td") === i.closest("td"))) || i.__ro2) return; i.__ro2 = true; if (document.activeElement !== i) i.focus({ preventScroll: true }); i.readOnly = true; all(i); const go = () => { if (!i.isConnected) return; if (document.activeElement !== i) { i.__ro2 = true; i.focus({ preventScroll: true }); } all(i); if (window.__sviTxtSel) window.__sviTxtSel.show(i); }; setTimeout(go, 0); setTimeout(() => { if (document.activeElement !== i) go(); }, 60); }, true);
     document.addEventListener("focusout", e => { if (e.target && e.target.__ro2) e.target.__ro2 = false; }, true); }
   document.addEventListener("mouseup", e => { if ((tap && e.target === tap) || (tap2 && e.target === tap2)) e.preventDefault(); }, true);
   document.addEventListener("pointerup", () => { const t = tap; setTimeout(() => { if (tap === t) tap = null; }, 120); }, true);

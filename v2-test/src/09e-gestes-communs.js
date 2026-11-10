@@ -449,7 +449,8 @@ sviRowHApply();
     /* poignées et menu de la sélection */
     let HA = null, HB = null, SB = null, HI = null, cur = null, V = null, own = false;
     /* sélection DESSINÉE par l'application : le champ ne garde qu'un curseur, Safari n'a donc rien à montrer */
-    const setV = (i, a, b) => { a = Math.max(0, Math.min(a, b)); b = Math.max(a, b); V = a === b ? null : { i, a, b }; own = true; try { i.setSelectionRange(b, b); } catch (er) {} setTimeout(() => { own = false; }, 0); };
+    const setV = (i, a, b) => { try { const L = window.__sviTxtLog = window.__sviTxtLog || []; L.push({ t: Date.now(), a, b, ptT0, age: Date.now() - ptAt, mDown, src: (new Error().stack || "").split("\n").slice(2, 4).map(z => z.trim()).join(" < ") }); if (L.length > 20) L.shift(); } catch (er) {}   /* trace pour l'agent de test */
+      a = Math.max(0, Math.min(a, b)); b = Math.max(a, b); V = a === b ? null : { i, a, b }; own = true; try { i.setSelectionRange(b, b); } catch (er) {} setTimeout(() => { own = false; }, 0); };
     const getS = i => V && V.i === i ? [V.a, V.b] : [i.selectionStart, i.selectionEnd];
     const mk = cls => { const d = document.createElement("div"); d.className = "svi-th " + cls; d.innerHTML = '<i></i>'; document.body.appendChild(d); return d; };
     const hide = () => { [HA, HB, SB, HI].forEach(x => { if (x) x.style.display = "none"; }); cur = null; V = null; };
@@ -474,7 +475,7 @@ sviRowHApply();
       const up = () => { e.currentTarget && e.currentTarget.releasePointerCapture && 0; document.removeEventListener("pointermove", mv, true); document.removeEventListener("pointerup", up, true); document.removeEventListener("pointercancel", up, true); place(); };
       document.addEventListener("pointermove", mv, true); document.addEventListener("pointerup", up, true); document.addEventListener("pointercancel", up, true); };
     const act = async e => { const b = e.target.closest("[data-tx]"); if (!b || !cur) return; e.preventDefault(); e.stopPropagation(); const i = cur, S = getS(i), a = S[0], z = S[1], v = String(i.value || ""), sel = v.slice(a, z), k = b.dataset.tx; V = null;
-      const put = t => { i.value = v.slice(0, a) + t + v.slice(z); const c = a + t.length; i.setSelectionRange(c, c); i.dispatchEvent(new InputEvent("input", { bubbles: true })); };
+      const put = t => { i.value = v.slice(0, a) + t + v.slice(z); const c = a + t.length; i.setSelectionRange(c, c); i.__svDirty = true; i.dispatchEvent(new InputEvent("input", { bubbles: true })); };
       if (k === "copy") { window.__sviSelClip = sel; try { await navigator.clipboard.writeText(sel); } catch (er) {} if (typeof svToast === "function") svToast("COPIÉ.", 1400, i);
         if (document.activeElement !== i) i.focus({ preventScroll: true }); setV(i, a, z); show(i); return; }   /* COPIER : le champ reste ouvert, la sélection reste */
       if (k === "cut") { window.__sviSelClip = sel; try { await navigator.clipboard.writeText(sel); } catch (er) {} put(""); if (typeof svToast === "function") svToast("COUPÉ.", 1400, i); }
@@ -496,7 +497,13 @@ sviRowHApply();
     document.addEventListener("beforeinput", e => { const i = e.target; if (!V || V.i !== i || !e.cancelable) return; const t = e.inputType || "";
       let ins = null; if (t === "insertText" || t === "insertReplacementText") ins = e.data || ""; else if (t.startsWith("delete")) ins = ""; else if (t === "insertFromPaste") ins = (e.dataTransfer && e.dataTransfer.getData("text/plain")) || e.data || ""; if (ins === null) return;
       e.preventDefault(); const v = String(i.value || ""), a = V.a, b = V.b; ins = String(ins).replace(/[\r\n]+/g, " "); if (getComputedStyle(i).textTransform === "uppercase" || i.dataset.up !== undefined) ins = ins.toUpperCase();
-      hide(); i.value = v.slice(0, a) + ins + v.slice(b); const c = a + ins.length; i.setSelectionRange(c, c); i.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: t, data: ins })); }, true);
+      hide(); i.value = v.slice(0, a) + ins + v.slice(b); const c = a + ins.length; i.setSelectionRange(c, c); i.__svDirty = true; i.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: t, data: ins })); }, true);
+    /* 10/11 : une valeur remplacée par l'application (sélection dessinée) n'est pas vue par le navigateur, qui n'envoie alors pas « change » en quittant le champ :
+       l'application l'envoie elle-même (une seule fois ; rien si le navigateur l'a déjà envoyé) */
+    document.addEventListener("change", e => { if (e.isTrusted && e.target) e.target.__svDirty = false; }, true);
+    const flush = i => { if (!i || !i.__svDirty) return; i.__svDirty = false; i.dispatchEvent(new Event("change", { bubbles: true })); };
+    document.addEventListener("focusout", e => flush(e.target), true);
+    document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target && e.target.__svDirty && !e.target.matches("textarea")) flush(e.target); }, true);
     document.addEventListener("focusout", e => { if (e.target === cur) setTimeout(() => { if (document.activeElement !== cur) hide(); }, 0); }, true);
     document.addEventListener("input", e => { if (e.target === cur && e.inputType && !V) hide(); }, true);
     document.addEventListener("scroll", () => { if (cur) requestAnimationFrame(place); }, true);
