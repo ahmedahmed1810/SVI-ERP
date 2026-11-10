@@ -295,7 +295,7 @@ function sviParamTabs() {
   const UKIT = sviCfKit({ key: "prm_unit", shell: {}, refresh: () => draw() });
   const UCOLS = [["n", "UNITÉ", x => x.n, ""], ["a", "ABRÉVIATION", x => x.a, "center"]];
   const draw = () => {
-    const L = sviUnits(), R = UKIT.cfApply("prm_unit", UCOLS, L.map((x, i) => ({ ...x, __i: i }))), CG = sviCwCols("prm_unit", [["n", 260], ["a", 160]], [["_cb", 44]]);
+    const L = sviUnits(), R = UKIT.cfApply("prm_unit", UCOLS, L.map((x, i) => ({ ...x, __i: i }))), CG = sviCwCols("prm_unit", [["n", 260], ["a", 160]], [["_cb", 28]]);
     pane.innerHTML = `<table class="prm-table" data-svcw="prm_unit" style="${CG.style}">${CG.cg}
       <thead><tr>${UCOLS.map(c => UKIT.cfHead("prm_unit", c[0], c[1], c[3])).join("")}<th class="center"><input type="checkbox" class="prm-all" title="Tout cocher"></th></tr></thead>
       <tbody>${R.map(x => x.__i).map(i => [L[i], i]).map(([x, i]) => `<tr data-i="${i}"><td><input class="prm-in" data-f="n" value="${esc(x.n)}" autocomplete="off"></td>

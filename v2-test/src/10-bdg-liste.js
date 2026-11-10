@@ -1458,7 +1458,7 @@ function renderBudgetList() {
     table.dataset.stf = "bdg";   /* 06/11 (soir) : FILTRER PAR COULEUR (loupe) = états de la liste */
     /* 08/11 (document unique 6.11, remarque d'Ahmed) : largeurs au moteur commun des tableaux — à la première ouverture, le tableau remplit
        l'écran (colonnes au prorata) ; dès qu'une colonne est tirée, toutes sont figées à leur largeur et seule celle-là change ; largeurs gardées */
-    const CG = sviCwCols("bdgl", columns.map(c => [c.key, c.width]), [["_cb", 40]], Math.max(0, ((table.parentElement && table.parentElement.clientWidth) || 0) - 30));
+    const CG = sviCwCols("bdgl", columns.map(c => [c.key, c.width]), [["_cb", 28]], Math.max(0, ((table.parentElement && table.parentElement.clientWidth) || 0) - 30));
     const cg0 = table.querySelector("colgroup"), tpl = document.createElement("template"); tpl.innerHTML = CG.cg;
     if (cg0) cg0.replaceWith(tpl.content.firstChild); else table.insertBefore(tpl.content.firstChild, thead);
     table.dataset.svcw = "bdgl"; table.setAttribute("style", CG.style);

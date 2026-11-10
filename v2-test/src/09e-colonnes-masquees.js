@@ -41,6 +41,7 @@ function sviColhApply(table) {
   table.querySelectorAll(".svi-colh").forEach(c => c.classList.remove("svi-colh"));
   table.querySelectorAll("[data-cs0]").forEach(c => { c.colSpan = +c.dataset.cs0; c.removeAttribute("data-cs0"); });
   if (table.dataset.w0) { table.style.width = table.dataset.w0; table.removeAttribute("data-w0"); }
+  if (table.dataset.mw0) { table.style.minWidth = table.dataset.mw0; table.removeAttribute("data-mw0"); }
   if (!I || !I.hid.length) return;
   const H = new Set(I.cols.filter(c => I.hid.includes(c.k)).map(c => c.i));
   let wOff = 0;
@@ -51,6 +52,8 @@ function sviColhApply(table) {
       if (nh === sp) c.classList.add("svi-colh"); else if (nh) { c.dataset.cs0 = sp; c.colSpan = sp - nh; }
       x += sp; }); });
   if (wOff && /px$/.test(table.style.width || "")) { table.dataset.w0 = table.style.width; table.style.width = Math.max(120, parseFloat(table.style.width) - wOff) + "px"; }
+  /* v1093 : la largeur minimale (largeurs réglées) perd aussi les colonnes masquées — sinon le surplus allait à la dernière colonne (cases à cocher) */
+  if (wOff && /px$/.test(table.style.minWidth || "")) { table.dataset.mw0 = table.style.minWidth; table.style.minWidth = Math.max(120, parseFloat(table.style.minWidth) - wOff) + "px"; }
 }
 /* index des colonnes affichées d'un tableau (aperçus, exports qui lisent l'écran) */
 function sviColhVis(table) {

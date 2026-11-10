@@ -4002,6 +4002,7 @@ function sviColhApply(table) {
   table.querySelectorAll(".svi-colh").forEach(c => c.classList.remove("svi-colh"));
   table.querySelectorAll("[data-cs0]").forEach(c => { c.colSpan = +c.dataset.cs0; c.removeAttribute("data-cs0"); });
   if (table.dataset.w0) { table.style.width = table.dataset.w0; table.removeAttribute("data-w0"); }
+  if (table.dataset.mw0) { table.style.minWidth = table.dataset.mw0; table.removeAttribute("data-mw0"); }
   if (!I || !I.hid.length) return;
   const H = new Set(I.cols.filter(c => I.hid.includes(c.k)).map(c => c.i));
   let wOff = 0;
@@ -4012,6 +4013,8 @@ function sviColhApply(table) {
       if (nh === sp) c.classList.add("svi-colh"); else if (nh) { c.dataset.cs0 = sp; c.colSpan = sp - nh; }
       x += sp; }); });
   if (wOff && /px$/.test(table.style.width || "")) { table.dataset.w0 = table.style.width; table.style.width = Math.max(120, parseFloat(table.style.width) - wOff) + "px"; }
+  /* v1093 : la largeur minimale (largeurs réglées) perd aussi les colonnes masquées — sinon le surplus allait à la dernière colonne (cases à cocher) */
+  if (wOff && /px$/.test(table.style.minWidth || "")) { table.dataset.mw0 = table.style.minWidth; table.style.minWidth = Math.max(120, parseFloat(table.style.minWidth) - wOff) + "px"; }
 }
 /* index des colonnes affichées d'un tableau (aperçus, exports qui lisent l'écran) */
 function sviColhVis(table) {
@@ -4781,7 +4784,7 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
       W[k] = Math.round(Math.max(MIN, Math.min(MAX, w))); });
     return Object.keys(W).length ? W : null; };
   const apply = (t, W) => { const cols = [...t.querySelectorAll(":scope > colgroup > col")]; cols.forEach(c => { const k = keyOf(t, c); if (k && W[k]) c.style.width = W[k] + "px"; });
-    const H = grid(t.tHead.rows[t.tHead.rows.length - 1]), tot = cols.reduce((s, c, i) => s + (parseFloat(c.style.width) || (H[i] ? H[i].getBoundingClientRect().width : 0)), 0);
+    const H = grid(t.tHead.rows[t.tHead.rows.length - 1]), tot = cols.reduce((s, c, i) => c.classList.contains("svi-colh") || (H[i] && H[i].classList.contains("svi-colh")) ? s : s + (parseFloat(c.style.width) || (H[i] ? H[i].getBoundingClientRect().width : 0)), 0);   /* v1093 : colonnes masquées non comptées (sinon le surplus allait à la dernière colonne) */
     if (tot > 0) { t.style.width = tot + "px"; t.style.minWidth = tot + "px"; }
     /* zones de texte d'une ligne : hauteur recalculée à la nouvelle largeur (plus de ligne restée haute) */
     t.querySelectorAll("tbody textarea").forEach(ta => { if (!ta.style.height) return; ta.style.height = ""; if (ta.scrollHeight > ta.clientHeight + 2) ta.style.height = ta.scrollHeight + "px"; }); };
@@ -4811,7 +4814,18 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
       if (!ch) break; any = true; apply(t, W); }
     return any; };
   window.sviCwFit = fit;
-  let q = 0; const run = () => { q = 0; document.querySelectorAll("table:is([data-svcw], :has(> colgroup > col[data-w]))").forEach(t => { if (t.offsetParent !== null && !t.closest(".fmt-t")) { try { fit(t, false); } catch (e) {} } }); };
+  /* v1093 : tableau plus étroit que sa liste (étiré à 100 %) — la place en plus va aux colonnes de texte, au prorata ; les colonnes d'outils
+     (cases à cocher _cb, _del, _rd…) gardent leur largeur (28 px pour les cases) ; colonnes masquées ignorées. Largeurs gardées inchangées. */
+  const spread = t => { const cols = [...t.querySelectorAll(":scope > colgroup > col")];
+    cols.forEach(c => { if (c.dataset.cw0 !== undefined) { c.style.width = c.dataset.cw0; delete c.dataset.cw0; } });
+    const vis = cols.filter(c => !c.classList.contains("svi-colh")); if (!vis.some(c => /^_/.test(c.dataset.k || ""))) return;
+    if (vis.some(c => !/px$/.test(c.style.width || ""))) return;
+    const sum = vis.reduce((a, c) => a + parseFloat(c.style.width), 0), extra = Math.floor(t.getBoundingClientRect().width - sum - 1); if (extra < 2) return;
+    const tx = vis.filter(c => !/^_/.test(c.dataset.k || "")), base = tx.reduce((a, c) => a + parseFloat(c.style.width), 0); if (!tx.length || base <= 0) return;
+    let left = extra; tx.forEach((c, i) => { const add = i === tx.length - 1 ? left : Math.floor(extra * parseFloat(c.style.width) / base); left -= add; c.dataset.cw0 = c.style.width; c.style.width = (parseFloat(c.style.width) + add) + "px"; }); };
+  window.sviCwSpread = spread;
+  let q = 0; const run = () => { q = 0; document.querySelectorAll("table:is([data-svcw], :has(> colgroup > col[data-w]))").forEach(t => { if (t.offsetParent !== null && !t.closest(".fmt-t")) { try { fit(t, false); } catch (e) {} try { spread(t); } catch (e) {} } }); };
+  addEventListener("resize", () => { if (!q) q = setTimeout(run, 350); });
   const go = () => { if (!q) q = setTimeout(run, 350); };
   const start = () => new MutationObserver(go).observe(document.body, { childList: true, subtree: true });
   if (document.body) start(); else document.addEventListener("DOMContentLoaded", start);
@@ -6497,7 +6511,7 @@ function sviParamTabs() {
   const UKIT = sviCfKit({ key: "prm_unit", shell: {}, refresh: () => draw() });
   const UCOLS = [["n", "UNITÉ", x => x.n, ""], ["a", "ABRÉVIATION", x => x.a, "center"]];
   const draw = () => {
-    const L = sviUnits(), R = UKIT.cfApply("prm_unit", UCOLS, L.map((x, i) => ({ ...x, __i: i }))), CG = sviCwCols("prm_unit", [["n", 260], ["a", 160]], [["_cb", 44]]);
+    const L = sviUnits(), R = UKIT.cfApply("prm_unit", UCOLS, L.map((x, i) => ({ ...x, __i: i }))), CG = sviCwCols("prm_unit", [["n", 260], ["a", 160]], [["_cb", 28]]);
     pane.innerHTML = `<table class="prm-table" data-svcw="prm_unit" style="${CG.style}">${CG.cg}
       <thead><tr>${UCOLS.map(c => UKIT.cfHead("prm_unit", c[0], c[1], c[3])).join("")}<th class="center"><input type="checkbox" class="prm-all" title="Tout cocher"></th></tr></thead>
       <tbody>${R.map(x => x.__i).map(i => [L[i], i]).map(([x, i]) => `<tr data-i="${i}"><td><input class="prm-in" data-f="n" value="${esc(x.n)}" autocomplete="off"></td>

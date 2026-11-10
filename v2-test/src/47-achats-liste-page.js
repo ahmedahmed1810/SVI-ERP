@@ -131,7 +131,7 @@ function achNvList(ctx, o) {
       run: async ids => { if (o.kill) { const m = await achAsk("ANNULER LES PIÈCES COCHÉES (GARDÉES, VISIBLES DANS ANNULÉS)", "MOTIF DE L'ANNULATION"); if (!m) return;
           const L = o.all(), now = achNow(); ids.forEach(id => { const x = L.find(y => y.id === id); if (!x || !canDel(x) || (o.mOf && o.mOf(x))) return; x.state = "annule"; x.motifAnn = m; x.mod = now; achHist(x.ref || cdOf(x), "ANNULÉ — " + m, ""); }); o.save(L); draw(); return; }
         const L = o.all(), now = achNow(); ids.forEach(id => { const x = L.find(y => y.id === id); if (!x || !canDel(x)) return; x.del = now; x.mod = now; achHist(cdOf(x), "CORBEILLE", nmOf(x)); }); o.save(L); draw(); } }; }
-    const W = o.w || {}, CG = sviCwCols(o.t, cols.map(c => [c[0], W[c[0]] || 120]), (delCol ? [["_del", 44]] : []).concat([["_cb", 40]]));
+    const W = o.w || {}, CG = sviCwCols(o.t, cols.map(c => [c[0], W[c[0]] || 120]), (delCol ? [["_del", 44]] : []).concat([["_cb", 28]]));
     const ED = o.edit || {};
     /* F14 (fin) : une colonne peut dépendre de la pièce (ex. CHARGE d'un besoin : liste des charges du budget, ou texte libre au SIÈGE) */
     const edOf = (k, x) => { const E = ED[k]; return typeof E === "function" ? E(x) : E; };
@@ -345,7 +345,7 @@ function achNvPageHTML(p, rec, ctx) {
     const R0 = L.rows.map((r, i) => ({ ...r, __i: i })), R = ctx && ctx.cfApply ? ctx.cfApply(t, C, R0) : R0;
     const head = C.map(c => ctx && ctx.cfHead ? ctx.cfHead(t, c[0], c[1], c[3]) : `<th class="${c[3]}">${esc(c[1])}</th>`).join("");
     /* v793 : largeur des colonnes réglable et gardée (moteur commun sviCwCols / data-svcw) */
-    const CG = sviCwCols(t, (L.rows.some(r => r.rd) ? [["_rd", 28]] : []).concat(C.map((c, j) => [c[0], j === 0 ? 170 : /number/.test(c[3]) ? 110 : /center/.test(c[3]) ? 90 : 150])), [["_cb", 40]]);
+    const CG = sviCwCols(t, (L.rows.some(r => r.rd) ? [["_rd", 28]] : []).concat(C.map((c, j) => [c[0], j === 0 ? 170 : /number/.test(c[3]) ? 110 : /center/.test(c[3]) ? 90 : 150])), [["_cb", 28]]);
     const iM = L.cols.findIndex(c => /^MONTANT/.test(c[0])), isL = /^DÉTAIL (?!FACTURE STANDARD)/.test(L.t) && iM >= 0;   /* F11 : TOTAL des DÉTAILS (TOTAL PARTIEL si filtre) */
     /* B3 (série B, 04/11/2026) : toute la ligne d'une pièce liée prend la couleur de son état (rouge, vert, bleu, orange, noir) */
     const iE = L.cols.findIndex(c => /^ÉTAT|^RÉPONSE/.test(c[0])), stOf = r => r.st !== undefined ? r.st : iE < 0 ? "" : achStTxt(r.cells[iE]);

@@ -640,7 +640,7 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
       W[k] = Math.round(Math.max(MIN, Math.min(MAX, w))); });
     return Object.keys(W).length ? W : null; };
   const apply = (t, W) => { const cols = [...t.querySelectorAll(":scope > colgroup > col")]; cols.forEach(c => { const k = keyOf(t, c); if (k && W[k]) c.style.width = W[k] + "px"; });
-    const H = grid(t.tHead.rows[t.tHead.rows.length - 1]), tot = cols.reduce((s, c, i) => s + (parseFloat(c.style.width) || (H[i] ? H[i].getBoundingClientRect().width : 0)), 0);
+    const H = grid(t.tHead.rows[t.tHead.rows.length - 1]), tot = cols.reduce((s, c, i) => c.classList.contains("svi-colh") || (H[i] && H[i].classList.contains("svi-colh")) ? s : s + (parseFloat(c.style.width) || (H[i] ? H[i].getBoundingClientRect().width : 0)), 0);   /* v1093 : colonnes masquées non comptées (sinon le surplus allait à la dernière colonne) */
     if (tot > 0) { t.style.width = tot + "px"; t.style.minWidth = tot + "px"; }
     /* zones de texte d'une ligne : hauteur recalculée à la nouvelle largeur (plus de ligne restée haute) */
     t.querySelectorAll("tbody textarea").forEach(ta => { if (!ta.style.height) return; ta.style.height = ""; if (ta.scrollHeight > ta.clientHeight + 2) ta.style.height = ta.scrollHeight + "px"; }); };
@@ -670,7 +670,18 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
       if (!ch) break; any = true; apply(t, W); }
     return any; };
   window.sviCwFit = fit;
-  let q = 0; const run = () => { q = 0; document.querySelectorAll("table:is([data-svcw], :has(> colgroup > col[data-w]))").forEach(t => { if (t.offsetParent !== null && !t.closest(".fmt-t")) { try { fit(t, false); } catch (e) {} } }); };
+  /* v1093 : tableau plus étroit que sa liste (étiré à 100 %) — la place en plus va aux colonnes de texte, au prorata ; les colonnes d'outils
+     (cases à cocher _cb, _del, _rd…) gardent leur largeur (28 px pour les cases) ; colonnes masquées ignorées. Largeurs gardées inchangées. */
+  const spread = t => { const cols = [...t.querySelectorAll(":scope > colgroup > col")];
+    cols.forEach(c => { if (c.dataset.cw0 !== undefined) { c.style.width = c.dataset.cw0; delete c.dataset.cw0; } });
+    const vis = cols.filter(c => !c.classList.contains("svi-colh")); if (!vis.some(c => /^_/.test(c.dataset.k || ""))) return;
+    if (vis.some(c => !/px$/.test(c.style.width || ""))) return;
+    const sum = vis.reduce((a, c) => a + parseFloat(c.style.width), 0), extra = Math.floor(t.getBoundingClientRect().width - sum - 1); if (extra < 2) return;
+    const tx = vis.filter(c => !/^_/.test(c.dataset.k || "")), base = tx.reduce((a, c) => a + parseFloat(c.style.width), 0); if (!tx.length || base <= 0) return;
+    let left = extra; tx.forEach((c, i) => { const add = i === tx.length - 1 ? left : Math.floor(extra * parseFloat(c.style.width) / base); left -= add; c.dataset.cw0 = c.style.width; c.style.width = (parseFloat(c.style.width) + add) + "px"; }); };
+  window.sviCwSpread = spread;
+  let q = 0; const run = () => { q = 0; document.querySelectorAll("table:is([data-svcw], :has(> colgroup > col[data-w]))").forEach(t => { if (t.offsetParent !== null && !t.closest(".fmt-t")) { try { fit(t, false); } catch (e) {} try { spread(t); } catch (e) {} } }); };
+  addEventListener("resize", () => { if (!q) q = setTimeout(run, 350); });
   const go = () => { if (!q) q = setTimeout(run, 350); };
   const start = () => new MutationObserver(go).observe(document.body, { childList: true, subtree: true });
   if (document.body) start(); else document.addEventListener("DOMContentLoaded", start);
