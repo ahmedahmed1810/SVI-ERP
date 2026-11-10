@@ -7953,7 +7953,7 @@ function sviBdgInf(C) {
   /* déboursé sec par désignation (charges liées, comptées une fois — comme le SOUS-DÉTAIL DES PRIX) */
   const k2Sdp = () => { const seen = new Set(), M = new Map();
     (INS.links || []).forEach(l => (l.chg || []).forEach(x => { if (seen.has(x.id)) return; const r = (INS.chg || []).find(y => y.id === x.id); if (!r || r.t) return; seen.add(x.id); if (!M.has(l.des)) M.set(l.des, []); M.get(l.des).push(r); }));
-    return (INS.des || []).filter(d => !d.t && M.has(d.id)).map(d => { const tot = M.get(d.id).reduce((t, r) => t + n0(r.q) * n0(r.p), 0), q = insLinkedQ(INS, d.id) ?? n0(d.q); return { d, tot, q, du: q ? tot / q : 0 }; }); };
+    return (INS.des || []).filter(d => !d.t && M.has(d.id)).map(d => { const tot = M.get(d.id).reduce((t, r) => t + n0(r.q) * n0(r.p), 0), lq = insLinkedQ(INS, d.id), q = lq ? lq : n0(d.q); return { d, tot, q, du: q ? tot / q : 0 }; }); };   /* quantité liée nulle (liaison non primaire, sans produit) : quantité de la désignation */
   const openInfo = (focus) => {
     /* le budget lit son projet : la liste des projets (module PROJETS) doit être chargée */
     if (typeof achPrjSync !== "function" && typeof sviAchLoad === "function") { sviAchLoad().then(() => openInfo(focus)).catch(() => {}); return; }
