@@ -4746,6 +4746,70 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
       prev.textContent = String(lab.textContent || "").trim(); prev.classList.add("svi-totlab"); lab.textContent = ""; }); };
   let q = 0; new MutationObserver(() => { if (!q) q = requestAnimationFrame(() => { q = 0; try { fix(); } catch (e) {} }); }).observe(document.documentElement, { childList: true, subtree: true });
   window.sviTotFix = fix; }
+
+/* 10/11 (Ahmed) : LARGEUR OPTIMISÉE DES COLONNES — à la première ouverture d'un tableau (aucune largeur gardée pour lui sur cet appareil),
+   chaque colonne prend la largeur de son plus long texte (titre ou lignes affichées) : au moins 64 px (6.1), au plus 360 px ; la largeur est
+   ensuite gardée comme une largeur réglée à la main. ⋯ d'un tableau › LARGEUR OPTIMISÉE la recalcule ; DISPOSITION PAR DÉFAUT y ramène.
+   Tableaux concernés : colonnes repérées (col[data-w="tableau.colonne"] ou table[data-svcw] + col[data-k]) ; colonnes d'outils (_…) inchangées. */
+{
+  const MIN = 64, MAX = 360, cv = document.createElement("canvas").getContext("2d");
+  const keyOf = (t, c) => c.dataset.w || (t.dataset.svcw && c.dataset.k && !/^_/.test(c.dataset.k) ? t.dataset.svcw + "." + c.dataset.k : "");
+  const NEWROW = "tr.ins-new, tr.rec-new, tr.bdg-newrow, tr.scn-new, tr.dly-new, tr.svi-empty-x";
+  const txtOf = td => { const f = td.querySelector("input:not([type=checkbox]):not([type=radio]):not([type=hidden]), select, textarea");
+    if (f) return f.tagName === "SELECT" ? ((f.options[f.selectedIndex] || {}).text || "") : String(f.value || f.placeholder || "");
+    return String(td.innerText || td.textContent || "").replace(/\s+/g, " ").trim(); };
+  const tw = (s, font) => { cv.font = font; return cv.measureText(s).width; };
+  const grid = row => { const out = []; let i = 0; [...row.cells].forEach(c => { if (c.colSpan === 1) out[i] = c; i += c.colSpan || 1; }); return out; };
+  /* mesure : rend { clé: largeur } pour les colonnes repérées, ou null (pas encore de ligne de données) */
+  const measure = t => { const cols = [...t.querySelectorAll(":scope > colgroup > col")]; if (!cols.length || !t.tHead || !t.tBodies[0]) return null;
+    const vis = [...t.tBodies[0].rows].filter(r => r.offsetParent !== null), rows = vis.slice(0, 200); if (!vis.some(r => !r.matches(NEWROW))) return null;   /* au moins une ligne de données ; la ligne CRÉER compte aussi dans la mesure */
+    const hr = t.tHead.rows[t.tHead.rows.length - 1], H = grid(hr), W = {};
+    cols.forEach((c, i) => { const k = keyOf(t, c); if (!k) return; let w = 0;
+      const th = H[i]; if (th) { const cs = getComputedStyle(th), lab = th.querySelector(".cf-lab, .bdg-head-label, .cf-lt"), fb = th.querySelector(".cf-btn"), ls = getComputedStyle(lab || th);
+        const lw = (tw(String((lab || th).textContent || "").trim(), ls.font) + (parseFloat(ls.letterSpacing) || 0) * String((lab || th).textContent || "").trim().length);
+        w = lw + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + (fb ? fb.getBoundingClientRect().width + 12 : 0) + 14; }   /* titre jamais coupé */
+      rows.forEach(r => { const td = grid(r)[i]; if (!td) return; const s = txtOf(td); if (!s) return; const cs = getComputedStyle(td.querySelector("input, select, textarea") || td);
+        const tcs = getComputedStyle(td), first = td.querySelector("input, select, textarea, .sv-sel, span, b, div, button"), lo = first ? Math.max(parseFloat(tcs.paddingLeft), first.getBoundingClientRect().left - td.getBoundingClientRect().left) : parseFloat(tcs.paddingLeft);
+        const pad = lo + parseFloat(tcs.paddingRight) + (td.querySelector("input, select, textarea") ? 14 : 0) + (td.querySelector("select, .sv-sel") ? 16 : 0) + 6;   /* retrait (titres, flèche) compris */
+        w = Math.max(w, tw(s, cs.font) + (parseFloat(cs.letterSpacing) || 0) * s.length + pad + 8); });
+      W[k] = Math.round(Math.max(MIN, Math.min(MAX, w))); });
+    return Object.keys(W).length ? W : null; };
+  const apply = (t, W) => { const cols = [...t.querySelectorAll(":scope > colgroup > col")]; cols.forEach(c => { const k = keyOf(t, c); if (k && W[k]) c.style.width = W[k] + "px"; });
+    const H = grid(t.tHead.rows[t.tHead.rows.length - 1]), tot = cols.reduce((s, c, i) => s + (parseFloat(c.style.width) || (H[i] ? H[i].getBoundingClientRect().width : 0)), 0);
+    if (tot > 0) { t.style.width = tot + "px"; t.style.minWidth = tot + "px"; }
+    /* zones de texte d'une ligne : hauteur recalculée à la nouvelle largeur (plus de ligne restée haute) */
+    t.querySelectorAll("tbody textarea").forEach(ta => { if (!ta.style.height) return; ta.style.height = ""; if (ta.scrollHeight > ta.clientHeight + 2) ta.style.height = ta.scrollHeight + "px"; }); };
+  const fit = (t, force) => { const cols = [...t.querySelectorAll(":scope > colgroup > col")], keys = cols.map(c => keyOf(t, c)).filter(Boolean); if (!keys.length) return false;
+    const CW = cwLoad(); if (!force && keys.some(k => CW[k])) return false;   /* déjà réglé (à la main ou à une ouverture d'avant) */
+    const W = measure(t); if (!W) return false; apply(t, W); grow(t, W); Object.assign(CW, W); cwSave(CW);
+    setTimeout(() => { if (t.isConnected && grow(t, W)) { const C2 = cwLoad(); Object.assign(C2, W); cwSave(C2); } }, 700);   /* zones de texte ajustées après coup */
+    return true; };
+  /* contrôle à l'écran : une case encore coupée ou passée à la ligne élargit sa colonne (3 passes au plus) ; rend true si une colonne a changé */
+  const grow = (t, W) => { let any = false;
+    for (let pass = 0; pass < 3; pass++) { const cols2 = [...t.querySelectorAll(":scope > colgroup > col")], rows = [...t.tBodies[0].rows].filter(r => r.offsetParent !== null).slice(0, 200);
+      const base = Math.min(...rows.map(r => r.getBoundingClientRect().height).filter(h => h > 0), 999); let ch = false;
+      cols2.forEach((c, i) => { const k = keyOf(t, c); if (!k || !W[k] || W[k] >= MAX) return; let add = 0;
+        rows.forEach(r => { const td = grid(r)[i]; if (!td) return; const f = td.querySelector("input:not([type=checkbox]):not([type=radio]), textarea");
+          if (td.getBoundingClientRect().height > base + 3 && txtOf(td)) add = Math.max(add, 24);   /* passée à la ligne (zone de texte, texte long) */
+          else if (f && f.tagName === "INPUT" && f.scrollWidth > f.clientWidth + 1) add = Math.max(add, f.scrollWidth - f.clientWidth + 6);
+          else if (!f && td.scrollWidth > td.clientWidth + 1) add = Math.max(add, td.scrollWidth - td.clientWidth + 6); });
+        if (add) { W[k] = Math.min(MAX, W[k] + add); ch = true; } });
+      if (!ch) break; any = true; apply(t, W); }
+    return any; };
+  window.sviCwFit = fit;
+  let q = 0; const run = () => { q = 0; document.querySelectorAll("table:is([data-svcw], :has(> colgroup > col[data-w]))").forEach(t => { if (t.offsetParent !== null && !t.closest(".fmt-t")) { try { fit(t, false); } catch (e) {} } }); };
+  const go = () => { if (!q) q = setTimeout(run, 350); };
+  const start = () => new MutationObserver(go).observe(document.body, { childList: true, subtree: true });
+  if (document.body) start(); else document.addEventListener("DOMContentLoaded", start);
+  /* ⋯ d'un bloc, d'une liste ou d'une fiche : LARGEUR OPTIMISÉE (tous les tableaux de l'endroit) */
+  let src = null; document.addEventListener("pointerdown", e => { const b = e.target.closest && e.target.closest(".blk-more, [data-nvmore], .nvl-more, .bdg-more-btn, [data-blkmore]"); if (b) src = b; }, true);
+  new MutationObserver(() => { const m = document.getElementById("blkMenu"); if (!m || m.__cwfit || !src) return; m.__cwfit = 1;
+    const host = src.closest(".bdg-d-block, .nvp-blk, .ins-hcol, .novapp-list-shell, .svc-card, .doc-card") || src.closest(".bdg-d-page, .nvp, .view"); if (!host) return;
+    const T = [...host.querySelectorAll("table")].filter(t => t.offsetParent !== null && [...t.querySelectorAll(":scope > colgroup > col")].some(c => keyOf(t, c))); if (!T.length) return;
+    m.insertAdjacentHTML("beforeend", `<div class="blk-sep"></div><button type="button" class="svi-cwfit"><i class="mi-sp"></i>LARGEUR OPTIMISÉE</button>`);
+    m.querySelector(".svi-cwfit").addEventListener("click", e => { e.stopPropagation(); let n = 0; T.forEach(t => { if (fit(t, true)) n++; }); m.remove(); if (typeof svToast === "function") svToast(n ? "LARGEUR OPTIMISÉE." : "RIEN À MESURER (TABLEAU VIDE).", 1800); });
+  }).observe(document.body || document.documentElement, { childList: true });
+}
 /* ⟪ src/09e-mise-en-page.js ⟫ */
 /* =========================================================
    v783 : APERÇU UNIQUE — éditeur MISE EN PAGE par blocs (repris d'achats.html)
