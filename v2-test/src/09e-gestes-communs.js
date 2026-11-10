@@ -671,9 +671,14 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
   /* ⋯ d'un bloc, d'une liste ou d'une fiche : LARGEUR OPTIMISÉE (tous les tableaux de l'endroit) */
   let src = null; document.addEventListener("pointerdown", e => { const b = e.target.closest && e.target.closest(".blk-more, [data-nvmore], .nvl-more, .bdg-more-btn, [data-blkmore]"); if (b) src = b; }, true);
   new MutationObserver(() => { const m = document.getElementById("blkMenu"); if (!m || m.__cwfit) return; const b0 = m.__btn || src; if (!b0 || !b0.closest) return; m.__cwfit = 1;
-    const host = b0.closest(".bdg-d-block, .nvp-blk, .ins-hcol, .novapp-list-shell, .svc-card, .doc-card") || b0.closest(".bdg-d-page, .nvp, .view") || document.querySelector(".view.active-view"); if (!host) return;
-    const T = [...host.querySelectorAll("table")].filter(t => t.offsetParent !== null && [...t.querySelectorAll(":scope > colgroup > col")].some(c => keyOf(t, c))); if (!T.length) return;
-    m.insertAdjacentHTML("beforeend", `<div class="blk-sep"></div><button type="button" class="svi-cwfit"><i class="mi-sp"></i>LARGEUR OPTIMISÉE</button>`);
+    const tabsOf = h => h ? [...h.querySelectorAll("table")].filter(t => t.offsetParent !== null && [...t.querySelectorAll(":scope > colgroup > col")].some(c => keyOf(t, c))) : [];
+    const host = b0.isConnected ? b0.closest(".bdg-d-block, .nvp-blk, .ins-hcol, .novapp-list-shell, .svc-card, .doc-card") || b0.closest(".bdg-d-page, .nvp, .view") : null;
+    /* v1090 : un ⋯ d'une liste cachée (autre écran) prend les tableaux de l'écran affiché, comme ses autres actions */
+    let T = tabsOf(host); if (!T.length) T = tabsOf(document.querySelector(".view.active-view")); if (!T.length) return;
+    /* v1090 : placé avec DISPOSITION PAR DÉFAUT (FERMER et SUPPRIMER restent en bas) */
+    const lay = [...m.querySelectorAll("button")].find(x => /DISPOSITION PAR DÉFAUT/.test(x.textContent || ""));
+    const H = `<button type="button" class="svi-cwfit"><i class="mi-sp"></i>LARGEUR OPTIMISÉE</button>`;
+    if (lay) lay.insertAdjacentHTML("afterend", H); else m.insertAdjacentHTML("beforeend", `<div class="blk-sep"></div>` + H);
     m.querySelector(".svi-cwfit").addEventListener("click", e => { e.stopPropagation(); let n = 0; T.forEach(t => { if (fit(t, true)) n++; }); m.remove(); if (typeof svToast === "function") svToast(n ? "LARGEUR OPTIMISÉE." : "RIEN À MESURER (TABLEAU VIDE).", 1800); });
   }).observe(document.body || document.documentElement, { childList: true });
 }
