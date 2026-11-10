@@ -402,7 +402,7 @@ sviRowHApply();
     { const c = el.closest("td.svi-cs"); if (c && [...document.querySelectorAll("td.svi-cs")].filter(x => x.offsetParent !== null).length > 1) { if (window.__sviSelBar) window.__sviSelBar(); return; } }
     /* 09/11 : INTITULÉ d'un budget en instance dans la liste (case modifiable sans champ) = COPIER, COLLER, EFFACER */
     if (el.matches && el.matches("td.bdg-ied") && window.__sviIedApply) { lbBar(el, ['<button type="button" data-lp="copy">COPIER</button><button type="button" data-lp="paste">COLLER</button><div class="blk-sep"></div><button type="button" data-lp="clear" class="sb-del">EFFACER</button>'], async k => {
-        if (k === "copy") { try { await navigator.clipboard.writeText(txtOf(el)); } catch (er) {} window.__sviSelClip = txtOf(el); if (typeof svToast === "function") svToast("COPIÉ.", 1500, el); } else window.__sviIedApply(k, [el]); }); return; }
+        if (k === "copy") { try { await navigator.clipboard.writeText(txtOf(el)); } catch (er) {} window.__sviSelClip = txtOf(el); if (typeof svToast === "function") svToast("COPIÉ.", 1500, el); } else { const SI = [...document.querySelectorAll("td.svi-cs.bdg-ied")].filter(x => x.offsetParent !== null); window.__sviIedApply(k, SI.includes(el) ? SI : [el]); } }); return; }
     if (window.__sviCells && window.__sviCells.count() > 1 && (el.closest("td.svi-cs") || (el.closest(".ins-li") && el.closest(".ins-li").querySelector(".svi-ls")))) return;
     if (!LB) { LB = document.createElement("div"); LB.id = "sviLpBar"; document.body.appendChild(LB);
       LB.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); }); }
@@ -447,7 +447,9 @@ sviRowHApply();
     const hide = () => { [HA, HB, SB, HI].forEach(x => { if (x) x.style.display = "none"; }); cur = null; V = null; };
     const place = () => { const i = cur; const S = i ? getS(i) : null; if (!i || !i.isConnected || document.activeElement !== i || S[0] === S[1]) { hide(); return; }
       if (!HA) { HA = mk("svi-th-a"); HB = mk("svi-th-b"); [HA, HB].forEach(h => h.addEventListener("pointerdown", dragH, { passive: false }));
-        SB = document.createElement("div"); SB.id = "sviTxtBar"; document.body.appendChild(SB); SB.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); }); SB.addEventListener("click", act); HI = document.createElement("div"); HI.id = "sviTxtHi"; document.body.appendChild(HI); }
+        SB = document.createElement("div"); SB.id = "sviTxtBar"; document.body.appendChild(SB); /* toucher le menu ne quitte jamais le champ : rien ne prend le focus, l'action part au lâcher */
+        SB.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); }); SB.addEventListener("mousedown", e => { e.preventDefault(); e.stopPropagation(); });
+        SB.addEventListener("touchstart", e => { e.preventDefault(); e.stopPropagation(); }, { passive: false }); SB.addEventListener("pointerup", act); SB.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); }); HI = document.createElement("div"); HI.id = "sviTxtHi"; document.body.appendChild(HI); }
       const r = i.getBoundingClientRect(), a = Math.max(r.left, Math.min(r.right, xOf(i, S[0]))), b = Math.max(r.left, Math.min(r.right, xOf(i, S[1]))), h = Math.max(14, r.height - 6);
       if (V) Object.assign(HI.style, { display: "block", left: a + "px", top: (r.top + 3) + "px", width: Math.max(1, b - a) + "px", height: h + "px" }); else HI.style.display = "none";
       Object.assign(HA.style, { display: "block", left: a + "px", top: (r.top + 3) + "px", height: h + "px" }); Object.assign(HB.style, { display: "block", left: b + "px", top: (r.top + 3) + "px", height: h + "px" });
@@ -465,15 +467,20 @@ sviRowHApply();
       document.addEventListener("pointermove", mv, true); document.addEventListener("pointerup", up, true); document.addEventListener("pointercancel", up, true); };
     const act = async e => { const b = e.target.closest("[data-tx]"); if (!b || !cur) return; e.preventDefault(); e.stopPropagation(); const i = cur, S = getS(i), a = S[0], z = S[1], v = String(i.value || ""), sel = v.slice(a, z), k = b.dataset.tx; V = null;
       const put = t => { i.value = v.slice(0, a) + t + v.slice(z); const c = a + t.length; i.setSelectionRange(c, c); i.dispatchEvent(new InputEvent("input", { bubbles: true })); };
-      if (k === "copy" || k === "cut") { try { await navigator.clipboard.writeText(sel); } catch (er) {} window.__sviSelClip = sel; if (k === "cut") put(""); else { i.setSelectionRange(z, z); } if (typeof svToast === "function") svToast(k === "cut" ? "COUPÉ." : "COPIÉ.", 1400, i); }
+      if (k === "copy") { window.__sviSelClip = sel; try { await navigator.clipboard.writeText(sel); } catch (er) {} if (typeof svToast === "function") svToast("COPIÉ.", 1400, i);
+        if (document.activeElement !== i) i.focus({ preventScroll: true }); setV(i, a, z); show(i); return; }   /* COPIER : le champ reste ouvert, la sélection reste */
+      if (k === "cut") { window.__sviSelClip = sel; try { await navigator.clipboard.writeText(sel); } catch (er) {} put(""); if (typeof svToast === "function") svToast("COUPÉ.", 1400, i); }
       else if (k === "paste") { let t = ""; try { t = await navigator.clipboard.readText(); } catch (er) {} if (!t) t = window.__sviSelClip || ""; put(String(t).replace(/[\r\n]+/g, " ").toUpperCase()); }
       else if (k === "clear") put("");
-      i.focus({ preventScroll: true }); hide(); };
+      if (document.activeElement !== i) i.focus({ preventScroll: true }); const c = i.selectionStart; hide(); try { i.setSelectionRange(c, c); } catch (er) {} };   /* le champ reste ouvert, curseur à la place du texte */
     /* au toucher, toute vraie sélection posée dans un champ ouvert (select(), 2e toucher d'un autre module…) devient la sélection dessinée : jamais les poignées bleues de Safari */
-    let ptT = false; document.addEventListener("pointerdown", e => { ptT = e.pointerType === "touch" || e.pointerType === "pen";
+    let ptT0 = false, ptAt = 0; const ptTs = () => ptT0 && Date.now() - ptAt < 1200;   /* doigt récent seulement : une sélection faite plus tard (souris, code) reste celle de l'ordinateur */
+    Object.defineProperty(window, "__sviPtT", { get: ptTs, configurable: true });
+    document.addEventListener("mousedown", e => { if (!e.sourceCapabilities || !e.sourceCapabilities.firesTouchEvents) { if (Date.now() - ptAt > 800) ptT0 = false; } }, true);
+    document.addEventListener("pointerdown", e => { ptT0 = e.pointerType === "touch" || e.pointerType === "pen"; ptAt = Date.now();
       /* toucher ailleurs (autre case, autre champ) = la sélection d'avant disparaît, poignées et menu compris */
       const t = e.target; if (cur && t !== cur && !(t.closest && t.closest(".svi-th, #sviTxtBar"))) hide(); }, true);
-    document.addEventListener("selectionchange", () => { const i = document.activeElement; if (own || !ptT || !inCell(i) || i.selectionStart === i.selectionEnd) return; setV(i, i.selectionStart, i.selectionEnd); show(i); });
+    document.addEventListener("selectionchange", () => { const i = document.activeElement; if (own || !ptTs() || !inCell(i) || i.selectionStart === i.selectionEnd) return; setV(i, i.selectionStart, i.selectionEnd); show(i); });
     document.addEventListener("selectionchange", () => { if (!cur || document.activeElement !== cur) return; if (V && !own && (cur.selectionStart !== V.b || cur.selectionEnd !== V.b)) V = null; requestAnimationFrame(place); });
     /* frappe, collage, effacement au clavier : remplacent la sélection dessinée, comme une vraie sélection */
     document.addEventListener("beforeinput", e => { const i = e.target; if (!V || V.i !== i || !e.cancelable) return; const t = e.inputType || "";
@@ -485,8 +492,10 @@ sviRowHApply();
     document.addEventListener("scroll", () => { if (cur) requestAnimationFrame(place); }, true);
     /* 2e toucher d'ouverture : la case passe en saisie, TOUT le contenu sélectionné, sans menu de Safari */
     let pdNav = false; document.addEventListener("pointerdown", e => { const t = e.target; pdNav = !!(t && t.classList && t.classList.contains("svi-nav")); }, true);
+    document.addEventListener("focusout", e => { if (e.target && e.target.__ro2) e.target.__ro2 = false; }, true);
     document.addEventListener("touchstart", e => { const t = e.target; T3 = null; T2 = null; if (e.touches.length !== 1 || !inCell(t) || t !== document.activeElement) return;
       if (pdNav) { if (t.readOnly || t.disabled) return; e.preventDefault(); T2 = t; return; }
+      if ((t.readOnly || t.disabled) && !t.__ro2) { e.preventDefault(); T2 = t; return; }   /* case en lecture seule : 2e toucher = tout le contenu, menu COPIER */
       if (t.classList.contains("svi-nav")) return;
       e.preventDefault(); T3 = { t, x: e.touches[0].clientX, y: e.touches[0].clientY }; }, { passive: false, capture: true });
     document.addEventListener("touchmove", e => { if (!T3 || e.touches.length !== 1) return; e.preventDefault(); const i = T3.t, x = e.touches[0].clientX, r = i.getBoundingClientRect();
@@ -494,6 +503,7 @@ sviRowHApply();
       try { const k = caretAt(i, x); i.setSelectionRange(k, k); if (k >= String(i.value || "").length) i.scrollLeft = i.scrollWidth; } catch (er) {} hide(); }, { passive: false, capture: true });
     let lastT3 = null;
     document.addEventListener("touchend", e => {
+      if (T2 && (T2.readOnly || T2.disabled)) { const i = T2; T2 = null; i.__ro2 = true; setV(i, 0, String(i.value || "").length); show(i); return; }
       if (T2) { const i = T2; T2 = null; try { if (window.__sviNav) window.__sviNav.off(i); i.__edit = true; i.blur(); i.focus({ preventScroll: true }); setV(i, 0, String(i.value || "").length); } catch (er) {} show(i); return; }
       if (!T3) return; const c = e.changedTouches[0], P = T3; T3 = null;
       try { const k = caretAt(P.t, c.clientX), v = String(P.t.value || ""), now = Date.now();
@@ -505,8 +515,8 @@ sviRowHApply();
         P.t.setSelectionRange(k, k); if (k >= v.length) P.t.scrollLeft = P.t.scrollWidth; hide(); } catch (er) {} }, { passive: true, capture: true });
     /* ordinateur : sélection à la souris dans un champ ouvert = mêmes poignées et même menu */
     document.addEventListener("mouseup", e => { const t = e.target; if (inCell(t) && document.activeElement === t && !t.classList.contains("svi-nav")) setTimeout(() => { if (t.selectionStart !== t.selectionEnd) show(t); }, 0); }, true);
-    { const sel0 = HTMLInputElement.prototype.select; HTMLInputElement.prototype.select = function () { if (ptT && inCell(this) && document.activeElement === this) { setV(this, 0, String(this.value || "").length); show(this); return; } return sel0.apply(this, arguments); };
-      const ssr0 = HTMLInputElement.prototype.setSelectionRange; HTMLInputElement.prototype.setSelectionRange = function (a, b) { if (!own && ptT && a !== b && inCell(this) && document.activeElement === this) { setV(this, a, b); show(this); return; } return ssr0.apply(this, arguments); }; }
+    { const sel0 = HTMLInputElement.prototype.select; HTMLInputElement.prototype.select = function () { if (ptTs() && inCell(this) && document.activeElement === this) { setV(this, 0, String(this.value || "").length); show(this); return; } return sel0.apply(this, arguments); };
+      const ssr0 = HTMLInputElement.prototype.setSelectionRange; HTMLInputElement.prototype.setSelectionRange = function (a, b) { if (!own && ptTs() && a !== b && inCell(this) && document.activeElement === this) { setV(this, a, b); show(this); return; } return ssr0.apply(this, arguments); }; }
     window.__sviTxtSel = { show, hide }; }
   /* jamais la bulle de Safari (Copier / Rechercher la sélection) sur les cases des tableaux */
   document.addEventListener("selectstart", e => { const t = e.target && e.target.nodeType === 1 ? e.target : e.target && e.target.parentElement; if (t && t.closest && t.closest("table tbody td, .ins-hcol .ins-li") && !t.closest("input, textarea")) e.preventDefault(); }, true);

@@ -434,7 +434,7 @@ function sviDlyRoSync() {
 (() => {
   const TXT = 'input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]), textarea';
   const CANCEL = '[data-x], .svc-close, [data-cancel], button[data-v=""], button[data-r="0"]';
-  const KEEP = "#svCal, #cfMenu, #svToast, .unit-sug, datalist, .blk-more, #blkMenu, #sviSelBar";   /* v514 : ⋯ et sa liste gardent la case (et la sélection) */
+  const KEEP = "#svCal, #cfMenu, #svToast, .unit-sug, datalist, .blk-more, #blkMenu, #sviSelBar, #sviTxtBar, .svi-th";   /* v514 : ⋯ et sa liste gardent la case (et la sélection) */
   let st = null;
   const toastOn = () => { const t = document.getElementById("svToast"); return !!(t && t.classList.contains("on")) ? t.querySelector(".svt-m").textContent : ""; };
   document.addEventListener("pointerdown", e => {
@@ -1014,6 +1014,10 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
     if (document.activeElement === i) { if (i.classList.contains("svi-nav")) { off(i); tap2 = i; } return; }
     tap = i;
   }, true);
+  /* 09/11 (8.2) : case en lecture seule (budget consolidé, validé…) — 2e clic = tout le contenu sélectionné, menu COPIER */
+  { let ro1 = null; document.addEventListener("pointerdown", e => { const i = e.target.closest && e.target.closest(ED); ro1 = i && (i.readOnly || i.disabled) && sviCellOf(i) && document.activeElement === i && e.pointerType === "mouse" ? i : null; }, true);
+    document.addEventListener("click", e => { const i = ro1; ro1 = null; if (!i || e.target !== i || i.__ro2) return; i.__ro2 = true; all(i); if (window.__sviTxtSel) window.__sviTxtSel.show(i); }, true);
+    document.addEventListener("focusout", e => { if (e.target && e.target.__ro2) e.target.__ro2 = false; }, true); }
   document.addEventListener("mouseup", e => { if ((tap && e.target === tap) || (tap2 && e.target === tap2)) e.preventDefault(); }, true);
   document.addEventListener("pointerup", () => { const t = tap; setTimeout(() => { if (tap === t) tap = null; }, 120); }, true);
   document.addEventListener("click", e => {

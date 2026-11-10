@@ -226,11 +226,18 @@ function achCafFiche(id, done) {
     const sd = e.target.closest(".caf-des"); if (sd) { pull(); const l = C.lignes[+sd.dataset.i]; if (!l) return; const a = achArts().find(x => x.id === sd.value);
       if (a) { if (achKey(a.des, a.u) !== achKey(l.des, l.u)) delete l.bsn; l.des = a.des; l.u = a.u; } draw(); } });
   /* 06/11 (soir) : dans les blocs ARTICLES et FOURNISSEURS, un toucher choisit la ligne ; un second toucher sur un nom souligné l'ouvre */
-  d.addEventListener("click", e => { const r = e.target.closest("tr.cafw-r"); if (!r || e.target.closest("input, select, .ach-x, .ach-b, [data-mkdvf], [data-opendvf]")) return;
+  d.addEventListener("click", e => { const r = e.target.closest("tr.cafw-r"); if (!r || e.target.closest("input, select, .sv-sel, .ach-x, .ach-b, [data-mkdvf], [data-opendvf]")) return;
     const go = e.target.closest(".cafw-go");
     if (!r.classList.contains("sel")) { d.querySelectorAll("tr.cafw-r.sel").forEach(x => x.classList.remove("sel")); r.classList.add("sel"); e.stopImmediatePropagation(); return; }
     if (!go) return; e.stopImmediatePropagation();
     if (go.dataset.goart) achArtFiche(go.dataset.goart, () => draw()); else if (go.dataset.gofrs) achFrsFiche(go.dataset.gofrs, "", () => draw()); }, true);
+  /* 09/11 : QUANTITÉ, PRIX, DÉSIGNATION et UNITÉ du détail : chaque modification s'annule (ANNULER / RÉTABLIR) */
+  { const v0 = new WeakMap();
+    d.addEventListener("focusin", e => { const i = e.target.closest && e.target.closest("input.caf-l"); if (i) v0.set(i, i.value); }, true);
+    d.addEventListener("change", e => { const i = e.target.closest && e.target.closest("input.caf-l"); if (!i || !v0.has(i)) return; const a = v0.get(i), z = i.value; if (a === z) return; v0.set(i, z);
+      const tr = i.closest("tr[data-i]"); if (!tr || typeof sviUndoPush !== "function") return; const ix = tr.dataset.i, c = i.dataset.c;
+      sviUndoPush(dir => { if (!d.isConnected) return; const f = d.querySelector(`tr[data-i="${ix}"] input.caf-l[data-c="${c}"]`); if (!f) return; f.value = dir === "undo" ? a : z; v0.set(f, f.value); pull(); draw(); },
+        c === "q" ? "MODIFICATION DE LA QUANTITÉ" : "MODIFICATION DU DÉTAIL"); }, true); }
   /* v814 : motif d'un fournisseur qui décline (C5.22) */
   d.addEventListener("change", async e => { const s = e.target.closest(".caf-rep"); if (!s || s.value !== "decline") return; const f = s.dataset.f;
     const m = await achAsk("RÉPONSE DE " + achFrsNom(f) + " : DÉCLINÉ", "MOTIF DONNÉ PAR LE FOURNISSEUR"); pull(); if (!m) { C.rep[f] = { ...(C.rep[f] || {}), st: "attente" }; draw(); return; }
