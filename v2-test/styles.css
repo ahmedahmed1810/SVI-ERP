@@ -3842,3 +3842,4 @@ html body table.nv-one tbody td.bdg-ref-c > .nv-reflink { line-height: 1.5; padd
 html body table.fmt-t td:is(.svi-tdf, .svi-tdon, .svi-cs) { box-shadow: none !important; outline: none !important; }
 /* 10/11 (J1) : boutons et pastilles de la barre du haut — gardent leur propre couleur (la couleur du texte de la barre ne vaut que pour le titre) */
 html body :is(.novapp-list-titlebar, #chs > .section-head) :is(button, [role=button], .bdg-d-badge) { -webkit-text-fill-color: currentColor !important; }
+html.svi-ptm .svi-th { pointer-events: none; }

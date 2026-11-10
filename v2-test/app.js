@@ -4620,6 +4620,8 @@ sviRowHApply();
       else if (k === "clear") put("");
       if (document.activeElement !== i) i.focus({ preventScroll: true }); const c = i.selectionStart; hide(); try { i.setSelectionRange(c, c); } catch (er) {} };   /* le champ reste ouvert, curseur à la place du texte */
     /* au toucher, toute vraie sélection posée dans un champ ouvert (select(), 2e toucher d'un autre module…) devient la sélection dessinée : jamais les poignées bleues de Safari */
+    /* 10/11 : souris = les poignées ne prennent plus la souris (la sélection à la souris reste celle de l'ordinateur) ; doigt = poignées actives */
+    { const pt = e => document.documentElement.classList.toggle("svi-ptm", e.pointerType === "mouse"); document.addEventListener("pointermove", pt, true); document.addEventListener("pointerdown", pt, true); }
     let mDown = false; document.addEventListener("mousedown", () => { mDown = true; }, true); document.addEventListener("mouseup", () => { setTimeout(() => { mDown = false; }, 0); }, true);
     let ptT0 = false, ptAt = 0; const ptTs = () => ptT0 && Date.now() - ptAt < 1200;   /* doigt récent seulement : une sélection faite plus tard (souris, code) reste celle de l'ordinateur */
     Object.defineProperty(window, "__sviPtT", { get: ptTs, configurable: true });
