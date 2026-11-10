@@ -386,7 +386,7 @@ sviRowHApply();
   /* 09/11 (Ahmed) : case non modifiable — le 2e toucher ne colore rien (le cadre rouge suffit ; l'appui long copie) */
   const allSel = el => { document.querySelectorAll(".cell-all").forEach(x => x.classList.remove("cell-all")); };
   /* appui long : case modifiable (rouge) = COUPER, COPIER, COLLER, EFFACER ; case non modifiable (noire, lecture seule) = COPIER */
-  const canEd = el => el.matches(FLD) && !el.disabled && !el.readOnly && !(window.__sviRO && el.closest(".bdg-d-page"));
+  const canEd = el => el.matches(FLD) && !el.disabled && !el.readOnly && !(window.__sviRO && el.closest(".bdg-d-page:not(.nvp)"));
   const setVal = (el, v) => { el.value = v; el.dispatchEvent(new InputEvent("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); };
   /* 09/11 (Ahmed) : petit menu de l'application (forme du menu des cases) — chaque ligne à la hauteur d'une ligne du tableau, largeur selon le contenu */
   let LB = null; const lbOff = () => { if (LB) LB.style.display = "none"; }; window.__sviLbOff = () => lbOff();
@@ -397,10 +397,18 @@ sviRowHApply();
     LB.onclick = e => { const b = e.target.closest("[data-lp]"); if (!b) return; e.preventDefault(); e.stopPropagation(); lbOff(); act(b.dataset.lp); }; };
   document.addEventListener("pointerdown", e => { if (LB && !LB.contains(e.target)) lbOff(); }, true);
   document.addEventListener("scroll", lbOff, true);
-  const lpMenu = el => { const sel = el.tagName === "TD" ? el.querySelector("select") : null, txt = sel ? (typeof sviSelLab === "function" ? sviSelLab(sel) : "") : txtOf(el), ed = sel ? !sel.disabled && !(window.__sviRO && el.closest(".bdg-d-page")) : canEd(el);
+  let csSnap = []; document.addEventListener("pointerdown", () => { csSnap = [...document.querySelectorAll("td.svi-cs")].filter(x => x.offsetParent !== null); }, true);
+  const lpMenu = el => { const sel = el.tagName === "TD" ? el.querySelector("select") : null, txt = sel ? (typeof sviSelLab === "function" ? sviSelLab(sel) : "") : txtOf(el), ed = sel ? !sel.disabled && !(window.__sviRO && el.closest(".bdg-d-page:not(.nvp)")) : canEd(el);
     /* une plage de cases a déjà sa barre (COPIER, COLLER, EFFACER) : un seul menu */
-    { const c = el.closest("td.svi-cs"); if (c && [...document.querySelectorAll("td.svi-cs")].filter(x => x.offsetParent !== null).length > 1) { if (window.__sviSelBar) window.__sviSelBar(); return; } }
+    { const td0 = el.closest("td"), SN = csSnap.filter(x => x.isConnected);
+      if (td0 && SN.length > 1 && SN.includes(td0) && SN.every(x => x.matches("td.bdg-ied, td.nv-ed:not([data-edsel])"))) {   /* plage d'INTITULÉ / de cases des listes : le menu agit sur toute la plage */
+        lbBar(td0, ['<button type="button" data-lp="copy">COPIER</button><button type="button" data-lp="paste">COLLER</button><div class="blk-sep"></div><button type="button" data-lp="clear" class="sb-del">EFFACER</button>'], async k => {
+          if (k === "copy") { const t = SN.map(txtOf).join("\n"); try { await navigator.clipboard.writeText(t); } catch (er) {} window.__sviSelClip = t; if (typeof svToast === "function") svToast("COPIÉ.", 1500, td0); return; }
+          if (SN.every(x => x.matches("td.bdg-ied")) && window.__sviIedApply) window.__sviIedApply(k, SN); else if (window.__sviNvEdApply) window.__sviNvEdApply(k, SN); }); return; }
+      const c = el.closest("td.svi-cs"); if (c && [...document.querySelectorAll("td.svi-cs")].filter(x => x.offsetParent !== null).length > 1) { if (window.__sviSelBar) window.__sviSelBar(); return; } }
     /* 09/11 : INTITULÉ d'un budget en instance dans la liste (case modifiable sans champ) = COPIER, COLLER, EFFACER */
+    if (el.matches && el.matches("td.nv-ed:not([data-edsel])") && window.__sviNvEdApply) { lbBar(el, ['<button type="button" data-lp="copy">COPIER</button><button type="button" data-lp="paste">COLLER</button><div class="blk-sep"></div><button type="button" data-lp="clear" class="sb-del">EFFACER</button>'], async k => {
+        if (k === "copy") { try { await navigator.clipboard.writeText(txtOf(el)); } catch (er) {} window.__sviSelClip = txtOf(el); if (typeof svToast === "function") svToast("COPIÉ.", 1500, el); } else window.__sviNvEdApply(k, [el]); }); return; }
     if (el.matches && el.matches("td.bdg-ied") && window.__sviIedApply) { lbBar(el, ['<button type="button" data-lp="copy">COPIER</button><button type="button" data-lp="paste">COLLER</button><div class="blk-sep"></div><button type="button" data-lp="clear" class="sb-del">EFFACER</button>'], async k => {
         if (k === "copy") { try { await navigator.clipboard.writeText(txtOf(el)); } catch (er) {} window.__sviSelClip = txtOf(el); if (typeof svToast === "function") svToast("COPIÉ.", 1500, el); } else { const SI = [...document.querySelectorAll("td.svi-cs.bdg-ied")].filter(x => x.offsetParent !== null); window.__sviIedApply(k, SI.includes(el) ? SI : [el]); } }); return; }
     if (window.__sviCells && window.__sviCells.count() > 1 && (el.closest("td.svi-cs") || (el.closest(".ins-li") && el.closest(".ins-li").querySelector(".svi-ls")))) return;
@@ -474,13 +482,15 @@ sviRowHApply();
       else if (k === "clear") put("");
       if (document.activeElement !== i) i.focus({ preventScroll: true }); const c = i.selectionStart; hide(); try { i.setSelectionRange(c, c); } catch (er) {} };   /* le champ reste ouvert, curseur à la place du texte */
     /* au toucher, toute vraie sélection posée dans un champ ouvert (select(), 2e toucher d'un autre module…) devient la sélection dessinée : jamais les poignées bleues de Safari */
+    let mDown = false; document.addEventListener("mousedown", () => { mDown = true; }, true); document.addEventListener("mouseup", () => { setTimeout(() => { mDown = false; }, 0); }, true);
     let ptT0 = false, ptAt = 0; const ptTs = () => ptT0 && Date.now() - ptAt < 1200;   /* doigt récent seulement : une sélection faite plus tard (souris, code) reste celle de l'ordinateur */
     Object.defineProperty(window, "__sviPtT", { get: ptTs, configurable: true });
     document.addEventListener("mousedown", e => { if (!e.sourceCapabilities || !e.sourceCapabilities.firesTouchEvents) { if (Date.now() - ptAt > 800) ptT0 = false; } }, true);
     document.addEventListener("pointerdown", e => { ptT0 = e.pointerType === "touch" || e.pointerType === "pen"; ptAt = Date.now();
       /* toucher ailleurs (autre case, autre champ) = la sélection d'avant disparaît, poignées et menu compris */
-      const t = e.target; if (cur && t !== cur && !(t.closest && t.closest(".svi-th, #sviTxtBar"))) hide(); }, true);
-    document.addEventListener("selectionchange", () => { const i = document.activeElement; if (own || !ptTs() || !inCell(i) || i.selectionStart === i.selectionEnd) return; setV(i, i.selectionStart, i.selectionEnd); show(i); });
+      const t = e.target; if (cur && t !== cur && !(t.closest && t.closest(".svi-th, #sviTxtBar"))) hide();
+      if (e.pointerType === "mouse" && !(t.closest && t.closest(".svi-th, #sviTxtBar"))) { V = null; if (cur && t === cur) hide(); } }, true);
+    document.addEventListener("selectionchange", () => { const i = document.activeElement; if (own || !ptTs() || mDown || !inCell(i) || i.selectionStart === i.selectionEnd) return; setV(i, i.selectionStart, i.selectionEnd); show(i); });
     document.addEventListener("selectionchange", () => { if (!cur || document.activeElement !== cur) return; if (V && !own && (cur.selectionStart !== V.b || cur.selectionEnd !== V.b)) V = null; requestAnimationFrame(place); });
     /* frappe, collage, effacement au clavier : remplacent la sélection dessinée, comme une vraie sélection */
     document.addEventListener("beforeinput", e => { const i = e.target; if (!V || V.i !== i || !e.cancelable) return; const t = e.inputType || "";
@@ -515,8 +525,8 @@ sviRowHApply();
         P.t.setSelectionRange(k, k); if (k >= v.length) P.t.scrollLeft = P.t.scrollWidth; hide(); } catch (er) {} }, { passive: true, capture: true });
     /* ordinateur : sélection à la souris dans un champ ouvert = mêmes poignées et même menu */
     document.addEventListener("mouseup", e => { const t = e.target; if (inCell(t) && document.activeElement === t && !t.classList.contains("svi-nav")) setTimeout(() => { if (t.selectionStart !== t.selectionEnd) show(t); }, 0); }, true);
-    { const sel0 = HTMLInputElement.prototype.select; HTMLInputElement.prototype.select = function () { if (ptTs() && inCell(this) && document.activeElement === this) { setV(this, 0, String(this.value || "").length); show(this); return; } return sel0.apply(this, arguments); };
-      const ssr0 = HTMLInputElement.prototype.setSelectionRange; HTMLInputElement.prototype.setSelectionRange = function (a, b) { if (!own && ptTs() && a !== b && inCell(this) && document.activeElement === this) { setV(this, a, b); show(this); return; } return ssr0.apply(this, arguments); }; }
+    { const sel0 = HTMLInputElement.prototype.select; HTMLInputElement.prototype.select = function () { if (ptTs() && !mDown && inCell(this) && document.activeElement === this) { setV(this, 0, String(this.value || "").length); show(this); return; } return sel0.apply(this, arguments); };
+      const ssr0 = HTMLInputElement.prototype.setSelectionRange; HTMLInputElement.prototype.setSelectionRange = function (a, b) { if (!own && ptTs() && !mDown && a !== b && inCell(this) && document.activeElement === this) { setV(this, a, b); show(this); return; } return ssr0.apply(this, arguments); }; }
     window.__sviTxtSel = { show, hide }; }
   /* jamais la bulle de Safari (Copier / Rechercher la sélection) sur les cases des tableaux */
   document.addEventListener("selectstart", e => { const t = e.target && e.target.nodeType === 1 ? e.target : e.target && e.target.parentElement; if (t && t.closest && t.closest("table tbody td, .ins-hcol .ins-li") && !t.closest("input, textarea")) e.preventDefault(); }, true);
@@ -538,7 +548,7 @@ sviRowHApply();
     const el0 = cutTd(e.target);
     /* 09/11 (règle 8.2) : 2e toucher sur une case qu'on ne modifie pas (listes, lecture seule) = tout son contenu sélectionné, prêt à copier */
     if (el0 && !e.target.closest("button, a, .bdg-reflink, input[type=checkbox], .lk-rd, .cf-btn, [data-why], td.bdg-ied, td.nv-ed, input.nv-edin")) {
-      const ro = !el0.matches(FLD) || el0.disabled || el0.readOnly || !!window.__sviRO;
+      const ro = !el0.matches(FLD) || el0.disabled || el0.readOnly || !!(window.__sviRO && el0.closest(".bdg-d-page:not(.nvp)"));
       if (ro && lastT === el0 && Date.now() - lastTt < 8000) { lastT = null; allSel(el0); return; }
       lastT = el0; lastTt = Date.now(); } else lastT = null;
     /* 09/11 : champ déjà en saisie (3e toucher) = le curseur se place, rien d'autre (pas de texte agrandi) */

@@ -2419,7 +2419,12 @@ function achCafPage(x, B) {
     change: (e, redraw) => { const t = e.target; if (!t.closest || !t.closest(".nvp")) return false;
       if (t.matches(".cafp-bsn")) { const b = achBsn().find(y => y.id === t.value); achCafSaveOne(x.id, c => { const l = c.lignes.find(y => y.id === t.dataset.li); if (!l) return; if (b) Object.assign(l, { bsn: b.id, des: b.des, u: b.u, q: achN(b.q), libre: false }); else delete l.bsn; }, "BESOIN DU DÉTAIL"); redraw(); return true; }
       if (t.matches(".cafp-des")) { const a = achArts().find(y => y.id === t.value); achCafSaveOne(x.id, c => { const l = c.lignes.find(y => y.id === t.dataset.li); if (!l || !a) return; if (achKey(a.des, a.u) !== achKey(l.des, l.u)) delete l.bsn; l.des = a.des; l.u = a.u; }, "DÉSIGNATION DU DÉTAIL"); redraw(); return true; }
-      if (t.matches(".cafp-l")) { achCafSaveOne(x.id, c => { const l = c.lignes.find(y => y.id === t.dataset.li); if (!l) return; const f = t.dataset.c; l[f] = f === "q" || f === "pu" ? achN(t.value) : achU(t.value); }); redraw(); return true; }
+      if (t.matches(".cafp-l")) { const li = t.dataset.li, f = t.dataset.c, nv = f === "q" || f === "pu" ? achN(t.value) : achU(t.value), c0 = achCaf().find(y => y.id === x.id), l0 = c0 && (c0.lignes || []).find(y => y.id === li), ov = l0 ? l0[f] : undefined;
+        const lab = { q: "QUANTITÉ", pu: "PRIX ESTIMÉ", des: "DÉSIGNATION", u: "UNITÉ" }[f] || "DÉTAIL", put = v => achCafSaveOne(x.id, c => { const l = c.lignes.find(y => y.id === li); if (l) l[f] = v; }, lab + " DU DÉTAIL : " + (v ?? ""));
+        put(nv); redraw();
+        /* 10/11 : ANNULER / RÉTABLIR de la saisie du détail */
+        if (String(ov ?? "") !== String(nv ?? "") && typeof sviUndoPush === "function") sviUndoPush(dir => { put(dir === "undo" ? ov : nv); const v = document.getElementById("ach"); if (v && v.__achDraw) v.__achDraw(); else redraw(); }, "MODIFICATION " + (f === "q" ? "DE LA QUANTITÉ" : "DU DÉTAIL"));
+        return true; }
       if (t.matches(".cafp-pay")) { achCafSaveOne(x.id, c => { c.rep[t.dataset.f] = { ...(c.rep[t.dataset.f] || {}), pay: achU(t.value) }; }, "CONDITIONS DE PAIEMENT"); return true; }
       if (t.matches(".cafp-rep")) { achCafSaveOne(x.id, c => { c.rep[t.dataset.f] = { ...(c.rep[t.dataset.f] || {}), st: t.value, date: achNow() }; }, "RÉPONSE"); redraw(); return true; }
       if (t.matches(".cafp-denv")) { achCafSaveOne(x.id, c => { const L = c.denv || []; c.denv = t.checked ? L.concat([t.dataset.d]) : L.filter(y => y !== t.dataset.d); }); return true; }
@@ -3505,9 +3510,9 @@ function achNvList(ctx, o) {
       /* F17 (série F), 2.10 : fournisseurs = noms soulignés, chacun dans la couleur de son propre état ; toucher = sa fiche */
       const edOk = edOf(c[0], x) && isI(x) && !x.del;
       if (c[0] === "frs" && x.frs && !(o.mOf && o.mOf(x))) { const F = (Array.isArray(x.frs) ? x.frs : [x.frs]).filter(Boolean);
-        return `<td class="${cl} nv-lk${edOk ? " nv-ed" : ""}"${edOk ? ` data-ed="${esc(c[0])}"` : ""} title="${esc(F.map(achFrsNom).join(", "))}">${F.map(f => `<button type="button" class="ach-link" data-nvgo="frs|${esc(f)}">${esc(achFrsNom(f))}</button>`).join(", ")}</td>`; }
+        return `<td class="${cl} nv-lk${edOk ? " nv-ed" : ""}"${edOk ? ` data-ed="${esc(c[0])}" data-edsel="1"` : ""} title="${esc(F.map(achFrsNom).join(", "))}">${F.map(f => `<button type="button" class="ach-link" data-nvgo="frs|${esc(f)}">${esc(achFrsNom(f))}</button>`).join(", ")}</td>`; }
       /* F14 (série F) : pièce EN INSTANCE — champ modifiable directement dans la liste (1er toucher = case choisie, 2e = saisie, règle 8.2) */
-      if (edOf(c[0], x) && isI(x) && !x.del) { const t = typeof v === "number" ? achF2(v) : String(v ?? ""); return `<td class="${cl} nv-ed" data-ed="${esc(c[0])}" title="${esc(t)}">${esc(t)}</td>`; }
+      if (edOf(c[0], x) && isI(x) && !x.del) { const t = typeof v === "number" ? achF2(v) : String(v ?? ""), E1 = edOf(c[0], x); return `<td class="${cl} nv-ed" data-ed="${esc(c[0])}"${E1 && E1.type === "sel" ? ' data-edsel="1"' : ""} title="${esc(t)}">${esc(t)}</td>`; }
       /* v910 (checklist C1.38) : 5e élément d'une colonne = image (logo) devant le texte, à la hauteur de la ligne */
       const im = c[4] ? c[4](x) : "";
       const t = typeof v === "number" ? achF2(v) : String(v ?? ""); return `<td class="${cl}" title="${esc(t)}">${im ? `<img class="nv-logo" src="${esc(im)}" alt="">` : ""}${esc(t)}</td>`; };
@@ -3536,16 +3541,33 @@ function achNvList(ctx, o) {
         if (E.set) E.set(y, nv); else y[f] = nv; y.mod = achNow(); o.save(L2); achHist(o.code ? o.code(y) : y.ref, "MODIFIÉ DANS LA LISTE", (E.lab || k).toUpperCase() + " : " + ((O.find(z => String(z[0]) === String(nv)) || [nv, nv])[1])); draw(); }); return; }
     const inp = document.createElement("input"); inp.className = "ins-in nv-edin" + (E.type === "num" ? " number" : "");
     if (E.type === "date") inp.type = "date"; else if (E.type === "num") inp.inputMode = "decimal"; inp.value = E.type === "num" ? String(v0 ?? "").replace(".", ",") : String(v0 ?? "");
-    inp.__edit = true; td.textContent = ""; td.appendChild(inp); inp.focus(); try { inp.select(); } catch (er) {}
-    let done = false; const fin = ok => { if (done) return; done = true; if (ok) { const nv = E.type === "num" ? achN(inp.value) : E.type === "date" ? inp.value : E.keep ? String(inp.value).trim() : achU(inp.value);
+    const txt0 = td.textContent; inp.__edit = true; td.textContent = ""; td.appendChild(inp); inp.focus(); try { inp.select(); } catch (er) {}
+    /* 10/11 (comme l'INTITULÉ de la liste BDG) : la case est remise en place SANS redessiner — ENTRÉE / ÉCHAP gardent la case sélectionnée ; ANNULER / RÉTABLIR */
+    const t0 = Date.now(); let done = false; const fin = ok => { if (done) return; if (ok === "blur" && Date.now() - t0 < 600 && inp.isConnected) { setTimeout(() => { inp.__edit = true; inp.focus(); }, 0); return; } done = true; let show = txt0;
+      if (ok) { const nv = E.type === "num" ? achN(inp.value) : E.type === "date" ? inp.value : E.keep ? String(inp.value).trim() : achU(inp.value);
         if (String(nv) !== String(v0 ?? "")) { const L2 = o.all(), y = L2.find(z => z.id === id); if (y) { const bad = E.check ? E.check(y, nv, L2) : ""; if (bad) { svToast(bad, 3500, td); draw(); return; }
-          if (E.set) E.set(y, nv); else y[f] = nv; y.mod = achNow(); o.save(L2); achHist(o.code ? o.code(y) : y.ref, "MODIFIÉ DANS LA LISTE", (E.lab || k).toUpperCase() + " : " + nv); } } }
-      draw(); };
+          const before = E.get ? E.get(y) : y[f]; if (E.set) E.set(y, nv); else y[f] = nv; y.mod = achNow(); o.save(L2); achHist(o.code ? o.code(y) : y.ref, "MODIFIÉ DANS LA LISTE", (E.lab || k).toUpperCase() + " : " + nv);
+            const col = colsOf().find(c => c[0] === k), v1 = col ? col[2](y) : nv; show = typeof v1 === "number" ? achF2(v1) : String(v1 ?? "");
+            if (typeof sviUndoPush === "function") sviUndoPush(dir => { const L3 = o.all(), z = L3.find(q => q.id === id); if (!z) return; const w = dir === "undo" ? before : nv; if (E.set) E.set(z, w); else z[f] = w; z.mod = achNow(); o.save(L3); draw(); }, "MODIFICATION " + (E.lab ? "DE « " + String(E.lab).toUpperCase() + " »" : "DANS LA LISTE")); } } }
+      td.textContent = show; td.title = show; td.classList.remove("nv-sel");
+      if (ok !== "blur") { if (!td.hasAttribute("tabindex")) td.setAttribute("tabindex", "-1"); td.classList.add("svi-tdf"); try { td.focus({ preventScroll: true }); } catch (er) {} } };
     inp.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); fin(true); } if (ev.key === "Escape") { ev.preventDefault(); fin(false); } });
-    inp.addEventListener("blur", () => fin(true)); };
+    inp.addEventListener("blur", () => fin("blur")); };
+  /* 10/11 : plage de cases modifiables de la liste — COLLER (une ligne par case, ou la même partout) / EFFACER sur chaque case, une seule annulation */
+  (window.__sviNvEdMods = window.__sviNvEdMods || {})[o.t] = async (v, tds) => { let lines = [""];
+    if (v === "paste") { let t = ""; try { t = await navigator.clipboard.readText(); } catch (er) {} if (!t) t = window.__sviSelClip || ""; lines = String(t).split(/\r?\n/).map(z => z.split("\t")[0].trim()).filter(Boolean); if (!lines.length) { svToast("RIEN À COLLER : COPIEZ D'ABORD DES CASES.", 2200); return; } }
+    const L = o.all(), B4 = [], AF = []; let n = 0;
+    tds.forEach((td, i) => { const tr = td.closest("tr"), id = tr && tr.dataset.id, k = td.dataset.ed, x = L.find(y => y.id === id), E0 = (o.edit || {})[k], E = x && (typeof E0 === "function" ? E0(x) : E0); if (!E || E.type === "sel" || !isI(x) || x.del) return;
+      const raw = v === "clear" ? "" : String(lines.length > 1 ? (lines[i] || "") : lines[0]), nv = E.type === "num" ? (raw === "" ? "" : achN(raw)) : E.type === "date" ? raw : E.keep ? raw.trim() : achU(raw), f = E.f || k;
+      const bad = E.check && nv !== "" ? E.check(x, nv, L) : ""; if (bad) return; const before = E.get ? E.get(x) : x[f]; if (String(before ?? "") === String(nv)) return;
+      B4.push([id, E, f, before]); AF.push([id, E, f, nv]); if (E.set) E.set(x, nv); else x[f] = nv; x.mod = achNow(); n++; });
+    if (n) { o.save(L); const put = A => { const L2 = o.all(); A.forEach(([id, E, f, w]) => { const z = L2.find(q => q.id === id); if (!z) return; if (E.set) E.set(z, w); else z[f] = w; z.mod = achNow(); }); o.save(L2); draw(); };
+      if (typeof sviUndoPush === "function") sviUndoPush(dir => put(dir === "undo" ? B4 : AF), v === "clear" ? "EFFACEMENT DES CASES" : "COLLAGE DES CASES"); }
+    draw(); svToast(n + " CASE(S) " + (v === "clear" ? "EFFACÉE(S)." : "COLLÉE(S)."), 1800); };
   const click = async e => {
     const gl0 = e.target.closest(".ach-link[data-nvgo]"); if (gl0) { const [t, gid] = gl0.dataset.nvgo.split("|"); achGo(t, gid); return true; }   /* nom souligné = sa propre fiche */
-    const ed = e.target.closest("td.nv-ed"); if (ed && !e.target.closest("input")) { if (ed.classList.contains("nv-sel")) edit(ed); else { document.querySelectorAll("td.nv-sel").forEach(t => t.classList.remove("nv-sel")); ed.classList.add("nv-sel"); } return true; }
+    const ed = e.target.closest("td.nv-ed"); if (ed && !e.target.closest("input")) { if (ed.classList.contains("nv-sel")) edit(ed); else { document.querySelectorAll("td.nv-sel").forEach(t => t.classList.remove("nv-sel")); ed.classList.add("nv-sel");
+        if (!ed.hasAttribute("tabindex")) ed.setAttribute("tabindex", "-1"); ed.classList.add("svi-tdf"); try { if (document.activeElement !== ed) ed.focus({ preventScroll: true }); } catch (er) {} } return true; }
     if (e.target.closest("input.nv-edin")) return true;
     const gl = e.target.closest(".ach-link[data-nvgo]"); if (gl) { const [t, gid] = gl.dataset.nvgo.split("|"); achGo(t, gid); return true; }
     const dy = e.target.closest("[data-nvday]"); if (dy) { dSel = dSel === dy.dataset.nvday ? "" : dy.dataset.nvday; draw(); return true; }

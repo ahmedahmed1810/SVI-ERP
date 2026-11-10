@@ -19657,7 +19657,7 @@ function sviBdgInstanceSaisie(C) {
     const guard = e => {
       if (!window.__sviRO) return;
       const t = e.target; if (!t || !t.closest) return;
-      const pg = t.closest(".bdg-d-page"); if (!pg) return;
+      const pg = t.closest(".bdg-d-page:not(.nvp)"); if (!pg) return;
       if (t.closest(".cf-btn, .col-rs, [data-tab], .blk-max-btn, .blk-more, .blk-grip, .blk-rsz, .ibd-board, .blk-scn, .blk-ver, .blk-rcl, .blk-etp, .blk-suivi")) return;
       const stop = say => { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); if (say) roSay(); };
       /* 09/11 (règle 8.2) : en lecture seule, la case se sélectionne quand même (cadre rouge, 2e toucher = tout sélectionné pour COPIER) :

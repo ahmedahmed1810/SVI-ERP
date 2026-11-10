@@ -165,7 +165,12 @@ function achCafPage(x, B) {
     change: (e, redraw) => { const t = e.target; if (!t.closest || !t.closest(".nvp")) return false;
       if (t.matches(".cafp-bsn")) { const b = achBsn().find(y => y.id === t.value); achCafSaveOne(x.id, c => { const l = c.lignes.find(y => y.id === t.dataset.li); if (!l) return; if (b) Object.assign(l, { bsn: b.id, des: b.des, u: b.u, q: achN(b.q), libre: false }); else delete l.bsn; }, "BESOIN DU DÉTAIL"); redraw(); return true; }
       if (t.matches(".cafp-des")) { const a = achArts().find(y => y.id === t.value); achCafSaveOne(x.id, c => { const l = c.lignes.find(y => y.id === t.dataset.li); if (!l || !a) return; if (achKey(a.des, a.u) !== achKey(l.des, l.u)) delete l.bsn; l.des = a.des; l.u = a.u; }, "DÉSIGNATION DU DÉTAIL"); redraw(); return true; }
-      if (t.matches(".cafp-l")) { achCafSaveOne(x.id, c => { const l = c.lignes.find(y => y.id === t.dataset.li); if (!l) return; const f = t.dataset.c; l[f] = f === "q" || f === "pu" ? achN(t.value) : achU(t.value); }); redraw(); return true; }
+      if (t.matches(".cafp-l")) { const li = t.dataset.li, f = t.dataset.c, nv = f === "q" || f === "pu" ? achN(t.value) : achU(t.value), c0 = achCaf().find(y => y.id === x.id), l0 = c0 && (c0.lignes || []).find(y => y.id === li), ov = l0 ? l0[f] : undefined;
+        const lab = { q: "QUANTITÉ", pu: "PRIX ESTIMÉ", des: "DÉSIGNATION", u: "UNITÉ" }[f] || "DÉTAIL", put = v => achCafSaveOne(x.id, c => { const l = c.lignes.find(y => y.id === li); if (l) l[f] = v; }, lab + " DU DÉTAIL : " + (v ?? ""));
+        put(nv); redraw();
+        /* 10/11 : ANNULER / RÉTABLIR de la saisie du détail */
+        if (String(ov ?? "") !== String(nv ?? "") && typeof sviUndoPush === "function") sviUndoPush(dir => { put(dir === "undo" ? ov : nv); const v = document.getElementById("ach"); if (v && v.__achDraw) v.__achDraw(); else redraw(); }, "MODIFICATION " + (f === "q" ? "DE LA QUANTITÉ" : "DU DÉTAIL"));
+        return true; }
       if (t.matches(".cafp-pay")) { achCafSaveOne(x.id, c => { c.rep[t.dataset.f] = { ...(c.rep[t.dataset.f] || {}), pay: achU(t.value) }; }, "CONDITIONS DE PAIEMENT"); return true; }
       if (t.matches(".cafp-rep")) { achCafSaveOne(x.id, c => { c.rep[t.dataset.f] = { ...(c.rep[t.dataset.f] || {}), st: t.value, date: achNow() }; }, "RÉPONSE"); redraw(); return true; }
       if (t.matches(".cafp-denv")) { achCafSaveOne(x.id, c => { const L = c.denv || []; c.denv = t.checked ? L.concat([t.dataset.d]) : L.filter(y => y !== t.dataset.d); }); return true; }

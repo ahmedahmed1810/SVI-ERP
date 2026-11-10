@@ -1015,8 +1015,9 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
     tap = i;
   }, true);
   /* 09/11 (8.2) : case en lecture seule (budget consolidé, validé…) — 2e clic = tout le contenu sélectionné, menu COPIER */
-  { let ro1 = null; document.addEventListener("pointerdown", e => { const i = e.target.closest && e.target.closest(ED); ro1 = i && (i.readOnly || i.disabled) && sviCellOf(i) && document.activeElement === i && e.pointerType === "mouse" ? i : null; }, true);
-    document.addEventListener("click", e => { const i = ro1; ro1 = null; if (!i || e.target !== i || i.__ro2) return; i.__ro2 = true; all(i); if (window.__sviTxtSel) window.__sviTxtSel.show(i); }, true);
+  { let ro1 = null; document.addEventListener("pointerdown", e => { const i = e.target.closest && e.target.closest(ED); const ae = document.activeElement; ro1 = i && (i.readOnly || i.disabled || (window.__sviRO && i.closest(".bdg-d-page:not(.nvp)"))) && sviCellOf(i) && (ae === i || ae === sviCellOf(i) || (ae && ae.tagName === "TD" && ae.contains(i))) && e.pointerType === "mouse" ? i : null;
+      if (ro1 && ae !== i) ro1.__ro2 = false; }, true);
+    document.addEventListener("click", e => { const i = ro1; ro1 = null; if (!i || e.target !== i || i.__ro2) return; i.__ro2 = true; if (document.activeElement !== i) i.focus({ preventScroll: true }); i.readOnly = true; all(i); setTimeout(() => { if (document.activeElement === i) { all(i); if (window.__sviTxtSel) window.__sviTxtSel.show(i); } }, 0); }, true);
     document.addEventListener("focusout", e => { if (e.target && e.target.__ro2) e.target.__ro2 = false; }, true); }
   document.addEventListener("mouseup", e => { if ((tap && e.target === tap) || (tap2 && e.target === tap2)) e.preventDefault(); }, true);
   document.addEventListener("pointerup", () => { const t = tap; setTimeout(() => { if (tap === t) tap = null; }, 120); }, true);
@@ -1351,7 +1352,7 @@ window.__sviCells = (() => {
   const count = () => { const k = kind(); return k === "list" ? LS().count() : k === "table" ? TS().count() : 0; };
   const copy = () => { const k = kind(); const n = k === "list" ? LS().copy() : k === "table" ? TS().copy() : 0; if (n && typeof svToast === "function") svToast(n + " CASE(S) COPIÉE(S) — PRÊTES À COLLER (GOOGLE SHEETS, EXCEL…).", 2200); return n; };
   /* 09/11 : budget en lecture seule — COLLER, EFFACER, retour arrière = le message LECTURE SEULE, rien ne change */
-  const roPg = () => { const a = document.activeElement, c = document.querySelector("td.svi-cs") || a; return !!(window.__sviRO && c && c.closest && c.closest(".bdg-d-page")); };
+  const roPg = () => { const a = document.activeElement, c = document.querySelector("td.svi-cs") || a; return !!(window.__sviRO && c && c.closest && c.closest(".bdg-d-page:not(.nvp)")); };
   const roMsg = () => { if (typeof svToast === "function") svToast(window.__sviRO, 3000); return 0; };
   const clear = () => {
     if (roPg()) return roMsg();
@@ -1394,6 +1395,7 @@ window.__sviCells = (() => {
       /* 09/11 : plusieurs INTITULÉ de budgets EN INSTANCE dans la liste — COLLER / EFFACER sur chaque case (une ligne collée par case, ou la même partout) */
       const SI = [...document.querySelectorAll("td.svi-cs")].filter(x => x.offsetParent !== null);
       if (v !== "copy" && SI.length && SI.every(x => x.matches("td.bdg-ied")) && window.__sviIedApply) { window.__sviIedApply(v, SI); setTimeout(place, 50); return; }
+      if (v !== "copy" && SI.length && SI.every(x => x.matches("td.nv-ed:not([data-edsel])")) && window.__sviNvEdApply) { window.__sviNvEdApply(v, SI); setTimeout(place, 50); return; }
       if (false) {
         (async () => { let lines = [""];
           if (v === "paste") { let t = ""; try { t = await navigator.clipboard.readText(); } catch (er) {} if (!t) t = window.__sviSelClip || "";
@@ -1417,7 +1419,7 @@ window.__sviCells = (() => {
     if (n < 2 || !sel.length) { if (B) B.style.display = "none"; return; }
     if (!B) build();
     /* 09/11 (Ahmed) : une case non modifiable (noire, liste, lecture seule) dans la sélection = COPIER seulement */
-    { const edOk = x => { if (window.__sviRO && x.closest && x.closest(".bdg-d-page")) return false; if (x.matches && x.matches("td.bdg-ied")) return true;   /* 09/11 : la lecture seule d'un budget ouvert avant ne vaut pas pour les listes */ const i = x.matches && x.matches(SVI_ED) ? x : x.querySelector && x.querySelector(SVI_ED); return !!i && !i.disabled && !i.readOnly; };
+    { const edOk = x => { if (window.__sviRO && x.closest && x.closest(".bdg-d-page:not(.nvp)")) return false; if (x.matches && x.matches("td.bdg-ied, td.nv-ed:not([data-edsel])")) return true;   /* 09/11 : la lecture seule d'un budget ouvert avant ne vaut pas pour les listes */ const i = x.matches && x.matches(SVI_ED) ? x : x.querySelector && x.querySelector(SVI_ED); return !!i && !i.disabled && !i.readOnly; };
       const ro = sel.some(x => !edOk(x)); B.querySelectorAll('[data-sb="paste"], [data-sb="clear"], .blk-sep').forEach(b => { b.style.display = ro ? "none" : ""; });
       const rh = Math.round(Math.max(18, Math.min(44, sel[0].getBoundingClientRect().height))); B.style.setProperty("--lph", rh + "px"); }
     let top = Infinity, left = Infinity, bottom = -Infinity;
@@ -1431,6 +1433,7 @@ window.__sviCells = (() => {
   };
   window.__sviSelBar = place;
   /* 09/11 : COLLER / EFFACER sur un ou plusieurs INTITULÉ de budgets en instance (liste) — annulable */
+  window.__sviNvEdApply = (v, SI) => { const t = SI[0] && SI[0].closest("table[data-svcw]"), f = t && (window.__sviNvEdMods || {})[t.dataset.svcw]; if (f) return f(v, SI); };
   window.__sviIedApply = async (v, SI) => { if (typeof sviInstGet !== "function") return; let lines = [""];
     if (v === "paste") { let t = ""; try { t = await navigator.clipboard.readText(); } catch (er) {} if (!t) t = window.__sviSelClip || "";
       lines = String(t).split(/\r?\n/).map(x => x.split("\t")[0].trim()).filter(Boolean); if (!lines.length) { if (typeof svToast === "function") svToast("RIEN À COLLER : COPIEZ D'ABORD DES CASES.", 2200); return; } }
