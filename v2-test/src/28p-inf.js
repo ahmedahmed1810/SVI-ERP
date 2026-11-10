@@ -146,7 +146,7 @@ function sviBdgInf(C) {
     const Kc = INS ? k2Coef() : 1, Kr = DS ? prdHT / DS : 0, PRV = DS * (INS ? (1 + n0((k.coef || {}).fc) / 100) * (1 + n0((k.coef || {}).fg) / 100) * (1 + n0((k.coef || {}).al) / 100) : 1);
     const P = INS ? infProj() : {}, today = new Date().toISOString().slice(0, 10), but = PJ ? PJ.dbutCalc || PJ.butoir || "" : INS && INS.dbut || "";
     const STB = { instance: "EN INSTANCE", fige: "FIGÉ", valide: "VALIDÉ", annule: "ANNULÉ" }[budget.inst.state || "instance"] || "";
-    const ro = (lab, v, tip) => `<span class="doc-lab"${tip ? ` data-tip="${esc(tip)}"` : ""}>${lab}</span><span class="doc-in doc-ro inf-val inf-calc">${esc(v ?? "")}</span>`;
+    const ro = (lab, v, tip, dv) => `<span class="doc-lab"${tip ? ` data-tip="${esc(tip)}"` : ""}>${lab}</span><span class="doc-in doc-ro inf-val inf-calc"${dv ? ` data-k2v="${dv}"` : ""}>${esc(v ?? "")}</span>`;
     const inp = (id, lab, v, q = {}) => `<span class="doc-lab">${lab}${q.req ? STAR : ""}</span>${ed ? `<input class="doc-in inf-int k2-x" id="${id}" value="${esc(v ?? "")}"${q.num ? ' inputmode="decimal"' : ""}${q.ph ? ` placeholder="${esc(q.ph)}"` : ""} autocomplete="off">` : `<span class="doc-in doc-ro inf-val">${esc(v ?? "")}</span>`}`;
     const sel = (id, lab, opts, v, q = {}) => `<span class="doc-lab">${lab}${q.req ? STAR : ""}</span>${ed ? `<select class="doc-in k2-x" id="${id}"><option value="">—</option>${opts.map(o => { const a = Array.isArray(o) ? o[0] : o, t = Array.isArray(o) ? o[1] : o; return `<option value="${esc(a)}"${String(v ?? "") === String(a) ? " selected" : ""}>${esc(t)}</option>`; }).join("")}</select>` : `<span class="doc-in doc-ro inf-val">${esc((opts.find(o => (Array.isArray(o) ? o[0] : o) === v) || [v, v])[1] ?? v ?? "")}</span>`}`;
     const PCOL = PJ ? (PJ.clot ? "valide" : PJ.arch ? "archive" : "instance") : "";
@@ -174,9 +174,9 @@ function sviBdgInf(C) {
         ${INS.dobj && but && INS.dobj > but ? `<div class="inf-note inf-late k2-wide">⚠ LA DATE OBJECTIF DÉPASSE LA DATE BUTOIR DU PROJET.</div>` : ""}`],
       ["coef", "COEFFICIENTS DE PRIX", 6, () => { const c = k.coef || {};
         return `${inp("k2Fc", "FRAIS DE CHANTIER (%)", c.fc ?? "", { num: 1 })}${inp("k2Fg", "FRAIS GÉNÉRAUX (%)", c.fg ?? "", { num: 1 })}${inp("k2Al", "ALÉAS / IMPRÉVUS (%)", c.al ?? "", { num: 1 })}${inp("k2Mg", "MARGE (%)", c.mg ?? "", { num: 1 })}
-        ${ro("COEFFICIENT K (COEFFICIENTS)", Kc.toFixed(4).replace(".", ","), "K = (1 + FRAIS DE CHANTIER) × (1 + FRAIS GÉNÉRAUX) × (1 + ALÉAS) × (1 + MARGE)")}${ro("K RÉEL (PRIX ÷ DÉBOURSÉ SEC)", Kr ? Kr.toFixed(4).replace(".", ",") : "—", "POUR INFORMATION")}
+        ${ro("COEFFICIENT K (COEFFICIENTS)", Kc.toFixed(4).replace(".", ","), "K = (1 + FRAIS DE CHANTIER) × (1 + FRAIS GÉNÉRAUX) × (1 + ALÉAS) × (1 + MARGE)", "kc")}${ro("K RÉEL (PRIX ÷ DÉBOURSÉ SEC)", Kr ? Kr.toFixed(4).replace(".", ",") : "—", "POUR INFORMATION")}
         ${ed ? `<span class="doc-lab"></span><span class="inf-cell"><button type="button" class="doc-btn k2-propose">PROPOSER LES PRIX AVEC K</button></span>` : ""}`; }],
-      ["mt", "MONTANTS", 5, () => `${ro("DÉBOURSÉ SEC", money(DS))}${ro("PRIX DE REVIENT", money(PRV), "DÉBOURSÉ SEC × FRAIS DE CHANTIER × FRAIS GÉNÉRAUX × ALÉAS")}${ro("MONTANT HT", money(prdHT))}${ro("TVA", money(prdTTC - prdHT))}${ro("MONTANT TTC", money(prdTTC))}`],
+      ["mt", "MONTANTS", 5, () => `${ro("DÉBOURSÉ SEC", money(DS))}${ro("PRIX DE REVIENT", money(PRV), "DÉBOURSÉ SEC × FRAIS DE CHANTIER × FRAIS GÉNÉRAUX × ALÉAS", "prv")}${ro("MONTANT HT", money(prdHT))}${ro("TVA", money(prdTTC - prdHT))}${ro("MONTANT TTC", money(prdTTC))}`],
       ["ctl", "CONTRÔLE DES DÉPENSES", 3, () => `${inp("k2Seuil", "SEUIL DE VALIDATION (%)", k.seuil ?? 90, { num: 1 })}${ro("DEVISE", (PJ && PJ.devise) || "MAD", "REPRISE DU PROJET")}${inp("k2Taux", "TAUX DE CHANGE", k.taux ?? "", { num: 1, ph: "FIGÉ À LA VALIDATION" })}
         <div class="inf-note k2-wide">AU-DELÀ DU SEUIL (PAR CHARGE OU POUR TOUT LE BUDGET), OU QUAND LE RAPPORT CHARGES / PRODUITS RÉALISÉ DÉPASSE CELUI DU BUDGET, UNE COMMANDE PASSE PAR LA VALIDATION D'UN SUPÉRIEUR (JAMAIS BLOQUÉE).</div>`]
     ];
@@ -226,7 +226,10 @@ function sviBdgInf(C) {
       try { document.title = (budget.project || "") + " " + (fullRef || ""); } catch (e) {}
       return true;
     };
-    const K2BASE = JSON.stringify(collect().k2 || null);   /* état à l'ouverture : FERMER sans rien changer ne demande rien */
+    const K2BASE = JSON.stringify(collect().k2 || null);
+    /* K et PRIX DE REVIENT recalculés à la saisie des coefficients */
+    p.addEventListener("input", e => { if (!e.target.closest("#k2Fc, #k2Fg, #k2Al, #k2Mg")) return; const g = id => n0((p.querySelector("#" + id) || {}).value), a = (1 + g("k2Fc") / 100) * (1 + g("k2Fg") / 100) * (1 + g("k2Al") / 100);
+      const kc = p.querySelector('[data-k2v="kc"]'), pr = p.querySelector('[data-k2v="prv"]'); if (kc) kc.textContent = (a * (1 + g("k2Mg") / 100)).toFixed(4).replace(".", ","); if (pr) pr.textContent = money(DS * a); });   /* état à l'ouverture : FERMER sans rien changer ne demande rien */
     p.addEventListener("change", e => { if (e.target.closest("#k2Type")) redrawTyp(); });
     p.addEventListener("click", async e => {
       const sc = e.target.closest("[data-k2sec]"); if (sc) { const sec = sc.closest(".cp-fsec"), on = !sec.classList.contains("on"); sec.classList.toggle("on", on); sec.querySelector(".cp-body").hidden = !on; sc.querySelector(".cp-ar").textContent = on ? "⌄" : "›"; return; }
