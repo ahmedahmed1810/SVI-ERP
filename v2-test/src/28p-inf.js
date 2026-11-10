@@ -209,7 +209,7 @@ function sviBdgInf(C) {
     const changed = o => (o.project !== undefined && o.project !== String(budget.project || ""))
       || (o.intitule !== undefined && o.intitule !== String(budget.inst.intitule === "À COMPLÉTER" ? "" : budget.inst.intitule || "").trim().toUpperCase())
       || (o.created !== undefined && o.created && o.created !== String(budget.inst.created || "")) || ["deb", "obj"].some(f => o[f] !== undefined)
-      || (o.k2 && JSON.stringify(o.k2) !== JSON.stringify({ ...K2(), coef: { ...(K2().coef || {}) } }));
+      || (o.k2 && JSON.stringify(o.k2) !== K2BASE);
     /* type changé : seule la section TYPE ET VERSION est redessinée (les autres saisies restent en place) */
     const redrawTyp = () => { const o = collect(); if (o.k2) k = o.k2; const g = p.querySelector('.cp-fsec[data-s="typ"] .doc-grid'); if (g) { g.innerHTML = SECS.find(x => x[0] === "typ")[3](); g.querySelectorAll(".k2-x").forEach(up); try { popEnhance(p, "inf"); } catch (e) {} } };
     const save = () => {
@@ -226,6 +226,7 @@ function sviBdgInf(C) {
       try { document.title = (budget.project || "") + " " + (fullRef || ""); } catch (e) {}
       return true;
     };
+    const K2BASE = JSON.stringify(collect().k2 || null);   /* état à l'ouverture : FERMER sans rien changer ne demande rien */
     p.addEventListener("change", e => { if (e.target.closest("#k2Type")) redrawTyp(); });
     p.addEventListener("click", async e => {
       const sc = e.target.closest("[data-k2sec]"); if (sc) { const sec = sc.closest(".cp-fsec"), on = !sec.classList.contains("on"); sec.classList.toggle("on", on); sec.querySelector(".cp-body").hidden = !on; sc.querySelector(".cp-ar").textContent = on ? "⌄" : "›"; return; }

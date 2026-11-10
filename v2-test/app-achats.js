@@ -4124,7 +4124,8 @@ function achCpWin(o) {
   const L0 = o.L(), x0 = L0.find(y => y.id === o.id); if (!x0) return;
   const F = JSON.parse(JSON.stringify(x0)), ro = !!x0.del || achSt(x0) !== "instance" && !o.editValid;
   Object.keys(o.subs || {}).forEach(k => { if (!Array.isArray(F[k])) F[k] = []; });
-  let tab = o.tabs[0][0]; const d = sviWinNew(), OPEN = new Set([o.tabs[0][2][0]]);
+  const T0 = (o.focusK && o.tabs.find(t => t[2].some(sk => (o.secKeys || {})[sk] && o.secKeys[sk].includes(o.focusK)))) || o.tabs[0];
+  let tab = T0[0]; const d = sviWinNew(), OPEN = new Set([T0[2].find(sk => o.focusK && (o.secKeys || {})[sk] && o.secKeys[sk].includes(o.focusK)) || T0[2][0]]);
   const h = {
     inp: (k, lab, q = {}) => `<label class="frs-f${q.w ? " frs-w" : ""}"><span>${lab}${q.req ? " <b>*</b>" : ""}</span><input class="ins-in cp-x" data-k="${k}"${q.mask ? ` data-mask="${q.mask}"` : ""} value="${esc(q.mask && typeof sviMaskFmt === "function" ? sviMaskFmt(q.mask, F[k] ?? "") : F[k] ?? "")}"${q.num ? ' inputmode="numeric"' : ""}${q.date ? ' type="date"' : ""}${q.keep ? " data-keepcase" : ""}${q.list ? ` list="cpL-${k}"` : ""}${ro || q.ro ? " readonly" : ""} autocomplete="off">${q.list ? `<datalist id="cpL-${k}">${q.list.map(v => `<option value="${esc(v)}">`).join("")}</datalist>` : ""}</label>`,
     sel: (k, lab, opts, q = {}) => `<label class="frs-f${q.w ? " frs-w" : ""}"><span>${lab}${q.req ? " <b>*</b>" : ""}</span><select class="ins-in cp-xs" data-k="${k}"${ro ? " disabled" : ""}><option value="">—</option>${opts.map(v => { const a = Array.isArray(v) ? v[0] : v, t = Array.isArray(v) ? v[1] : v; return `<option value="${esc(a)}"${String(F[k] ?? "") === String(a) ? " selected" : ""}>${esc(t)}</option>`; }).join("")}</select></label>`,
@@ -4152,6 +4153,7 @@ function achCpWin(o) {
           : (() => { const S = o.fold[s], on = OPEN.has(s), n = S[1] === "t" ? (F[S[2]] || []).length : S[1]; return `<div class="frs-sec cp-fsec${on ? " on" : ""}" data-s="${s}"${t[0] === tab ? "" : " hidden"}><button type="button" class="frs-st cp-st" data-cpsec="${s}"><span class="cp-ar">${on ? "⌄" : "›"}</span>${S[0]} ${svCnt(n)}</button><div class="cp-body"${on ? "" : " hidden"}>${o.secs[s](F, h, ro)}</div></div>`; })()).join("")).join("")}</div>`,
       foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${ro ? "" : `<button type="button" class="svc-b svc-ok svc-neutral" data-cpok>ENREGISTRER</button>`}` }); };
   draw(); sviWinShow(d);
+  if (o.focusK) setTimeout(() => { const i = d.querySelector(`.cp-x[data-k="${o.focusK}"]`); if (i) { i.scrollIntoView({ block: "center" }); i.focus(); } }, 60);
   d.addEventListener("change", e => { const f = e.target.closest(".cp-logo-in"); if (f && f.files && f.files[0]) { const r = new FileReader(); r.onload = () => { pull(); F[f.dataset.k || "logo"] = String(r.result || ""); draw(); }; r.readAsDataURL(f.files[0]); return; }
     if (o.live && e.target.closest(".cp-x, .cp-xs, .cp-xc, .cp-s")) { pull(); draw(); } });   /* K1 : champs calculés recalculés à la saisie */
   d.addEventListener("click", async e => {
@@ -4248,9 +4250,9 @@ const ON = ["OUI", "NON"];
 const achBanques = () => { try { return sviPgL("banques").filter(x => !x.p).map(x => x.lab); } catch (e) { return []; } };
 const achDevises = () => { try { const D = sviPgL("devises").map(x => x.code); return D.length ? D : ["MAD"]; } catch (e) { return ["MAD"]; } };
 const achQqNoms = () => { try { const S = new Set(); (sviInstGet() || []).forEach(b => ((b.data || {}).qlt || []).forEach(q => { [q.org, q.labo, q.bc, q.nom].forEach(v => { if (v) S.add(achU(v)); }); })); achPrj().forEach(p => (p.interv || []).forEach(x => { if (x.nom) S.add(achU(x.nom)); })); return [...S].sort(); } catch (e) { return []; } };
-function achPrjFiche(id, done) {
+function achPrjFiche(id, done, focusK) {
   const p0 = achPrj().find(x => x.id === id); if (!p0) return;
-  achCpWin({ L: achPrj, save: achPrjSave, id, done, labs: ACH_PRJ_LAB, why: achPrjWhyK, live: true, editValid: true, ttl: F => esc(F.code || ""),   /* I8 : code du projet seul au bandeau */
+  achCpWin({ L: achPrj, save: achPrjSave, id, done, focusK, secKeys: { mar: ["cli", "moad", "aoNum", "dPlis", "cons", "aoObj", "marche", "mtHt", "tva"], cht: ["gps", "adresse", "ville"], dl: ["butoir", "dOs", "delaiMois"] }, labs: ACH_PRJ_LAB, why: achPrjWhyK, live: true, editValid: true, ttl: F => esc(F.code || ""),   /* I8 : code du projet seul au bandeau */
     check: (F, L) => !F.code ? "CODE PROJET OBLIGATOIRE." : L.some(y => y.id !== id && !y.del && achU(y.code) === achU(F.code)) ? "CE CODE PROJET EXISTE DÉJÀ." : "",
     tabs: [["id", "IDENTITÉ", ["gen", "cht"]], ["mar", "MARCHÉ", ["mar", "lots", "avn"]], ["itv", "INTERVENANTS", ["ccli", "interv", "str"]], ["del", "DÉLAIS ET MOYENS", ["dl", "moy", "reu"]],
       ["fin", "FINANCES", ["fac", "gar", "cpt"]], ["cnf", "CONFORMITÉ ET SUIVI", ["aut", "sec", "res", "recl"]]],

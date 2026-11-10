@@ -793,11 +793,12 @@ window.addEventListener("load", () => build());
   /* budget en instance : même modèle, avec lignes titres et sous-totaux */
   /* v663 (axe 12) : SUR CONSULTATION cochée et numéro vide → fenêtre NUMÉRO D'APPEL D'OFFRES MANQUANT (RENSEIGNER / CONTINUER / NE PLUS AFFICHER) */
   const bpuAoWarn = go => {
+    try { if (typeof sviBdgPrjSync === "function") sviBdgPrjSync(budget, INS); } catch (e) {}   /* série K : le marché se lit dans la fiche du projet */
     const A = (INS && INS.ao) || {};
     if (!INS || !A.cons || String(A.num || "").trim() || A.noWarn) return go();
     const d = sviWinNew();
     d.innerHTML = sviWinCard({ title: "NUMÉRO D'APPEL D'OFFRES MANQUANT", close: "data-x",
-      body: `<div class="svc-x">LE BUDGET EST SUR CONSULTATION, MAIS LE NUMÉRO D'APPEL D'OFFRES N'EST PAS SAISI DANS INF. SANS LUI, LA RÉFÉRENCE DU BORDEREAU SERA ${esc(fullRef)}.</div>
+      body: `<div class="svc-x">LE BUDGET EST SUR CONSULTATION, MAIS LE NUMÉRO D'APPEL D'OFFRES N'EST PAS SAISI DANS LA FICHE DU PROJET (MARCHÉ). SANS LUI, LA RÉFÉRENCE DU BORDEREAU SERA ${esc(fullRef)}.</div>
         <label class="ao-nw"><input type="checkbox" id="aoNw"> NE PLUS AFFICHER CE MESSAGE</label>`,
       foot: `<button type="button" class="svc-b" data-v="go">CONTINUER</button><button type="button" class="svc-b svc-ok svc-neutral" data-v="inf">RENSEIGNER</button>` });
     sviWinShow(d);
@@ -806,7 +807,8 @@ window.addEventListener("load", () => build());
       const b = e.target.closest("[data-v]"); if (!b) return;
       if (d.querySelector("#aoNw").checked) { INS.ao = { ...A, noWarn: true }; insSave(); }
       d.remove();
-      if (b.dataset.v === "inf") openInfo("ao"); else go();
+      if (b.dataset.v === "inf") { const code = String(budget.project || "").toUpperCase(); const run = () => { try { achPrjSync(); const P = achPrj().find(x => !x.del && String(x.code || "").toUpperCase() === code); if (P) achPrjFiche(P.id, () => {}, "aoNum"); else openInfo("id"); } catch (er) { openInfo("id"); } };
+        if (typeof achPrjFiche === "function") run(); else if (typeof sviAchLoad === "function") sviAchLoad().then(run).catch(() => openInfo("id")); } else go();
     });
   };
   const printClientIns = rows => {

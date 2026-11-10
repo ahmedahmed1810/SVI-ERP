@@ -2136,20 +2136,22 @@ def main():
               q2 and "1,25" in g2 and fm(e[0]) in a2 and fm(e[1]) in b2 and fm(e[2]) in c2 and abs(d2 - e[2]) < 0.01, [q2, e, a2[:200], g2, b2[:160], c2[:160], d2])
 
         # v663 (axe 12) : INF — client PUBLIC = SUR CONSULTATION d'office ; bordereau : RÉFÉRENCE, OBJET, phrase ARRÊTÉ ; numéro manquant → fenêtre
-        pg.evaluate("() => document.querySelector('[data-pill=\"inf\"]')?.click()"); pg.wait_for_timeout(400)
-        pg.evaluate("() => { const r = document.querySelector('#docPop input[name=\"infAoT\"][value=\"pub\"]'); r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }")
-        pg.fill("#infAoO", "construction d'une piscine"); pg.wait_for_timeout(100)
-        pg.evaluate("() => document.querySelector('#docPop .inf-save')?.click()"); pg.wait_for_timeout(400)
+        # v1081 (série K) : le marché (type de client, AO, objet) se saisit dans la FICHE DU PROJET ; le budget le lit
+        pg.evaluate(f"""async () => {{ await sviAchLoad(); achPrjSync(); const X = {ins}, code = String((sviInstGet().find(b => b.ref === 'TEST-1') || {{}}).project || '').toUpperCase();
+            const C = achCli(), c = achCliNew(C, {{ nom: 'COMMUNE TEST', type: 'PUBLIC' }}); achCliSave(C);
+            const L = achPrj(); let p = L.find(x => String(x.code || '').toUpperCase() === code); if (!p) p = achPrjNew(L, {{ code }});
+            window.__k663 = JSON.stringify(p); p.cli = c.id; p.aoObj = "CONSTRUCTION D'UNE PISCINE"; p.aoNum = ''; achPrjSave(L); sviBdgPrjSync({{ project: code, inst: {{}} }}, X.INS); X.insSave(); }}""")
+        pg.wait_for_timeout(200)
         ao = pg.evaluate(f"() => JSON.stringify({ins}.INS.ao || null)")
         pg.evaluate("() => document.querySelector('[data-blk=\"client\"][data-act=\"pdf\"]')?.click()"); pg.wait_for_timeout(400)
         aw = pg.evaluate("() => (document.querySelector('#svConf .svc-t') || {}).textContent || ''")
-        pg.evaluate("() => document.querySelector('#svConf [data-v=\"inf\"]')?.click()"); pg.wait_for_timeout(400)
-        fo = pg.evaluate("() => document.activeElement && document.activeElement.id")
-        pg.fill("#infAoN", "AO 12/2026"); pg.evaluate("() => document.querySelector('#docPop .inf-save')?.click()"); pg.wait_for_timeout(400)
+        pg.evaluate("() => document.querySelector('#svConf [data-v=\"inf\"]')?.click()"); pg.wait_for_timeout(600)
+        fo = pg.evaluate("() => document.activeElement && document.activeElement.dataset && document.activeElement.dataset.k === 'aoNum' ? 'infAoN' : (document.activeElement && document.activeElement.id)")
+        pg.evaluate("() => { const i = document.querySelector('#svConf .cp-x[data-k=\"aoNum\"]'); if (i) i.value = 'AO 12/2026'; document.querySelector('#svConf [data-cpok]')?.click(); }"); pg.wait_for_timeout(400)
         pg.evaluate("() => document.querySelector('[data-blk=\"client\"][data-act=\"pdf\"]')?.click()")
         pv = MepView(pg); pv.wait_for_timeout(1200)
         bt = pv.evaluate("() => document.body.innerText"); pv.close()
-        pg.evaluate(f"() => {{ const X = {ins}; delete X.INS.ao; X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
+        pg.evaluate(f"""() => {{ const X = {ins}; delete X.INS.ao; X.insSave(); const L = achPrj(), o = JSON.parse(window.__k663 || 'null'); if (o) {{ const i = L.findIndex(x => x.id === o.id); if (i >= 0) L[i] = o; achPrjSave(L); }} achCliSave(achCli().filter(x => x.nom !== 'COMMUNE TEST')); X.refreshAll(); }}"""); pg.wait_for_timeout(300)
         check("v663 axe 12 : INF client PUBLIC → SUR CONSULTATION ; numéro vide → NUMÉRO D'APPEL D'OFFRES MANQUANT, RENSEIGNER = curseur dans la case ; bordereau avec RÉFÉRENCE, OBJET et ARRÊTÉ",
               '"pub":true' in ao and '"cons":true' in ao and "MANQUANT" in aw and fo == "infAoN"
               and "BORDEREAU DES PRIX – DÉTAIL ESTIMATIF" in bt and "RÉFÉRENCE : AO 12/2026" in bt and "OBJET : CONSTRUCTION D'UNE PISCINE" in bt and "ARRÊTÉ LE PRÉSENT BORDEREAU" in bt,
@@ -3424,7 +3426,7 @@ def main():
             const L = [{ ref: 'A' }, { ref: 'A1', parent: 'A' }, { ref: 'R1', rclOf: 'A' }, { ref: 'R2', rclOf: 'A1' }, { ref: 'B' }, { ref: 'RB', rclOf: 'B' }];
             const r = [sviBdgFamilyDrop(L, 'A').map(x => x.ref).join(',')]; localStorage.removeItem('svi_clients_v1'); sviClientAdd('onee'); sviClientAdd('ONEE'); r.push(sviClients().length, sviClients()[0].nom);
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); if (!document.querySelector('[data-newbdg]')) document.querySelector('[data-nvsw], .bdg-sw')?.click(); await w(200);
-            const nb = document.querySelector('[data-newbdg]'); if (nb) { nb.click(); await w(300); const p = document.querySelector('.pop-new-bdg'); p.querySelector('#nbPrj').value = 'T1'; p.querySelector('#nbGo').click(); await w(150);
+            const nb = document.querySelector('[data-newbdg]'); if (nb) { nb.click(); await w(300); const p = document.querySelector('.pop-new-bdg'); const s = p.querySelector('#nbPrj'); const o = [...s.options].find(x => x.value && !x.dataset.cli); if (o) s.value = o.value; else { s.insertAdjacentHTML('beforeend', '<option value="T1" data-cli="">T1</option>'); s.value = 'T1'; } s.dispatchEvent(new Event('change', { bubbles: true })); p.querySelector('#nbGo').click(); await w(150);   /* série K : projet choisi dans la liste ; client repris du projet */
               r.push(/CLIENT/.test(p.querySelector('#nbErr').textContent), !!p.querySelector('#nbCli')); p.remove(); } else r.push('pas de ligne CRÉER');
             if (keepC === null) localStorage.removeItem('svi_clients_v1'); else localStorage.setItem('svi_clients_v1', keepC); return r; }""")
         check("v820 : points du cahier — client obligatoire (fiche CLIENT, sans doublon), suppression d'un budget avec ses avenants et recalages", c820 == ["B,RB", 1, "ONEE", True, True], c820)
