@@ -270,40 +270,42 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
   const KIT = sviCfKit({ key: "cai", shell: d, refresh: () => draw() });
   const kOf = (g, r) => g === "L" ? r.id : g === "F" ? r.k : g === "D" ? r.k : r.id;
   const opt = (v, t, sel) => `<option value="${esc(v)}"${sel ? " selected" : ""}>${esc(t)}</option>`;
-  const cell = (g, c, r, i) => { const k = c[0], cl = c[3] || "";
-    if (ro) return `<td class="${cl}">${esc(c[2](r))}</td>`;
-    if (g === "L" && k === "bsn") return `<td><select class="ins-in cai-x" data-g="L" data-i="${i}" data-k="bsn">${opt("", "—", !r.bsn)}${(r.bsn && !BSN.some(b => b.id === r.bsn) && BS.get(r.bsn) ? [BS.get(r.bsn)] : []).concat(BSN).map(b => opt(b.id, b.ref + " — " + b.des, b.id === r.bsn)).join("")}</select></td>`;
-    if (g === "L") return `<td class="${cl}"><input class="ins-in cai-x${k === "q" ? " number" : ""}" data-g="L" data-i="${i}" data-k="${k}"${k === "des" ? ' list="caiArts"' : ""}${k === "q" ? ' inputmode="decimal"' : ""} value="${esc(k === "q" ? (r.q === "" || r.q === undefined ? "" : String(r.q).replace(".", ",")) : r[k] || "")}" autocomplete="off"></td>`;
-    if (g === "K" && k === "v") return `<td>${r.t === "on" ? `<select class="ins-in cai-x" data-g="K" data-i="${i}" data-k="v">${["", "OUI", "NON"].map(v => opt(v, v || "—", r.v === v)).join("")}</select>` : `<input class="ins-in cai-x${r.t === "num" ? " number" : ""}" data-g="K" data-i="${i}" data-k="v"${r.t === "date" ? ' type="date"' : ""} value="${esc(r.v || "")}" autocomplete="off">`}</td>`;
-    if (g === "F") return `<td><span class="${r.id ? "ach-link" : "cai-nw"}"${r.id ? ` data-nvgo="frs|${esc(r.id)}"` : ""}>${esc(r.nom)}</span>${r.id ? "" : ' <i class="cai-new">(NOUVEAU)</i>'}</td>`;
-    if (g === "D") return `<td>${r.fk ? `<span class="ach-link cafp-doc" data-fk="${esc(r.fk)}">${esc(r.title || r.ref || "")}</span>` : `${esc(r.title || "")} <i class="cai-new">(NOUVEAU)</i>`}</td>`;
-    return `<td>${esc(c[2](r))}</td>`; };
+  /* 11/11 : cases au format des listes du budget — texte affiché ; 1er toucher = case choisie, 2e = saisie (sur plusieurs lignes), liste de choix = menu */
+  const ED = { L: ["bsn", "des", "u", "q"], F: ["nom"], D: ["title"], K: ["lab", "v"] };
+  const shown = (g, k, r) => { if (g === "L" && k === "bsn") { const b = BS.get(r.bsn); return b ? b.ref + " — " + b.des : ""; } if (g === "L" && k === "q") return r.q === "" || r.q === undefined ? "" : achF2(r.q);
+    if (g === "K" && k === "v") return r.t === "date" ? achDFr(r.v || "") : r.v || ""; return String(r[k] ?? ""); };
+  const cell = (g, c, r, i) => { const k = c[0], cl = c[3] || "", v = shown(g, k, r);
+    const canEd = !ro && (ED[g] || []).includes(k) && !(g === "F" && r.id) && !(g === "D" && r.fk) && !(g === "K" && k === "lab" && r.k !== "autre");
+    const sel = (g === "L" && k === "bsn") || (g === "K" && k === "v" && r.t === "on");
+    if (g === "F" && r.id) return `<td><span class="ach-link" data-nvgo="frs|${esc(r.id)}">${esc(r.nom)}</span></td>`;
+    if (g === "D" && r.fk) return `<td><span class="ach-link cafp-doc" data-fk="${esc(r.fk)}">${esc(r.title || r.ref || "")}</span></td>`;
+    const nw = (g === "F" && !r.id) || (g === "D" && !r.fk) ? ' <i class="cai-new">(NOUVEAU)</i>' : "";
+    return `<td class="${cl}${canEd ? " nv-ed" : ""}"${canEd ? ` data-ed="${k}" data-g="${g}" data-i="${i}"${sel ? ' data-edsel="1"' : ""}` : ""} title="${esc(v)}">${esc(v)}${nw}</td>`; };
   const list = g => { const t = "cai_" + g, C0 = COLS[g], CO = coOrder(t, C0.map(c => [c[0], c[1], c[2], c[3] || ""])), R0 = LST[g]().map((r, i) => ({ ...r, __i: i })), R = KIT.cfApply(t, CO, R0);
     /* largeurs : partagées dans la largeur de la liste, sauf celles réglées à la main (bord tiré) */
     const CW = cwLoad(), PR = { bsn: 1, des: 1.6, u: .75, q: .85, nom: 1, title: 1, lab: 1.3, v: 1 };
     const sum = CO.reduce((x, c) => x + (CW[t + "." + c[0]] ? 0 : PR[c[0]] || 1), 0) || 1;
     const WD = CO.map(c => { const w = CW[t + "." + c[0]]; return w ? w + "px" : Math.floor((PR[c[0]] || 1) / sum * 82) + "%"; });
-    const cg = `<colgroup><col data-k="_rd" style="width:26px">${CO.map((c, j) => `<col data-k="${c[0]}" style="width:${WD[j]}">`).join("")}<col data-k="_cb" style="width:28px"></colgroup>`
+    const cg = `<colgroup><col data-k="_rd" style="width:30px">${CO.map((c, j) => `<col data-k="${c[0]}" data-wd="${WD[j]}" style="width:${WD[j]}">`).join("")}<col data-k="_cb" style="width:32px"></colgroup>`
       /* largeurs tenues (les moteurs de largeur des pages ne s'appliquent pas à cette fenêtre) */
-      + `<style>.cai-card .cai-t[data-svcw="${t}"]{width:100%!important;min-width:0!important}.cai-card .cai-t[data-svcw="${t}"] col:nth-child(1){width:26px!important}.cai-card .cai-t[data-svcw="${t}"] col:nth-child(${CO.length + 2}){width:28px!important}${CO.map((c, j) => `.cai-card .cai-t[data-svcw="${t}"] col:nth-child(${j + 2}){width:${WD[j]}!important}`).join("")}</style>`;
-    const all = R.length && R.every(r => (S.ck[g] || new Set()).has(r.__i));
-    const [cg1, st1] = cg.split("<style>"); return `<div class="cai-ls" data-g="${g}"><style>${st1}<table class="bdg-d-table rec-table cai-t" data-svcw="${t}" style="width:100%">${cg1}<thead><tr><th class="cai-rdh"></th>${CO.map(c => KIT.cfHead(t, c[0], c[1] + (c[0] === { L: "des", F: "nom", D: "title", K: "lab" }[g] ? " " + svCnt(R.length, R0.length) : ""), c[3])).join("")}<th class="center">${ro ? "" : `<input type="checkbox" class="cai-all" data-g="${g}"${all ? " checked" : ""}>`}</th></tr></thead>
-      <tbody>${R.map(r => `<tr data-g="${g}" data-i="${r.__i}"${r.imp ? ' class="cai-imp"' : ""}><td class="center"><button type="button" class="nvp-rd${(st => st ? " rd-" + st : "")(rdSt(g, kOf(g, r)))}" data-rg="${g}" data-rk="${esc(kOf(g, r))}" aria-label="Liaison"></button></td>${CO.map(c => cell(g, c, r, r.__i)).join("")}<td class="center">${ro ? "" : `<input type="checkbox" class="cai-ck" data-g="${g}" data-i="${r.__i}"${(S.ck[g] || new Set()).has(r.__i) ? " checked" : ""}>`}</td></tr>`).join("")}
+      + `<style>.cai-card .cai-t[data-svcw="${t}"]{width:100%!important;min-width:0!important}.cai-card .cai-t[data-svcw="${t}"] col:nth-child(1){width:30px!important}.cai-card .cai-t[data-svcw="${t}"] col:nth-child(${CO.length + 2}){width:32px!important}</style>`;
+        const [cg1, st1] = cg.split("<style>"); return `<div class="cai-ls" data-g="${g}"><style>${st1}<table class="bdg-d-table rec-table cai-t" id="caiT${g}" data-svcw="${t}" style="width:100%">${cg1}<thead><tr><th class="cai-rdh"></th>${CO.map(c => KIT.cfHead(t, c[0], c[1] + (c[0] === { L: "des", F: "nom", D: "title", K: "lab" }[g] ? " " + svCnt(R.length, R0.length) : ""), c[3])).join("")}${ro ? "<th></th>" : sviListCbTh()}</tr></thead>
+      <tbody>${R.map(r => `<tr data-g="${g}" data-i="${r.__i}"${r.imp ? ' class="cai-imp"' : ""}><td class="center"><button type="button" class="nvp-rd${(st => st ? " rd-" + st : "")(rdSt(g, kOf(g, r)))}" data-rg="${g}" data-rk="${esc(kOf(g, r))}" aria-label="Liaison"></button></td>${CO.map(c => cell(g, c, r, r.__i)).join("")}${ro ? "<td></td>" : `<td class="center nvl-cbc"><input type="checkbox" class="nvl-cb" aria-label="Cocher"${(S.ck[g] || new Set()).has(r.__i) ? " checked" : ""}></td>`}</tr>`).join("")}
       ${ro ? "" : `<tr class="rec-new" data-cai-new="${g}"><td colspan="${CO.length + 2}">${NEW[g]}</td></tr>`}</tbody></table></div>`; };
   S.ck = {};
-  const draw = () => { const ob = d.querySelector('.cafi-x[data-k="objet"]'); if (ob) C.objet = achU(ob.value);
-    d.innerHTML = sviWinCard({ cls: "frs-card caf-card caf-info cai-card", close: "data-x", title: achWinTtl(c0 && c0.ref, "NOUVELLE CONSULTATION"),
+  const draw = () => { if (d.isConnected) ckRead(); const ob = d.querySelector('.cafi-x[data-k="objet"]'); if (ob) C.objet = achU(ob.value);
+    d.innerHTML = sviWinCard({ cls: "frs-card caf-card caf-info cai-card", close: "data-x", title: "DÉTAIL CONSULTATION" + (c0 && c0.ref ? " — " + esc(c0.ref) : ""),
       body: `<div class="frs-g">${achCreeFld(c0)}<label class="frs-f frs-w"><span>OBJET</span><input class="ins-in cafi-x" data-k="objet" value="${esc(C.objet || "")}"${dis} autocomplete="off"></label></div>
         <div class="bdg-d-block cai-blk"><div class="bdg-d-block-title blk-head"><span class="ttl">CONSULTATION</span><span class="blk-tools"><button type="button" class="blk-more cai-more" aria-label="Actions">⋯</button></span></div>
         <div class="cai-grid">${["L", "F", "D", "K"].map(list).join("")}</div></div>
-        <datalist id="caiArts">${ARTS.map(a => `<option value="${esc(a.des)}">${esc(a.u || "")}</option>`).join("")}</datalist>
-        <datalist id="caiFrs">${FRS.filter(f => !S.F.some(x => x.id === f.id)).map(f => `<option value="${esc(f.nom)}"></option>`).join("")}</datalist>`,
-      foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${ro ? "" : `<button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button>`}` }); };
+`,
+      foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${ro ? "" : `<button type="button" class="svc-b svc-ok svc-neutral" data-ok>${c0 ? "ENREGISTRER" : "CRÉER"}</button>`}` }); };
   const sync = () => { d.querySelectorAll(".cai-x").forEach(i => { const g = i.dataset.g, k = i.dataset.k, o = (g === "L" ? S.L : S.K)[+i.dataset.i]; if (!o) return;
       if (g === "L" && k === "q") o.q = String(i.value).trim() === "" ? "" : achN(i.value); else if (g === "L" && k === "bsn") o.bsn = i.value || ""; else o[k] = k === "v" && i.type === "date" ? i.value : achU(i.value); });
     const ob = d.querySelector('.cafi-x[data-k="objet"]'); if (ob) C.objet = achU(ob.value); };
   /* suppression des lignes cochées (toutes les listes) : leurs liaisons partent avec elles ; un fournisseur qui a un devis est gardé */
-  const rmChecked = async () => { const n = Object.values(S.ck).reduce((a, x) => a + x.size, 0); if (!n) { svToast("COCHER D'ABORD LES LIGNES À SUPPRIMER (CASES À DROITE).", 3000); return; }
+  const ckRead = () => { S.ck = {}; d.querySelectorAll("tr[data-g] .nvl-cb:checked").forEach(x => { const tr = x.closest("tr"), A = S.ck[tr.dataset.g] = S.ck[tr.dataset.g] || new Set(); A.add(+tr.dataset.i); }); };
+  const rmChecked = async () => { ckRead(); const n = Object.values(S.ck).reduce((a, x) => a + x.size, 0); if (!n) { svToast("COCHER D'ABORD LES LIGNES À SUPPRIMER (CASES À DROITE).", 3000); return; }
     const D0 = achDvf(), keepF = S.F.filter((f, i) => (S.ck.F || new Set()).has(i) && f.id && D0.some(v => v.caf === (c0 && c0.id) && v.frs === f.id && v.state !== "annule"));
     const lab = g => [...(S.ck[g] || [])].map(i => LST[g]()[i]).filter(Boolean).filter(r => !keepF.includes(r)).map(r => "- " + (r.des || r.nom || r.title || r.lab || ""));
     const all = ["L", "F", "D", "K"].flatMap(lab); if (!all.length) { svToast("GARDÉ(S) : FOURNISSEUR AVEC DEVIS.", 3000); return; }
@@ -318,12 +320,40 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
   /* une seule fenêtre à la fois (#svConf) : une fenêtre ouverte depuis celle-ci la remplace le temps de la réponse, puis celle-ci revient telle quelle */
   const sub = async fn => { sync(); d.remove(); try { return await fn(); } finally { document.getElementById("svConf")?.remove(); document.body.appendChild(d); } };
   const subWin = open => sub(() => new Promise(ok => { open(); const t0 = Date.now(); const tm = setInterval(() => { if (Date.now() - t0 > 300 && !document.getElementById("svConf")) { clearInterval(tm); ok(); } }, 250); }));
+  /* largeurs tenues : les colonnes reprennent leur part de la liste, sauf une largeur tirée à la main (gardée) */
+  const hold = () => { if (d.querySelector(".col-rs.on")) return; const CW = cwLoad(); d.querySelectorAll(".cai-t col[data-wd]").forEach(c => { const t = c.closest("table").dataset.svcw; if (CW[t + "." + c.dataset.k]) { c.style.width = CW[t + "." + c.dataset.k] + "px"; return; } if (c.style.width !== c.dataset.wd) c.style.width = c.dataset.wd; }); };
+  new MutationObserver(() => requestAnimationFrame(hold)).observe(d, { childList: true, subtree: true, attributes: true, attributeFilter: ["style"] });
+  ["L", "F", "D", "K"].forEach(g => { (window.__sviNvEdMods = window.__sviNvEdMods || {})["cai_" + g] = async (v, tds) => { let lines = [""];
+      if (v === "paste") { let t = ""; try { t = await navigator.clipboard.readText(); } catch (er) {} if (!t) t = window.__sviSelClip || ""; lines = String(t).split(/\r?\n/).map(z => z.split("\t")[0].trim()).filter(Boolean); if (!lines.length) return; }
+      tds.forEach((td, n) => { const r = LST[td.dataset.g]()[+td.dataset.i], k = td.dataset.ed; if (!r || !k || td.dataset.edsel) return; const w = lines[Math.min(n, lines.length - 1)] || "";
+        if (k === "q") r.q = w === "" ? "" : achN(w); else r[k] = achU(w); }); draw(); }; });
   draw(); sviWinShow(d);
-  d.addEventListener("change", e => { const t = e.target;
-    if (t.matches(".cai-ck")) { const g = t.dataset.g, A = S.ck[g] = S.ck[g] || new Set(); if (t.checked) A.add(+t.dataset.i); else A.delete(+t.dataset.i); return; }
-    if (t.matches(".cai-all")) { sync(); const g = t.dataset.g, A = S.ck[g] = new Set(); if (t.checked) d.querySelectorAll(`.cai-ck[data-g="${g}"]`).forEach(x => A.add(+x.dataset.i)); draw(); return; }
-    if (t.matches('.cai-x[data-k="des"]')) { const a = ARTS.find(y => achU(y.des) === achU(t.value)), u = t.closest("tr").querySelector('[data-k="u"]'); if (a && u && !u.value) u.value = a.u || ""; return; }
-    if (t.matches('.cai-x[data-k="bsn"]')) { const b = BS.get(t.value); if (!b) return; sync(); const l = S.L[+t.dataset.i]; l.des = b.des; l.u = b.u; l.q = achN(b.q); draw(); } });
+  /* menu de suggestions (articles, fournisseurs) sous la case en saisie — menu de l'application, filtré au fil de la frappe */
+  let SUG = null; const sugOff = () => { if (SUG) { SUG.remove(); SUG = null; } };
+  const sugOn = (tip, items, pickFn) => { const paint = () => { if (!tip.isConnected) { sugOff(); return; } const q = achU(tip.textContent || "").trim(), L = items.filter(x => !q || achU(x.lab).includes(q)).slice(0, 12);
+      if (!L.length) { sugOff(); return; } if (!SUG) { SUG = document.createElement("div"); SUG.id = "caiSug"; SUG.className = "svi-stf-menu cai-sug"; document.body.appendChild(SUG); }
+      SUG.innerHTML = L.map((x, n) => `<button type="button" data-n="${n}"><b>${esc(x.lab)}</b>${x.sub ? `<span>${esc(x.sub)}</span>` : ""}</button>`).join(""); SUG.__L = L;
+      const r = tip.getBoundingClientRect(); Object.assign(SUG.style, { left: r.left + "px", top: (r.bottom + 2) + "px", minWidth: r.width + "px" }); };
+    paint(); tip.addEventListener("input", () => requestAnimationFrame(paint));
+    SUG.__pick = x => { tip.textContent = x.lab; pickFn(x); }; };
+  window.addEventListener("pointerdown", e => { const b = SUG && e.target.closest && e.target.closest("#caiSug [data-n]"); if (!b) return; e.preventDefault(); const x = SUG.__L[+b.dataset.n]; SUG.__pick(x); }, true);
+  const editCell = td => { const g = td.dataset.g, k = td.dataset.ed, i = +td.dataset.i, r = LST[g]()[i]; if (!r) return;
+    if (td.dataset.edsel) { const O = g === "L" ? [{ k: "", lab: "—" }].concat(BSN.map(b => ({ k: b.id, lab: b.ref + " — " + b.des + " (" + achF2(b.q) + " " + b.u + ")" }))) : ["", "OUI", "NON"].map(v => ({ k: v, lab: v || "—" }));
+      sviEtatMenu(td, O, String(g === "L" ? r.bsn || "" : r.v || ""), nv => { if (g === "L") { r.bsn = nv; const b = BS.get(nv); if (b) { r.des = b.des; r.u = b.u; r.q = achN(b.q); } } else r.v = nv; draw(); }); return; }
+    const v0 = g === "K" && k === "v" && r.t === "date" ? achDFr(r.v || "") : g === "L" && k === "q" ? (r.q === "" || r.q === undefined ? "" : String(r.q).replace(".", ",")) : String(r[k] ?? "");
+    let pick = null;
+    const tip = window.sviTaEdit(td, v0, (ok, v) => { sugOff(); if (!ok) { if (g === "F" && !r.nom) S.F = S.F.filter(x => x !== r); if (g === "K" && !r.lab) S.K = S.K.filter(x => x !== r); draw(); return; }
+      if (g === "L" && k === "q") r.q = String(v).trim() === "" ? "" : achN(v);
+      else if (g === "K" && k === "v" && r.t === "date") r.v = (typeof cfDate === "function" && cfDate(v)) || v;
+      else if (g === "F") { const nom = achU(v); if (!nom) { if (!r.nom) S.F = S.F.filter(x => x !== r); draw(); return; } const f = FRS.find(x => achU(x.nom) === nom);
+        if (S.F.some(x => x !== r && ((f && x.id === f.id) || achU(x.nom) === nom))) { svToast("DÉJÀ DANS LA CONSULTATION.", 2500); if (!r.nom) S.F = S.F.filter(x => x !== r); draw(); return; }
+        r.nom = f ? f.nom : nom; if (f) { const old = r.k; r.id = f.id; r.k = f.id; Object.values(S.lk).forEach(M => { if (M[old]) { M[f.id] = M[old]; delete M[old]; } Object.keys(M).forEach(a => { M[a] = (M[a] || []).map(b => b === old ? f.id : b); }); }); if (S.sel && S.sel.k === old) S.sel.k = f.id; } }
+      else { r[k] = achU(v); if (g === "L" && k === "des") { const a = (pick && achU(pick.lab) === achU(v)) ? pick.a : ARTS.find(y => achU(y.des) === achU(v)); if (a && (!r.u || pick)) r.u = a.u || r.u; } }
+      if (g === "K" && k === "lab" && r.lab) { const P = achPrm(), Lp = achClP(P); if (!Lp.some(y => achU(y.txt) === r.lab)) { P.clP = Lp.concat([{ id: "p" + Date.now().toString(36), t: "autre", txt: r.lab }]); achPrmSave(P); } }
+      draw(); });
+    if (tip && g === "L" && k === "des") sugOn(tip, ARTS.map(a => ({ lab: a.des, sub: a.u || "", a })), x => { pick = x; });
+    if (tip && g === "F") sugOn(tip, FRS.filter(f => !S.F.some(x => x.id === f.id)).map(f => ({ lab: f.nom, sub: f.ville || "" })), () => {}); };
+  const pickCell = td => { d.querySelectorAll("td.nv-sel").forEach(x => x.classList.remove("nv-sel")); td.classList.add("nv-sel"); if (!td.hasAttribute("tabindex")) td.setAttribute("tabindex", "-1"); td.classList.add("svi-tdf"); try { td.focus({ preventScroll: true }); } catch (er) {} };
   /* glisser un titre de colonne = ordre des colonnes de cette liste (gardé) */
   d.addEventListener("pointerdown", e => { const th = e.target.closest && e.target.closest(".cai-t thead th"); if (!th || e.target.closest(".cf-btn, .col-rs, input") || !th.querySelector(".cf-btn")) return;
     const table = th.closest("table"), t = th.querySelector(".cf-btn").dataset.cf, ths = () => [...table.querySelectorAll("thead tr:first-child > th")].filter(x => x.querySelector(".cf-btn"));
@@ -340,6 +370,7 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
     const cfb = e.target.closest(".cf-btn[data-cf]"); if (cfb) { e.stopPropagation(); sync(); KIT.cfOpenMenu(cfb); return; }
     if (e.target.closest(".cafp-doc")) { achCopyOpen(e.target.closest(".cafp-doc").dataset.fk); return; }
     if (ro) { if (e.target.closest("[data-ok]")) { d.remove(); if (done) done(); } return; }
+    const ed = e.target.closest("td.nv-ed"); if (ed && d.contains(ed)) { if (ed.classList.contains("nv-sel")) editCell(ed); else pickCell(ed); return; }
     /* ronds : toucher un rond le choisit ; toucher un rond d'une autre liste lie ou délie les deux */
     const rd = e.target.closest("[data-rg]"); if (rd) { sync(); const g = rd.dataset.rg, k = rd.dataset.rk;
       if (S.sel && S.sel.g === g && S.sel.k === k) S.sel = null; else if (S.sel && S.sel.g !== g && PAIR[S.sel.g + "-" + g]) { const P = PAIR[S.sel.g + "-" + g], ab = [S.sel.k, k]; lkTog(P[0], ab[P[1]], ab[P[2]]); } else S.sel = { g, k }; draw(); return; }
@@ -351,13 +382,12 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
           if (R.file) { const k = "n" + Date.now().toString(36); S.D.push({ k, title: "IMPORT — " + R.file.name, f: R.file }); } const n = R.rows.filter(r => !r.title).length;
           svToast(n ? n + " ARTICLE(S) IMPORTÉ(S) : À VÉRIFIER DANS LA PAGE (EN ROUGE) PUIS CONFIRMER." : "AUCUNE LIGNE RECONNUE DANS « " + R.from + " ».", 4000); draw(); } }); return; }
     const nw = e.target.closest("[data-cai-new]"); if (nw) { sync(); const g = nw.dataset.caiNew;
-      if (g === "L") { const lid = achCafId(); S.L.push({ id: lid, bsn: "", des: "", u: "", q: "" }); S.lk.lf[lid] = S.F.map(f => f.k); draw(); const ins = d.querySelectorAll('.cai-x[data-k="des"]'); ins[ins.length - 1]?.focus(); return; }
-      if (g === "F") { const nom = achU(await sub(() => achAsk("FOURNISSEUR CONSULTÉ", "NOM (DE LA LISTE OU NOUVEAU)")) || ""); if (!nom) return; const f = FRS.find(x => achU(x.nom) === nom);
-        if (S.F.some(x => (f && x.id === f.id) || achU(x.nom) === nom)) { svToast("DÉJÀ DANS LA CONSULTATION.", 2500); return; } const k = f ? f.id : "n:" + nom; S.F.push({ k, id: f ? f.id : "", nom: f ? f.nom : nom }); S.L.forEach(l => { const A = S.lk.lf[l.id] = S.lk.lf[l.id] || []; if (!A.includes(k)) A.push(k); }); draw(); return; }
+      const go = (gg, kk) => { const td = d.querySelector(`#caiT${gg} td.nv-ed[data-i="${LST[gg]().length - 1}"][data-ed="${kk}"]`); if (td) { pickCell(td); editCell(td); } };
+      if (g === "L") { const lid = achCafId(); S.L.push({ id: lid, bsn: "", des: "", u: "", q: "" }); S.lk.lf[lid] = S.F.map(f => f.k); draw(); go("L", "des"); return; }
+      if (g === "F") { const k = "n:" + Date.now().toString(36); S.F.push({ k, id: "", nom: "" }); S.L.forEach(l => { const A = S.lk.lf[l.id] = S.lk.lf[l.id] || []; if (!A.includes(k)) A.push(k); }); draw(); go("F", "nom"); return; }
       if (g === "D") { const f = await new Promise(ok => { const i = document.createElement("input"); i.type = "file"; i.onchange = () => ok(i.files[0] || null); i.click(); }); if (!f) return;
-        const t = await sub(() => achAsk("NOUVEAU DOCUMENT", "INTITULÉ")) || f.name; S.D.push({ k: "n" + Date.now().toString(36), title: achU(t), f }); draw(); return; }
-      if (g === "K") { const lab = await sub(() => achAsk("NOUVELLE CONDITION PARTICULIÈRE", "INTITULÉ (AJOUTÉ AUSSI À ACHATS › CLAUSES)")); if (!lab) return; S.K.push({ id: achCafId(), k: "autre", lab: achU(lab), t: "text", v: "" });
-        const P = achPrm(), Lp = achClP(P); if (!Lp.some(y => achU(y.txt) === achU(lab))) { P.clP = Lp.concat([{ id: "p" + Date.now().toString(36), t: "autre", txt: achU(lab) }]); achPrmSave(P); } draw(); return; }
+        S.D.push({ k: "n" + Date.now().toString(36), title: achU(f.name.replace(/\.[^.]+$/, "")), f }); draw(); go("D", "title"); return; }
+      if (g === "K") { S.K.push({ id: achCafId(), k: "autre", lab: "", t: "text", v: "" }); draw(); go("K", "lab"); return; }
       return; }
     if (!e.target.closest("[data-ok]")) return;
     sync(); const now = achNow(), Lc = achCaf(); KIT.cfClose();
@@ -365,7 +395,7 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
     if (!c) { c = { id: "C" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), ref: achNextRef("CAF", Lc), objet: C.objet, date: now.slice(0, 10), dlim: "", lignes: [], frs: [], rep: {}, state: "ouverte", cree: now }; achCafUp(c); Lc.push(c); }
     const ref = c.ref, AL = achArts(); let na = 0;
     S.L.filter(l => achU(l.des)).forEach(l => { if (!achArtOf(l.des, l.u)) { const a = achArtNew(AL, { des: l.des, u: l.u, src: "CONSULTATION " + ref }); a.st = "instance"; a.fromCaf = ref; achHist(a.code, "CRÉATION", "CRÉÉ DEPUIS LA CONSULTATION " + ref); na++; } }); if (na) achArtsSave(AL);
-    const FL = achFrs(), KM = {}; let nf = 0; S.F.forEach(f => { if (f.id) { KM[f.k] = f.id; return; } const n = achFrsNew(FL, { nom: f.nom, occ: true }); n.st = "instance"; n.fromCaf = ref; f.id = n.id; KM[f.k] = n.id; achHist(n.code, "CRÉATION", "CRÉÉ DEPUIS LA CONSULTATION " + ref); nf++; }); if (nf) achFrsSave(FL);
+    S.F = S.F.filter(f => f.id || achU(f.nom)); S.K = S.K.filter(x => achU(x.lab)); const FL = achFrs(), KM = {}; let nf = 0; S.F.forEach(f => { if (f.id) { KM[f.k] = f.id; return; } const n = achFrsNew(FL, { nom: f.nom, occ: true }); n.st = "instance"; n.fromCaf = ref; f.id = n.id; KM[f.k] = n.id; achHist(n.code, "CRÉATION", "CRÉÉ DEPUIS LA CONSULTATION " + ref); nf++; }); if (nf) achFrsSave(FL);
     const DM = {}; S.D.forEach(x => { if (x.__id) DM[x.k] = x.__id; }); for (const x of S.D.filter(y => y.f)) { try { const dx = await achCafDocAdd(ref, x.f, x.title); DM[x.k] = dx.ref; } catch (er) {} }
     const LIDS = new Set(S.L.filter(l => achU(l.des)).map(l => l.id)), KIDS = new Set(S.K.map(x => x.id)), mapK = { L: k => LIDS.has(k) ? k : null, F: k => KM[k] || null, D: k => DM[k] || null, K: k => KIDS.has(k) ? k : null };
     const G = { lf: ["L", "F"], ld: ["L", "D"], lc: ["L", "K"], fd: ["F", "D"], fc: ["F", "K"] };

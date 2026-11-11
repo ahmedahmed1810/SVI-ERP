@@ -4489,7 +4489,7 @@ function sviRowHApply() { let st = document.getElementById("sviRowHStyle"); if (
       : `table:is([data-svcw="${q(k)}"], [data-colh="${q(k)}"], [data-ik="${q(k)}"], [id="${q(k)}"])${Z}${TR}`;
     return `${s} { height: ${H[k]}px !important; min-height: 0 !important; max-height: none !important; box-sizing: border-box !important; }`; }).join("\n"); }
 sviRowHApply();
-{ const zone = t => { if (!t || !t.closest) return null; if (t.closest("#dlyGantt, .dlyg-foot, .dlyg-l, .dly-table, .ghist, #svConf, #docPop")) return null;
+{ const zone = t => { if (!t || !t.closest) return null; if (t.closest("#dlyGantt, .dlyg-foot, .dlyg-l, .dly-table, .ghist, #docPop") || (t.closest("#svConf") && !t.closest(".cai-card"))) return null;   /* 11/11 : fenêtre de la consultation comprise */
     const li = t.closest(".ins-hcol .ins-li, .bdg-h-col .bdg-h-item"), hc = li && li.closest(".ins-hcol, .bdg-h-col"); if (hc) return sviRowKey(hc) ? hc : null;
     const td = t.closest("table tbody td"), tb = td && td.closest("table"); return tb && sviRowKey(tb) ? tb : null; };
   const set = (tb, h) => { const H = sviRowHGet(), k = sviRowKey(tb); H[k] = Math.round(Math.max(18, Math.min(60, h))); try { localStorage.setItem(SVI_ROWH_K, JSON.stringify(H)); } catch (e) {} sviRowHApply(); };

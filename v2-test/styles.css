@@ -3938,3 +3938,12 @@ html body #sviScreenTag.svi-tag-open { white-space: normal; overflow: visible; t
 .cai-card .cai-t col[data-k="_rd"], .cai-card .cai-t col[data-k="_cb"] { width: 26px; }
 .cai-card .cai-grid { grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.5fr); }
 .cai-card .cai-t th { padding-left: 4px; padding-right: 2px; }
+/* v1113 : fenêtre DÉTAIL CONSULTATION — cases au format des listes, menu de suggestions */
+.cai-card .cai-t td.nv-ed { cursor: default; }
+.cai-card .cai-t td.nvl-cbc, .cai-card .cai-t th.nvl-cbh { padding: 0 !important; text-align: center; }
+.cai-card .cai-t td .nvp-rd { flex: none; }
+#caiSug.cai-sug { position: fixed; z-index: 100020; max-height: 280px; overflow: auto; display: flex; flex-direction: column; padding: 4px 0; }
+#caiSug.cai-sug button { display: flex; justify-content: space-between; gap: 12px; text-align: left; padding: 6px 12px; border: 0; background: none; font: 600 12px Arial, sans-serif; color: #172033; cursor: pointer; white-space: nowrap; }
+#caiSug.cai-sug button span { color: #6b7280; font-weight: 500; }
+#caiSug.cai-sug button:hover { background: #eef2ff; }
+.cai-card .cai-t td:first-child, .cai-card .cai-t th:first-child { padding: 0 !important; text-overflow: clip !important; text-align: center; }
