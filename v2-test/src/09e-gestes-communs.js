@@ -377,7 +377,7 @@ sviRowHApply();
 const lkCut = (lk, td) => { const r = lk.getBoundingClientRect(), t = td.getBoundingClientRect(), cs = getComputedStyle(td);
   if (lk.clientWidth && lk.scrollWidth > lk.clientWidth + 1) return true;   /* nom en bloc, coupé par « … » */
   return r.right > t.right - (parseFloat(cs.paddingRight) || 0) + 1.5 || r.left < t.left - 1; };
-const SVI_LK_CUT = ".ach-link, .nv-reflink, .bdg-reflink, .cafw-go, [data-nvgo], [data-gofrs], [data-goart]";
+const SVI_LK_CUT = ".ach-link, .nv-reflink, .bdg-reflink, .cafw-go, [data-nvgo], [data-gofrs], [data-goart], .budget-link, [data-open-project]";   /* 11/11 : PROJET de la liste des budgets */
 { let cur = null, tip = null, tm = 0, x0 = 0, y0 = 0, t0 = 0, eat = false;
   const FLD = "input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=hidden]):not([type=file]), textarea";
   const cutTd = t => { if (!t || !t.closest || t.closest("#cfMenu, .fmw-card, .cmpm-pick")) return null;
