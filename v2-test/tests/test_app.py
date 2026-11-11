@@ -1188,6 +1188,23 @@ def main():
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.des = X.INS.des.filter(r => !/^dw/.test(r.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
         check("v525 remarque 6 : glisser près du bord bas = défilement automatique", d6 is not None and d6[3] and s6 > 20, [d6, s6])
 
+        # v1115 : texte agrandi d'une DÉSIGNATION CLIENT coupée — 1er toucher (agrandi), 2e toucher (tout sélectionné), frappe, toucher ailleurs = enregistré ; ANNULER le remet
+        pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        d0 = pg.evaluate(f"() => {{ const X = {ins}; const r = X.INS.des.find(x => x.id === 'd1'); const o = r.des; r.des = 'DESIGNATION TRES LONGUE '.repeat(5).trim(); X.insSave(); X.refreshAll(); return o; }}"); pg.wait_for_timeout(500)
+        ta = pg.evaluate("""() => { const c = document.querySelector('#bdgClientBody tr[data-iid="d1"] .ins-dv'); if (!c) return null; c.scrollIntoView({ block: 'center' }); const r = c.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }""")
+        if ta:
+            pg.mouse.click(*ta); pg.wait_for_timeout(600)
+            tb = pg.evaluate("() => { const t = document.getElementById('sviFullTip'); if (!t) return null; const r = t.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }")
+            if tb: pg.mouse.click(*tb); pg.wait_for_timeout(600)
+            pg.keyboard.type("NOUVELLE DESIGNATION"); pg.wait_for_timeout(200)
+            tp = pg.evaluate("""() => { const tr = [...document.querySelectorAll('#bdgClientBody tr[data-iid]')].filter(t => !t.classList.contains('ins-title') && t.offsetParent && t.dataset.iid !== 'd1')[0]; const i = tr && tr.querySelector('[data-f="p"]'); if (!i) return null; const r = i.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }""")
+            if tp: pg.mouse.click(*tp); pg.wait_for_timeout(900)
+        v15 = pg.evaluate(f"() => {{ const X = {ins}; return X.INS.des.find(x => x.id === 'd1').des; }}")
+        pg.mouse.click(5, 5); pg.wait_for_timeout(500); pg.evaluate("() => document.getElementById('instUndo')?.click()"); pg.wait_for_timeout(700)
+        u15 = pg.evaluate(f"() => {{ const X = {ins}; return X.INS.des.find(x => x.id === 'd1').des; }}")
+        pg.evaluate(f"(o) => {{ const X = {ins}; X.INS.des.find(x => x.id === 'd1').des = o; X.insSave(); X.refreshAll(); }}", d0); pg.wait_for_timeout(400)
+        check("v1115 : texte agrandi d'une désignation coupée — saisie enregistrée en touchant une autre case, puis ANNULER la remet", ta is not None and v15 == "NOUVELLE DESIGNATION" and u15.startswith("DESIGNATION TRES LONGUE"), [ta, v15, u15])
+
         # ===== v527 : remarques du 22/10 (fin de journée) =====
         pg.mouse.click(5, 5); pg.wait_for_timeout(200)
         pg.evaluate("() => document.querySelector('.svi-empty [data-clrall]')?.click()"); pg.wait_for_timeout(300)
@@ -2980,7 +2997,11 @@ def main():
               and k755[1][0].startswith("TOUT") and k755[1][1] == 3 and "ANNULÉ1" in k755[1][2] and k755[1][3] == 2, k755)   # 06/11 : une seule liste, cases des états (TOUT par défaut)
         # v759 : ACHATS — FOURNISSEURS : règles (ICE 15 chiffres et unique, RIB 24 chiffres, principal, document expiré, occasionnel) ; onglet,
         # création par la ligne CRÉER…, fiche (code souligné), changement de RIB confirmé et signalé jusqu'à « RIB VÉRIFIÉ »
-        f759 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); sviStfSet('ach_frs', null);   /* 09/11 : annulés masqués par défaut — ce test compte toute la liste (TOUT) */ const keepF = localStorage.getItem('svi_ach_frs_v1'), keepE = localStorage.getItem('svi_ach_frs_etat_v1'); localStorage.removeItem('svi_ach_frs_v1'); localStorage.removeItem('svi_ach_frs_etat_v1');
+        f759 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms));
+            /* v1115 : indépendant de l'ordre — chemin FERMER vidé, fenêtres et pages restées ouvertes fermées, colonnes et lignes par défaut */
+            try { ACH_PATH.length = 0; } catch (e) {} document.querySelectorAll('#svConf [data-cancel], #svConf .svc-close, #docPop [data-x]').forEach(x => { try { x.click(); } catch (e) {} });
+            for (let i = 0; i < 4; i++) { const c = document.querySelector('#ach [data-nvp="close"]'); if (!c) break; c.click(); await w(150); }
+            sviStfSet('ach_frs', null);   /* 09/11 : annulés masqués par défaut — ce test compte toute la liste (TOUT) */ const keepF = localStorage.getItem('svi_ach_frs_v1'), keepE = localStorage.getItem('svi_ach_frs_etat_v1'); localStorage.removeItem('svi_ach_frs_v1'); localStorage.removeItem('svi_ach_frs_etat_v1');
             const L = []; const a = achFrsNew(L, { nom: 'beton sud' }); a.ice = '001234567000089'; const b2 = achFrsNew(L, { nom: 'X' }); b2.ice = '001234567000089';
             const r1 = [a.code, b2.code, achIceOk('123'), achIceOk(a.ice), (achFrsDupIce(L, b2.ice, b2.id) || {}).code, achRibOk('0076400001234567890123 43')];
             const c = achFrsNew(L, { nom: 'OCC', occ: true }); const wc = achFrsWhy(c, L);
@@ -3010,6 +3031,22 @@ def main():
               f759[0] == ["FRS-0001", "FRS-0002", False, True, "FRS-0001", True] and f759[1] == 0 and "DOCUMENT EXPIRÉ : ATTESTATION CNSS" in f759[2] and "ICE EN DOUBLE" in f759[2]
               and f759[3] == "FOURNISSEURS 3" and f759[4] == 3 and f759[5] == 3 and f759[6] == "IDENTITÉ,FISCAL,QUALIFICATION,ASSURANCES,,COMPTE,RIB,ENCOURS,CAUTIONS,CONDITIONS,COMMANDE,IMPORT,FERMETURES,GARANTIE,TARIFS,FAMILLES,DOCUMENTS,CONTACTS,RISQUE,MOYENS,RÉFÉRENCES,ÉVALUATIONS,CONTRATS,SPÉCIALITÉ,FOURNISSEURS,STATISTIQUES,PARTS,CLAUSES|IDENTITÉ,FISCAL ET LÉGAL,BANQUE ET PAIEMENT,CONDITIONS D'ACHAT,RISQUE ET MOYENS,FOURNISSEURS SIMILAIRES,STATISTIQUES|2"
               and f759[7] == "CHANGEMENT DE RIB" and f759[8] and f759[9] and f759[10], f759)
+        # v1115 : fenêtre DÉTAIL CONSULTATION — menu ⋯ au-dessus de la fenêtre (toucher réel) ; tirer un bord ne garde que la colonne tirée
+        pg.evaluate("() => document.querySelector('#navMenu .nav-btn[data-ach=\"caf\"]')?.click()"); pg.wait_for_timeout(500)
+        pg.evaluate("() => achCafInfo(null)"); pg.wait_for_timeout(700)
+        m15 = None; b15 = pg.evaluate("() => { const b = document.querySelector('.cai-card .cai-more'); if (!b) return null; const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }")
+        if b15:
+            pg.mouse.click(*b15); pg.wait_for_timeout(350)
+            m15 = pg.evaluate("() => { const m = document.getElementById('blkMenu'); if (!m) return null; const r = m.getBoundingClientRect(), e = document.elementFromPoint(r.left + r.width / 2, r.top + 12); return [!!(e && m.contains(e)), [...m.querySelectorAll('button')].some(x => /LARGEUR/.test(x.textContent))]; }")
+            pg.evaluate("() => document.getElementById('blkMenu')?.remove()"); pg.wait_for_timeout(150)
+        h15 = pg.evaluate("() => { const r = document.querySelector('#caiTL .col-rs'); if (!r) return null; const b = r.getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; }")
+        c15 = None
+        if h15:
+            k0 = pg.evaluate("() => Object.keys(cwLoad()).filter(k => /^cai_/.test(k)).length")
+            pg.mouse.move(h15[0], h15[1]); pg.mouse.down(); pg.mouse.move(h15[0] + 30, h15[1], steps=5); pg.mouse.up(); pg.wait_for_timeout(300)
+            c15 = pg.evaluate("() => Object.keys(cwLoad()).filter(k => /^cai_/.test(k)).length") - k0
+        pg.evaluate("() => { const a = cwLoad(); Object.keys(a).filter(k => /^cai_/.test(k)).forEach(k => delete a[k]); cwSave(a); document.querySelector('#svConf .svc-close')?.click(); document.querySelector('#navMenu .nav-btn[data-view=\"bdg\"]')?.click(); }"); pg.wait_for_timeout(400)
+        check("v1115 : DÉTAIL CONSULTATION — menu ⋯ affiché au-dessus de la fenêtre (sans LARGEUR OPTIMISÉE) ; un bord tiré = une seule largeur gardée", m15 == [True, False] and c15 == 1, [m15, c15])
         # v760 : BESOINS — charges du budget avec leurs tâches, contrôle prévu / déjà demandé, dépassement BLOQUÉ (justifier puis DÉBLOQUER),
         # seuil 90 %, centre SIÈGE hors budget ; menu ☰ › BESOIN, fiche de création (budget › charge › tâche), validation
         n760 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const keepB = localStorage.getItem('svi_ach_bsn_v1'), keepE = localStorage.getItem('svi_ach_bsn_etat_v1'); localStorage.removeItem('svi_ach_bsn_v1'); localStorage.removeItem('svi_ach_bsn_etat_v1');

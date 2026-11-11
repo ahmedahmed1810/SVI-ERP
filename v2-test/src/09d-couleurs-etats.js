@@ -509,6 +509,7 @@ function sviHdrMenu(btn, groups, pick) {
   const G = groups.map(g => g.filter(Boolean)).filter(g => g.length), icOf = x => x.ic !== undefined ? x.ic : SVI_MI[x.k] || "", anyIc = G.some(g => g.some(x => icOf(x)));
   m.innerHTML = G.map(g => g.map(x => `<button type="button" data-a="${esc(x.k)}" class="${x.del ? "blk-del" : ""}${x.off ? " blk-off" : ""}"${x.off ? ` data-why="${esc(x.off)}"` : ""}>${icOf(x) || (anyIc ? '<i class="mi-sp"></i>' : "")}<span>${esc(x.lab)}</span>${x.n !== undefined ? svCnt(x.n) : ""}</button>`).join("")).join('<div class="blk-sep"></div>');
   document.body.appendChild(m); sviPlaceMenu(m, btn.getBoundingClientRect());
+  if (btn.closest && btn.closest("#svConf, #docPop, [role=dialog]")) m.style.zIndex = "100010";   /* 11/11 : menu ouvert depuis une fenêtre = au-dessus d'elle */
   m.addEventListener("click", e => { const it = e.target.closest("[data-a]"); if (!it) return; e.stopPropagation();
     if (it.classList.contains("blk-off")) { svToast(it.dataset.why || "", 2500, it); return; }   /* série J (J4) : ligne grisée = message, le menu reste ouvert */
     m.remove(); pick(it.dataset.a); });

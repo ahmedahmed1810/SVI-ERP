@@ -161,7 +161,7 @@ document.addEventListener("pointerdown", e => {
   h.classList.add("on");
   const mv = ev => { w = Math.max(/^_/.test(h.dataset.col) ? 28 : 64, Math.round(w0 + ev.clientX - x0)); col.style.width = w + "px"; const tw = cols.reduce((s, c) => s + (parseFloat(c.style.width) || 0), 0) + "px"; table.style.width = tw; table.style.minWidth = tw; };
   const up = () => { document.removeEventListener("pointermove", mv, true); document.removeEventListener("pointerup", up, true); document.removeEventListener("pointercancel", up, true); h.classList.remove("on");
-    const all = cwLoad(); cols.forEach(c => { if (c.dataset.k) all[t + "." + c.dataset.k] = Math.round(parseFloat(c.style.width) || 0) || all[t + "." + c.dataset.k]; }); all[t + "." + h.dataset.col] = w; cwSave(all); };
+    const all = cwLoad(); if (!table.closest(".cai-card")) cols.forEach(c => { if (c.dataset.k) all[t + "." + c.dataset.k] = Math.round(parseFloat(c.style.width) || 0) || all[t + "." + c.dataset.k]; }); all[t + "." + h.dataset.col] = w; cwSave(all); };   /* 11/11 : fenêtre DÉTAIL CONSULTATION = seule la colonne tirée est gardée */
   document.addEventListener("pointermove", mv, true); document.addEventListener("pointerup", up, true); document.addEventListener("pointercancel", up, true);
 }, true);
 /* v793 (DOCUMENT UNIQUE §6.4) : CASES À COCHER À DROITE des listes (budgets, achats) — dernière colonne ; case d'en-tête = toutes ;
@@ -803,6 +803,7 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
     const tabsOf = h => h ? [...h.querySelectorAll("table")].filter(t => t.offsetParent !== null && [...t.querySelectorAll(":scope > colgroup > col")].some(c => keyOf(t, c))) : [];
     const host = b0.isConnected ? b0.closest(".bdg-d-block, .nvp-blk, .ins-hcol, .novapp-list-shell, .svc-card, .doc-card") || b0.closest(".bdg-d-page, .nvp, .view") : null;
     /* v1090 : un ⋯ d'une liste cachée (autre écran) prend les tableaux de l'écran affiché, comme ses autres actions */
+    if (b0.closest && b0.closest(".cai-card")) return;   /* 11/11 : la largeur optimisée ne s'applique pas à la fenêtre DÉTAIL CONSULTATION */
     let T = tabsOf(host); if (!T.length) T = tabsOf(document.querySelector(".view.active-view")); if (!T.length) return;
     /* v1090 : placé avec DISPOSITION PAR DÉFAUT (FERMER et SUPPRIMER restent en bas) */
     const lay = [...m.querySelectorAll("button")].find(x => /DISPOSITION PAR DÉFAUT/.test(x.textContent || ""));

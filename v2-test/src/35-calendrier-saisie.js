@@ -565,10 +565,11 @@ const sviCellFind = k => {
   if (!k) return null;
   const box = document.querySelector(k.t); if (!box) return null;
   const row = box.querySelector(k.row); if (!row) return null;
-  if (k.list) return row.querySelector(k.f ? `[data-f="${k.f}"]` : "input.ins-in, input.lot-gname");
+  if (k.list) return (k.f && row.querySelector(`input[data-f="${k.f}"], textarea[data-f="${k.f}"], select[data-f="${k.f}"]`)) || row.querySelector(k.f ? `[data-f="${k.f}"]` : "input.ins-in, input.lot-gname");
   const td = row.cells && row.cells[k.ci]; if (!td) return null;
   if (k.td) return td;
-  return (k.f && td.querySelector(`[data-f="${k.f}"]`)) || td.querySelector(SVI_ED) || td;
+  /* v1115 : la case de saisie d'abord (une désignation a aussi un affichage <div data-f="des">) */
+  return (k.f && (td.querySelector(`input[data-f="${k.f}"], textarea[data-f="${k.f}"], select[data-f="${k.f}"]`) || td.querySelector(`[data-f="${k.f}"]`))) || td.querySelector(SVI_ED) || td;
 };
 window.sviCellKey = sviCellKey; window.sviCellFind = sviCellFind; window.sviCellOf = sviCellOf;
 
