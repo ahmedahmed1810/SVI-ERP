@@ -11255,7 +11255,7 @@ function sviBdgDelaisDisposition(C) {
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const pg = page$(); if (!pg) return; const lay = { h: {} };
       LAY_UNITS.forEach(u => { if (pg.classList.contains("max-" + u)) return; const m = layMinOf(u); if (!m) return; lay.h[u] = Math.ceil(m + Math.max(0, sviBlkRows().n - sviBlkRows().r) * layRowH(u)); });   /* v925 : n lignes (réglage des blocs) */
-      laySave(lay); layApply(); setTimeout(layMinScroll, 30);
+      lay.def = 1; laySave(lay); layApply(); setTimeout(layMinScroll, 30);   /* 11/11 : disposition par défaut (5 lignes) */
     }));
   };
   /* v727 (bloc 11.3) : hauteur des blocs en lignes entières — en-tête (et pied collant) + k lignes entières, jamais un morceau de la suivante ;
@@ -11446,7 +11446,7 @@ function sviBdgDelaisDisposition(C) {
       lay.h[u] = v;
       /* v774 (point 12) : bloc laissé à son minimum = MODE RÉDUIT, gardé d'un onglet à l'autre (chaque onglet à son propre minimum) */
       lay.red = lay.red || {}; if (v <= (u === "detail" ? DMIN : MINU) + 2) lay.red[u] = 1; else delete lay.red[u];
-      laySave(lay);
+      delete lay.def; laySave(lay);
       histLog("DISPOSITION", "MODIFICATION", "ORDRE / HAUTEUR DES BLOCS");
       layApply(); setTimeout(layMinScroll, 30);
     };
@@ -11506,7 +11506,7 @@ function sviBdgDelaisDisposition(C) {
       order.splice(order.indexOf(target) + (after ? 1 : 0), 0, src);
       const lay = layLoad();
       lay.order = order;
-      laySave(lay);
+      delete lay.def; laySave(lay);
       histLog("DISPOSITION", "MODIFICATION", "ORDRE / HAUTEUR DES BLOCS");
       layApply();
     };

@@ -618,6 +618,9 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
    Tableaux concernés : colonnes repérées (col[data-w="tableau.colonne"] ou table[data-svcw] + col[data-k]) ; colonnes d'outils (_…) inchangées. */
 {
   const MIN = 64, MAX = 360, cv = document.createElement("canvas").getContext("2d");
+  /* 11/11 (document unique 6.x) : largeurs posées par la largeur optimisée = disposition par défaut (une largeur tirée à la main en diffère) */
+  const CWA_K = "svi_cw_auto_v1", cwaLoad = () => { try { return JSON.parse(localStorage.getItem(CWA_K) || "{}") || {}; } catch (e) { return {}; } };
+  const cwAuto = W => { const A = cwaLoad(); Object.assign(A, W); try { localStorage.setItem(CWA_K, JSON.stringify(A)); } catch (e) {} };
   const keyOf = (t, c) => c.dataset.w || (t.dataset.svcw && c.dataset.k && !/^_/.test(c.dataset.k) ? t.dataset.svcw + "." + c.dataset.k : "");
   const NEWROW = "tr.ins-new, tr.rec-new, tr.bdg-newrow, tr.scn-new, tr.dly-new, tr.svi-empty-x";
   const txtOf = td => { const f = td.querySelector("input:not([type=checkbox]):not([type=radio]):not([type=hidden]), select, textarea");
@@ -646,8 +649,8 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
     t.querySelectorAll("tbody textarea").forEach(ta => { if (!ta.style.height) return; ta.style.height = ""; if (ta.scrollHeight > ta.clientHeight + 2) ta.style.height = ta.scrollHeight + "px"; }); };
   const fit = (t, force) => { const cols = [...t.querySelectorAll(":scope > colgroup > col")], keys = cols.map(c => keyOf(t, c)).filter(Boolean); if (!keys.length) return false;
     const CW = cwLoad(); if (!force && keys.some(k => CW[k])) return false;   /* déjà réglé (à la main ou à une ouverture d'avant) */
-    const W = measure(t); if (!W) return false; apply(t, W); grow(t, W); shrink(t, W); Object.assign(CW, W); cwSave(CW);
-    setTimeout(() => { if (t.isConnected && grow(t, W)) { shrink(t, W); const C2 = cwLoad(); Object.assign(C2, W); cwSave(C2); } }, 700);   /* zones de texte ajustées après coup */
+    const W = measure(t); if (!W) return false; apply(t, W); grow(t, W); shrink(t, W); Object.assign(CW, W); cwSave(CW); cwAuto(W);
+    setTimeout(() => { if (t.isConnected && grow(t, W)) { shrink(t, W); const C2 = cwLoad(); Object.assign(C2, W); cwSave(C2); cwAuto(W); } }, 700);   /* zones de texte ajustées après coup */
     return true; };
   /* le tableau reste dans la largeur de son bloc ou de sa liste (règles 6.11, DÉTAIL) : s'il déborde, les colonnes de texte long
      (désignation, détail, intitulé, nom, objet, tâche) rendent la place, jusqu'à 120 px au plus étroit */
@@ -685,6 +688,22 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
   const go = () => { if (!q) q = setTimeout(run, 350); };
   const start = () => new MutationObserver(go).observe(document.body, { childList: true, subtree: true });
   if (document.body) start(); else document.addEventListener("DOMContentLoaded", start);
+  /* 11/11 (Ahmed, validé) : DISPOSITION PAR DÉFAUT n'apparaît dans le ⋯ que si la disposition de l'endroit a été changée
+     (largeur tirée à la main, colonne masquée ou affichée, hauteur ou ordre des blocs du budget) ; la largeur optimisée compte comme défaut */
+  const layDirty = host => { const CW = cwLoad(), A = cwaLoad(); let S = {}; try { S = colhLoad(); } catch (e) {}
+    for (const t of host.querySelectorAll("table")) {
+      for (const c of t.querySelectorAll(":scope > colgroup > col")) { const k = keyOf(t, c) || (t.dataset.svcw && c.dataset.k ? t.dataset.svcw + "." + c.dataset.k : ""); if (k && CW[k] && Math.abs(CW[k] - (A[k] || 0)) > 1) return true; }
+      let id = null; try { const I = sviColhInfo(t); id = I && I.id; } catch (e) {} if (id && [S[id], S[id + "_i"], S[id + "_v"]].some(x => Array.isArray(x) && JSON.stringify(x) !== JSON.stringify(SVI_COLH_DEF[id] || []))) return true; }
+    if (host.matches(".bdg-d-page") || host.querySelector(".bdg-d-page")) { let L = {}; try { L = layLoad(); } catch (e) {} if (!L.def && Object.keys(L).length) return true; }
+    return false; };
+  window.sviLayDirty = layDirty;
+  new MutationObserver(() => { const m = document.getElementById("blkMenu"); if (!m || m.__laychk) return; m.__laychk = 1;
+    const lay = [...m.querySelectorAll("button")].find(x => /DISPOSITION PAR DÉFAUT/.test(x.textContent || "")); if (!lay) return;
+    const b0 = m.__btn && m.__btn.isConnected ? m.__btn : src && src.isConnected ? src : null;
+    const host = (b0 && b0.closest(".bdg-d-page, .nvp, .novapp-list-shell, .view")) || document.querySelector(".view.active-view"); if (!host) return;
+    let dirty = true; try { dirty = layDirty(host); } catch (e) {} if (dirty) return;
+    lay.remove(); [...m.children].forEach((x, i, a) => { if (!x.classList.contains("blk-sep")) return; const p = x.previousElementSibling, n = x.nextElementSibling; if (!p || !n || n.classList.contains("blk-sep")) x.remove(); });
+  }).observe(document.body || document.documentElement, { childList: true });
   /* ⋯ d'un bloc, d'une liste ou d'une fiche : LARGEUR OPTIMISÉE (tous les tableaux de l'endroit) */
   let src = null; document.addEventListener("pointerdown", e => { const b = e.target.closest && e.target.closest(".blk-more, [data-nvmore], .nvl-more, .bdg-more-btn, [data-blkmore]"); if (b) src = b; }, true);
   new MutationObserver(() => { const m = document.getElementById("blkMenu"); if (!m || m.__cwfit) return; const b0 = m.__btn || src; if (!b0 || !b0.closest) return; m.__cwfit = 1;
@@ -695,7 +714,11 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
     /* v1090 : placé avec DISPOSITION PAR DÉFAUT (FERMER et SUPPRIMER restent en bas) */
     const lay = [...m.querySelectorAll("button")].find(x => /DISPOSITION PAR DÉFAUT/.test(x.textContent || ""));
     const H = `<button type="button" class="svi-cwfit"><i class="mi-sp"></i>LARGEUR OPTIMISÉE</button>`;
-    if (lay) lay.insertAdjacentHTML("afterend", H); else m.insertAdjacentHTML("beforeend", `<div class="blk-sep"></div>` + H);
+    const fe = [...m.querySelectorAll("button")].find(x => /^\s*FERMER\s*$/.test(x.textContent || "")), fp = fe && fe.previousElementSibling;
+    if (lay) lay.insertAdjacentHTML("afterend", H);
+    else if (fe && fp && fp.classList.contains("blk-sep")) fp.insertAdjacentHTML("beforebegin", `<div class="blk-sep"></div>` + H);   /* 11/11 : jamais après FERMER */
+    else if (fe) fe.insertAdjacentHTML("beforebegin", H);
+    else m.insertAdjacentHTML("beforeend", `<div class="blk-sep"></div>` + H);
     m.querySelector(".svi-cwfit").addEventListener("click", e => { e.stopPropagation(); let n = 0; T.forEach(t => { if (fit(t, true)) n++; }); m.remove(); if (typeof svToast === "function") svToast(n ? "LARGEUR OPTIMISÉE." : "RIEN À MESURER (TABLEAU VIDE).", 1800); });
   }).observe(document.body || document.documentElement, { childList: true });
 }
