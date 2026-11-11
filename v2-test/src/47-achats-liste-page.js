@@ -316,7 +316,11 @@ function achNvhMin(sc, r) { const th = sc.querySelector("thead"), rows = [...sc.
   const isN = x => x.matches(".rec-new, .bdg-newrow, .ach-new, [data-nvnew], [data-nvradd]"), isT = x => x.matches(".bdg-d-total-row, tfoot tr") || /^\s*TOTAL/.test(x.textContent || "");
   const nr = rows.find(isN), tr = rows.find(isT), d1 = rows.find(x => !isN(x) && !isT(x)), h = x => x ? x.getBoundingClientRect().height : 0;
   return Math.ceil((th ? h(th) : 22) + r * (d1 ? h(d1) : 21) + h(nr) + h(tr)) + 4; }
-function achNvhFloor() { document.querySelectorAll("#ach .nvp .rec-scroll").forEach(sc => { if (sc.style.maxHeight !== "none") return; const m = achNvhMin(sc, 1); if (sc.getBoundingClientRect().height < m - 1) sc.style.height = m + "px"; }); }
+/* 11/11 (Ahmed) : hauteur par défaut d'un bloc de fiche = titres + n lignes de données (PARAMÉTRAGE › BLOCS › LIGNES AFFICHÉES PAR DÉFAUT)
+   + ligne CRÉER + ligne TOTAL, mesurée sur les vraies lignes (avant : formule fixe pour des lignes de 34 px, soit 8 à 9 lignes visibles) ; hauteur réglée à la main gardée */
+function achNvhFloor() { let n = 5; try { n = sviBlkRows().n; } catch (e) {}
+  document.querySelectorAll("#ach .nvp .rec-scroll").forEach(sc => { if (sc.style.maxHeight === "none") return; sc.style.maxHeight = achNvhMin(sc, n) + "px";
+    const m = achNvhMin(sc, 1); if (sc.getBoundingClientRect().height < m - 1) sc.style.height = m + "px"; }); }
 function achNvhDrag(e, h) {
   e.preventDefault(); const pg = h.closest(".nvp"), k = h.dataset.nvh, sc = h.parentNode.querySelector(".rec-scroll"); if (!pg || !sc) return;
   const y0 = e.clientY, b0 = sc.getBoundingClientRect().height; let v = b0; h.classList.add("on");
