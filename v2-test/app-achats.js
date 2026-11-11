@@ -1331,7 +1331,7 @@ function achFrsMod(ctx) {
   const ribTxt = r => { if (!r) return ""; const b = achBankOfRib(r.rib), d = achDig(r.rib); return (b ? b.abr || b.n : "?") + " …" + d.slice(-4); };
   const FRS_COLS = () => [
     ["code", "CODE", f => f.code, "center"], ["nom", "NOM", f => f.nom, ""], ["forme", "FORME", f => f.forme || "", ""], ["ville", "VILLE", f => f.ville || "", ""],
-    ["ice", "ICE", f => achDig(f.ice), "center"], ["rib", "RIB PRINCIPAL", f => ribTxt(achFrsRibP(f)), "center"], ["cond", "PAIEMENT", f => f.cond || "", ""],
+    ["ice", "ICE", f => achDig(f.ice), "center"], ["rib", "RIB PRINCIPAL", f => ribTxt(achFrsRibP(f)), "center"],
     ["fam", "FAMILLES", f => (f.fam || []).length, "center"], ["cte", "CONTACTS", f => (f.cte || []).length, "center"],
     ["note", "NOTE / 10", f => { const n = achFrsNote(f); return n === null ? "" : Math.round(n * 10) / 10; }, "center"],
     ["freq", "FRÉQUENCE", f => achFrsFreq(f).lab, "center"]];
@@ -2589,7 +2589,7 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
       <tbody>${R.map(r => `${GT[r.__i] ? `<tr class="ins-title cai-gt"><td></td><td colspan="${CO.length + 1}"><b>${esc(GT[r.__i].no + " " + GT[r.__i].lab)}</b></td></tr>` : ""}<tr data-g="${g}" data-i="${r.__i}"${r.imp ? ' class="cai-imp"' : ""}><td class="center"><button type="button" class="nvp-rd${(st => st ? " rd-" + st : "")(rdSt(g, kOf(g, r)))}" data-rg="${g}" data-rk="${esc(kOf(g, r))}" aria-label="Liaison"></button></td>${CO.map(c => cell(g, c, r, r.__i)).join("")}<td class="center nvl-cbc"><input type="checkbox" class="nvl-cb" aria-label="Cocher"${(S.ck[g] || new Set()).has(r.__i) ? " checked" : ""}></td></tr>`).join("")}
       ${ro || EMPTY[g]() ? "" : `<tr class="rec-new" data-cai-new="${g}"><td colspan="${CO.length + 2}">${NEW[g]}</td></tr>`}</tbody></table></div>`; };
   S.ck = {};
-  const draw = () => { if (d.isConnected) ckRead(); const ob = d.querySelector('.cafi-x[data-k="objet"]'); if (ob) C.objet = achU(ob.value);
+  const draw = () => { S.drawT = Date.now(); if (d.isConnected) ckRead(); const ob = d.querySelector('.cafi-x[data-k="objet"]'); if (ob) C.objet = achU(ob.value);
     d.innerHTML = sviWinCard({ st: c0 ? achPcSt("caf", c0) : "instance", cls: "frs-card caf-card caf-info cai-card",   /* v1121 (L2) : seule la couleur change selon l'état */ close: "data-x", title: "DÉTAIL CONSULTATION",   /* 11/11 (validé, 10.2) : même fenêtre à la création, en instance et validée (référence dans la barre) */
       body: `<div class="frs-g cafi-g">${achCreeFld(c0)}<label class="frs-f frs-w"><span>OBJET</span><input class="ins-in cafi-x" data-k="objet" value="${esc(C.objet || "")}"${dis} autocomplete="off"></label></div>
         <div class="bdg-d-block cai-blk${S.max ? " cai-blk-max" : ""}"><div class="bdg-d-block-title blk-head"><span class="ttl">CONSULTATION</span><span class="blk-tools"><button type="button" class="blk-btn blk-max-btn cai-max${S.max ? " on" : ""}" aria-label="Agrandir / réduire"></button>${ro ? "" : `<button type="button" class="blk-more cai-more" aria-label="Actions">⋯</button>`}</span></div>
@@ -2671,6 +2671,7 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
       const all = coLoad(); all[t] = keys; coSave(all); d.addEventListener("click", ev => { ev.stopPropagation(); ev.preventDefault(); }, { capture: true, once: true }); draw(); };
     document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up); });
   d.addEventListener("click", async e => {
+    if (e.target === d && Date.now() - (S.drawT || 0) < 600) return;   /* v1122 : clic d'un double toucher reporté sur le fond après un redessin (AGRANDIR / RÉDUIRE) — la fenêtre ne se ferme pas */
     if (e.target === d || e.target.closest("[data-x]")) { KIT.cfClose(); d.remove(); if (done) done(); return; }
     const cfb = e.target.closest(".cf-btn[data-cf]"); if (cfb) { e.stopPropagation(); sync(); KIT.cfOpenMenu(cfb); return; }
     if (e.target.closest(".cafp-doc")) { achCopyOpen(e.target.closest(".cafp-doc").dataset.fk); return; }
@@ -4112,6 +4113,7 @@ function achNvMod(ctx, cfg) {
   /* 11/11 (compte rendu v1089 – v1092, 2.10 / 3.6) : le nom du tiers est TOUJOURS un lien (souligné, couleur de son état) — seul, dans le titre ou à sa suite */
   const pLk = () => `<button type="button" class="ach-link nvp-party" data-nvgo="${esc(P.partyGo)}">${esc(P.party)}</button>`;
   const h1 = () => { if (!(pid && P)) return LST.h1(); const T = String(P.title || ""), N = String(P.party || "");
+    if (cfg.list.k === "caf") return "DÉTAIL CONSULTATION";   /* v1122 (décision d'Ahmed) : la barre du haut d'une consultation = « DÉTAIL CONSULTATION » seul */
     if (!P.partyGo || !N) return esc(cfg.list.one) + " — " + esc(T);
     const i = T.indexOf(N); return esc(cfg.list.one) + " — " + (i >= 0 ? esc(T.slice(0, i)) + pLk() + esc(T.slice(i + N.length)) : (T && T !== P.ref ? esc(T) + " — " : "") + pLk()); };
   const click = async e => {
@@ -4308,7 +4310,7 @@ function achFrsNvMod(ctx) {
       etat0: "tout", etats: [["frequent", "FRÉQUENTS"], ["normal", "NORMAUX"], ["occasionnel", "OCCASIONNELS"], ["dormant", "DORMANTS"], ["bloque", "BLOQUÉS"], ["archive", "ARCHIVÉS"], ["corbeille", "CORBEILLE"], ["tout", "TOUT"]],
       ok: (x, k) => k === "corbeille" ? !!x.del : x.del ? false : k === "tout" ? true : k === "archive" ? !!x.arch : k === "bloque" ? !x.arch && (!!x.bloq || x.actif === false)
         : x.arch || x.bloq || x.actif === false ? false : k === "actif" ? true : achFrsFreq(x).k === k,
-      cols: mode => [["ref", "RÉFÉRENCE", f => achFrsRef(f), ""], ["grp", "ORIGINE", f => achFrsGrp(f).nom, ""], ["nom", "NOM", f => f.nom, "", f => f.logo || ""], ["ville", "VILLE", f => f.ville || "", ""], ["ice", "ICE", f => achDig(f.ice), "center"], ["cond", "PAIEMENT", f => f.cond || "", ""], ["freq", "FRÉQUENCE", f => achFrsFreq(f).lab, "center"]]
+      cols: mode => [["ref", "RÉFÉRENCE", f => achFrsRef(f), ""], ["grp", "ORIGINE", f => achFrsGrp(f).nom, ""], ["nom", "NOM", f => f.nom, "", f => f.logo || ""], ["ville", "VILLE", f => f.ville || "", ""], ["ice", "ICE", f => achDig(f.ice), "center"], ["freq", "FRÉQUENCE", f => achFrsFreq(f).lab, "center"]]
         .concat(mode === "valid" ? [["val", "VALIDÉ LE", f => achDFr(f.val || f.cree), "center"]] : []).concat([["cree", "SAISI LE", f => achDFr(f.cree), "center"]]) },
     pageOf: id => { const f = achFrs().find(x => x.id === id); if (!f) return null;
       /* v921 (remarque 4) : toutes les pièces liées au fournisseur — consultations, devis, commandes, réceptions, retours, factures, avoirs, paiements */

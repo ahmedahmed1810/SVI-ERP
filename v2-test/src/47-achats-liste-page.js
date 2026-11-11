@@ -501,6 +501,7 @@ function achNvMod(ctx, cfg) {
   /* 11/11 (compte rendu v1089 – v1092, 2.10 / 3.6) : le nom du tiers est TOUJOURS un lien (souligné, couleur de son état) — seul, dans le titre ou à sa suite */
   const pLk = () => `<button type="button" class="ach-link nvp-party" data-nvgo="${esc(P.partyGo)}">${esc(P.party)}</button>`;
   const h1 = () => { if (!(pid && P)) return LST.h1(); const T = String(P.title || ""), N = String(P.party || "");
+    if (cfg.list.k === "caf") return "DÉTAIL CONSULTATION";   /* v1122 (décision d'Ahmed) : la barre du haut d'une consultation = « DÉTAIL CONSULTATION » seul */
     if (!P.partyGo || !N) return esc(cfg.list.one) + " — " + esc(T);
     const i = T.indexOf(N); return esc(cfg.list.one) + " — " + (i >= 0 ? esc(T.slice(0, i)) + pLk() + esc(T.slice(i + N.length)) : (T && T !== P.ref ? esc(T) + " — " : "") + pLk()); };
   const click = async e => {
@@ -697,7 +698,7 @@ function achFrsNvMod(ctx) {
       etat0: "tout", etats: [["frequent", "FRÉQUENTS"], ["normal", "NORMAUX"], ["occasionnel", "OCCASIONNELS"], ["dormant", "DORMANTS"], ["bloque", "BLOQUÉS"], ["archive", "ARCHIVÉS"], ["corbeille", "CORBEILLE"], ["tout", "TOUT"]],
       ok: (x, k) => k === "corbeille" ? !!x.del : x.del ? false : k === "tout" ? true : k === "archive" ? !!x.arch : k === "bloque" ? !x.arch && (!!x.bloq || x.actif === false)
         : x.arch || x.bloq || x.actif === false ? false : k === "actif" ? true : achFrsFreq(x).k === k,
-      cols: mode => [["ref", "RÉFÉRENCE", f => achFrsRef(f), ""], ["grp", "ORIGINE", f => achFrsGrp(f).nom, ""], ["nom", "NOM", f => f.nom, "", f => f.logo || ""], ["ville", "VILLE", f => f.ville || "", ""], ["ice", "ICE", f => achDig(f.ice), "center"], ["cond", "PAIEMENT", f => f.cond || "", ""], ["freq", "FRÉQUENCE", f => achFrsFreq(f).lab, "center"]]
+      cols: mode => [["ref", "RÉFÉRENCE", f => achFrsRef(f), ""], ["grp", "ORIGINE", f => achFrsGrp(f).nom, ""], ["nom", "NOM", f => f.nom, "", f => f.logo || ""], ["ville", "VILLE", f => f.ville || "", ""], ["ice", "ICE", f => achDig(f.ice), "center"], ["freq", "FRÉQUENCE", f => achFrsFreq(f).lab, "center"]]
         .concat(mode === "valid" ? [["val", "VALIDÉ LE", f => achDFr(f.val || f.cree), "center"]] : []).concat([["cree", "SAISI LE", f => achDFr(f.cree), "center"]]) },
     pageOf: id => { const f = achFrs().find(x => x.id === id); if (!f) return null;
       /* v921 (remarque 4) : toutes les pièces liées au fournisseur — consultations, devis, commandes, réceptions, retours, factures, avoirs, paiements */

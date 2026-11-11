@@ -791,6 +791,8 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
     if (host.matches(".bdg-d-page") || host.querySelector(".bdg-d-page")) { let L = {}; try { L = layLoad(); } catch (e) {} if (!L.def && Object.keys(L).length) return true; }
     return false; };
   window.sviLayDirty = layDirty;
+  /* v1122 : dernier bouton ⋯ touché (repli quand le menu ne connaît pas son bouton) — remis après le retrait de LARGEUR OPTIMISÉE */
+  let src = null; document.addEventListener("pointerdown", e => { const b = e.target.closest && e.target.closest(".blk-more, [data-nvmore], .nvl-more, .bdg-more-btn, [data-blkmore]"); if (b) src = b; }, true);
   new MutationObserver(() => { const m = document.getElementById("blkMenu"); if (!m || m.__laychk) return; m.__laychk = 1;
     const lay = [...m.querySelectorAll("button")].find(x => /DISPOSITION PAR DÉFAUT/.test(x.textContent || "")); if (!lay) return;
     const b0 = m.__btn && m.__btn.isConnected ? m.__btn : src && src.isConnected ? src : null;
