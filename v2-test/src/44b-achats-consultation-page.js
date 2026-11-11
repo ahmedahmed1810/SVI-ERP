@@ -241,20 +241,90 @@ function achCafSend(id) { const c = achCaf().find(y => y.id === id); if (!c) ret
     /* série H : la fille est ENVOYÉE ; son empreinte est gardée (un changement de ses articles la met À RENVOYER) */
     achCafSaveOne(id, x => { const t0 = achNow(); x.rep[f] = { ...(x.rep[f] || {}), env: t0 }; x.fil[f] = { ...(x.fil[f] || {}), env: t0, sig: achFilSig(x, f) }; }, "ENVOYÉE À " + achFrsNom(f) + " (" + achFilRefOf(c, f) + ")"); sb.textContent = "ENVOYÉ"; });
 }
-/* fenêtre i de la consultation (série I, I7 – I9, document unique 10.2) : DATE DE CRÉATION (remplie seule, non modifiable) puis OBJET — rien d'autre
-   (plus de RÉFÉRENCE : elle est dans le bandeau ; plus de PROJET : une consultation n'est rattachée à aucun projet) ; création = cette fenêtre, puis la page s'ouvre (3.6) */
+/* fenêtre i de la consultation — 11/11 (Ahmed, validé, document unique 10.2 modifiée) : à la création comme à la réouverture,
+   DATE DE CRÉATION (remplie seule), OBJET, puis quatre blocs : ARTICLES CONSULTÉS (besoin, article, unité, quantité ; IMPORTER),
+   FOURNISSEURS CONSULTÉS, DOCUMENTS ENVOYÉS, CONDITIONS PARTICULIÈRES (avec valeur). Besoin choisi parmi les existants (jamais créé ici) ;
+   article ou fournisseur inconnu = créé au nom tapé, EN INSTANCE, « CRÉÉ DEPUIS LA CONSULTATION » (fournisseur occasionnel : ni ICE ni RIB exigés).
+   ENREGISTRER crée ou met à jour la consultation puis sa page s'ouvre ; liaisons (rond) dans la page ; consultation close = lecture seule. */
 function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id === id) : null; if (id && !c0) return;
-  const C = c0 ? { ...c0 } : { objet: "" }, ro = !!c0 && c0.state !== "ouverte", d = sviWinNew(), dis = ro ? " disabled" : "";
-  d.innerHTML = sviWinCard({ cls: "frs-card caf-card caf-info", close: "data-x", title: achWinTtl(c0 && c0.ref, "NOUVELLE CONSULTATION"),
-    body: `<div class="frs-g">${achCreeFld(c0)}
-      <label class="frs-f frs-w"><span>OBJET</span><input class="ins-in cafi-x" data-k="objet" value="${esc(C.objet || "")}"${dis} autocomplete="off"></label></div>`,
-    foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${ro ? "" : `<button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button>`}` });
-  sviWinShow(d);
-  d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); if (done) done(); return; } if (!e.target.closest("[data-ok]")) return;
-    const v = k => (d.querySelector(`.cafi-x[data-k="${k}"]`) || {}).value || "", L = achCaf();
-    if (c0) { const c = L.find(x => x.id === id); c.objet = achU(v("objet")); c.mod = achNow(); achCafSave(L); achHist(c.ref, "MODIFICATION", c.objet); }
-    else { const now = achNow(), c = { id: "C" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), ref: achNextRef("CAF", L), objet: achU(v("objet")), date: now.slice(0, 10), dlim: "", lignes: [], frs: [], rep: {}, state: "ouverte", cree: now };
-      achCafUp(c); L.push(c); achCafSave(L); achHist(c.ref, "CRÉATION", c.objet); }
+  const ro = !!c0 && c0.state !== "ouverte", d = sviWinNew(), dis = ro ? " disabled" : "";
+  const C = JSON.parse(JSON.stringify(c0 || { objet: "", lignes: [], frs: [] })); if (!c0) { C.lignes = []; C.frs = []; } achCafUp(C);
+  const code0 = c0 ? (c0.ref || c0.code) : "";
+  const BSN = achBsnOpen(), BS = new Map(achBsn().map(b => [b.id, b])), ARTS = achArts().filter(a => !a.del), FRS = achFrs().filter(f => !f.del);
+  const docs0 = code0 ? (achJ("svi_docs_v1:ACH-" + code0, []) || []).map((d0, i) => ({ ...d0, __id: d0.ref || "d" + i })) : [];
+  const S = { L: C.lignes.map(l => ({ ...l })), F: C.frs.map(f => ({ id: f, nom: achFrsNom(f) })), D: docs0.filter(x => !(C.dhide || []).includes(x.__id)), Dn: [], Dh: [], K: (C.cond || []).map(x => ({ ...x })) };
+  const opt = (v, t, sel) => `<option value="${esc(v)}"${sel ? " selected" : ""}>${esc(t)}</option>`;
+  const cb = (k, i) => ro ? "" : `<input type="checkbox" class="cai-ck" data-g="${k}" data-i="${i}">`;
+  const sec = (k, t, n, body, tools) => `<div class="frs-sec cai-sec" data-sec="${k}"><div class="frs-st">${t} ${svCnt(n)}</div>${body}${ro ? "" : `<div class="cai-tools">${tools}</div>`}</div>`;
+  const tbl = (head, rows) => `<table class="bdg-d-table rec-table cai-t"><thead><tr>${head.map(h => `<th>${h}</th>`).join("")}${ro ? "" : "<th></th>"}</tr></thead><tbody>${rows || `<tr><td colspan="${head.length + 1}" class="cai-empty">—</td></tr>`}</tbody></table>`;
+  const draw = () => {
+    const art = tbl(["BESOIN", "ARTICLE", "U", "QUANTITÉ"], S.L.map((l, i) => `<tr${l.imp ? ' class="cai-imp"' : ""}><td><select class="ins-in cai-x" data-g="L" data-i="${i}" data-k="bsn"${dis}>${opt("", "—", !l.bsn)}${(l.bsn && !BSN.some(b => b.id === l.bsn) && BS.get(l.bsn) ? [BS.get(l.bsn)] : []).concat(BSN).map(b => opt(b.id, b.ref + " — " + b.des, b.id === l.bsn)).join("")}</select></td>
+      <td><input class="ins-in cai-x" data-g="L" data-i="${i}" data-k="des" list="caiArts" value="${esc(l.des || "")}"${dis} autocomplete="off"></td><td><input class="ins-in cai-x" data-g="L" data-i="${i}" data-k="u" value="${esc(l.u || "")}"${dis} autocomplete="off"></td>
+      <td><input class="ins-in cai-x number" data-g="L" data-i="${i}" data-k="q" inputmode="decimal" value="${esc(l.q === "" || l.q === undefined ? "" : String(l.q).replace(".", ","))}"${dis}></td><td class="center">${cb("L", i)}</td></tr>`).join(""));
+    const frs = tbl(["FOURNISSEUR"], S.F.map((f, i) => `<tr><td>${esc(f.nom)}${f.id ? "" : ` <i class="cai-new">(NOUVEAU)</i>`}</td><td class="center">${cb("F", i)}</td></tr>`).join(""));
+    const dc = tbl(["RÉFÉRENCE", "INTITULÉ"], S.D.map((x, i) => `<tr><td>${esc(x.ref || "")}</td><td>${esc(x.title || "")}</td><td class="center">${cb("D", i)}</td></tr>`).concat(S.Dn.map((x, i) => `<tr><td><i class="cai-new">(NOUVEAU)</i></td><td>${esc(x.title)}</td><td class="center">${cb("N", i)}</td></tr>`)).join(""));
+    const cnd = tbl(["CONDITION", "VALEUR"], S.K.map((cd, i) => `<tr><td>${esc(cd.lab)}</td><td>${cd.t === "on" ? `<select class="ins-in cai-x" data-g="K" data-i="${i}" data-k="v"${dis}>${["", "OUI", "NON"].map(v => opt(v, v || "—", cd.v === v)).join("")}</select>`
+      : `<input class="ins-in cai-x${cd.t === "num" ? " number" : ""}" data-g="K" data-i="${i}" data-k="v"${cd.t === "date" ? ' type="date"' : ""} value="${esc(cd.v || "")}"${dis} autocomplete="off">`}</td><td class="center">${cb("K", i)}</td></tr>`).join(""));
+    const rmB = g => `<button type="button" class="svc-b cai-rm" data-g="${g}">RETIRER LES COCHÉS</button>`;
+    d.innerHTML = sviWinCard({ cls: "frs-card caf-card caf-info cai-card", close: "data-x", title: achWinTtl(c0 && c0.ref, "NOUVELLE CONSULTATION"),
+      body: `<div class="frs-g">${achCreeFld(c0)}<label class="frs-f frs-w"><span>OBJET</span><input class="ins-in cafi-x" data-k="objet" value="${esc(C.objet || "")}"${dis} autocomplete="off"></label></div>
+        ${sec("L", "ARTICLES CONSULTÉS", S.L.length, art, `<button type="button" class="svc-b" data-cai="addL">CRÉER UN DÉTAIL ICI…</button><button type="button" class="svc-b" data-cai="imp">IMPORTER</button>${rmB("L")}`)}
+        ${sec("F", "FOURNISSEURS CONSULTÉS", S.F.length, frs, `<input class="ins-in cai-fin" list="caiFrs" placeholder="NOM DU FOURNISSEUR (LISTE OU NOUVEAU)" autocomplete="off"><button type="button" class="svc-b" data-cai="addF">AJOUTER</button>${rmB("F")}`)}
+        ${sec("D", "DOCUMENTS ENVOYÉS", S.D.length + S.Dn.length, dc, `<button type="button" class="svc-b" data-cai="addD">AJOUTER UN DOCUMENT…</button>${rmB("D")}`)}
+        ${sec("K", "CONDITIONS PARTICULIÈRES", S.K.length, cnd, `<button type="button" class="svc-b" data-cai="addK">AJOUTER UNE CONDITION…</button>${rmB("K")}`)}
+        <datalist id="caiArts">${ARTS.map(a => `<option value="${esc(a.des)}">${esc(a.u || "")}</option>`).join("")}</datalist>
+        <datalist id="caiFrs">${FRS.filter(f => !S.F.some(x => x.id === f.id)).map(f => `<option value="${esc(f.nom)}"></option>`).join("")}</datalist>`,
+      foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${ro ? "" : `<button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button>`}` }); };
+  const sync = () => { d.querySelectorAll(".cai-x").forEach(i => { const g = i.dataset.g, k = i.dataset.k, o = (g === "L" ? S.L : S.K)[+i.dataset.i]; if (!o) return;
+      if (g === "L" && k === "q") o.q = String(i.value).trim() === "" ? "" : achN(i.value); else if (g === "L" && k === "bsn") o.bsn = i.value || ""; else o[k] = k === "v" && i.type === "date" ? i.value : achU(i.value); });
+    const ob = d.querySelector('.cafi-x[data-k="objet"]'); if (ob) C.objet = achU(ob.value); };
+  draw(); sviWinShow(d);
+  /* un besoin choisi remplit l'article, l'unité et la quantité */
+  d.addEventListener("change", e => { const t = e.target; if (!t.matches('.cai-x[data-k="bsn"]')) { if (t.matches('.cai-x[data-k="des"]')) { const a = ARTS.find(y => achU(y.des) === achU(t.value)), u = t.closest("tr").querySelector('[data-k="u"]'); if (a && u && !u.value) u.value = a.u || ""; } return; }
+    const b = BS.get(t.value), tr = t.closest("tr"); if (!b) return; sync(); const l = S.L[+t.dataset.i]; l.des = b.des; l.u = b.u; l.q = achN(b.q); draw(); void tr; });
+  d.addEventListener("click", async e => {
+    if (e.target === d || e.target.closest("[data-x]")) { d.remove(); if (done) done(); return; }
+    const a = e.target.closest("[data-cai]"), rm = e.target.closest(".cai-rm");
+    if (rm && !ro) { sync(); const g = rm.dataset.g, ck = k => [...d.querySelectorAll(`.cai-ck[data-g="${k}"]:checked`)].map(x => +x.dataset.i);
+      if (g === "L") { const I = ck("L"); if (!I.length) { svToast("COCHER D'ABORD LES DÉTAILS À RETIRER.", 2500); return; } S.L = S.L.filter((_, i) => !I.includes(i)); }
+      if (g === "F") { const I = ck("F"), D0 = achDvf(); const keep = S.F.filter((f, i) => I.includes(i) && f.id && D0.some(v => v.caf === (c0 && c0.id) && v.frs === f.id && v.state !== "annule"));
+        if (!I.length) { svToast("COCHER D'ABORD LES FOURNISSEURS À RETIRER.", 2500); return; } if (keep.length) svToast("GARDÉ(S) : " + keep.map(f => f.nom).join(", ") + " (DEVIS REÇU).", 3500); S.F = S.F.filter((f, i) => !I.includes(i) || keep.includes(f)); }
+      if (g === "D") { const I = ck("D"), N = ck("N"); if (!I.length && !N.length) { svToast("COCHER D'ABORD LES DOCUMENTS À RETIRER.", 2500); return; } S.Dh = S.Dh.concat(S.D.filter((_, i) => I.includes(i)).map(x => x.__id)); S.D = S.D.filter((_, i) => !I.includes(i)); S.Dn = S.Dn.filter((_, i) => !N.includes(i)); }
+      if (g === "K") { const I = ck("K"); if (!I.length) { svToast("COCHER D'ABORD LES CONDITIONS À RETIRER.", 2500); return; } S.K = S.K.filter((_, i) => !I.includes(i)); }
+      draw(); return; }
+    if (a && !ro) { sync(); const k = a.dataset.cai;
+      if (k === "addL") { S.L.push({ id: achCafId(), bsn: "", des: "", u: "", q: "" }); draw(); const ins = d.querySelectorAll('.cai-x[data-k="des"]'); ins[ins.length - 1]?.focus(); return; }
+      if (k === "imp") { const R = await achCafImpRead(S.D.filter(x => x.fk), c0 && c0.id); if (!R) return; let g = null; const G = C.grp = C.grp || [];
+        R.rows.forEach(r => { if (r.title) { g = { id: achCafId(), lab: achU(r.title) }; G.push(g); return; } const ar = achArtOf(r.des, r.u); S.L.push({ id: achCafId(), bsn: "", des: ar ? ar.des : achU(r.des), u: ar ? ar.u : achU(r.u), q: r.q, imp: true, ...(g ? { g: g.id } : {}) }); });
+        if (R.file) S.Dn.push({ f: R.file, title: "IMPORT — " + R.file.name }); const n = R.rows.filter(r => !r.title).length;
+        svToast(n ? n + " DÉTAIL(S) IMPORTÉ(S) : À VÉRIFIER DANS LA PAGE (EN ROUGE) PUIS CONFIRMER." : "AUCUNE LIGNE RECONNUE DANS « " + R.from + " ».", 4000); draw(); return; }
+      if (k === "addF") { const inp = d.querySelector(".cai-fin"), nom = achU(inp && inp.value || ""); if (!nom) { svToast("TAPER LE NOM DU FOURNISSEUR.", 2500); return; }
+        const f = FRS.find(x => achU(x.nom) === nom); if (S.F.some(x => (f && x.id === f.id) || achU(x.nom) === nom)) { svToast("DÉJÀ DANS LA CONSULTATION.", 2500); return; }
+        S.F.push(f ? { id: f.id, nom: f.nom } : { id: "", nom }); draw(); return; }
+      if (k === "addD") { const f = await new Promise(ok => { const i = document.createElement("input"); i.type = "file"; i.onchange = () => ok(i.files[0] || null); i.click(); }); if (!f) return;
+        const t = await achAsk("NOUVEAU DOCUMENT", "INTITULÉ") || f.name; S.Dn.push({ f, title: achU(t) }); draw(); return; }
+      if (k === "addK") { const lab = await achAsk("NOUVELLE CONDITION PARTICULIÈRE", "INTITULÉ (AJOUTÉ AUSSI À ACHATS › CLAUSES)"); if (!lab) return; S.K.push({ id: achCafId(), k: "autre", lab: achU(lab), t: "text", v: "" });
+        const P = achPrm(), Lp = achClP(P); if (!Lp.some(y => achU(y.txt) === achU(lab))) { P.clP = Lp.concat([{ id: "p" + Date.now().toString(36), t: "autre", txt: achU(lab) }]); achPrmSave(P); } draw(); return; }
+      return; }
+    if (!e.target.closest("[data-ok]") || ro) return;
+    sync(); const now = achNow(), Lc = achCaf();
+    /* articles et fournisseurs inconnus : créés au nom tapé, EN INSTANCE, « CRÉÉ DEPUIS LA CONSULTATION » */
+    let c = c0 ? Lc.find(x => x.id === id) : null;
+    if (!c) { c = { id: "C" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), ref: achNextRef("CAF", Lc), objet: C.objet, date: now.slice(0, 10), dlim: "", lignes: [], frs: [], rep: {}, state: "ouverte", cree: now }; achCafUp(c); Lc.push(c); }
+    const ref = c.ref, AL = achArts(); let na = 0; S.L.filter(l => achU(l.des)).forEach(l => { if (!achArtOf(l.des, l.u)) { const a = achArtNew(AL, { des: l.des, u: l.u, src: "CONSULTATION " + ref }); a.st = "instance"; a.fromCaf = ref; achHist(a.code, "CRÉATION", "CRÉÉ DEPUIS LA CONSULTATION " + ref); na++; } }); if (na) achArtsSave(AL);
+    const FL = achFrs(); let nf = 0; S.F.forEach(f => { if (f.id) return; const n = achFrsNew(FL, { nom: f.nom, occ: true }); n.st = "instance"; n.fromCaf = ref; f.id = n.id; achHist(n.code, "CRÉATION", "CRÉÉ DEPUIS LA CONSULTATION " + ref); nf++; }); if (nf) achFrsSave(FL);
+    const oldF = c.frs || [], newF = S.F.map(f => f.id), addF = newF.filter(f => !oldF.includes(f)), delF = oldF.filter(f => !newF.includes(f));
+    c.objet = C.objet; c.frs = newF;
+    const old = new Map((c.lignes || []).map(l => [l.id, l]));
+    c.lignes = S.L.filter(l => achU(l.des)).map(l => { const o = old.get(l.id) || {}, a = achArtOf(l.des, l.u); return { ...o, id: l.id, bsn: l.bsn || "", des: a ? a.des : achU(l.des), u: a ? a.u : achU(l.u), q: l.q === "" ? "" : achN(l.q), ...(l.imp ? { imp: true } : {}), ...(l.g ? { g: l.g } : {}) }; });
+    c.grp = (C.grp || c.grp || []).filter(g => c.lignes.some(l => l.g === g.id));
+    c.lf = c.lf || {}; c.lignes.forEach(l => { if (!Array.isArray(c.lf[l.id])) c.lf[l.id] = newF.slice(); else c.lf[l.id] = c.lf[l.id].filter(f => !delF.includes(f)).concat(addF.filter(f => !c.lf[l.id].includes(f))); });
+    Object.keys(c.lf).forEach(k => { if (!c.lignes.some(l => l.id === k)) { delete c.lf[k]; delete (c.ld || {})[k]; delete (c.lc || {})[k]; } });
+    delF.forEach(f => { delete (c.rep || {})[f]; delete (c.fd || {})[f]; delete (c.fc || {})[f]; });
+    c.cond = S.K; const kid = new Set(S.K.map(x => x.id)); Object.keys(c.fc || {}).forEach(f => { c.fc[f] = (c.fc[f] || []).filter(y => kid.has(y)); }); Object.keys(c.lc || {}).forEach(l => { c.lc[l] = (c.lc[l] || []).filter(y => kid.has(y)); });
+    c.dhide = [...new Set((c.dhide || []).concat(S.Dh))]; c.mod = now; achCafUp(c); achCafSave(Lc); achHist(ref, c0 ? "MODIFICATION" : "CRÉATION", c.objet);
+    for (const x of S.Dn) { try { await achCafDocAdd(ref, x.f, x.title); } catch (er) {} }
+    if (na || nf) svToast((na ? na + " ARTICLE(S)" : "") + (na && nf ? " ET " : "") + (nf ? nf + " FOURNISSEUR(S)" : "") + " CRÉÉ(S) EN INSTANCE (DEPUIS LA CONSULTATION).", 3500);
     d.remove(); if (done) done(); });
 }
 
@@ -333,26 +403,37 @@ const achImpSrcWin = DOCS => new Promise(ok => { const d = sviWinNew(), D = DOCS
   d.innerHTML = sviWinCard({ cls: "cmpm-pick", close: "data-x", title: "IMPORTER DANS LE DÉTAIL CONSULTATION", body: `<div class="cmpm-list">
     <button type="button" class="svc-b" data-s="file">UN FICHIER DE L'EXTÉRIEUR (EXCEL, CSV, PDF)</button>
     <button type="button" class="svc-b" data-s="gs">UN LIEN GOOGLE SHEETS</button>
+    <button type="button" class="svc-b" data-s="caf">UNE AUTRE CONSULTATION DE L'APPLICATION</button>
     ${D.length ? `<div class="frs-st">UN DOCUMENT DE LA CONSULTATION</div>` + D.map((x, i) => `<button type="button" class="svc-b" data-s="d${i}">${esc((x.ref || "") + " — " + (x.title || x.fname || ""))}</button>`).join("") : ""}
 </div>`,   /* 10.5 : pas de bandeau ; le message après l'import dit que les lignes sont à vérifier */
     foot: `<button type="button" class="svc-b" data-x>ANNULER</button>` });
   sviWinShow(d);
   d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); ok(null); return; }
     const b = e.target.closest("[data-s]"); if (!b) return; const s = b.dataset.s; d.remove(); ok(s[0] === "d" ? { doc: D[+s.slice(1)] } : { s }); }); });
-async function achCafImport(x, redraw) { const code = x.ref || x.code, DOCS = achJ("svi_docs_v1:ACH-" + code, []) || [], src = await achImpSrcWin(DOCS); if (!src) return;
-  let rows = null, from = "";
+/* 11/11 (Ahmed, validé, 10.2) : LECTURE D'UN IMPORT, sans rien enregistrer — { rows, from, file } ; source en plus : UNE AUTRE CONSULTATION de l'application
+   (on coche ses articles à reprendre ; titres de groupes repris ; les besoins liés ne sont pas repris) */
+async function achCafImpRead(DOCS, selfId) { const src = await achImpSrcWin(DOCS || []); if (!src) return null;
+  let rows = null, from = "", file = null;
   try {
-    if (src.doc) { const f = await sviFiles.get(src.doc.fk); if (!f) { svToast("FICHIER DU DOCUMENT INTROUVABLE SUR CET APPAREIL.", 3500); return; } rows = await achImpBlob(f.name ? f : new File([f], src.doc.fname || "doc", { type: f.type })); from = src.doc.ref || src.doc.title; }
-    else if (src.s === "gs") { const url = await achAsk("IMPORTER UN LIEN GOOGLE SHEETS", "LIEN DE LA FEUILLE (PARTAGÉE EN LECTURE)"); if (!url) return;
-      const id = (url.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1], gid = (url.match(/[#&?]gid=(\d+)/) || [])[1] || "0"; if (!id) { svToast("LIEN GOOGLE SHEETS NON RECONNU.", 3000); return; }
+    if (src.doc) { const f = await sviFiles.get(src.doc.fk); if (!f) { svToast("FICHIER DU DOCUMENT INTROUVABLE SUR CET APPAREIL.", 3500); return null; } rows = await achImpBlob(f.name ? f : new File([f], src.doc.fname || "doc", { type: f.type })); from = src.doc.ref || "DOCUMENT"; }
+    else if (src.s === "caf") { const C = achCaf().filter(c => c.id !== selfId && (c.lignes || []).length); if (!C.length) { svToast("AUCUNE AUTRE CONSULTATION AVEC DES ARTICLES.", 3000); return null; }
+      const pk = await achPickWin("REPRENDRE LES ARTICLES D'UNE CONSULTATION", C.map(c => ({ v: c.id, lab: c.ref + " — " + (c.objet || "") + " (" + c.lignes.length + " ARTICLE(S))" }))); if (!pk.length) return null;
+      const c = C.find(y => y.id === pk[0]), G = new Map((c.grp || []).map(g => [g.id, g.lab || ""]));
+      const L = await achPickWin("ARTICLES À REPRENDRE — " + c.ref, c.lignes.map((l, i) => ({ v: String(i), lab: (l.des || "") + " — " + achF2(l.q) + " " + (l.u || ""), on: true }))); if (!L.length) return null;
+      rows = []; let g0 = null; c.lignes.forEach((l, i) => { if (!L.includes(String(i))) return; const gl = l.g ? G.get(l.g) || "" : ""; if (gl && gl !== g0) { rows.push({ title: gl }); g0 = gl; } rows.push({ des: l.des, u: l.u, q: achN(l.q), pu: "" }); }); from = c.ref; }
+    else if (src.s === "gs") { const url = await achAsk("IMPORTER UN LIEN GOOGLE SHEETS", "LIEN DE LA FEUILLE (PARTAGÉE EN LECTURE)"); if (!url) return null;
+      const id = (url.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1], gid = (url.match(/[#&?]gid=(\d+)/) || [])[1] || "0"; if (!id) { svToast("LIEN GOOGLE SHEETS NON RECONNU.", 3000); return null; }
       const r = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`); if (!r.ok) throw new Error("ACCÈS REFUSÉ (FEUILLE NON PARTAGÉE ?)");
       const X = await loadXLSX(), wb = X.read(await r.text(), { type: "string", raw: true }); rows = achImpRows(X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: false })); from = "GOOGLE SHEETS"; }
-    else { const f = await new Promise(ok => { const i = document.createElement("input"); i.type = "file"; i.accept = ".xlsx,.xls,.csv,.pdf"; i.onchange = () => ok(i.files[0] || null); i.click(); }); if (!f) return;
-      rows = await achImpBlob(f); from = f.name;
-      /* le fichier venu de l'extérieur s'ajoute aux DOCUMENTS de la consultation */
-      const L = achJ("svi_docs_v1:ACH-" + code, []) || [], k = "ach:doc:" + code + ":" + Date.now().toString(36); try { await sviFiles.put(k, f); } catch (e) {}
-      const dx = { ref: "ACH DOC " + code + "/" + String(L.length + 1).padStart(3, "0"), date: new Date().toISOString(), title: "IMPORT — " + f.name, fk: k, fname: f.name }; L.push(dx); achW("svi_docs_v1:ACH-" + code, L); achHist(code, "DOCUMENT", dx.title); }
-  } catch (err) { svToast("IMPORT IMPOSSIBLE : " + String(err && err.message || err).toUpperCase(), 4500); return; }
+    else { const f = await new Promise(ok => { const i = document.createElement("input"); i.type = "file"; i.accept = ".xlsx,.xls,.csv,.pdf"; i.onchange = () => ok(i.files[0] || null); i.click(); }); if (!f) return null;
+      rows = await achImpBlob(f); from = f.name; file = f; }
+  } catch (err) { svToast("IMPORT IMPOSSIBLE : " + String(err && err.message || err).toUpperCase(), 4500); return null; }
+  return { rows: rows || [], from, file }; }
+/* un fichier venu de l'extérieur rejoint les DOCUMENTS de la consultation (SUIVI) */
+async function achCafDocAdd(code, f, title) { const L = achJ("svi_docs_v1:ACH-" + code, []) || [], k = "ach:doc:" + code + ":" + Date.now().toString(36) + Math.random().toString(36).slice(2, 4); try { await sviFiles.put(k, f); } catch (e) {}
+  const dx = { ref: "ACH DOC " + code + "/" + String(L.length + 1).padStart(3, "0"), date: new Date().toISOString(), title: title || f.name, fk: k, fname: f.name }; L.push(dx); achW("svi_docs_v1:ACH-" + code, L); achHist(code, "DOCUMENT", dx.title); return dx; }
+async function achCafImport(x, redraw) { const code = x.ref || x.code, DOCS = achJ("svi_docs_v1:ACH-" + code, []) || [], R = await achCafImpRead(DOCS, x.id); if (!R) return;
+  const { rows, from, file } = R; if (file) await achCafDocAdd(code, file, "IMPORT — " + file.name);
   const n = (rows || []).filter(r => !r.title).length; if (!n) { svToast("AUCUNE LIGNE RECONNUE DANS « " + from + " ».", 4000); if (redraw) redraw(); return; }
   achCafSaveOne(x.id, c => { let g = null; c.grp = c.grp || [];
     rows.forEach(r => { if (r.title) { g = { id: achCafId(), lab: achU(r.title) }; g.n = 0; c.grp.push(g); return; }

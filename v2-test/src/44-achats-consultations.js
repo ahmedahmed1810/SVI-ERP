@@ -398,7 +398,7 @@ function achDvfLow(C, D, l, v, x) {
 function achPickWin(title, items) {
   return new Promise(ok => {
     const d = sviWinNew();
-    d.innerHTML = sviWinCard({ cls: "cmpm-pick", close: "data-x", title: esc(title), body: `<div class="cmpm-list">${items.map(x => `<label class="cmpm-it"><input type="checkbox" value="${esc(x.v)}"> ${esc(x.lab)}</label>`).join("")}</div>`,
+    d.innerHTML = sviWinCard({ cls: "cmpm-pick", close: "data-x", title: esc(title), body: `<div class="cmpm-list">${items.map(x => `<label class="cmpm-it"><input type="checkbox" value="${esc(x.v)}"${x.on ? " checked" : ""}> ${esc(x.lab)}</label>`).join("")}</div>`,
       foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>AJOUTER</button>` });
     sviWinShow(d);
     d.addEventListener("click", e => {

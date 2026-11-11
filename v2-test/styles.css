@@ -3906,3 +3906,17 @@ html.svi-nuit #home .home-head :is(.home-close, .home-more) { background: #16213
 /* v1107 : titre du centre de la barre — placé par sviTagPlace (gauche, largeur, haut), centré à mi-hauteur, stable ; agrandi au toucher s'il est coupé */
 html body #sviScreenTag { transform: none !important; max-width: none !important; box-sizing: border-box; display: block; text-align: center; padding: 0 10px !important; border-radius: 0 !important; box-shadow: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
 html body #sviScreenTag.svi-tag-open { white-space: normal; overflow: visible; text-overflow: clip; padding: 10px 12px 10px !important; line-height: 1.25 !important; border-radius: 0 0 10px 10px !important; box-shadow: 0 6px 14px rgba(16,24,40,.25); z-index: 20002; }
+/* v1111 (10.2) : fenêtre i de la consultation — quatre blocs */
+.cai-card .cai-sec { margin-top: 12px; }
+.cai-card .cai-t { width: 100%; table-layout: auto; margin: 4px 0; }
+.cai-card .cai-t td { padding: 2px 4px; vertical-align: middle; }
+.cai-card .cai-t td .ins-in { width: 100%; box-sizing: border-box; }
+.cai-card .cai-t th:last-child, .cai-card .cai-t td:last-child { width: 28px; text-align: center; }
+.cai-card .cai-t tr.cai-imp td { color: #b91c1c; }
+.cai-card .cai-empty { color: #9aa3af; text-align: center; }
+.cai-card .cai-new { color: #b45309; font-style: normal; font-size: .85em; }
+.cai-card .cai-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 2px; }
+.cai-card .cai-tools .cai-fin { flex: 1 1 220px; min-width: 180px; }
+.cai-card .cai-tools .svc-b { min-height: 30px; padding: 4px 12px; font-size: 12px; }
+.cai-card .cai-tools .svc-b.cai-rm { color: #b91c1c; }
+.cai-card .cai-t td .ins-in { border: 1px solid #d5dbe3; border-radius: 6px; min-height: 28px; }
