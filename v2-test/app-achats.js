@@ -2368,10 +2368,17 @@ function achCafPage(x, B) {
       return { st: s0, go: [[1, "frs", f]],   /* correction : l'état de la fille seul décide de la couleur (plus de « validé » ajouté par le texte de l'état) */ cells: [achFilRefOf(x, f), fr(f), String(achFilLig(x, f).length), env ? achDFr(String(env).slice(0, 10)) : "",
         { h: V.map(v => `<button type="button" class="ach-link" data-nvgo="dvf|${esc(v.id)}">${esc(v.ref)}</button>`).join(", "), t: V.map(v => v.ref).join(", ") }, ACH_FIL_ST[s0]] }; }) };
   /* ---- DOCUMENTS : ceux de l'onglet DOCUMENTS du SUIVI ; cochés = à envoyer ---- */
-  const DOCS = achJ("svi_docs_v1:ACH-" + (x.ref || x.code), []) || [];
+  const DOCS = (achJ("svi_docs_v1:ACH-" + (x.ref || x.code), []) || []).map((d0, i) => ({ ...d0, __id: d0.ref || "d" + i })).filter(d0 => !(x.dhide || []).includes(d0.__id));   /* 11/11 : documents retirés de la consultation (gardés au SUIVI) */
   const DOC = { t: "DOCUMENTS ENVOYÉS", add: open ? "AJOUTER UN DOCUMENT ICI… (IL S'AJOUTE AUSSI AU SUIVI)" : "", cols: [["RÉFÉRENCE"], ["INTITULÉ"]],   /* 11/11 (Ahmed) : la référence soulignée ouvre le document (plus de colonne FICHIER) */
-    rows: DOCS.map((d0, i) => { const id = d0.ref || "d" + i, k = "d|" + id; return { rd: { k, st: rdSt(k) }, cells: [d0.fk ? { h: `<button type="button" class="ach-link cafp-doc" data-fk="${esc(d0.fk)}">${esc(d0.ref || "DOCUMENT")}</button>`, t: d0.ref || "" } : d0.ref || "", d0.title || ""] }; }),
-    addFn: async redraw => { const R = achRecBlock(x.ref || x.code); if (await R.addTab("doc")) { const L2 = R.list("doc"), n = L2[L2.length - 1]; void n; } redraw(); } };
+    rows: DOCS.map((d0, i) => { const id = d0.__id, k = "d|" + id; return { rd: { k, st: rdSt(k) }, cells: [d0.fk ? { h: `<button type="button" class="ach-link cafp-doc" data-fk="${esc(d0.fk)}">${esc(d0.ref || "DOCUMENT")}</button>`, t: d0.ref || "" } : d0.ref || "", d0.title || ""] }; }),
+    addFn: async redraw => { const R = achRecBlock(x.ref || x.code); if (await R.addTab("doc")) { const L2 = R.list("doc"), n = L2[L2.length - 1]; void n; } redraw(); },
+    /* 11/11 (Ahmed) : SUPPRIMER LES DOCUMENTS COCHÉS — retirés de la consultation (plus envoyés, liaisons retirées), gardés au SUIVI */
+    menu: open ? [{ k: "rmd", lab: "SUPPRIMER LES DOCUMENTS COCHÉS", del: true }] : [],
+    act: async (a, ck, redraw) => { if (a !== "rmd") return; const D0 = ck.map(i => DOCS[i]).filter(Boolean); if (!D0.length) { svToast("COCHER D'ABORD LES DOCUMENTS À SUPPRIMER (CASES À DROITE).", 3000); return; }
+      if (!(await svConfirm({ title: "SUPPRIMER LES DOCUMENTS COCHÉS", html: D0.map(d0 => `<div>- ${esc((d0.ref || "") + (d0.title ? " — " + d0.title : ""))}</div>`).join("") + `<div style="margin-top:12px">ILS RESTENT DANS LE SUIVI.</div>`, ok: "SUPPRIMER" }))) return;
+      const ids = D0.map(d0 => d0.__id), snap = JSON.stringify({ dhide: x.dhide || [], fd: x.fd || {}, ld: x.ld || {} });
+      const run = () => achCafSaveOne(x.id, c => { c.dhide = [...new Set((c.dhide || []).concat(ids))]; Object.keys(c.fd || {}).forEach(f => { c.fd[f] = (c.fd[f] || []).filter(y => !ids.includes(y)); }); Object.keys(c.ld || {}).forEach(l => { c.ld[l] = (c.ld[l] || []).filter(y => !ids.includes(y)); }); }, "DOCUMENTS RETIRÉS");
+      run(); if (typeof sviUndoPush === "function") sviUndoPush(dir => { if (dir === "undo") { const S = JSON.parse(snap); achCafSaveOne(x.id, c => { c.dhide = S.dhide; c.fd = S.fd; c.ld = S.ld; }, "DOCUMENTS RÉTABLIS"); } else run(); redraw(); }, "SUPPRESSION DE DOCUMENTS"); redraw(); } };
   /* ---- CONDITIONS PARTICULIÈRES (F5) ---- */
   const CND = { t: "CONDITIONS PARTICULIÈRES", add: open ? "AJOUTER UNE CONDITION ICI…" : "", cols: [["CONDITION"], ["VALEUR"]],
     rows: (x.cond || []).map(cd => { const k = "c|" + cd.id, inp = cd.t === "on" ? `<select class="ins-in cafp-cv" data-cd="${esc(cd.id)}"${dis}>${["", "OUI", "NON"].map(v => `<option value="${v}"${cd.v === v ? " selected" : ""}>${v || "—"}</option>`).join("")}</select>`
@@ -2382,7 +2389,14 @@ function achCafPage(x, B) {
       achCafSaveOne(x.id, c => { c.cond.push({ id: achCafId(), k: "autre", lab: achU(lab), t: "text", v: "" }); }, "CONDITION AJOUTÉE");
       /* un seul catalogue : la condition rejoint les clauses particulières (ACHATS › CLAUSES) si elle n'y est pas */
       const P = achPrm(), Lp = achClP(P); if (!Lp.some(y => achU(y.txt) === achU(lab))) { P.clP = Lp.concat([{ id: "p" + Date.now().toString(36), t: "autre", txt: achU(lab) }]); achPrmSave(P); }
-      redraw(); } };
+      redraw(); },
+    /* 11/11 (Ahmed) : SUPPRIMER LES CONDITIONS COCHÉES — avec leurs liaisons (fournisseurs, articles) ; ANNULER possible */
+    menu: open ? [{ k: "rmc", lab: "SUPPRIMER LES CONDITIONS COCHÉES", del: true }] : [],
+    act: async (a, ck, redraw) => { if (a !== "rmc") return; const C0 = ck.map(i => (x.cond || [])[i]).filter(Boolean); if (!C0.length) { svToast("COCHER D'ABORD LES CONDITIONS À SUPPRIMER (CASES À DROITE).", 3000); return; }
+      if (!(await svConfirm({ title: "SUPPRIMER LES CONDITIONS COCHÉES", html: C0.map(cd => `<div>- ${esc(cd.lab)}</div>`).join(""), ok: "SUPPRIMER" }))) return;
+      const ids = C0.map(cd => cd.id), snap = JSON.stringify({ cond: x.cond || [], fc: x.fc || {}, lc: x.lc || {} });
+      const run = () => achCafSaveOne(x.id, c => { c.cond = (c.cond || []).filter(cd => !ids.includes(cd.id)); Object.keys(c.fc || {}).forEach(f => { c.fc[f] = (c.fc[f] || []).filter(y => !ids.includes(y)); }); Object.keys(c.lc || {}).forEach(l => { c.lc[l] = (c.lc[l] || []).filter(y => !ids.includes(y)); }); }, "CONDITIONS SUPPRIMÉES");
+      run(); if (typeof sviUndoPush === "function") sviUndoPush(dir => { if (dir === "undo") { const S = JSON.parse(snap); achCafSaveOne(x.id, c => { c.cond = S.cond; c.fc = S.fc; c.lc = S.lc; }, "CONDITIONS RÉTABLIES"); } else run(); redraw(); }, "SUPPRESSION DE CONDITIONS"); redraw(); } };
   /* ---- COMPARATIF (F8 : devis partiels, plusieurs devis, prix à choisir) ---- */
   const FC = (x.frs || []).filter(f => DD.some(v => v.frs === f));
   const CMP = { t: "TABLEAU COMPARATIF", cols: [["DÉTAIL"]].concat(FC.map(f => [fr(f), "number"])),
@@ -2439,7 +2453,7 @@ const achCafCondOf = (c, f) => { const fc = ((c.fc || {})[f] || []), L = (c.lign
 const achCafCondLinked = (c, cd) => (c.frs || []).some(f => achCafCondOf(c, f).includes(cd));
 /* 11/11 (Ahmed, validé) : les DOCUMENTS partent comme les conditions — liés au fournisseur par le rond, directement (fd) ou par un article (ld) */
 const achCafDocOf = (c, f, DOCS) => { const fd = ((c.fd || {})[f] || []), L = (c.lignes || []).filter(l => ((c.lf || {})[l.id] || []).includes(f));
-  return DOCS.filter((d0, i) => { const id = d0.ref || "d" + i; return fd.includes(id) || L.some(l => ((c.ld || {})[l.id] || []).includes(id)); }); };
+  return DOCS.filter((d0, i) => { const id = d0.__id || d0.ref || "d" + i; return fd.includes(id) || L.some(l => ((c.ld || {})[l.id] || []).includes(id)); }); };
 const achCafCondMiss = c => (c.cond || []).filter(cd => achCafCondLinked(c, cd) && !String(cd.v ?? "").trim());
 /* F8 : CRÉER SON DEVIS — prérempli avec les détails liés au fournisseur ; il reste les prix (plusieurs devis du même fournisseur possibles) */
 function achCafMkDvf(id, f, redraw) { const c = achCaf().find(y => y.id === id); if (!c) return; achCafUp(c);
@@ -2459,7 +2473,7 @@ function achCafSend(id) { const c = achCaf().find(y => y.id === id); if (!c) ret
   const det0 = achDetNum(c.lignes, c.grp).filter(o => !o.title);
   const pickL = () => M.det === "ck" ? det0.filter((o, i) => CK.det.includes(achDetNum(c.lignes, c.grp).indexOf(o))).map(o => o.l) : c.lignes;
   const pickF = () => M.frs === "ck" ? CK.frs.map(i => c.frs[i]).filter(Boolean) : c.frs.slice();
-  const DOCS = achJ("svi_docs_v1:ACH-" + c.ref, []) || [], pickD = () => (M.doc === "ck" ? CK.doc.map(i => DOCS[i]).filter(Boolean) : DOCS.slice());   /* 11/11 : cases cochées = réduction parmi les documents liés */
+  const DOCS = (achJ("svi_docs_v1:ACH-" + c.ref, []) || []).map((d0, i) => ({ ...d0, __id: d0.ref || "d" + i })).filter(d0 => !(c.dhide || []).includes(d0.__id)), pickD = () => (M.doc === "ck" ? CK.doc.map(i => DOCS[i]).filter(Boolean) : DOCS.slice());   /* 11/11 : cases cochées = réduction parmi les documents liés */
   const pickC = () => (M.cnd === "ck" ? CK.cnd.map(i => c.cond[i]).filter(Boolean) : c.cond.slice()).filter(x => String(x.v ?? "").trim());   /* 11/11 : cases cochées = réduction parmi les conditions liées */
   const txtOf = f => { const Ls = pickL().filter(l => ((c.lf || {})[l.id] || []).includes(f)), Cd = (() => { const Lk = achCafCondOf(c, f); return pickC().filter(cd => Lk.includes(cd)); })(), Dc = (() => { const Lk = achCafDocOf(c, f, DOCS); return pickD().filter(d0 => Lk.includes(d0)); })();
     const pay = ((c.rep || {})[f] || {}).pay; const N = achDetNum(Ls, c.grp);
@@ -3884,7 +3898,7 @@ function achNvMod(ctx, cfg) {
     const mo = e.target.closest("[data-nvmore]"); if (mo) { const k = mo.dataset.nvmore, bl = mo.closest(".nvp-blk"), L = P.links.find(x => achNvhKey(x.t) === k);
       const tsv = () => { const t = bl.querySelector("table"); return [...t.rows].filter(r => !r.classList.contains("rec-new")).map(r => [...r.cells].filter(c => !c.classList.contains("svi-colh")).map(c => c.textContent.trim()).join("\t")).join("\n"); };
       const bt = bl.querySelector("table"), vis = sviColhVis(bt), vf = a => a.filter((_, i) => vis.includes(i));
-      sviHdrMenu(mo, [[{ k: "max", lab: bl.classList.contains("nvp-max") ? "RÉDUIRE" : "AGRANDIR" }, { k: "hdef", lab: sviBlkRows().n + " LIGNES (PAR DÉFAUT)" }, { k: "hred", lab: "MODE RÉDUIT (" + sviBlkRows().r + " LIGNE" + (sviBlkRows().r > 1 ? "S" : "") + ")" }].concat(k === "rec" ? [{ k: "add", lab: "CRÉER" }] : []).concat(L && L.menu ? L.menu : []), sviColhItems(bt), [{ k: "exp", lab: "EXPORTER" }, { k: "apr", lab: "APERÇU" }]], async a => {
+      sviHdrMenu(mo, [[{ k: "max", lab: bl.classList.contains("nvp-max") ? "RÉDUIRE" : "AGRANDIR" }, { k: "hdef", lab: sviBlkRows().n + " LIGNES (PAR DÉFAUT)" }, { k: "hred", lab: "MODE RÉDUIT (" + sviBlkRows().r + " LIGNE" + (sviBlkRows().r > 1 ? "S" : "") + ")" }].concat(k === "rec" ? [{ k: "add", lab: "CRÉER" }] : []).concat(L && L.menu ? L.menu.filter(m => !m.del) : []), sviColhItems(bt), [{ k: "exp", lab: "EXPORTER" }, { k: "apr", lab: "APERÇU" }], L && L.menu ? L.menu.filter(m => m.del) : []].filter(g => g.length), async a => {   /* 11/11 : SUPPRIMER … en bas du ⋯ */
         if (sviColhPick(a, bt)) return;
         if (a === "max") { bl.querySelector("[data-nvmax]")?.click(); return; }
         /* F2, F3 : actions propres au bloc (lignes cochées passées) */
