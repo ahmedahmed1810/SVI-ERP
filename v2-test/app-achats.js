@@ -3703,6 +3703,7 @@ const ACH_MAX_IC = '<svg class="ic-max" width="15" height="15" viewBox="0 0 16 1
 const achBlkTools = k => `<span class="blk-tools"><button type="button" class="blk-btn blk-max-btn" data-nvmax="${esc(k)}" title="Agrandir / réduire">${ACH_MAX_IC}</button><button type="button" class="blk-more" data-nvmore="${esc(k)}" title="Actions" aria-label="Actions">⋯</button></span>`;
 /* v790 (DOCUMENT UNIQUE §6) : blocs des pages d'achat au format commun des tableaux — loupe de tri / filtre sur chaque colonne,
    case à cocher à droite (case d'en-tête), pas de ligne « AUCUN » (le compteur 0 suffit), ligne TOTAL dans LIGNES */
+/* 11/11 (Ahmed, validé) : fiche d'une pièce — un bloc de pièces liées vide ne s'affiche pas, sauf s'il permet d'en créer une (ligne CRÉER) ou s'il porte les lignes (DÉTAIL) */
 function achNvPageHTML(p, rec, ctx) {
   const blk = L => { const k = achNvhKey(L.t), t = "achp_" + k, n = L.cols.length;
     /* B47 (05/11) : ordre des colonnes gardé (glisser un titre, moteur commun coOrder, comme le budget) */
@@ -3734,7 +3735,7 @@ function achNvPageHTML(p, rec, ctx) {
       <span class="bdg-d-badge ach-h" data-h="${esc(p.code)}" role="button" title="Historique">H</span>${sviPinBtn(p.ref || p.code)}
       ${sviHdrBar({ attr: "nvp", n: p.why.length, why: { undo: "RIEN À ANNULER SUR CETTE FICHE.", redo: "RIEN À RÉTABLIR SUR CETTE FICHE.", todo: p.why.length ? "" : "AUCUNE ALERTE." } })}
     </div></div>
-    ${p.links.map(blk).join("")}
+    ${p.links.filter(L => (L.rows && L.rows.length) || L.add || /^DÉTAIL/.test(L.t)).map(blk).join("")}
     ${rec.html(ctx)}
   </div>`;
 }
