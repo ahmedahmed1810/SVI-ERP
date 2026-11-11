@@ -5849,6 +5849,13 @@ function sviLk(key, o) {
       const O = chosen().filter(([g2]) => g2 !== g && pairOf(g, g2));
       if (O.length && O.every(([g2, id2]) => has(g, id, g2, id2))) return "exact";
       return any(g, id) ? "lie" : ""; },
+    /* v1130 (L6 – L8, 2e livraison) : FILTRE PAR LES CASES COCHÉES — check = { groupe: Set(ids cochés) } ; une ligne d'un groupe reste visible
+       si, pour chaque autre groupe qui a des cases cochées et qu'elle peut lier, elle est liée à au moins une ligne cochée : directement, ou par
+       le pivot (ex. un document lié au fournisseur coché par un article) ; un groupe ne se filtre pas lui-même */
+    filterFn: check => { const G = Object.keys(check || {}).filter(h => check[h] && check[h].size);
+      const hubIds = () => [...new Set(Object.entries(o.pairs).filter(([gp]) => gp.split("-")[0] === o.hub).flatMap(([, m]) => Object.keys(M(m))))].filter(a => ok(o.hub, a));
+      const reach = (g, id, h, hid) => has(g, id, h, hid) || (!!o.hub && g !== o.hub && h !== o.hub && hubIds().some(a => has(o.hub, a, g, id) && has(o.hub, a, h, hid)));
+      return (g, id) => G.every(h => h === g || !pairOf(g, h) || [...check[h]].some(hid => reach(g, id, h, hid))); },
     /* classe de la ligne (couleurs du budget : lk-sel choisie, lk-hit liée à ce qui est choisi, lk-link liée) */
     rowCls: st => st === "choisi" ? "lk-sel" : st === "exact" ? "lk-hit" : st === "lie" ? "lk-link" : "",
     /* bouton LIER / DÉLIER (en haut à droite) */
@@ -5867,6 +5874,15 @@ function sviLk(key, o) {
 }
 /* écriture commune dans des cartes { gauche: [droites] } */
 const sviLkWrite = (data, L, on) => L.forEach(({ m, a, b }) => { const Mp = data[m] = data[m] || {}, A = Mp[a] || []; Mp[a] = on ? (A.includes(b) ? A : A.concat([b])) : A.filter(y => y !== b); });
+/* v1130 : filtre appliqué à l'écran, sans redessin (les cases gardent leur état) — rows = [{ tr, g, id, ck }] ; un titre de groupe
+   (titleSel) est caché quand toutes ses lignes le sont ; renvoie le nombre de lignes cachées par groupe */
+function sviLkDomFilter(LK, rows, titleSel) { const CK = {}; rows.forEach(r => { if (r.ck) (CK[r.g] = CK[r.g] || new Set()).add(r.id); });
+  const vis = LK.filterFn(CK), hid = {};
+  rows.forEach(r => { const on = vis(r.g, r.id); r.tr.classList.toggle("svlk-hid", !on); if (!on) hid[r.g] = (hid[r.g] || 0) + 1; });
+  if (titleSel) { const tbs = new Set(rows.map(r => r.tr.parentElement)); tbs.forEach(tb => { let cur = null, any = false;
+    const end = () => { if (cur) cur.classList.toggle("svlk-hid", !any); };
+    [...tb.rows].forEach(tr => { if (tr.matches(titleSel)) { end(); cur = tr; any = false; } else if (tr.matches("[data-ri], [data-i]") && !tr.classList.contains("svlk-hid")) any = true; }); end(); }); }
+  return hid; }
 /* ⟪ src/32-demarrage.js ⟫ */
 /* =========================================================
    DEMARRAGE

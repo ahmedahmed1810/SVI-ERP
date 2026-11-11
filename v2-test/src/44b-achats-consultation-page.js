@@ -16,6 +16,23 @@ function achDvfMkCmf(dvfId) { const v = achDvf().find(y => y.id === dvfId); if (
    fournisseur éclaire ses détails (et ses documents, conditions). Toucher le rond d'une autre ligne pendant un choix = lier / délier.
    Un fournisseur ajouté est lié aux détails qu'il a déjà vendus (sinon à tous) : chaque fournisseur a son propre bordereau.
    ========================================================= */
+/* v1130 (L6 – L8, 2e livraison ; document unique partie 3, exception à 6.4, validé le 11/11) : CASES COCHÉES = FILTRE DES AUTRES BLOCS —
+   articles, fournisseurs, documents, conditions : ne restent que les lignes liées aux cochées (un document ou une condition liés au fournisseur
+   coché par un article comptent) ; à l'écran, sans redessin ; compteur « retenues/total » et TOTAL PARTIEL des ARTICLES CONSULTÉS */
+let ACH_CAF_FLT = null;
+function achCafFilter() { const F = ACH_CAF_FLT, pg = document.querySelector("#ach .nvp"); if (!F || !pg) return;
+  const h1 = pg.querySelector(".nvp-ref"); if (!h1 || h1.textContent.trim() !== String(F.ref)) return;
+  const rows = [...pg.querySelectorAll(".nvp-blk tbody tr[data-ri]")].map(tr => { const b = tr.querySelector(".nvp-rd[data-rd]"); if (!b) return null; const [g, id] = b.dataset.rd.split("|");
+    return { tr, g, id, ck: !!tr.querySelector(".nvp-cb:checked") }; }).filter(Boolean);
+  sviLkDomFilter(F.LK, rows, "tr.nvp-gt");
+  pg.querySelectorAll(".nvp-blk").forEach(bl => { if (!bl.querySelector(".nvp-rd[data-rd]")) return; const R = [...bl.querySelectorAll("tbody tr[data-ri]")].filter(tr => tr.querySelector(".nvp-rd[data-rd]")), nv = R.filter(tr => !tr.classList.contains("svlk-hid")).length;
+    const cn = bl.querySelector(".blk-head .ttl .svi-cnt"); if (cn) { if (!cn.dataset.tot) cn.dataset.tot = String(+(String(cn.textContent).split("/")[1] || cn.textContent) || R.length); const tot = +cn.dataset.tot; cn.outerHTML = svCnt(nv, tot).replace('class="', 'data-tot="' + tot + '" class="'); }
+    const ft = bl.querySelector("tfoot .bdg-d-total-row"); if (!ft) return; const C = [...ft.cells], i = C.findIndex(c => /^TOTAL/.test(c.textContent.trim())); if (i < 0) return;
+    if (!C[i].dataset.lab0) C[i].dataset.lab0 = C[i].textContent.trim();
+    const num = t => { const v = String(t || "").replace(/[\s\u00a0\u202f]/g, "").replace(",", "."); return /^-?\d+(\.\d+)?$/.test(v) ? +v : 0; };
+    const sum = R.filter(tr => !tr.classList.contains("svlk-hid")).reduce((a, tr) => a + num((tr.cells[i + 1] || {}).textContent), 0);
+    C[i].textContent = nv < R.length || C[i].dataset.lab0 === "TOTAL PARTIEL" ? "TOTAL PARTIEL" : "TOTAL"; if (C[i + 1]) C[i + 1].textContent = achF2(sum); }); }
+document.addEventListener("change", e => { if (e.target.closest && e.target.closest("#ach .nvp .nvp-blk") && e.target.matches(".nvp-cb, .nvp-all")) setTimeout(achCafFilter, 0); });
 /* v1126 (L6 – L8) : liaisons par le moteur commun (09g, sviLk) — choix de plusieurs lignes, puis ✓ LIER / ✕ DÉLIER en haut à droite */
 const ACH_CAF_LKG = { a: ["ARTICLE", "ARTICLES"], f: ["FOURNISSEUR", "FOURNISSEURS"], d: ["DOCUMENT", "DOCUMENTS"], c: ["CONDITION", "CONDITIONS"] };
 const achCafLk = (key, data, alive, G) => sviLk(key, { groups: G || ACH_CAF_LKG, data, alive, hub: G ? "L" : "a",
@@ -75,6 +92,7 @@ function achCafPage(x, B) {
   const LK = achCafLk("caf:" + x.id, () => achCaf().find(y => y.id === x.id) || x, (g, id) => ALV[g] && ALV[g].has(id));
   const rdSt = k => { const [t, id] = k.split("|"); return LK.state(t, id); };
   const lkC = k => LK.rowCls(rdSt(k));
+  ACH_CAF_FLT = { id: x.id, ref: x.ref || x.code, LK };   /* v1130 : filtre des blocs liés par les cases cochées (achCafFilter) */
   const dis = open ? "" : " disabled";
   /* ---- DÉTAIL CONSULTATION ---- */
   const usedB = new Set((x.lignes || []).filter(l => l.bsn).map(l => l.bsn)), takenD = new Set((x.lignes || []).filter(l => l.bsn).map(l => achKey(l.des, l.u)));
@@ -352,7 +370,11 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
         <div class="bdg-d-block cai-blk${S.max ? " cai-blk-max" : ""}"><div class="bdg-d-block-title blk-head"><span class="ttl">CONSULTATION</span>${ro ? "" : `<span class="svlk-win">${LKW.bar()}</span>`}<span class="blk-tools"><button type="button" class="blk-btn blk-max-btn cai-max${S.max ? " on" : ""}" aria-label="Agrandir / réduire"></button>${ro ? "" : `<button type="button" class="blk-more cai-more" aria-label="Actions">⋯</button>`}</span></div>
         <div class="cai-grid">${["L", "F", "D", "K"].map(list).join("")}</div></div>
 `,
-      foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${ro ? "" : `<button type="button" class="svc-b svc-ok svc-neutral" data-ok>${c0 ? "ENREGISTRER" : "CRÉER"}</button>`}` }); };
+      foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${ro ? "" : `<button type="button" class="svc-b svc-ok svc-neutral" data-ok>${c0 ? "ENREGISTRER" : "CRÉER"}</button>`}` }); fltW(); };
+  /* v1130 (L6 – L8, exception 6.4) : cases cochées = filtre des autres listes de la fenêtre (articles, fournisseurs, documents, conditions) */
+  const fltW = () => { const rows = [...d.querySelectorAll("tr[data-g][data-i]")].map(tr => { const b = tr.querySelector("[data-rg]"); return b ? { tr, g: b.dataset.rg, id: b.dataset.rk, ck: !!tr.querySelector(".nvl-cb:checked") } : null; }).filter(Boolean);
+    sviLkDomFilter(LKW, rows, "tr.cai-gt"); };
+  d.addEventListener("change", e => { if (e.target.matches && e.target.matches(".nvl-cb, .nvl-all")) setTimeout(fltW, 0); });
   const sync = () => { d.querySelectorAll(".cai-x").forEach(i => { const g = i.dataset.g, k = i.dataset.k, o = (g === "L" ? S.L : S.K)[+i.dataset.i]; if (!o) return;
       if (g === "L" && k === "q") o.q = String(i.value).trim() === "" ? "" : achN(i.value); else if (g === "L" && k === "bsn") o.bsn = i.value || ""; else o[k] = k === "v" && i.type === "date" ? i.value : achU(i.value); });
     const ob = d.querySelector('.cafi-x[data-k="objet"]'); if (ob) C.objet = achU(ob.value); };

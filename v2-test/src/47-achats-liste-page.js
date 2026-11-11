@@ -489,7 +489,8 @@ function achNvMod(ctx, cfg) {
   /* 11/11 (compte rendu v1089 – v1101, série I3) : une fiche ouverte DEPUIS SA LISTE (ligne, création) revient à cette liste au FERMER — un seul cran,
      sans prendre l'écran d'avant la liste dans le chemin ; une fiche ouverte par un lien (achGo) suit le chemin */
   let viaList = false;
-  const open = id => { pid = id; rec = null; viaList = !!id && !(typeof achGo === "function" && achGo.busy) && !(typeof achPathBack === "function" && achPathBack.on); ctx.draw(); };
+  /* v1130 (décision d'Ahmed, 11/11) : les ronds choisis d'une pièce sont libérés à chaque ouverture (moteur commun, clé « type:id ») */
+  const open = id => { if (id && typeof SVI_LK === "object") delete SVI_LK[(cfg.list && cfg.list.k) + ":" + id]; pid = id; rec = null; viaList = !!id && !(typeof achGo === "function" && achGo.busy) && !(typeof achPathBack === "function" && achPathBack.on); ctx.draw(); };
   const LST = achNvList(ctx, { ...cfg.list, page: open });
   if (cfg.list && cfg.list.k) ACH_PREV[cfg.list.k] = id => { const Pp = cfg.pageOf(id); if (Pp) achMepOpen(cfg, Pp, achRecBlock(Pp.code), () => {}); };   /* v1119 (L19) */
   const html = () => {
