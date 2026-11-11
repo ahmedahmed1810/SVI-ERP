@@ -200,7 +200,7 @@ document.addEventListener("change", e => {
   const t = e.target; if (!t.matches || !t.matches(".nvl-all, .nvl-cb")) return;
   const table = t.closest("table"); if (!table) return;
   const cbs = [...table.querySelectorAll("tbody .nvl-cb")];
-  if (t.matches(".nvl-all")) cbs.forEach(x => { x.checked = t.checked; });
+  if (t.matches(".nvl-all")) cbs.filter(x => !x.closest("tr.svlk-hid")).forEach(x => { x.checked = t.checked; });   /* v1132 : lignes cachées par le filtre des blocs liés laissées telles quelles */
   const n = cbs.filter(x => x.checked).length, all = table.querySelector(".nvl-all");
   if (all) { all.checked = n > 0 && n === cbs.length; all.indeterminate = n > 0 && n < cbs.length; }
   cbs.forEach(x => x.closest("tr").classList.toggle("nvl-on", x.checked));

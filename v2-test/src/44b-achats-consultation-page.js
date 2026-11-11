@@ -112,7 +112,7 @@ function achCafPage(x, B) {
       a ? pe : { h: `<input class="ins-in cafp-l number" data-li="${esc(l.id)}" data-c="pu" inputmode="decimal" value="${esc(String(l.pu ?? "").replace(".", ","))}" placeholder="À SAISIR"${dis}>`, t: achN(l.pu) },
       achN(l.q) * pe, b ? achN(l.q) * achN(b.pu) : "", String(nF)] }; });
   ACH_DET_DRAG[achNvhKey("ARTICLES CONSULTÉS")] = { open, rows: det.map(r => r.rd ? { l: r.rd.k.slice(2) } : { g: r.gid }), apply: f => achCafSaveOne(x.id, c => f(c), "DÉTAIL DÉPLACÉ") };
-  const DET = { t: "ARTICLES CONSULTÉS", lines: true, add: open ? "CRÉER UN DÉTAIL ICI…" : "", cols: [["ARTICLE", "center"], ["BESOIN"], ["CODE ARTICLE"], ["DÉSIGNATION"], ["U", "center"], ["QUANTITÉ", "number"], ["PRIX ESTIMÉ", "number"], ["MONTANT ESTIMÉ", "number"], ["MONTANT BUDGÉTÉ (NON ENVOYÉ)", "number"], ["FOURNISSEURS", "center"]],
+  const DET = { t: "ARTICLES CONSULTÉS", lines: true, rdh: LK.rdAll("a"), add: open ? "CRÉER UN DÉTAIL ICI…" : "", cols: [["ARTICLE", "center"], ["BESOIN"], ["CODE ARTICLE"], ["DÉSIGNATION"], ["U", "center"], ["QUANTITÉ", "number"], ["PRIX ESTIMÉ", "number"], ["MONTANT ESTIMÉ", "number"], ["MONTANT BUDGÉTÉ (NON ENVOYÉ)", "number"], ["FOURNISSEURS", "center"]],
     rows: det, addFn: redraw => { achCafSaveOne(x.id, c => { const id = achCafId(); c.lignes.push({ id, des: "", u: "", q: "" }); c.lf[id] = (c.frs || []).slice(); }, "DÉTAIL AJOUTÉ"); redraw(); },
     menu: open ? [{ k: "imp", lab: "IMPORTER (EXCEL, GOOGLE SHEETS, CSV, PDF)" }].concat((x.lignes || []).some(l => l.imp) ? [{ k: "impok", lab: "CONFIRMER LES COCHÉS (VÉRIFIÉS)" }] : []).concat([{ k: "bsn", lab: "AJOUTER LES BESOINS VALIDÉS NON COUVERTS" }, { k: "libre", lab: "AJOUTER UN ARTICLE HORS LISTE" }, { k: "up", lab: "MONTER LES COCHÉS" }, { k: "down", lab: "DESCENDRE LES COCHÉS" }, { k: "grp", lab: "GROUPER LES COCHÉS" }, { k: "ungrp", lab: "SORTIR LES COCHÉS DE LEUR GROUPE" }, { k: "rm", lab: "SUPPRIMER LES COCHÉS" }]) : [],
     act: async (a, ck, redraw) => { const rowsL = ck.map(i => det[i]).filter(r => r && r.rd).map(r => r.rd.k.slice(2));
@@ -131,7 +131,7 @@ function achCafPage(x, B) {
   /* ---- FOURNISSEURS (F12) ---- */
   /* v1119 (L10, série L) : UN SEUL BLOC FOURNISSEURS — regroupe FOURNISSEURS CONSULTÉS, CONSULTATIONS PAR FOURNISSEUR et DEVIS : par fournisseur, son nom (lié),
      la référence de sa consultation fille (H1), l'état de la fille (F18), ses devis (références liées) et leur montant TTC ; le principe mère / filles reste */
-  const FRS = { t: "FOURNISSEURS", add: open ? "AJOUTER UN FOURNISSEUR ICI…" : "", cols: [["FOURNISSEUR"], ["CONSULTATION"], ["ÉTAT", "center"], ["DEVIS"], ["MONTANT TTC", "number"]],
+  const FRS = { t: "FOURNISSEURS", rdh: LK.rdAll("f"), add: open ? "AJOUTER UN FOURNISSEUR ICI…" : "", cols: [["FOURNISSEUR"], ["CONSULTATION"], ["ÉTAT", "center"], ["DEVIS"], ["MONTANT TTC", "number"]],
     rows: (x.frs || []).map(f => { const V = DD.filter(v => v.frs === f), k = "f|" + f, fil = (x.fil || {})[f], s0 = fil ? achFilSt(x, f, D) : "", mt = V.filter(v => v.state !== "annule" && v.state !== "rejete").reduce((t, v) => t + achDvfTot(v).ttc, 0);
       return { rd: { k, st: rdSt(k) }, cls: lkC(k), go: [[0, "frs", f]], st: s0 || undefined, cells: [fr(f), fil ? achFilRefOf(x, f) : "", s0 ? ACH_FIL_ST[s0] : "",
         { h: V.map(v => `<button type="button" class="ach-link" data-nvgo="dvf|${esc(v.id)}">${esc(v.ref)}</button>`).join(", ") + (open ? ` <button type="button" class="ach-b cafp-mkdvf" data-f="${esc(f)}">CRÉER SON DEVIS</button>` : ""), t: V.map(v => v.ref).join(", ") },
@@ -154,7 +154,7 @@ function achCafPage(x, B) {
         { h: V.map(v => `<button type="button" class="ach-link" data-nvgo="dvf|${esc(v.id)}">${esc(v.ref)}</button>`).join(", "), t: V.map(v => v.ref).join(", ") }, ACH_FIL_ST[s0]] }; }) };
   /* ---- DOCUMENTS : ceux de l'onglet DOCUMENTS du SUIVI ; cochés = à envoyer ---- */
   const DOCS = (achJ("svi_docs_v1:ACH-" + (x.ref || x.code), []) || []).map((d0, i) => ({ ...d0, __id: d0.ref || "d" + i })).filter(d0 => !(x.dhide || []).includes(d0.__id));   /* 11/11 : documents retirés de la consultation (gardés au SUIVI) */
-  const DOC = { t: "DOCUMENTS ENVOYÉS", add: open ? "AJOUTER UN DOCUMENT ICI… (IL S'AJOUTE AUSSI AU SUIVI)" : "", cols: [["RÉFÉRENCE"], ["INTITULÉ"]],   /* 11/11 (Ahmed) : la référence soulignée ouvre le document (plus de colonne FICHIER) */
+  const DOC = { t: "DOCUMENTS ENVOYÉS", rdh: LK.rdAll("d"), add: open ? "AJOUTER UN DOCUMENT ICI… (IL S'AJOUTE AUSSI AU SUIVI)" : "", cols: [["RÉFÉRENCE"], ["INTITULÉ"]],   /* 11/11 (Ahmed) : la référence soulignée ouvre le document (plus de colonne FICHIER) */
     rows: DOCS.map((d0, i) => { const id = d0.__id, k = "d|" + id; return { rd: { k, st: rdSt(k) }, cls: lkC(k), cells: [d0.fk ? { h: `<button type="button" class="ach-link cafp-doc" data-fk="${esc(d0.fk)}">${esc(d0.ref || "DOCUMENT")}</button>`, t: d0.ref || "" } : d0.ref || "", d0.title || ""] }; }),
     addFn: async redraw => { const R = achRecBlock(x.ref || x.code); if (await R.addTab("doc")) { const L2 = R.list("doc"), n = L2[L2.length - 1]; void n; } redraw(); },
     /* 11/11 (Ahmed) : SUPPRIMER LES DOCUMENTS COCHÉS — retirés de la consultation (plus envoyés, liaisons retirées), gardés au SUIVI */
@@ -165,7 +165,7 @@ function achCafPage(x, B) {
       const run = () => achCafSaveOne(x.id, c => { c.dhide = [...new Set((c.dhide || []).concat(ids))]; Object.keys(c.fd || {}).forEach(f => { c.fd[f] = (c.fd[f] || []).filter(y => !ids.includes(y)); }); Object.keys(c.ld || {}).forEach(l => { c.ld[l] = (c.ld[l] || []).filter(y => !ids.includes(y)); }); }, "DOCUMENTS RETIRÉS");
       run(); if (typeof sviUndoPush === "function") sviUndoPush(dir => { if (dir === "undo") { const S = JSON.parse(snap); achCafSaveOne(x.id, c => { c.dhide = S.dhide; c.fd = S.fd; c.ld = S.ld; }, "DOCUMENTS RÉTABLIS"); } else run(); redraw(); }, "SUPPRESSION DE DOCUMENTS"); redraw(); } };
   /* ---- CONDITIONS PARTICULIÈRES (F5) ---- */
-  const CND = { t: "CONDITIONS PARTICULIÈRES", add: open ? "AJOUTER UNE CONDITION ICI…" : "", cols: [["CONDITION"], ["VALEUR"]],
+  const CND = { t: "CONDITIONS PARTICULIÈRES", rdh: LK.rdAll("c"), add: open ? "AJOUTER UNE CONDITION ICI…" : "", cols: [["CONDITION"], ["VALEUR"]],
     rows: (x.cond || []).map(cd => { const k = "c|" + cd.id, inp = cd.t === "on" ? `<select class="ins-in cafp-cv" data-cd="${esc(cd.id)}"${dis}>${["", "OUI", "NON"].map(v => `<option value="${v}"${cd.v === v ? " selected" : ""}>${v || "—"}</option>`).join("")}</select>`
         : `<input class="ins-in cafp-cv${cd.t === "num" ? " number" : ""}" data-cd="${esc(cd.id)}"${cd.t === "date" ? ' type="date"' : ""}${cd.t === "num" ? ' inputmode="decimal"' : ""} value="${esc(cd.v || "")}"${dis}>`;
       const miss = achCafCondLinked(x, cd) && !String(cd.v ?? "").trim();
@@ -214,7 +214,12 @@ function achCafPage(x, B) {
     /* ronds, devis, choix du prix, documents */
     click: async (e, redraw) => {
       /* v1126 (L6 – L8) : le rond choisit ou libère (plusieurs lignes par bloc) ; rien n'est lié avant ✓ LIER (consultation close : choix pour voir seulement) */
-      const rd = e.target.closest(".nvp-rd"); if (rd && rd.closest(".nvp")) { const [t, id] = rd.dataset.rd.split("|"); LK.toggle(t, id); redraw(); return true; }
+      /* v1132 (L6 – L8) : rond d'en-tête = tout choisir (lignes affichées du bloc) / tout libérer ; grisé si une ligne est choisie à la main */
+      const ra = e.target.closest("[data-rdall]"); if (ra && ra.closest(".nvp")) { const g = ra.dataset.rdall;
+        if (LK.hand(g)) { svToast("UNE LIGNE DE CE BLOC EST DÉJÀ CHOISIE À LA MAIN — LA LIBÉRER D'ABORD.", 3000, ra); return true; }
+        const ids = [...ra.closest(".nvp-blk").querySelectorAll("tbody tr[data-ri]:not(.svlk-hid) .nvp-rd[data-rd]")].map(b => b.dataset.rd.split("|")[1]);
+        LK.setAll(g, ids, !LK.allOn(g)); redraw(); return true; }
+      const rd = e.target.closest(".nvp-rd[data-rd]"); if (rd && rd.closest(".nvp")) { const [t, id] = rd.dataset.rd.split("|"); LK.toggle(t, id); redraw(); return true; }
       const lb = e.target.closest("[data-svlk]"); if (lb && lb.closest(".nvp") && open) { const on = lb.dataset.svlk === "lier", snap = JSON.stringify(["lf", "ld", "lc", "fd", "fc"].map(m => x[m] || {}));
         const done = await LK.apply(lb.dataset.svlk, (L, on2) => achCafSaveOne(x.id, c => sviLkWrite(c, L, on2), (on2 ? "LIÉ : " : "DÉLIÉ : ") + L.length + " LIAISON(S)"));
         if (done && typeof sviUndoPush === "function") { const after = JSON.stringify(["lf", "ld", "lc", "fd", "fc"].map(m => (achCaf().find(y => y.id === x.id) || {})[m] || {}));
@@ -362,7 +367,7 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
     const cg = `<colgroup><col data-k="_rd" style="width:30px">${CO.map((c, j) => `<col data-k="${c[0]}" data-wd="${WD[j]}" style="width:${WD[j]}">`).join("")}<col data-k="_cb" style="width:32px"></colgroup>`
       /* largeurs tenues (les moteurs de largeur des pages ne s'appliquent pas à cette fenêtre) */
       + `<style>.cai-card .cai-t[data-svcw="${t}"]{width:100%!important;min-width:0!important}.cai-card .cai-t[data-svcw="${t}"] col:nth-child(1){width:30px!important}.cai-card .cai-t[data-svcw="${t}"] col:nth-child(${CO.length + 2}){width:32px!important}</style>`;
-        const [cg1, st1] = cg.split("<style>"); return `<div class="cai-ls" data-g="${g}"><style>${st1}<table class="bdg-d-table rec-table cai-t" id="caiT${g}" data-svcw="${t}" style="width:100%">${cg1}<thead><tr><th class="cai-rdh"></th>${CO.map(c => KIT.cfHead(t, c[0], c[1] + (c[0] === { L: "des", F: "nom", D: "title", K: "lab" }[g] ? " " + svCnt(R.length, R0.length) : ""), c[3])).join("")}${sviListCbTh()}</tr></thead>
+        const [cg1, st1] = cg.split("<style>"); return `<div class="cai-ls" data-g="${g}"><style>${st1}<table class="bdg-d-table rec-table cai-t" id="caiT${g}" data-svcw="${t}" style="width:100%">${cg1}<thead><tr><th class="cai-rdh">${LKW.rdAll(g)}</th>${CO.map(c => KIT.cfHead(t, c[0], c[1] + (c[0] === { L: "des", F: "nom", D: "title", K: "lab" }[g] ? " " + svCnt(R.length, R0.length) : ""), c[3])).join("")}${sviListCbTh()}</tr></thead>
       <tbody>${R.map(r => `${GT[r.__i] ? `<tr class="ins-title cai-gt svlk-gt-${esc(GT[r.__i].title.id)}"><td></td><td colspan="${CO.length + 1}"><b>${esc(GT[r.__i].no + " " + GT[r.__i].lab)}</b></td></tr>` : ""}<tr data-g="${g}" data-i="${r.__i}" class="${r.imp ? "cai-imp " : ""}${g === "L" && r.g ? "svlk-g-" + esc(r.g) + " " : ""}${LKW.rowCls(rdSt(g, kOf(g, r)))}"><td class="center"><button type="button" class="nvp-rd${(st => st ? " rd-" + st : "")(rdSt(g, kOf(g, r)))}" data-rg="${g}" data-rk="${esc(kOf(g, r))}" aria-label="Liaison"></button></td>${CO.map(c => cell(g, c, r, r.__i)).join("")}<td class="center nvl-cbc"><input type="checkbox" class="nvl-cb" aria-label="Cocher"${(S.ck[g] || new Set()).has(r.__i) ? " checked" : ""}></td></tr>`).join("")}
       ${ro || EMPTY[g]() ? "" : `<tr class="rec-new" data-cai-new="${g}"><td colspan="${CO.length + 2}">${NEW[g]}</td></tr>`}</tbody></table></div>`; };
   S.ck = {};
@@ -459,6 +464,10 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
     /* v1115 (Ahmed) : consultation close — toucher un rond le choisit pour VOIR ses liaisons (rien n'est lié ni délié) */
     /* v1119 (L4, règle 4.2) : AGRANDIR / RÉDUIRE du bloc CONSULTATION (⋯ ou double toucher sur sa barre de titre) */
     if (e.target.closest(".cai-max")) { sync(); S.max = !S.max; draw(); return; }
+    /* v1132 (L6 – L8) : rond d'en-tête de chaque liste = tout choisir / tout libérer (lignes affichées) */
+    { const ra = e.target.closest("[data-rdall]"); if (ra) { const g = ra.dataset.rdall; sync();
+      if (LKW.hand(g)) { svToast("UNE LIGNE DE CETTE LISTE EST DÉJÀ CHOISIE À LA MAIN — LA LIBÉRER D'ABORD.", 3000, ra); return; }
+      LKW.setAll(g, [...d.querySelectorAll(`tr[data-g="${g}"]:not(.svlk-hid) [data-rg]`)].map(b => b.dataset.rk), !LKW.allOn(g)); draw(); return; } }
     if (ro) { const rr = e.target.closest("[data-rg]"); if (rr) { LKW.toggle(rr.dataset.rg, rr.dataset.rk); draw(); return; }
       if (e.target.closest("[data-ok]")) { d.remove(); if (done) done(); } return; }
     const ed = e.target.closest("td.nv-ed"); if (ed && d.contains(ed)) { if (ed.classList.contains("nv-sel")) editCell(ed); else pickCell(ed); return; }

@@ -4005,3 +4005,5 @@ html.svi-nuit body :is(.nvp-blk, .cai-t) tr:is(.lk-hit, .lk-sel) > td:not(#svi-z
 html.svi-nuit body .cai-card .cai-new:not(#svi-z1) { color: #fcd34d !important; -webkit-text-fill-color: currentColor !important; }
 /* v1130 (L6 – L8) : ligne cachée par le filtre des cases cochées (blocs liés de la consultation) */
 html body tr.svlk-hid:not(#svi-z1):not(#svi-z2):not(#svi-z3) { display: none !important; }
+/* v1132 (L6 – L8) : rond d'en-tête (tout choisir) — grisé quand une ligne est choisie à la main */
+.nvp-rd.nvp-rdall.rd-off { opacity: .35; }

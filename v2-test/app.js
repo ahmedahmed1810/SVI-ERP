@@ -4347,7 +4347,7 @@ document.addEventListener("change", e => {
   const t = e.target; if (!t.matches || !t.matches(".nvl-all, .nvl-cb")) return;
   const table = t.closest("table"); if (!table) return;
   const cbs = [...table.querySelectorAll("tbody .nvl-cb")];
-  if (t.matches(".nvl-all")) cbs.forEach(x => { x.checked = t.checked; });
+  if (t.matches(".nvl-all")) cbs.filter(x => !x.closest("tr.svlk-hid")).forEach(x => { x.checked = t.checked; });   /* v1132 : lignes cachées par le filtre des blocs liés laissées telles quelles */
   const n = cbs.filter(x => x.checked).length, all = table.querySelector(".nvl-all");
   if (all) { all.checked = n > 0 && n === cbs.length; all.indeterminate = n > 0 && n < cbs.length; }
   cbs.forEach(x => x.closest("tr").classList.toggle("nvl-on", x.checked));
@@ -5821,7 +5821,7 @@ const sviSelAllOk = i => !!(i && i.matches && i.matches("input, textarea") && (i
    ========================================================= */
 const SVI_LK = {};
 function sviLk(key, o) {
-  const E = SVI_LK[key] = SVI_LK[key] || { sel: {} }; E.o = o;
+  const E = SVI_LK[key] = SVI_LK[key] || { sel: {}, all: {} }; E.o = o; E.all = E.all || {};
   const S = g => (E.sel[g] = E.sel[g] || new Set());
   const pairOf = (g1, g2) => o.pairs[g1 + "-" + g2] ? { m: o.pairs[g1 + "-" + g2], rev: false } : o.pairs[g2 + "-" + g1] ? { m: o.pairs[g2 + "-" + g1], rev: true } : null;
   const M = m => ((o.data && o.data()) || {})[m] || {};
@@ -5841,8 +5841,15 @@ function sviLk(key, o) {
   const nm = (g, n) => { const L = (o.groups || {})[g] || [g, g]; return n + " " + (n > 1 ? L[1] : L[0]); };
   const api = {
     isSel: (g, id) => S(g).has(id),
-    toggle: (g, id) => { const s = S(g); if (s.has(id)) s.delete(id); else s.add(id); },
-    clear: () => { E.sel = {}; },
+    toggle: (g, id) => { const s = S(g); if (s.has(id)) s.delete(id); else s.add(id); E.all[g] = false; },
+    clear: () => { E.sel = {}; E.all = {}; },
+    /* v1132 (L6 – L8, 3e livraison) : ROND D'EN-TÊTE = TOUT CHOISIR (les lignes affichées du bloc), retoucher = tout libérer ;
+       grisé quand une ligne du bloc est déjà choisie à la main (comme le budget) ; toucher une ligne ensuite = choix à la main */
+    allOn: g => !!E.all[g] && S(g).size > 0,
+    hand: g => !E.all[g] && S(g).size > 0,
+    setAll: (g, ids, on) => { E.sel[g] = new Set(on ? ids : []); E.all[g] = !!on && ids.length > 0; },
+    rdAll: (g, title) => { const on = !!E.all[g] && S(g).size > 0, off = !E.all[g] && S(g).size > 0;
+      return `<button type="button" class="nvp-rd nvp-rdall${on ? " rd-choisi" : ""}${off ? " rd-off" : ""}" data-rdall="${g}" aria-label="${title || "Tout choisir"}" title="${off ? "UNE LIGNE EST DÉJÀ CHOISIE À LA MAIN" : on ? "TOUT LIBÉRER" : "TOUT CHOISIR"}"></button>`; },
     rename: (g, a, b) => { const s = S(g); if (s.has(a)) { s.delete(a); s.add(b); } },
     chosen, pending,
     state: (g, id) => { if (S(g).has(id)) return "choisi";
@@ -5869,7 +5876,7 @@ function sviLk(key, o) {
         const det = Object.keys(G).map(g => nm(g, G[g])).join(", ");
         const ask = () => svConfirm({ title: "DÉLIER", text: L.length + " LIAISON(S) SERONT DÉLIÉES (" + det + ").", ok: "✕ DÉLIER" });
         if (!(await (confirmFn ? confirmFn(ask) : ask()))) return false; }
-      write(L, mode !== "delier"); E.sel = {}; return true; } };
+      write(L, mode !== "delier"); E.sel = {}; E.all = {}; return true; } };
   return api;
 }
 /* écriture commune dans des cartes { gauche: [droites] } */
