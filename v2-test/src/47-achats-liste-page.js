@@ -417,8 +417,16 @@ function achPosRestore(v, S) { if (!v || !S) return; const go = () => {
     if (S.cell) { const tr = [...v.querySelectorAll("tr[data-id]")].find(r => r.dataset.id === S.cell[0]), td = tr && tr.cells[S.cell[1]];
       if (td && document.activeElement !== td) { if (!td.hasAttribute("tabindex")) td.setAttribute("tabindex", "-1"); td.classList.add("svi-tdf"); try { td.focus({ preventScroll: true }); } catch (er) {} } } };
   requestAnimationFrame(() => requestAnimationFrame(go)); setTimeout(go, 220); }
-const achPathBack = () => { const w = ACH_PATH.pop(); if (!w) return false; achPathBack.on = true; try { achGo(w.t, w.id); } finally { achPathBack.on = false; } achPosRestore(document.getElementById("ach"), w.snap); return true; };
-document.addEventListener("click", e => { if (e.target.closest && e.target.closest("#navMenu .nav-btn")) ACH_PATH.length = 0; }, true);
+const achPathBack = () => { const w = ACH_PATH.pop(); if (!w) return false; achPathBack.on = true;
+  try { if (w.view) { const nb = document.querySelector(`#navMenu .nav-btn[data-view="${w.view}"]:not([data-ach])`); if (nb) nb.click(); return true; }
+    const v = document.getElementById("ach"); if (v && !v.classList.contains("active-view")) { const nb = document.querySelector(`#navMenu .nav-btn[data-ach="${w.t}"]`); if (nb) nb.click(); }
+    achGo(w.t, w.id); } finally { achPathBack.on = false; } achPosRestore(document.getElementById("ach"), w.snap); return true; };
+/* 11/11 (Ahmed, document unique 3.1 modifié) : le menu ≡ NE VIDE PLUS le chemin — l'écran quitté par le menu y entre comme les autres ;
+   seule la première interface ouverte (rien derrière) a son ✕ grisé. Un autre module (accueil, budgets…) entre aussi : le ✕ y ramène. */
+document.addEventListener("click", e => { const nb = e.target.closest && e.target.closest("#navMenu .nav-btn"); if (!nb || achPathBack.on) return;
+  const cv = document.querySelector(".view.active-view"), v = document.getElementById("ach"); if (!cv) return;
+  if (cv === v && v.__achWhere) { const w = v.__achWhere(); if (!w || (nb.dataset.view === "ach" && nb.dataset.ach === w.t && !w.id)) return; try { w.snap = achPosSnap(v); } catch (er) {} ACH_PATH.push(w); return; }
+  if (nb.dataset.view === "ach" && cv.id && cv.id !== nb.dataset.view) ACH_PATH.push({ view: cv.id }); }, true);
 /* 10/11 (Ahmed, document unique 3.1 complément) : le ✕ D'UNE LISTE suit le même chemin — arrivé depuis un autre écran, il y ramène (à sa position) ;
    ouverte depuis le menu ≡ (chemin vide), il reste grisé */
 const ACH_LCLOSE_WHY = "LISTE : RIEN À FERMER (MENU ☰ POUR CHANGER D'ÉCRAN).";
