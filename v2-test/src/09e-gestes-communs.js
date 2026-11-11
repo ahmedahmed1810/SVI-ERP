@@ -815,3 +815,30 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
     m.querySelector(".svi-cwfit").addEventListener("click", e => { e.stopPropagation(); let n = 0; T.forEach(t => { if (fit(t, true)) n++; }); m.remove(); if (typeof svToast === "function") svToast(n ? "LARGEUR OPTIMISÉE." : "RIEN À MESURER (TABLEAU VIDE).", 1800); });
   }).observe(document.body || document.documentElement, { childList: true });
 }
+
+/* 11/11 (Ahmed) : TITRE DU CENTRE DE LA BARRE (#sviScreenTag) — position, texte coupé, stabilité :
+   au repos, centré dans la barre à mi-hauteur, entre la référence et ses boutons (i, H, épingle) et les boutons de droite, jamais sous un bouton ;
+   coupé (…) : 1er toucher = le titre entier, à sa place, sur plusieurs lignes, fond et police de la barre ; toucher ailleurs = sa ligne reprise ;
+   un nom souligné dans un titre coupé : 1er toucher = titre entier, 2e = sa fiche ; place recalculée seulement quand la barre change (stable) */
+{ let last = "";
+  const barOf = () => { const v = document.querySelector(".view.active-view"); return v && (v.querySelector(".bdg-d-sticky .novapp-list-titlebar") || v.querySelector(".bdg-d-sticky")); };
+  const place = force => { const t = document.getElementById("sviScreenTag"); if (!t || !t.getClientRects().length) return; const bar = barOf(); if (!bar) return;
+    const stk = bar.closest(".bdg-d-sticky") || bar, B0 = bar.getBoundingClientRect(), S0 = stk.getBoundingClientRect(); if (!S0.height) return; const B = { left: B0.left, right: B0.right, top: B0.height ? B0.top : S0.top, height: B0.height || S0.height };
+    const leftEls = [...bar.querySelectorAll(".nvp-ref, h1, .bdg-d-inf, .ach-h, .svi-pin, .bdg-pin, [data-pin]")].filter(x => x.offsetParent !== null && !t.contains(x));
+    const right = bar.querySelector(".svi-hdr, .bdg-d-hright"); const L = Math.max(B.left + 8, ...leftEls.map(x => x.getBoundingClientRect().right)) + 14, R = (right ? right.getBoundingClientRect().left : B.right) - 14;
+    const W = Math.max(80, R - L), key = [Math.round(L), Math.round(W), Math.round(B.top), Math.round(B.height), t.classList.contains("svi-tag-open")].join("|"); if (!force && key === last && t.style.top === B.top + "px" && t.style.left === L + "px") return; last = key;
+    const bgOk = el => { const c = el && getComputedStyle(el).backgroundColor; return c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c) ? c : ""; }, bg = bgOk(bar) || bgOk(bar.closest(".bdg-d-sticky")) || "#172033";   /* fond de la barre elle-même */
+    const op = t.classList.contains("svi-tag-open");
+    Object.assign(t.style, { left: L + "px", width: W + "px", top: B.top + "px", minHeight: B.height + "px", height: op ? "auto" : B.height + "px", lineHeight: op ? "" : B.height + "px", background: bg }); };
+  window.sviTagPlace = place;
+  const isCut = t => t.scrollWidth > t.clientWidth + 1;
+  const close = () => { const t = document.getElementById("sviScreenTag"); if (t && t.classList.contains("svi-tag-open")) { t.classList.remove("svi-tag-open"); place(true); } };
+  /* 1er toucher sur un titre coupé : le titre entier (avant l'ouverture d'une fiche par le nom souligné) */
+  window.addEventListener("click", e => { const t = e.target.closest && e.target.closest("#sviScreenTag"); if (!t) return;
+    if (t.classList.contains("svi-tag-open")) { if (!e.target.closest("[data-nvgo]")) { e.preventDefault(); e.stopPropagation(); close(); } return; }
+    if (isCut(t)) { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); t.classList.add("svi-tag-open"); place(true); } }, true);
+  document.addEventListener("pointerdown", e => { if (!(e.target.closest && e.target.closest("#sviScreenTag"))) close(); }, true);
+  let q = 0, q2 = 0; const go = () => { if (!q) q = requestAnimationFrame(() => { q = 0; place(false); }); clearTimeout(q2); q2 = setTimeout(() => place(false), 350); };   /* re-vérifiée une fois la mise en page posée */
+  new MutationObserver(go).observe(document.documentElement, { childList: true, subtree: true });
+  addEventListener("resize", () => { last = ""; go(); }); addEventListener("orientationchange", () => { last = ""; setTimeout(go, 200); });
+}
