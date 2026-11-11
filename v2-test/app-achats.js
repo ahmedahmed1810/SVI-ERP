@@ -1931,7 +1931,7 @@ function achDocPage(k, x) {
       else if (a === "grp") { y.grp = y.grp || []; const g = { id: "G" + Date.now().toString(36) }; y.grp.push(g); idx.forEach(i => { if (y.lignes[i]) y.lignes[i].g = g.id; }); }
       else idx.forEach(i => { if (y.lignes[i]) delete y.lignes[i].g; });
       y.mod = achNow(); ST[1](L); achHist(y.ref, a === "grp" ? "GROUPE CRÉÉ" : "SORTIS DU GROUPE", ""); redraw(); } }; };
-  const docs = (t, L, cols, cells, kk) => ({ t, cols, rows: L.map(y => ({ cells: cells(y), open: () => achGo(kk, y.id), go: y.frs && cols[1] && cols[1][0] === "FOURNISSEUR" ? [[1, "frs", y.frs]] : [], cls: ["annule", "rejete"].includes(y.state) ? "nv-strike" : "" })) });
+  const docs = (t, L, cols, cells, kk) => ({ t, cols, rows: L.map(y => ({ cells: cells(y), open: () => achGo(kk, y.id), ap: kk + "|" + y.id, go: y.frs && cols[1] && cols[1][0] === "FOURNISSEUR" ? [[1, "frs", y.frs]] : [], cls: ["annule", "rejete"].includes(y.state) ? "nv-strike" : "" })) });
   const DV = (t, L) => docs(t, L, [["RÉFÉRENCE"], ["FOURNISSEUR"], ["MONTANT TTC", "number"], ["ÉTAT", "center"]], v => [v.ref, fr(v.frs), achDvfTot(v).ttc, { recu: "REÇU", retenu: "RETENU", rejete: "REJETÉ", annule: "ANNULÉ" }[v.state] || ""], "dvf");
   const CM = (t, L) => docs(t, L, [["RÉFÉRENCE"], ["FOURNISSEUR"], ["MONTANT TTC", "number"], ["ÉTAT", "center"]], c => [c.ref, fr(c.frs), achCmfTot(c).ttc, ACH_CMF_ST[c.state] || ""], "cmf");
   /* B52 : dans le devis, plus de colonne FOURNISSEUR dans COMMANDES (le nom est dans le titre) */
@@ -2363,19 +2363,23 @@ function achCafPage(x, B) {
       if (a === "rm") { if (!(await svConfirm({ title: "SUPPRIMER LES DÉTAILS COCHÉS", text: rowsL.length + " DÉTAIL(S) ; LA NUMÉROTATION SE REFAIT.", ok: "SUPPRIMER" }))) return;
         achCafSaveOne(x.id, c => { c.lignes = c.lignes.filter(l => !rowsL.includes(l.id)); rowsL.forEach(id => { delete c.lf[id]; delete c.ld[id]; delete c.lc[id]; }); }, "DÉTAILS SUPPRIMÉS"); redraw(); } } };
   /* ---- FOURNISSEURS (F12) ---- */
-  const FRS = { t: "FOURNISSEURS CONSULTÉS", add: open ? "AJOUTER UN FOURNISSEUR ICI…" : "", cols: [["FOURNISSEUR"], ["E-MAIL"], ["RÉPONSE", "center"], ["DÉTAILS LIÉS", "center"], ["DEVIS"]],
-    rows: (x.frs || []).map(f => { const F = achFrs().find(y => y.id === f) || {}, r = (x.rep || {})[f] || {}, V = DD.filter(v => v.frs === f), k = "f|" + f, nL = (x.lignes || []).filter(l => lk("lf", l.id, f)).length;
-      return { rd: { k, st: rdSt(k) }, go: [[0, "frs", f]], cells: [fr(f), ((F.cte || []).find(y => y.email) || {}).email || "",
-        { h: `<select class="ins-in cafp-rep" data-f="${esc(f)}"${dis}>${[["attente", "EN ATTENTE"], ["repondu", "RÉPONDU"], ["decline", "DÉCLINÉ"]].map(([kk, l]) => `<option value="${kk}"${(r.st || "attente") === kk ? " selected" : ""}>${l}</option>`).join("")}</select>`, t: { repondu: "RÉPONDU", decline: "DÉCLINÉ" }[r.st] || "EN ATTENTE" },
-        String(nL), { h: V.map(v => `<button type="button" class="ach-link" data-nvgo="dvf|${esc(v.id)}">${esc(v.ref)}</button>`).join(", ") + (open ? ` <button type="button" class="ach-b cafp-mkdvf" data-f="${esc(f)}">CRÉER SON DEVIS</button>` : ""), t: V.map(v => v.ref).join(", ") }] }; }),
+  /* v1119 (L10, série L) : UN SEUL BLOC FOURNISSEURS — regroupe FOURNISSEURS CONSULTÉS, CONSULTATIONS PAR FOURNISSEUR et DEVIS : par fournisseur, son nom (lié),
+     la référence de sa consultation fille (H1), l'état de la fille (F18), ses devis (références liées) et leur montant TTC ; le principe mère / filles reste */
+  const FRS = { t: "FOURNISSEURS", add: open ? "AJOUTER UN FOURNISSEUR ICI…" : "", cols: [["FOURNISSEUR"], ["CONSULTATION"], ["ÉTAT", "center"], ["DEVIS"], ["MONTANT TTC", "number"]],
+    rows: (x.frs || []).map(f => { const V = DD.filter(v => v.frs === f), k = "f|" + f, fil = (x.fil || {})[f], s0 = fil ? achFilSt(x, f, D) : "", mt = V.filter(v => v.state !== "annule" && v.state !== "rejete").reduce((t, v) => t + achDvfTot(v).ttc, 0);
+      return { rd: { k, st: rdSt(k) }, go: [[0, "frs", f]], st: s0 || undefined, cells: [fr(f), fil ? achFilRefOf(x, f) : "", s0 ? ACH_FIL_ST[s0] : "",
+        { h: V.map(v => `<button type="button" class="ach-link" data-nvgo="dvf|${esc(v.id)}">${esc(v.ref)}</button>`).join(", ") + (open ? ` <button type="button" class="ach-b cafp-mkdvf" data-f="${esc(f)}">CRÉER SON DEVIS</button>` : ""), t: V.map(v => v.ref).join(", ") },
+        V.length ? mt : ""] }; }),
     addFn: async redraw => { const K = new Set((x.lignes || []).map(l => achKey(l.des, l.u)));
       const F = achLive(achFrs()).filter(f => achFrsOk(f) && !f.bloq && !(x.frs || []).includes(f.id)).map(f => { const S = achFrsSold(f.id); return { f, n: [...K].filter(k => S.has(k)).length }; }).sort((a, b) => b.n - a.n || a.f.nom.localeCompare(b.f.nom, "fr"));
       if (!F.length) { svToast("AUCUN AUTRE FOURNISSEUR ACTIF (ACHAT › FOURNISSEURS).", 3000); return; }
       const pick = await achPickWin("FOURNISSEURS À CONSULTER", F.map(y => ({ v: y.f.id, lab: y.f.code + " — " + y.f.nom + (y.n ? "  ★ A DÉJÀ VENDU " + y.n + " DE CES ARTICLES" : "") }))); if (!pick.length) return;
       achCafSaveOne(x.id, c => pick.forEach(f => { c.frs.push(f); c.rep = c.rep || {}; c.rep[f] = { st: "attente" }; const S = achFrsSold(f), mine = c.lignes.filter(l => S.has(achKey(l.des, l.u)));
         (mine.length ? mine : c.lignes).forEach(l => { c.lf[l.id] = (c.lf[l.id] || []).concat([f]); }); }), "FOURNISSEURS AJOUTÉS"); redraw(); },
-    menu: open ? [{ k: "rmf", lab: "RETIRER LES COCHÉS (SANS DEVIS)" }] : [],
-    act: async (a, ck, redraw) => { const F = ck.map(i => (x.frs || [])[i]).filter(Boolean).filter(f => !DD.some(v => v.frs === f)); if (!F.length) { svToast("COCHER DES FOURNISSEURS SANS DEVIS.", 2500); return; }
+    menu: open ? [{ k: "dec", lab: "LES COCHÉS ONT DÉCLINÉ" }, { k: "att", lab: "LES COCHÉS : EN ATTENTE" }, { k: "rmf", lab: "RETIRER LES COCHÉS (SANS DEVIS)" }] : [],
+    act: async (a, ck, redraw) => { if (a === "dec" || a === "att") { const F2 = ck.map(i => (x.frs || [])[i]).filter(Boolean); if (!F2.length) { svToast("COCHER D'ABORD DES FOURNISSEURS.", 2500); return; }   /* v1119 (L10) : la réponse passe par le ⋯ (plus de colonne RÉPONSE) */
+        achCafSaveOne(x.id, c => F2.forEach(f => { c.rep[f] = { ...(c.rep[f] || {}), st: a === "dec" ? "decline" : "attente" }; }), a === "dec" ? "FOURNISSEURS : DÉCLINÉ" : "FOURNISSEURS : EN ATTENTE"); redraw(); return; }
+      const F = ck.map(i => (x.frs || [])[i]).filter(Boolean).filter(f => !DD.some(v => v.frs === f)); if (!F.length) { svToast("COCHER DES FOURNISSEURS SANS DEVIS.", 2500); return; }
       achCafSaveOne(x.id, c => { c.frs = c.frs.filter(f => !F.includes(f)); F.forEach(f => { delete c.rep[f]; delete c.fd[f]; delete c.fc[f]; Object.keys(c.lf).forEach(l => { c.lf[l] = c.lf[l].filter(y => y !== f); }); }); }, "FOURNISSEURS RETIRÉS"); redraw(); } };
   /* ---- série H (H1) : CONSULTATIONS PAR FOURNISSEUR — une fille par fournisseur, ses seuls articles ; À RENVOYER si ses articles ont changé depuis l'envoi ---- */
   const FIL = { t: "CONSULTATIONS PAR FOURNISSEUR", cols: [["RÉFÉRENCE"], ["FOURNISSEUR"], ["ARTICLES", "center"], ["ENVOYÉE LE", "center"], ["DEVIS"], ["ÉTAT", "center"]],
@@ -2414,17 +2418,27 @@ function achCafPage(x, B) {
       run(); if (typeof sviUndoPush === "function") sviUndoPush(dir => { if (dir === "undo") { const S = JSON.parse(snap); achCafSaveOne(x.id, c => { c.cond = S.cond; c.fc = S.fc; c.lc = S.lc; }, "CONDITIONS RÉTABLIES"); } else run(); redraw(); }, "SUPPRESSION DE CONDITIONS"); redraw(); } };
   /* ---- COMPARATIF (F8 : devis partiels, plusieurs devis, prix à choisir) ---- */
   const FC = (x.frs || []).filter(f => DD.some(v => v.frs === f));
-  const CMP = { t: "TABLEAU COMPARATIF", cols: [["DÉTAIL"]].concat(FC.map(f => [fr(f), "number"])),
-    rows: (x.lignes || []).map(l => ({ cells: [l.des + " (" + achF2(l.q) + " " + (l.u || "") + ")"].concat(FC.map(f => { if (!lk("lf", l.id, f)) return "—"; const p = achCafPrice(x, f, l, D);
-      return p.st === "nc" ? "NON CHIFFRÉ" : p.st === "choix" ? { h: `<button type="button" class="ach-b cafp-pick" data-f="${esc(f)}" data-li="${esc(l.id)}">À CHOISIR (${p.n} PRIX)</button>`, t: "À CHOISIR" } : achN(p.p.y.pu); })) }))
-      .concat([{ cls: "caf-tot", cells: ["TOTAL HT (DÉTAILS CHIFFRÉS)"].concat(FC.map(f => (x.lignes || []).reduce((t, l) => { const p = lk("lf", l.id, f) ? achCafPrice(x, f, l, D) : { st: "nc" }; return t + (p.st === "ok" ? achN(l.q) * achN(p.p.y.pu) : 0); }, 0))) }]) };
+  /* v1119 (L14, série L) : TABLEAU COMPARATIF — ARTICLE (avec son unité), QUANTITÉ, puis par fournisseur (son nom en titre) PRIX UNITAIRE TTC et MONTANT TTC ;
+     par article : moins-disant en vert, plus cher en rouge, les autres en dégradé entre les deux (comme les indicateurs du budget) ; même mise en forme pour les totaux */
+  const ttcOf = (f, l) => { if (!lk("lf", l.id, f)) return null; const p = achCafPrice(x, f, l, D); if (p.st !== "ok") return p; const y = p.p.y, tv = y.tva === "" || y.tva === undefined ? achPrm().tva : achN(y.tva), pu = achN(y.pu) * (1 + tv / 100); return { st: "ok", pu, mt: pu * achN(l.q) }; };
+  const grad = (v, A) => { const V = A.filter(a => a !== null), lo = Math.min(...V), hi = Math.max(...V); if (V.length < 2 || hi - lo < 1e-9) return V.length > 1 ? "background:hsl(130,55%,84%) !important" : ""; const t = (v - lo) / (hi - lo);
+    return `background:hsl(${Math.round(130 * (1 - t))},62%,${Math.round(84 - 4 * Math.abs(t - .5))}%) !important;color:#172033 !important;-webkit-text-fill-color:#172033 !important`; };
+  const cmpRows = (x.lignes || []).map(l => { const P = FC.map(f => ttcOf(f, l)), M = P.map(p => p && p.st === "ok" ? p.mt : null);
+    return { cells: [l.des + (l.u ? " (" + l.u + ")" : ""), achN(l.q)].concat(...FC.map((f, i) => { const p = P[i];
+      if (!p) return ["—", "—"]; if (p.st === "nc") return ["NON CHIFFRÉ", ""];
+      if (p.st === "choix") return [{ h: `<button type="button" class="ach-b cafp-pick" data-f="${esc(f)}" data-li="${esc(l.id)}">À CHOISIR (${p.n} PRIX)</button>`, t: "À CHOISIR" }, ""];
+      const st = grad(p.mt, M); return [{ h: achF2(p.pu), t: p.pu, st }, { h: achF2(p.mt), t: p.mt, st }]; })) }; });
+  const TT = FC.map(f => (x.lignes || []).reduce((t, l) => { const p = ttcOf(f, l); return t + (p && p.st === "ok" ? p.mt : 0); }, 0));
+  const CMP = { t: "TABLEAU COMPARATIF", cols: [["ARTICLE"], ["QUANTITÉ", "number"]].concat(...FC.map(() => [["PRIX UNITAIRE TTC", "number"], ["MONTANT TTC", "number"]])),
+    grp: ["", ""].concat(...FC.map(f => [fr(f), fr(f)])),
+    rows: cmpRows.concat([{ cls: "caf-tot", cells: ["TOTAL TTC (ARTICLES CHIFFRÉS)", ""].concat(...TT.map(v => ["", { h: achF2(v), t: v, st: grad(v, TT) }])) }]) };
   return { title: x.objet || "",
     menu: (open ? [{ k: "send", lab: "ENVOYER LA CONSULTATION" }].concat(FC.length ? [{ k: "close", lab: "CLÔTURER (CHOIX DU RETENU)" }] : []) : []),   /* v1119 (L13) : une commande ne se crée que depuis un devis (page du devis retenu) */
     act: async (k, redraw) => {
       if (k === "send") { achCafSend(x.id); return true; }
       if (k === "close") { achCafClose(x.id, redraw); return true; }
       return false; },
-    links: [DET, FRS, DOC, CND, FIL].concat(FC.length ? [CMP] : []).concat([B.DV("DEVIS", DD), B.CM("COMMANDES", achCmf().filter(c => c.caf === x.id))]),
+    links: [DET, FRS, DOC, CND].concat(FC.length ? [CMP] : []).concat([B.CM("COMMANDES", achCmf().filter(c => c.caf === x.id))]),   /* v1119 (L10) : plus de blocs CONSULTATIONS PAR FOURNISSEUR ni DEVIS */
     /* ronds, devis, choix du prix, documents */
     click: async (e, redraw) => {
       const rd = e.target.closest(".nvp-rd"); if (rd && rd.closest(".nvp")) { const k = rd.dataset.rd, cur = ACH_CAF_SEL.id === x.id ? ACH_CAF_SEL.k : "";
@@ -2476,7 +2490,7 @@ function achCafSend(id) { const c = achCaf().find(y => y.id === id); if (!c) ret
   { const Mi = achCafCondMiss(c); if (Mi.length) { svToast("ENVOI IMPOSSIBLE : CONDITION(S) LIÉE(S) SANS VALEUR — " + Mi.map(cd => cd.lab).join(", ") + ".", 6000); return; } }
   { const ni = (c.lignes || []).filter(l => l.imp).length; if (ni) { svToast("ENVOI IMPOSSIBLE : " + ni + " DÉTAIL(S) IMPORTÉ(S) À VÉRIFIER (EN ROUGE) — LES COCHER PUIS « CONFIRMER LES COCHÉS ».", 5000); return; } }
   const ck = key => { const bl = document.querySelector(`#ach .nvp-blk[data-nvb="${key}"]`); return bl ? [...bl.querySelectorAll("tbody tr[data-ri]")].filter(tr => tr.querySelector(".nvp-cb:checked")).map(tr => +tr.dataset.ri) : []; };
-  const B = [["det", "ARTICLES CONSULTÉS", achNvhKey("ARTICLES CONSULTÉS")], ["frs", "FOURNISSEURS CONSULTÉS", achNvhKey("FOURNISSEURS CONSULTÉS")], ["doc", "DOCUMENTS ENVOYÉS", achNvhKey("DOCUMENTS ENVOYÉS")], ["cnd", "CONDITIONS PARTICULIÈRES ET DÉLAIS", achNvhKey("CONDITIONS PARTICULIÈRES")]];
+  const B = [["det", "ARTICLES CONSULTÉS", achNvhKey("ARTICLES CONSULTÉS")], ["frs", "FOURNISSEURS", achNvhKey("FOURNISSEURS")], ["doc", "DOCUMENTS ENVOYÉS", achNvhKey("DOCUMENTS ENVOYÉS")], ["cnd", "CONDITIONS PARTICULIÈRES ET DÉLAIS", achNvhKey("CONDITIONS PARTICULIÈRES")]];
   const CK = Object.fromEntries(B.map(([k, , key]) => [k, ck(key)])), M = Object.fromEntries(B.map(([k]) => [k, CK[k].length ? "ck" : "all"])), d = sviWinNew();
   const det0 = achDetNum(c.lignes, c.grp).filter(o => !o.title);
   const pickL = () => M.det === "ck" ? det0.filter((o, i) => CK.det.includes(achDetNum(c.lignes, c.grp).indexOf(o))).map(o => o.l) : c.lignes;
@@ -2545,7 +2559,11 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
     if (g === "D" && r.fk) return `<td><span class="ach-link cafp-doc" data-fk="${esc(r.fk)}">${esc(r.title || r.ref || "")}</span></td>`;
     const nw = (g === "F" && !r.id) || (g === "D" && !r.fk) ? ' <i class="cai-new">(NOUVEAU)</i>' : "";
     return `<td class="${cl}${canEd ? " nv-ed" : ""}"${canEd ? ` data-ed="${k}" data-g="${g}" data-i="${i}"${sel ? ' data-edsel="1"' : ""}` : ""} title="${esc(v)}">${esc(v)}${nw}</td>`; };
-  const list = g => { const t = "cai_" + g, C0 = COLS[g], CO = coOrder(t, C0.map(c => [c[0], c[1], c[2], c[3] || ""])), R0 = LST[g]().map((r, i) => ({ ...r, __i: i })), R = KIT.cfApply(t, CO, R0);
+  const list = g => { const t = "cai_" + g, C0 = COLS[g], CO = coOrder(t, C0.map(c => [c[0], c[1], c[2], c[3] || ""])), R0 = LST[g]().map((r, i) => ({ ...r, __i: i })); let R = KIT.cfApply(t, CO, R0);
+    /* v1119 (L12, F2) : articles groupés sous leurs titres (même numérotation que la page : 1, 2, 2.1…) — l'ordre des groupes, sauf tri choisi à la loupe */
+    const GT = {}; if (g === "L" && (C.grp || []).length && S.L.some(l => l.g)) { const N = achDetNum(S.L, C.grp), inR = new Set(R.map(r => r.__i)), pos = new Map(); let cur = null;
+      N.forEach((o, k) => { if (o.title) { cur = o; return; } pos.set(o.i, k); if (cur && inR.has(o.i)) { GT[o.i] = cur; cur = null; } });
+      if (!(KIT.CF[t] && KIT.CF[t].sort)) R = R.slice().sort((a, b2) => (pos.get(a.__i) ?? 1e9) - (pos.get(b2.__i) ?? 1e9)); }
     /* largeurs : partagées dans la largeur de la liste, sauf celles réglées à la main (bord tiré) */
     const CW = cwLoad(), PR = { bsn: 1, des: 1.6, u: .75, q: .85, nom: 1, title: 1, lab: 1.3, v: 1 };
     const sum = CO.reduce((x, c) => x + (CW[t + "." + c[0]] ? 0 : PR[c[0]] || 1), 0) || 1;
@@ -2554,7 +2572,7 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
       /* largeurs tenues (les moteurs de largeur des pages ne s'appliquent pas à cette fenêtre) */
       + `<style>.cai-card .cai-t[data-svcw="${t}"]{width:100%!important;min-width:0!important}.cai-card .cai-t[data-svcw="${t}"] col:nth-child(1){width:30px!important}.cai-card .cai-t[data-svcw="${t}"] col:nth-child(${CO.length + 2}){width:32px!important}</style>`;
         const [cg1, st1] = cg.split("<style>"); return `<div class="cai-ls" data-g="${g}"><style>${st1}<table class="bdg-d-table rec-table cai-t" id="caiT${g}" data-svcw="${t}" style="width:100%">${cg1}<thead><tr><th class="cai-rdh"></th>${CO.map(c => KIT.cfHead(t, c[0], c[1] + (c[0] === { L: "des", F: "nom", D: "title", K: "lab" }[g] ? " " + svCnt(R.length, R0.length) : ""), c[3])).join("")}${sviListCbTh()}</tr></thead>
-      <tbody>${R.map(r => `<tr data-g="${g}" data-i="${r.__i}"${r.imp ? ' class="cai-imp"' : ""}><td class="center"><button type="button" class="nvp-rd${(st => st ? " rd-" + st : "")(rdSt(g, kOf(g, r)))}" data-rg="${g}" data-rk="${esc(kOf(g, r))}" aria-label="Liaison"></button></td>${CO.map(c => cell(g, c, r, r.__i)).join("")}<td class="center nvl-cbc"><input type="checkbox" class="nvl-cb" aria-label="Cocher"${(S.ck[g] || new Set()).has(r.__i) ? " checked" : ""}></td></tr>`).join("")}
+      <tbody>${R.map(r => `${GT[r.__i] ? `<tr class="ins-title cai-gt"><td></td><td colspan="${CO.length + 1}"><b>${esc(GT[r.__i].no + " " + GT[r.__i].lab)}</b></td></tr>` : ""}<tr data-g="${g}" data-i="${r.__i}"${r.imp ? ' class="cai-imp"' : ""}><td class="center"><button type="button" class="nvp-rd${(st => st ? " rd-" + st : "")(rdSt(g, kOf(g, r)))}" data-rg="${g}" data-rk="${esc(kOf(g, r))}" aria-label="Liaison"></button></td>${CO.map(c => cell(g, c, r, r.__i)).join("")}<td class="center nvl-cbc"><input type="checkbox" class="nvl-cb" aria-label="Cocher"${(S.ck[g] || new Set()).has(r.__i) ? " checked" : ""}></td></tr>`).join("")}
       ${ro || EMPTY[g]() ? "" : `<tr class="rec-new" data-cai-new="${g}"><td colspan="${CO.length + 2}">${NEW[g]}</td></tr>`}</tbody></table></div>`; };
   S.ck = {};
   const draw = () => { if (d.isConnected) ckRead(); const ob = d.querySelector('.cafi-x[data-k="objet"]'); if (ob) C.objet = achU(ob.value);
@@ -3709,7 +3727,7 @@ function achNvList(ctx, o) {
       run: async ids => { if (o.kill) { const m = await achAsk("ANNULER LES PIÈCES COCHÉES (GARDÉES, VISIBLES DANS ANNULÉS)", "MOTIF DE L'ANNULATION"); if (!m) return;
           const L = o.all(), now = achNow(); ids.forEach(id => { const x = L.find(y => y.id === id); if (!x || !canDel(x) || (o.mOf && o.mOf(x))) return; x.state = "annule"; x.motifAnn = m; x.mod = now; achHist(x.ref || cdOf(x), "ANNULÉ — " + m, ""); }); o.save(L); draw(); return; }
         const L = o.all(), now = achNow(); ids.forEach(id => { const x = L.find(y => y.id === id); if (!x || !canDel(x)) return; x.del = now; x.mod = now; achHist(cdOf(x), "CORBEILLE", nmOf(x)); }); o.save(L); draw(); } }; }
-    const W = o.w || {}, CG = sviCwCols(o.t, cols.map(c => [c[0], W[c[0]] || 120]), (delCol ? [["_del", 44]] : []).concat([["_cb", 28]]));
+    const W = o.w || {}, CG = sviCwCols(o.t, cols.map(c => [c[0], W[c[0]] || 120]), (delCol ? [["_del", 44]] : []).concat(ACH_AP_ON(o.k) ? [["_ap", 30]] : [], [["_cb", 28]]));
     const ED = o.edit || {};
     /* F14 (fin) : une colonne peut dépendre de la pièce (ex. CHARGE d'un besoin : liste des charges du budget, ou texte libre au SIÈGE) */
     const edOf = (k, x) => { const E = ED[k]; return typeof E === "function" ? E(x) : E; };
@@ -3736,8 +3754,8 @@ function achNvList(ctx, o) {
         <div class="novapp-date-list">${sviDateTree("ach_" + o.k, days, dSel, "data-nvday", () => draw())}</div></aside>
       <div class="novapp-budget-table-wrap"><table id="${o.id}" class="novapp-budget-table svi-bdgl nv-one" data-sdel="${esc(o.t)}" data-ach="${o.k}" data-stf="${esc(SK)}" data-svcw="${esc(o.t)}" style="${CG.style}">
         ${CG.cg}
-        <thead><tr>${cols.map(c => cfHead(o.t, c[0], c[1], "bdg-list-head" + (c[3] === "number" ? " number" : ""))).join("")}${delCol ? '<th class="bdg-act-h"></th>' : ""}${sviListCbTh()}</tr></thead>
-        <tbody>${rows.map(x => `<tr data-id="${esc(x.id)}" data-iid="${esc(x.id)}" data-nvo="${esc(x.id)}" data-st="${esc(ST.get(x.id)[0])}" class="${rowCls(x)}${x.del || x.state === "annule" ? " etat-bloque" : ""}${x.actif === false ? " etat-archive" : ""}">${cols.map(c => cell(x, c)).join("")}${delCol ? `<td class="bdg-action-cell">${canDel(x) ? `<button type="button" class="bdg-row-action bdg-row-del" data-nvdel="${esc(x.id)}" title="Supprimer" aria-label="Supprimer">${SVI_DEL_ICON}</button>` : ""}</td>` : ""}${sviListCbTd()}</tr>`).join("")
+        <thead><tr>${cols.map(c => cfHead(o.t, c[0], c[1], "bdg-list-head" + (c[3] === "number" ? " number" : ""))).join("")}${delCol ? '<th class="bdg-act-h"></th>' : ""}${ACH_AP_ON(o.k) ? achApTh() : ""}${sviListCbTh()}</tr></thead>
+        <tbody>${rows.map(x => `<tr data-id="${esc(x.id)}" data-iid="${esc(x.id)}" data-nvo="${esc(x.id)}" data-st="${esc(ST.get(x.id)[0])}" class="${rowCls(x)}${x.del || x.state === "annule" ? " etat-bloque" : ""}${x.actif === false ? " etat-archive" : ""}">${cols.map(c => cell(x, c)).join("")}${delCol ? `<td class="bdg-action-cell">${canDel(x) ? `<button type="button" class="bdg-row-action bdg-row-del" data-nvdel="${esc(x.id)}" title="Supprimer" aria-label="Supprimer">${SVI_DEL_ICON}</button>` : ""}</td>` : ""}${ACH_AP_ON(o.k) ? achApTd(o.k + "|" + x.id) : ""}${sviListCbTd()}</tr>`).join("")
           || ""}
           ${o.newRow ? `<tr class="bdg-newrow" data-nvnew data-st="instance"><td colspan="${cols.length + (delCol ? 2 : 1)}">${esc(o.newRow)}</td></tr>` : ""}</tbody>${totRow()}</table></div></div></div>`;
   };
@@ -3933,6 +3951,9 @@ const achBlkTools = k => `<span class="blk-tools"><button type="button" class="b
    case à cocher à droite (case d'en-tête), pas de ligne « AUCUN » (le compteur 0 suffit), ligne TOTAL dans LIGNES */
 /* 11/11 (Ahmed, validé) : fiche d'une pièce — un bloc de pièces liées vide ne s'affiche pas, sauf s'il permet d'en créer une (ligne CRÉER) ou s'il porte les lignes (DÉTAIL) */
 function achNvPageHTML(p, rec, ctx) {
+  /* v1119 (L14) : rangée de titres de groupes au-dessus des colonnes (ex. nom du fournisseur sur PRIX UNITAIRE TTC et MONTANT TTC) — suit l'ordre des colonnes */
+  const grpRow = (L, J, RD, AP) => { const out = []; J.forEach(j => { const g = L.grp[j] || "", last = out[out.length - 1]; if (last && last.g === g && g) last.n++; else out.push({ g, n: 1 }); });
+    return `<tr class="nvp-grp">${RD ? "<th></th>" : ""}${out.map(o => `<th colspan="${o.n}" class="center">${esc(o.g)}</th>`).join("")}${AP ? "<th></th>" : ""}<th></th></tr>`; };
   const blk = L => { const k = achNvhKey(L.t), t = "achp_" + k, n = L.cols.length;
     /* B47 (05/11) : ordre des colonnes gardé (glisser un titre, moteur commun coOrder, comme le budget) */
     /* F3 (série F) : une case peut porter du HTML (champ de saisie, bouton) — { h: html, t: texte pour le tri et le filtre } */
@@ -3943,15 +3964,16 @@ function achNvPageHTML(p, rec, ctx) {
     const R0 = L.rows.map((r, i) => ({ ...r, __i: i })), R = ctx && ctx.cfApply ? ctx.cfApply(t, C, R0) : R0;
     const head = C.map(c => ctx && ctx.cfHead ? ctx.cfHead(t, c[0], c[1], c[3]) : `<th class="${c[3]}">${esc(c[1])}</th>`).join("");
     /* v793 : largeur des colonnes réglable et gardée (moteur commun sviCwCols / data-svcw) */
-    const CG = sviCwCols(t, (L.rows.some(r => r.rd) ? [["_rd", 28]] : []).concat(C.map((c, j) => [c[0], j === 0 ? 170 : /number/.test(c[3]) ? 110 : /center/.test(c[3]) ? 90 : 150])), [["_cb", 28]]);
+    const CG = sviCwCols(t, (L.rows.some(r => r.rd) ? [["_rd", 28]] : []).concat(C.map((c, j) => [c[0], j === 0 ? 170 : /number/.test(c[3]) ? 110 : /center/.test(c[3]) ? 90 : 150])), (R0.some(achApOf) ? [["_ap", 30]] : []).concat([["_cb", 28]]));
+    const AP = R0.some(achApOf);
     const iM = L.cols.findIndex(c => /^MONTANT/.test(c[0])), isL = (/^DÉTAIL (?!FACTURE STANDARD)/.test(L.t) || L.lines) && iM >= 0;   /* F11 : TOTAL des DÉTAILS (TOTAL PARTIEL si filtre) */
     /* B3 (série B, 04/11/2026) : toute la ligne d'une pièce liée prend la couleur de son état (rouge, vert, bleu, orange, noir) */
     const iE = L.cols.findIndex(c => /^ÉTAT|^RÉPONSE/.test(c[0])), stOf = r => r.st !== undefined ? r.st : iE < 0 ? "" : achStTxt(r.cells[iE]);
     const tot = isL ? R.reduce((s2, r) => s2 + (typeof tv(r.cells[iM]) === "number" ? tv(r.cells[iM]) : achN(tv(r.cells[iM])) || 0), 0) : 0;
     return `<div class="bdg-d-block nvp-blk" data-nvb="${k}"><div class="bdg-d-block-title blk-head"><span class="ttl">${esc(L.t)} ${svCnt(R.length, L.rows.length)}</span>${achBlkTools(k)}</div>
-      <div class="rec-scroll" style="${achNvhSc(k)}"><table class="bdg-d-table rec-table" data-colh="${esc(t)}" data-svcw="${esc(t)}" style="${CG.style}">${CG.cg}<thead><tr>${RD ? '<th class="nvp-rdh"></th>' : ""}${head}<th class="center nvp-cbh" data-cokey="_cb"><input type="checkbox" class="nvp-all" aria-label="Tout cocher"><span class="col-rs" data-col="_cb"></span></th></tr></thead>
-      <tbody>${R.map(r => `<tr class="${r.cls || ""}${stOf(r) ? " nvr-" + stOf(r) : ""}" data-ri="${r.__i}">${RD ? `<td class="nvp-rdc">${r.rd ? `<button type="button" class="nvp-rd${r.rd.st ? " rd-" + r.rd.st : ""}" data-rd="${esc(r.rd.k)}" aria-label="Liaison"></button>` : ""}</td>` : ""}${J.map(j => { const v = r.cells[j], g = (r.go || []).find(z => z[0] === j); if (v && typeof v === "object" && v.h !== undefined) return `<td class="${L.cols[j][1] || ""}">${v.h}</td>`; return `<td class="${L.cols[j][1] || ""}">${j === 0 && r.open ? `<button type="button" class="ach-link" data-nvl="${esc(L.t)}|${r.__i}">${esc(v)}</button>` : g ? `<button type="button" class="ach-link" data-nvgo="${esc(g[1] + "|" + g[2])}">${esc(v)}</button>` : esc(typeof v === "number" ? achF2(v) : v)}</td>`; }).join("")}<td class="center"><input type="checkbox" class="nvp-cb"></td></tr>`).join("")}${L.add ? `<tr class="rec-new" data-nvadd="${k}"><td colspan="${n + 1 + (RD ? 1 : 0)}">${esc(L.add)}</td></tr>` : ""}</tbody>
-      ${isL ? `<tfoot><tr class="bdg-d-total-row">${RD ? "<td></td>" : ""}${J.map((j, jj) => j === iM ? `<td class="number">${achF2(tot)}</td>` : jj === J.indexOf(iM) - 1 ? `<td class="number">${R.length < L.rows.length ? "TOTAL PARTIEL" : "TOTAL"}</td>` : "<td></td>").join("")}<td></td></tr></tfoot>` : ""}</table></div>
+      <div class="rec-scroll" style="${achNvhSc(k)}"><table class="bdg-d-table rec-table" data-colh="${esc(t)}" data-svcw="${esc(t)}" style="${CG.style}">${CG.cg}<thead>${L.grp ? grpRow(L, J, RD, AP) : ""}<tr>${RD ? '<th class="nvp-rdh"></th>' : ""}${head}${AP ? achApTh() : ""}<th class="center nvp-cbh" data-cokey="_cb"><input type="checkbox" class="nvp-all" aria-label="Tout cocher"><span class="col-rs" data-col="_cb"></span></th></tr></thead>
+      <tbody>${R.map(r => `<tr class="${r.cls || ""}${stOf(r) ? " nvr-" + stOf(r) : ""}" data-ri="${r.__i}">${RD ? `<td class="nvp-rdc">${r.rd ? `<button type="button" class="nvp-rd${r.rd.st ? " rd-" + r.rd.st : ""}" data-rd="${esc(r.rd.k)}" aria-label="Liaison"></button>` : ""}</td>` : ""}${J.map(j => { const v = r.cells[j], g = (r.go || []).find(z => z[0] === j); if (v && typeof v === "object" && v.h !== undefined) return `<td class="${L.cols[j][1] || ""}"${v.st ? ` style="${esc(v.st)}"` : ""}>${v.h}</td>`;   /* v1119 : style de case (dégradé du comparatif) */ return `<td class="${L.cols[j][1] || ""}">${j === 0 && r.open ? `<button type="button" class="ach-link" data-nvl="${esc(L.t)}|${r.__i}">${esc(v)}</button>` : g ? `<button type="button" class="ach-link" data-nvgo="${esc(g[1] + "|" + g[2])}">${esc(v)}</button>` : esc(typeof v === "number" ? achF2(v) : v)}</td>`; }).join("")}${AP ? achApTd(achApOf(r)) : ""}<td class="center"><input type="checkbox" class="nvp-cb"></td></tr>`).join("")}${L.add ? `<tr class="rec-new" data-nvadd="${k}"><td colspan="${n + 1 + (RD ? 1 : 0) + (AP ? 1 : 0)}">${esc(L.add)}</td></tr>` : ""}</tbody>
+      ${isL ? `<tfoot><tr class="bdg-d-total-row">${RD ? "<td></td>" : ""}${J.map((j, jj) => j === iM ? `<td class="number">${achF2(tot)}</td>` : jj === J.indexOf(iM) - 1 ? `<td class="number">${R.length < L.rows.length ? "TOTAL PARTIEL" : "TOTAL"}</td>` : "<td></td>").join("")}${AP ? "<td></td>" : ""}<td></td></tr></tfoot>` : ""}</table></div>
       <div class="blk-rsz nvp-rsz" data-nvh="${k}" title="Glisser pour changer la hauteur"></div></div>`; };
   /* 06/11 (décision) : un seul type de fiche, colorée selon l'état de la pièce (palette : en instance, remise, en cours de validation, en partie, validée…) */
   const pst = p.del ? "annule" : p.st || "valide", pcl = pst === "instance" ? "bdg-inst-instance" : pst === "valide" ? "nvp-valide" : pst === "fige" ? "bdg-inst-fige" : "bdg-inst-fige nvp-stc";
@@ -4041,6 +4063,16 @@ function achListCloseSync() { const v = document.getElementById("ach"); if (!v) 
 document.addEventListener("pointerdown", e => { if (e.target.closest && e.target.closest('#ach [data-nvl="close"]')) achListCloseSync(); }, true);
 document.addEventListener("click", e => { const b = e.target.closest && e.target.closest('#ach [data-nvl="close"]'); if (!b || !ACH_PATH.length) return;
   e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); achPathBack(); }, true);
+/* v1119 (L19, série L) : ICÔNE D'APERÇU juste avant la case à cocher de chaque ligne (listes et blocs de pièces) — l'APERÇU de la pièce (MISE EN PAGE),
+   sans ouvrir sa page. ACH_PREV[type] est posé par le module de la pièce (achNvMod) ; une ligne de bloc donne sa pièce par son lien (go de la 1re colonne) */
+const ACH_PREV = {};
+const ACH_AP_ON = k => !!ACH_PREV[k];
+const ACH_AP_IC = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8s-2.4 4.5-6.5 4.5S1.5 8 1.5 8z" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>';
+const achApOf = r => { if (r.ap) return ACH_PREV[String(r.ap).split("|")[0]] ? r.ap : ""; const g = (r.go || []).find(z => z[0] === 0) || (r.go || [])[0]; return g && ACH_PREV[g[1]] ? g[1] + "|" + g[2] : ""; };
+const achApTh = () => `<th class="center nv-aph" data-cokey="_ap" aria-label="Aperçu"><span class="col-rs" data-col="_ap"></span></th>`;
+const achApTd = k => `<td class="center nv-apc">${k ? `<button type="button" class="nv-ap" data-ap="${esc(k)}" title="Aperçu" aria-label="Aperçu">${ACH_AP_IC}</button>` : ""}</td>`;
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".nv-ap[data-ap]"); if (!b) return; e.preventDefault(); e.stopPropagation();
+  const [t, ...r] = b.dataset.ap.split("|"), f = ACH_PREV[t]; if (f) f(r.join("|")); }, true);
 /* 07/11 : redessin de la page ouverte (gestes hors clic : glisser une ligne) */
 let ACH_NV_REDRAW = null;
 function achNvMod(ctx, cfg) {
@@ -4050,6 +4082,7 @@ function achNvMod(ctx, cfg) {
   let viaList = false;
   const open = id => { pid = id; rec = null; viaList = !!id && !(typeof achGo === "function" && achGo.busy) && !(typeof achPathBack === "function" && achPathBack.on); ctx.draw(); };
   const LST = achNvList(ctx, { ...cfg.list, page: open });
+  if (cfg.list && cfg.list.k) ACH_PREV[cfg.list.k] = id => { const Pp = cfg.pageOf(id); if (Pp) achMepOpen(cfg, Pp, achRecBlock(Pp.code), () => {}); };   /* v1119 (L19) */
   const html = () => {
     if (pid) { P = cfg.pageOf(pid); if (!P) pid = null; else ACH_NV_REDRAW = () => ctx.draw(); }
     if (!pid) return LST.html();

@@ -3956,3 +3956,10 @@ html body #sviScreenTag.svi-tag-open { white-space: normal; overflow: visible; t
 /* v1119 (L4) : bloc CONSULTATION de la fenêtre — AGRANDI = toute la fenêtre (le bouton reste caché : ⋯ ou double toucher sur le titre) */
 .cai-card .cai-max { display: none !important; }
 .cai-card .cai-blk.cai-blk-max { position: fixed; inset: 6px; z-index: 100006; margin: 0; overflow: auto; background: var(--svi-card, #fff); box-shadow: 0 10px 40px rgba(15, 23, 42, .35); }
+/* v1119 (L14) : titres de groupes du TABLEAU COMPARATIF (nom du fournisseur au-dessus de ses deux colonnes) */
+.nvp-blk thead tr.nvp-grp th { position: static; background: var(--hdr-bg, #eef2f7); font-weight: 800; border-bottom: 1px solid #d6dbe3; text-align: center; }
+.nvp-blk thead tr.nvp-grp th:not(:empty) { border-left: 1px solid #d6dbe3; border-right: 1px solid #d6dbe3; }
+/* v1119 (L19) : icône d'aperçu avant la case à cocher */
+.nv-apc { padding: 0 !important; }
+.nv-ap { border: 0; background: none; color: #64748b; padding: 2px 4px; cursor: pointer; line-height: 0; }
+.nv-ap:hover, .nv-ap:active { color: #1d4ed8; }

@@ -3080,6 +3080,24 @@ def main():
             achCafSave(achCaf().filter(x => x.id !== 'cl19')); return r; }""")
         check("v1119 (série L, lot 1) : date et objet sur une ligne, AGRANDIR du bloc CONSULTATION, entonnoir des cases visible dans la fenêtre, plus de commande depuis la consultation, CONDITIONS DE PAIEMENT en condition, couleurs de la consultation",
               l119 == {"l1": True, "l4": True, "l15": True, "l9": True, "l20": ["instance", "partiel", "ENVOYÉE — 0 / 1 DEVIS", "valide"], "l13": True}, l119)
+        # v1120 (série L, lot 3) : L10 un seul bloc FOURNISSEURS (fille, état, devis, montant) ; L12 titres de groupes dans la fenêtre ; L14 comparatif TTC en dégradé ; L19 icône d'aperçu
+        l120 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const r = {}; const F = achFrs(); const a = achFrsNew(F, { nom: 'ALPHA20' }), b = achFrsNew(F, { nom: 'BETA20' }); achFrsSave(F);
+            achCafSave(achCaf().concat([{ id: 'cl20', ref: 'CAF-L20', state: 'ouverte', objet: 'L20', grp: [{ id: 'g1', lab: 'TERRASSEMENT' }], lignes: [{ id: 'l1', des: 'SABLE', u: 'T', q: 10 }, { id: 'l2', des: 'CIMENT', u: 'T', q: 5, g: 'g1' }], frs: [a.id, b.id], lf: { l1: [a.id, b.id], l2: [a.id, b.id] }, rep: {} }]));
+            achDvfSave(achDvf().concat([{ id: 'vl1', ref: 'DVF L1', caf: 'cl20', frs: a.id, state: 'recu', lignes: [{ des: 'SABLE', u: 'T', q: 10, pu: 100, tva: 20 }, { des: 'CIMENT', u: 'T', q: 5, pu: 1000, tva: 20 }] }, { id: 'vl2', ref: 'DVF L2', caf: 'cl20', frs: b.id, state: 'recu', lignes: [{ des: 'SABLE', u: 'T', q: 10, pu: 120, tva: 20 }, { des: 'CIMENT', u: 'T', q: 5, pu: 900, tva: 20 }] }]));
+            const v = document.getElementById('ach'); document.querySelector('#navMenu .nav-btn[data-ach="caf"]').click(); await w(400); achGo('caf', 'cl20'); await w(600);
+            const T = [...v.querySelectorAll('.nvp-blk .ttl')].map(x => x.textContent.replace(/\\s*\\d+\\s*$/, '').trim());
+            r.l10 = [T.includes('FOURNISSEURS'), T.some(x => /PAR FOURNISSEUR/.test(x)), T.includes('DEVIS')];
+            const fb = [...v.querySelectorAll('.nvp-blk')].find(x => x.querySelector('.ttl').textContent.trim().startsWith('FOURNISSEURS')); r.l10.push([...fb.querySelectorAll('thead th')].map(x => x.textContent.trim()).filter(Boolean).join('|'));
+            const cb = [...v.querySelectorAll('.nvp-blk')].find(x => /COMPARATIF/.test(x.querySelector('.ttl').textContent)); const c1 = cb.querySelectorAll('tbody tr')[0].querySelectorAll('td');
+            r.l14 = [cb.querySelector('tr.nvp-grp').textContent.includes('ALPHA20'), [...c1].map(x => x.textContent.trim()).slice(0, 6).join('|'), /hsl\\(130/.test(c1[2].getAttribute('style') || ''), /hsl\\(0,/.test(c1[4].getAttribute('style') || '')];
+            r.l19 = [!!v.querySelector('.nvp-blk .nv-ap[data-ap^="frs|"]'), !!v.querySelector('.nvp-blk .nv-ap[data-ap="cmf|"]') === false];
+            v.querySelector('[data-nvp="close"]')?.click(); await w(250); r.l19.push(!!document.querySelector('#achCafT .nv-ap[data-ap="caf|cl20"]'));
+            achCafInfo('cl20'); await w(400); r.l12 = [...document.querySelectorAll('#caiTL tbody tr')].map(t => t.textContent.trim()).slice(0, 3).map(x => x.slice(0, 15)); document.querySelector('#svConf [data-x]')?.click(); await w(150);
+            achDvfSave(achDvf().filter(x => !['vl1', 'vl2'].includes(x.id))); achCafSave(achCaf().filter(x => x.id !== 'cl20')); achFrsSave(achFrs().filter(x => ![a.id, b.id].includes(x.id)));
+            document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
+        check("v1120 (série L, lot 3) : un seul bloc FOURNISSEURS, comparatif TTC par fournisseur en dégradé, icône d'aperçu, titres de groupes dans la fenêtre",
+              l120.get("l10") == [True, False, False, "FOURNISSEUR|CONSULTATION|ÉTAT|DEVIS|MONTANT TTC"] and l120.get("l14") == [True, "SABLE (T)|10,00|120,00|1\u202f200,00|144,00|1\u202f440,00", True, True]
+              and l120.get("l19") == [True, True, True] and l120.get("l12") == ["SABLET10,00", "2 TERRASSEMENT", "CIMENTT5,00"], l120)
         # v760 : BESOINS — charges du budget avec leurs tâches, contrôle prévu / déjà demandé, dépassement BLOQUÉ (justifier puis DÉBLOQUER),
         # seuil 90 %, centre SIÈGE hors budget ; menu ☰ › BESOIN, fiche de création (budget › charge › tâche), validation
         n760 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const keepB = localStorage.getItem('svi_ach_bsn_v1'), keepE = localStorage.getItem('svi_ach_bsn_etat_v1'); localStorage.removeItem('svi_ach_bsn_v1'); localStorage.removeItem('svi_ach_bsn_etat_v1');
