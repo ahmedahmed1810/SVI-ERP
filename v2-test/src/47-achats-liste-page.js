@@ -253,6 +253,8 @@ const ACH_ED = {
 };
 const achPcCirc = x => !!x.circ && !["valide", "bap", "emis", "encaisse", "solde", "annule", "retenu"].includes(x.state) && typeof achCircDone === "function" && !achCircDone(x);
 /* 06/11 : ÉTAT d'une pièce, d'un fournisseur, d'un article — un des états communs de la palette (liste, fiche, fenêtre, noms liés) */
+/* v1119 (L20) : une consultation est « envoyée » dès qu'une consultation fille (par fournisseur) est partie */
+const achCafSent = x => Object.values((x && x.fil) || {}).some(f => f && f.env) || Object.values((x && x.rep) || {}).some(r => r && r.env);
 const achPcSt = (t, x) => { if (!x) return "";
   if (x.del || x.state === "annule" || x.state === "rejete") return "annule";
   if (t === "frs" || t === "art" || t === "cli" || t === "prj") { if (x.arch) return "archive"; if (x.bloq || x.actif === false) return "bloque";
@@ -266,7 +268,8 @@ const achPcSt = (t, x) => { if (!x) return "";
   if (t === "faf") { if (x.state === "bap") { try { if (achFafReste(x) > 0.005 && achFafPaid(x.id) > 0) return "partiel"; } catch (e) {} return "valide"; } return "instance"; }
   if (t === "paf") return x.state === "emis" ? "remis" : x.state === "encaisse" ? "valide" : "instance";
   if (t === "bsn") { if (x.state !== "valide") return "instance"; try { const a = achBsnAv(x), q = achN(x.q); if (a.cmdQ > 0 && q && a.recQ < q - 1e-9) return "partiel"; } catch (e) {} return "valide"; }
-  if (t === "caf") return x.state === "ouverte" ? "instance" : "valide";
+  /* v1119 (L20, série L) : consultation — ROUGE pendant la rédaction, BLEU une fois envoyée (tant qu'elle n'est pas close), NOIR une fois close */
+  if (t === "caf") return x.state !== "ouverte" ? "valide" : achCafSent(x) ? "partiel" : "instance";
   if (x.state === "instance" || x.state === "ouverte" || x.state === "recu" || x.state === "reclame") return "instance";
   if (x.state === "emis") return "remis";
   return "valide"; };
@@ -279,7 +282,7 @@ const achPcStep = (t, x) => { if (!x) return "";
   if (x.susp) return "SUSPENDUE"; if (x.litige) return "EN LITIGE";
   try {
     if (t === "bsn") return achBsnAvLab(x);
-    if (t === "caf") return { ouverte: "OUVERTE", close: "CLOSE", annule: "ANNULÉE" }[x.state] || "";
+    if (t === "caf") { if (x.state === "ouverte" && achCafSent(x)) { const F = x.frs || [], n = F.filter(f => achDvf().some(v => v.caf === x.id && v.frs === f && v.state !== "annule")).length; return "ENVOYÉE — " + n + " / " + F.length + " DEVIS"; } return { ouverte: "EN RÉDACTION", close: "CLOSE", annule: "ANNULÉE" }[x.state] || ""; }
     if (t === "dvf") { const s = achPcSt(t, x); return x.state === "retenu" ? "RETENU" : x.state === "rejete" ? "REJETÉ" : x.state === "annule" ? "ANNULÉ" : s === "partiel" ? "CHIFFRÉ EN PARTIE" : s === "expire" ? "EXPIRÉ" : "REÇU"; }
     if (t === "cmf") { const s = achPcSt(t, x); if (x.state === "valide") return s === "partiel" ? "REÇUE EN PARTIE" : s === "remis" ? "REMISE AU FOURNISSEUR" : (x.lignes || []).length && (x.lignes || []).every(l => achResteQ(x, l) <= 1e-9) ? "REÇUE" : "VALIDÉE";
       return ACH_CMF_ST[x.state] || ""; }

@@ -377,6 +377,7 @@ function sviEtatMenu(btn, items, cur, pick) {
   m.innerHTML = items.map(x => `<button type="button" data-k="${esc(x.k)}" class="${x.k === cur ? "on" : ""}"><b>${x.k === cur ? "✓" : ""}</b><span>${esc(x.lab)}</span>${x.n === undefined ? "" : svCnt(x.n)}</button>`).join("");
   document.body.appendChild(m);
   sviPlaceMenu(m, btn.getBoundingClientRect());
+  if (btn.closest && btn.closest("#svConf, #docPop, [role=dialog], .svc-card")) m.style.zIndex = "100010";   /* v1119 (L9) : menu ouvert dans une fenêtre = au-dessus d'elle */
   m.addEventListener("click", e => { const b = e.target.closest("[data-k]"); if (!b) return; e.stopPropagation(); m.remove(); pick(b.dataset.k); });
   setTimeout(() => document.addEventListener("pointerdown", function off(e) {
     if (!e.target.closest("#sviEtatMenu") && e.target !== btn && !btn.contains(e.target)) { m.remove(); document.removeEventListener("pointerdown", off, true); }

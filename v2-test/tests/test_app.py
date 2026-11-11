@@ -3062,6 +3062,24 @@ def main():
             document.querySelector('#svConf [data-x]')?.click(); await w(150); achCafSave(achCaf().filter(c => c.id !== 'cx15'));
             return [a, b, lf]; }""")
         check("v1115 : consultation close — un rond touché est choisi et montre ses liaisons, rien n'est modifié", ro15 == [True, True, '{"l1":["f1"]}'], ro15)
+        # v1119 (série L, lot 1) : L1 date et objet sur une ligne ; L4 AGRANDIR du bloc CONSULTATION ; L9 entonnoir des cases au-dessus de la fenêtre ;
+        # L13 commande depuis le devis seulement ; L15 CONDITIONS DE PAIEMENT = condition particulière ; L20 couleurs (rouge, bleu envoyée, noir close)
+        l119 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const r = {};
+            achCafInfo(null); await w(400); const g = document.querySelector('.cafi-g'), f = g ? [...g.querySelectorAll('.frs-f')].map(x => Math.round(x.getBoundingClientRect().top)) : [];
+            r.l1 = f.length === 2 && f[0] === f[1];
+            document.querySelector('.cai-max').click(); await w(150); r.l4 = !!document.querySelector('.cai-blk-max'); document.querySelector('.cai-max').click(); await w(150);
+            r.l15 = [...document.querySelectorAll('#caiTK tbody tr[data-i]')].some(t => /CONDITIONS DE PAIEMENT/.test(t.textContent));
+            const b = document.querySelector('#caiTK .nvl-cff'); b.dispatchEvent(new MouseEvent('click', { bubbles: true })); await w(200);
+            const m = document.getElementById('sviEtatMenu'); if (m) { const q = m.getBoundingClientRect(), e = document.elementFromPoint(q.left + q.width / 2, q.top + 12); r.l9 = m.contains(e); m.remove(); }
+            document.querySelector('#svConf [data-x]')?.click(); await w(150);
+            const L = achCaf(); L.push({ id: 'cl19', ref: 'CAF-L19', state: 'ouverte', lignes: [], frs: ['fz'], rep: {} }); achCafSave(L);
+            const c = () => achCaf().find(x => x.id === 'cl19'); r.l20 = [achPcSt('caf', c())];
+            achCafSaveOne('cl19', x => { x.fil = { fz: { n: 1, env: achNow() } }; }); r.l20.push(achPcSt('caf', c()), achPcStep('caf', c()));
+            achCafSaveOne('cl19', x => { x.state = 'close'; }); r.l20.push(achPcSt('caf', c()));
+            r.l13 = !(achDocPage('caf', c()).menu || []).some(x => x.k === 'mkcmf');
+            achCafSave(achCaf().filter(x => x.id !== 'cl19')); return r; }""")
+        check("v1119 (série L, lot 1) : date et objet sur une ligne, AGRANDIR du bloc CONSULTATION, entonnoir des cases visible dans la fenêtre, plus de commande depuis la consultation, CONDITIONS DE PAIEMENT en condition, couleurs de la consultation",
+              l119 == {"l1": True, "l4": True, "l15": True, "l9": True, "l20": ["instance", "partiel", "ENVOYÉE — 0 / 1 DEVIS", "valide"], "l13": True}, l119)
         # v760 : BESOINS — charges du budget avec leurs tâches, contrôle prévu / déjà demandé, dépassement BLOQUÉ (justifier puis DÉBLOQUER),
         # seuil 90 %, centre SIÈGE hors budget ; menu ☰ › BESOIN, fiche de création (budget › charge › tâche), validation
         n760 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const keepB = localStorage.getItem('svi_ach_bsn_v1'), keepE = localStorage.getItem('svi_ach_bsn_etat_v1'); localStorage.removeItem('svi_ach_bsn_v1'); localStorage.removeItem('svi_ach_bsn_etat_v1');
@@ -3110,14 +3128,14 @@ def main():
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
         check("v761 : CONSULTATIONS et DEVIS — besoins non couverts, deux fournisseurs, réponses en devis, comparatif ★, motif exigé, clôture (besoin couvert, devis retenu / rejeté), achat direct",
               c761 == [2, 1, 2, 1, "b2", 2, True, True, "ouverte", "close", True, "rejete,retenu", True, 0], c761)
-        # v762 : COMMANDES, RÉCEPTIONS, RETOURS — commande depuis la consultation close, validation (engagement), réception partielle, tolérance,
+        # v762 : COMMANDES, RÉCEPTIONS, RETOURS — commande depuis le devis retenu (L13), validation (engagement), réception partielle, tolérance,
         # refus remis au chauffeur (retour de réception), retour de commande, SOLDER ; demandeur averti
         m762 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_bsn_v1', 'svi_ach_frs_v1', 'svi_ach_caf_v1', 'svi_ach_dvf_v1', 'svi_ach_cmf_v1', 'svi_ach_rcp_v1', 'svi_ach_rtr_v1'], keep = K.map(k => localStorage.getItem(k)); K.forEach(k => localStorage.removeItem(k));
             const F = []; const f1 = achFrsNew(F, { nom: 'ALPHA' }); achFrsSave(F);
             achBsnSave([{ id: 'b1', ref: 'BSN 26-1101/001', centre: 'CHANTIER', bdg: 'BX-1', chg: 'CIMENT|T', des: 'CIMENT', u: 'T', q: 10, pu: 100, datePrevue: '2026-11-10', state: 'valide', couvert: 'c1', dem: 'ALI' }]);
             achCafSave([{ id: 'c1', ref: 'CAF 26-1101/001', state: 'close', retenu: f1.id, frs: [f1.id], rep: {}, lignes: [{ bsn: 'b1', des: 'CIMENT', u: 'T', q: 10 }] }]);
             achDvfSave([{ id: 'v1', ref: 'DVF 26-1101/001', caf: 'c1', frs: f1.id, state: 'retenu', refFrs: 'X', lignes: [{ bsn: 'b1', des: 'CIMENT', u: 'T', q: 10, pu: 100, tva: 20 }] }]);
-            achCafFiche('c1', () => 0); await w(200); document.querySelector('.caf-card [data-mkcmf]').click(); await w(300);
+            achDvfMkCmf('v1'); await w(300); achCmfFiche(achCmf()[0].id, () => 0); await w(250);   /* v1119 (L13) : la commande se crée depuis le devis retenu */
             const r = [achCmf().length, (achCmf()[0] || {}).lignes.length, achN(achCmf()[0].lignes[0].pu)];
             const cm = () => document.querySelector('.cmf-card'); cm().querySelector('[data-valid]').click(); await w(200); document.querySelector('#svConf [data-r="1"]')?.click(); await w(300);
             const C = achCmf()[0]; r.push(C.state, Math.round(achEngage('BX-1', 'CIMENT|T')), Math.round(achCmfTot(C).ttc), /MILLE/.test(frMoney(achCmfTot(C).ttc)));
@@ -3136,7 +3154,7 @@ def main():
             r.push(achCmf()[0].state, achRtr().filter(x => x.kind === 'cmd').length, achResteQ(achCmf()[0], achCmf()[0].lignes[0]));
             document.querySelectorAll('#svConf').forEach(x => x.remove());
             K.forEach((k, i) => { if (keep[i] === null) localStorage.removeItem(k); else localStorage.setItem(k, keep[i]); }); return r; }""")
-        check("v762 : COMMANDES et RÉCEPTIONS — commande depuis la consultation, validation et engagement, montant en lettres, réception partielle, tolérance, refus remis au chauffeur, SOLDER",
+        check("v762 : COMMANDES et RÉCEPTIONS — commande depuis le devis retenu, validation et engagement, montant en lettres, réception partielle, tolérance, refus remis au chauffeur, SOLDER",
               m762 == [1, 1, 100, "valide", 1000, 1200, True, 1, 4, True, 1, 2, 1, 4, "solde", 1, 0], m762)
         # v763 : FACTURES, AVOIRS, PAIEMENTS — avance versée, facture depuis la commande (reçu non facturé), doublon, écart accepté, copie,
         # bon à payer, avance imputée, avoir déduit, chèque émis puis rejeté (la facture redevient à payer), échéance par les conditions
@@ -3218,7 +3236,7 @@ def main():
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v764 : ARTICLES au format du budget — listes EN INSTANCE / VALIDÉS, dates, création par fenêtre (en instance, corbeille), page : bloc DOC / TAF / OBS, ⋯ VALIDER et UNITÉ DE CONVERSION, devis liés, ‹ ›",
               a764 == ["ARTICLES 2", 2, 2, 1, "instance", "ARTICLES 3", 3, True, True, "ART-0003", True, 3, 1, True,
-                       "MODIFIER LE FORMAT|APERÇU|SUPPRIMER CET ARTICLE|VALIDER|UNITÉ DE CONVERSION|BUDGETS (0)|BLOQUER|DISPOSITION PAR DÉFAUT|LARGEUR OPTIMISÉE|FERMER", '[{"u":"SAC","r":20}]', "instance", True, "valide", True, "ARTICLES 3", True, True, True], a764)   # 06/11 : une seule liste
+                       "MODIFIER LE FORMAT|APERÇU|SUPPRIMER CET ARTICLE|VALIDER|UNITÉ DE CONVERSION|BUDGETS (0)|BLOQUER|DISPOSITION PAR DÉFAUT|FERMER", '[{"u":"SAC","r":20}]', "instance", True, "valide", True, "ARTICLES 3", True, True, True], a764)   # 06/11 : une seule liste
         # v765 : toutes les listes des achats au format du budget — pas d'onglets, titre EN INSTANCE / VALIDÉS + bascule, dates, corbeille = ANNULER
         l765 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_caf_v1', 'svi_ach_caf_mode_v1', 'svi_ach_caf_etat2_v1'], keep = K.map(k => localStorage.getItem(k)); K.forEach(k => localStorage.removeItem(k));
             achCafSave([{ id: 'c1', ref: 'CAF 1', state: 'ouverte', cree: '2026-10-30T10:00:00Z', lignes: [], frs: [] }, { id: 'c2', ref: 'CAF 2', state: 'close', cree: '2026-10-20T10:00:00Z', valide: '2026-10-25T10:00:00Z', lignes: [], frs: [] }]);

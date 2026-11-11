@@ -3950,3 +3950,9 @@ html body #sviScreenTag.svi-tag-open { white-space: normal; overflow: visible; t
 /* v1115 : menu des suggestions de la fenêtre DÉTAIL CONSULTATION — fond blanc, bord, ombre, 8 lignes au plus avec défilement */
 #caiSug.cai-sug { background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 8px 24px rgba(15, 23, 42, .18); max-height: 252px; overflow-y: auto; }
 #caiSug.cai-sug button { min-height: 30px; flex: 0 0 auto; }
+/* v1119 (L1) : fenêtre DÉTAIL CONSULTATION — DATE DE CRÉATION et OBJET toujours sur la même ligne (petits écrans compris) */
+.frs-card .frs-g.cafi-g, .frs-g.cafi-g { display: grid; grid-template-columns: max-content minmax(0, 1fr); }
+.frs-g.cafi-g > .frs-f.frs-w { grid-column: auto; }
+/* v1119 (L4) : bloc CONSULTATION de la fenêtre — AGRANDI = toute la fenêtre (le bouton reste caché : ⋯ ou double toucher sur le titre) */
+.cai-card .cai-max { display: none !important; }
+.cai-card .cai-blk.cai-blk-max { position: fixed; inset: 6px; z-index: 100006; margin: 0; overflow: auto; background: var(--svi-card, #fff); box-shadow: 0 10px 40px rgba(15, 23, 42, .35); }

@@ -102,7 +102,9 @@ function achDocPage(k, x) {
   const has = (L, id) => (L || []).includes(id);
   if (k === "caf") return achCafPage(x, { DV, CM });   /* F3 (série F) : page de la consultation sur le modèle du budget */
   const TOT = t => [["MONTANT HT", t.ht], ["MONTANT TVA", t.ttc - t.ht], ["MONTANT TTC", t.ttc]];
-  if (k === "dvf") return { title: fr(x.frs), tot: TOT(achDvfTot(x)), ttc: achDvfTot(x).ttc, links: [lig("DÉTAIL DEVIS", true), CA("CONSULTATION", achCaf().filter(c => c.id === x.caf)), CM1("COMMANDES", achCmf().filter(c => c.dvf === x.id || (c.lignes || []).some(l => l.dvf === x.id)))] };
+  if (k === "dvf") return { title: fr(x.frs), tot: TOT(achDvfTot(x)), ttc: achDvfTot(x).ttc,
+    menu: x.state === "retenu" && !achCmf().some(c => (c.dvf === x.id || (c.lignes || []).some(l => l.dvf === x.id)) && c.state !== "annule") ? [{ k: "mkcmf", lab: "CRÉER LA COMMANDE" }] : [],   /* v1119 (L13) */
+    act: async k => { if (k !== "mkcmf") return false; achDvfMkCmf(x.id); return true; }, links: [lig("DÉTAIL DEVIS", true), CA("CONSULTATION", achCaf().filter(c => c.id === x.caf)), CM1("COMMANDES", achCmf().filter(c => c.dvf === x.id || (c.lignes || []).some(l => l.dvf === x.id)))] };
   if (k === "cmf") return { title: fr(x.frs), tot: TOT(achCmfTot(x)), ttc: achCmfTot(x).ttc, links: [lig("DÉTAIL COMMANDE", true), DV("DEVIS", achDvf().filter(v => v.id === x.dvf || (x.lignes || []).some(l => l.dvf === v.id))), { ...RC("RÉCEPTIONS", achRcp().filter(r => r.cmf === x.id)), add: "CRÉER UNE RÉCEPTION ICI…", addAny: x.state === "valide" },
     { ...FA("FACTURES", achFaf().filter(f => f.cmf === x.id || has(f.cmfs, x.id))), add: "CRÉER UNE FACTURE ICI…", addAny: x.state === "valide" }, { ...PA("PAIEMENTS", achPaf().filter(p => p.cmf === x.id)), add: "CRÉER UN PAIEMENT (AVANCE) ICI…", addAny: x.state === "valide" }, RT("RETOURS DE COMMANDE", achRtr().filter(r => r.kind === "cmd" && r.cmf === x.id), "rtrcmd")] };
   if (k === "rcp") return { title: fr(x.frs), links: [lig("DÉTAIL RÉCEPTION", false, true), CM("COMMANDE", achCmf().filter(c => c.id === x.cmf)), FA("FACTURES", achFaf().filter(f => has(f.rcps, x.id))), RT("RETOURS DE RÉCEPTION", achRtr().filter(r => r.kind === "rcp" && r.rcp === x.id), "rtrrcp")] };
@@ -124,7 +126,7 @@ function achDocPage(k, x) {
 }
 function achCafMod(ctx) {
   const st = { ouverte: "OUVERTE", close: "CLOSE", annule: "ANNULÉE" }, DV = () => achDvf().filter(v => v.state !== "annule" && v.state !== "rejete");
-  return achListMod(ctx, { k: "caf", t: "ach_caf", id: "achCafT", list: achCaf, name: "CONSULTATIONS", save: achCafSave, edit: ACH_ED.caf, inst: c => c.state === "ouverte", etatKey: "svi_ach_caf_etat_v1", newLab: "NOUVELLE CONSULTATION", newRow: "CRÉER UNE CONSULTATION ICI…", open: (id, done) => id ? achCafFiche(id, done) : achCafInfo(null, done), info: achCafInfo,   /* série I (I9) : le i = DATE DE CRÉATION et OBJET */
+  return achListMod(ctx, { k: "caf", t: "ach_caf", id: "achCafT", list: achCaf, name: "CONSULTATIONS", save: achCafSave, edit: ACH_ED.caf, inst: c => c.state === "ouverte", etatKey: "svi_ach_caf_etat_v1", newLab: "NOUVELLE CONSULTATION", newRow: "CRÉER UNE CONSULTATION ICI…", open: (id, done) => achCafInfo(id || null, done),   /* v1119 (L2) : une seule fenêtre — création, en instance, close */ info: achCafInfo,   /* série I (I9) : le i = DATE DE CRÉATION et OBJET */
     etats: [["actif", "OUVERTES"], ["close", "CLOSES"], ["alerte", "ALERTE"], ["annule", "ANNULÉES"], ["tout", "TOUT"]],
     ok: (c, k, L) => k === "tout" ? true : k === "alerte" ? achCafWhy(c).length > 0 : k === "actif" ? c.state === "ouverte" : c.state === k,
     why: c => achCafWhy(c),
@@ -201,7 +203,7 @@ function achCafFiche(id, done) {
         ${C.state === "close" ? `<div class="bsn-note">CLOSE LE ${esc(achDFr(C.close))} : RETENU ${esc(achFrsNom(C.retenu))}.${(() => { const m = achCmf().find(x => x.caf === C.id && x.state !== "annule"); return m ? " COMMANDE : " + esc(m.ref) + "." : ""; })()}</div>` : ""}
       </div>`,
       foot: `<button type="button" class="svc-b" data-x>${ro || C.id ? "FERMER" : "ANNULER"}</button>${C.id && C.state === "ouverte" ? `<button type="button" class="svc-b" data-cancel>ANNULER LA CONSULTATION</button>` : ""}
-        ${C.state === "close" && !achCmf().some(x => x.caf === C.id && x.state !== "annule") ? `<button type="button" class="svc-b svc-ok svc-neutral" data-mkcmf>CRÉER LA COMMANDE</button>` : ""}
+
         ${!ro ? `<button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER</button>` : ""}${C.id && C.state === "ouverte" && D.length ? `<button type="button" class="svc-b svc-ok" data-close>CLÔTURER AVEC LE RETENU</button>` : ""}` });
     if (!d.isConnected) sviWinShow(d);
   };

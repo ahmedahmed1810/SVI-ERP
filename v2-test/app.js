@@ -3791,6 +3791,7 @@ function sviEtatMenu(btn, items, cur, pick) {
   m.innerHTML = items.map(x => `<button type="button" data-k="${esc(x.k)}" class="${x.k === cur ? "on" : ""}"><b>${x.k === cur ? "✓" : ""}</b><span>${esc(x.lab)}</span>${x.n === undefined ? "" : svCnt(x.n)}</button>`).join("");
   document.body.appendChild(m);
   sviPlaceMenu(m, btn.getBoundingClientRect());
+  if (btn.closest && btn.closest("#svConf, #docPop, [role=dialog], .svc-card")) m.style.zIndex = "100010";   /* v1119 (L9) : menu ouvert dans une fenêtre = au-dessus d'elle */
   m.addEventListener("click", e => { const b = e.target.closest("[data-k]"); if (!b) return; e.stopPropagation(); m.remove(); pick(b.dataset.k); });
   setTimeout(() => document.addEventListener("pointerdown", function off(e) {
     if (!e.target.closest("#sviEtatMenu") && e.target !== btn && !btn.contains(e.target)) { m.remove(); document.removeEventListener("pointerdown", off, true); }
@@ -4944,24 +4945,8 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
     let dirty = true; try { dirty = layDirty(host); } catch (e) {} if (dirty) return;
     lay.remove(); [...m.children].forEach((x, i, a) => { if (!x.classList.contains("blk-sep")) return; const p = x.previousElementSibling, n = x.nextElementSibling; if (!p || !n || n.classList.contains("blk-sep")) x.remove(); });
   }).observe(document.body || document.documentElement, { childList: true });
-  /* ⋯ d'un bloc, d'une liste ou d'une fiche : LARGEUR OPTIMISÉE (tous les tableaux de l'endroit) */
-  let src = null; document.addEventListener("pointerdown", e => { const b = e.target.closest && e.target.closest(".blk-more, [data-nvmore], .nvl-more, .bdg-more-btn, [data-blkmore]"); if (b) src = b; }, true);
-  new MutationObserver(() => { const m = document.getElementById("blkMenu"); if (!m || m.__cwfit) return; const b0 = m.__btn || src; if (!b0 || !b0.closest) return; m.__cwfit = 1;
-    const tabsOf = h => h ? [...h.querySelectorAll("table")].filter(t => t.offsetParent !== null && [...t.querySelectorAll(":scope > colgroup > col")].some(c => keyOf(t, c))) : [];
-    const host = b0.isConnected ? b0.closest(".bdg-d-block, .nvp-blk, .ins-hcol, .novapp-list-shell, .svc-card, .doc-card") || b0.closest(".bdg-d-page, .nvp, .view") : null;
-    /* v1090 : un ⋯ d'une liste cachée (autre écran) prend les tableaux de l'écran affiché, comme ses autres actions */
-    if (b0.closest && b0.closest(".cai-card")) return;   /* 11/11 : la largeur optimisée ne s'applique pas à la fenêtre DÉTAIL CONSULTATION */
-    let T = tabsOf(host); if (!T.length) T = tabsOf(document.querySelector(".view.active-view")); if (!T.length) return;
-    /* v1090 : placé avec DISPOSITION PAR DÉFAUT (FERMER et SUPPRIMER restent en bas) */
-    const lay = [...m.querySelectorAll("button")].find(x => /DISPOSITION PAR DÉFAUT/.test(x.textContent || ""));
-    const H = `<button type="button" class="svi-cwfit"><i class="mi-sp"></i>LARGEUR OPTIMISÉE</button>`;
-    const fe = [...m.querySelectorAll("button")].find(x => /^\s*FERMER\s*$/.test(x.textContent || "")), fp = fe && fe.previousElementSibling;
-    if (lay) lay.insertAdjacentHTML("afterend", H);
-    else if (fe && fp && fp.classList.contains("blk-sep")) fp.insertAdjacentHTML("beforebegin", `<div class="blk-sep"></div>` + H);   /* 11/11 : jamais après FERMER */
-    else if (fe) fe.insertAdjacentHTML("beforebegin", H);
-    else m.insertAdjacentHTML("beforeend", `<div class="blk-sep"></div>` + H);
-    m.querySelector(".svi-cwfit").addEventListener("click", e => { e.stopPropagation(); let n = 0; T.forEach(t => { if (fit(t, true)) n++; }); m.remove(); if (typeof svToast === "function") svToast(n ? "LARGEUR OPTIMISÉE." : "RIEN À MESURER (TABLEAU VIDE).", 1800); });
-  }).observe(document.body || document.documentElement, { childList: true });
+  /* v1119 (L18, série L) : plus de LARGEUR OPTIMISÉE dans les menus ⋯ — un tableau jamais réglé a déjà ses largeurs optimisées (v1086) ;
+     DISPOSITION PAR DÉFAUT (visible seulement après un réglage) remet tout, largeurs optimisées comprises */
 }
 
 /* 11/11 (Ahmed) : TITRE DU CENTRE DE LA BARRE (#sviScreenTag) — position, texte coupé, stabilité :
