@@ -3796,7 +3796,14 @@ const achPathBack = () => { const w = ACH_PATH.pop(); if (!w) return false; achP
 document.addEventListener("click", e => { const nb = e.target.closest && e.target.closest("#navMenu .nav-btn"); if (!nb || achPathBack.on) return;
   const cv = document.querySelector(".view.active-view"), v = document.getElementById("ach"); if (!cv) return;
   if (cv === v && v.__achWhere) { const w = v.__achWhere(); if (!w || (nb.dataset.view === "ach" && nb.dataset.ach === w.t && !w.id)) return; try { w.snap = achPosSnap(v); } catch (er) {} ACH_PATH.push(w); return; }
-  if (nb.dataset.view === "ach" && cv.id && cv.id !== nb.dataset.view) ACH_PATH.push({ view: cv.id }); }, true);
+  if ((nb.dataset.view === "ach" || nb.dataset.view === "home") && cv.id && cv.id !== nb.dataset.view) ACH_PATH.push({ view: cv.id }); }, true);
+/* 11/11 (Ahmed, validé, 3.1) : l'ACCUEIL a son ✕ — même règle de retour ; grisé quand rien n'est derrière */
+const ACH_HCLOSE_WHY = "ACCUEIL : RIEN À FERMER (MENU ☰ POUR CHANGER D'ÉCRAN).";
+function achHomeCloseSync() { const b = document.getElementById("homeClose"); if (!b) return; const on = ACH_PATH.length > 0; b.classList.toggle("hdr-off", !on); b.title = on ? "Fermer" : ACH_HCLOSE_WHY; }
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("#homeClose"); if (!b) return; e.preventDefault(); e.stopPropagation();
+  if (ACH_PATH.length) achPathBack(); else if (typeof svToast === "function") svToast(ACH_HCLOSE_WHY, 3000, b); setTimeout(achHomeCloseSync, 50); }, true);
+document.addEventListener("click", e => { if (e.target.closest && e.target.closest("#navMenu .nav-btn")) setTimeout(achHomeCloseSync, 60); }, true);
+setTimeout(achHomeCloseSync, 0);
 /* 10/11 (Ahmed, document unique 3.1 complément) : le ✕ D'UNE LISTE suit le même chemin — arrivé depuis un autre écran, il y ramène (à sa position) ;
    ouverte depuis le menu ≡ (chemin vide), il reste grisé */
 const ACH_LCLOSE_WHY = "LISTE : RIEN À FERMER (MENU ☰ POUR CHANGER D'ÉCRAN).";

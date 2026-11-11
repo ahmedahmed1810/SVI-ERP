@@ -3888,3 +3888,10 @@ html body #sviScreenTag .ach-link[data-nvgo].lk-expire { color: color-mix(in srg
 html body #sviScreenTag .ach-link[data-nvgo].lk-bloque { color: color-mix(in srgb, var(--stg-bloque, #6b7280) 45%, #fff) !important; }
 html body #sviScreenTag .ach-link[data-nvgo].lk-archive { color: color-mix(in srgb, var(--stg-archive, #6d28d9) 45%, #fff) !important; }
 html body #sviScreenTag .ach-link[data-nvgo].lk-annule { color: color-mix(in srgb, var(--stg-annule, #9ca3af) 45%, #fff) !important; }
+
+/* v1099 (3.1) : ✕ de l'ACCUEIL, à gauche du ⋯, même forme que les ✕ des autres écrans */
+#home .home-head .home-close { margin-left: auto; margin-right: 8px; }
+#home .home-head .home-close + .home-more { margin-left: 0; }
+#home .home-head .home-close.hdr-off { opacity: .45; }
+#home .home-head :is(.home-close, .home-more) { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; padding: 0; background: #fff; border: 1px solid #d5dbe3; border-radius: 10px; color: #172033; font-size: 20px; cursor: pointer; }
+html.svi-nuit #home .home-head :is(.home-close, .home-more) { background: #16213a; border-color: #2c3a57; color: #e5e9f0; }
