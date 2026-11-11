@@ -452,7 +452,10 @@ document.addEventListener("click", e => { const b = e.target.closest && e.target
 let ACH_NV_REDRAW = null;
 function achNvMod(ctx, cfg) {
   let pid = null, P = null, rec = null;
-  const open = id => { pid = id; rec = null; ctx.draw(); };
+  /* 11/11 (compte rendu v1089 – v1101, série I3) : une fiche ouverte DEPUIS SA LISTE (ligne, création) revient à cette liste au FERMER — un seul cran,
+     sans prendre l'écran d'avant la liste dans le chemin ; une fiche ouverte par un lien (achGo) suit le chemin */
+  let viaList = false;
+  const open = id => { pid = id; rec = null; viaList = !!id && !(typeof achGo === "function" && achGo.busy) && !(typeof achPathBack === "function" && achPathBack.on); ctx.draw(); };
   const LST = achNvList(ctx, { ...cfg.list, page: open });
   const html = () => {
     if (pid) { P = cfg.pageOf(pid); if (!P) pid = null; else ACH_NV_REDRAW = () => ctx.draw(); }
@@ -472,7 +475,7 @@ function achNvMod(ctx, cfg) {
     if (P && P.click && await P.click(e, () => ctx.draw())) return true;   /* F3 : gestes propres à la page (ronds, boutons des blocs) */
     const b = e.target.closest("[data-nvp]");
     if (b) { const k = b.dataset.nvp, ord = LST.order(), i = ord.indexOf(pid);
-      if (k === "close") { if (achPathBack()) return true; pid = null; ctx.draw(); return true; }   /* série I (I3) : FERMER revient d'un cran */
+      if (k === "close") { if (!viaList && achPathBack()) return true; viaList = false; pid = null; ctx.draw(); return true; }   /* série I (I3) : FERMER revient d'un cran */
       if (k === "prev" || k === "next") { const j = i + (k === "next" ? 1 : -1); if (i < 0 || j < 0 || j >= ord.length) { svToast(k === "next" ? "DERNIER DE LA LISTE." : "PREMIER DE LA LISTE.", 2000, b); return true; } open(ord[j]); return true; }
       if (k === "info") { P.info(() => ctx.draw()); return true; }
       if (b.classList.contains("hdr-off")) { svToast(b.dataset.why || "", 3000, b); return true; }
@@ -480,7 +483,7 @@ function achNvMod(ctx, cfg) {
       /* v774 : ⋯ principal commun — VALIDER en tête ; actions ; CORBEILLE / RESTAURER et FERMER en bas, séparés par un trait */
       /* v920 (remarques 1 et 2 du 04/11/2026) : même ordre que le ⋯ du budget — FIGER / VALIDER ; actions ; DISPOSITION PAR DÉFAUT ; SUPPRIMER (ou ANNULER / RESTAURER) et FERMER ; une icône par ligne */
       if (k === "more") { const M = P.menu.concat([{ k: "__apr", lab: "APERÇU" }]).concat(cfg.list.k === "cmf" || cfg.list.k === "rcp" ? [{ k: "__aprsp", lab: "BON SANS PRIX (CHAUFFEUR, MAGASIN)" }] : []), top = M.filter(m => m.k === "val" || m.k === "fige" || m.k === "defige"), bot = M.filter(m => m.k === "del" || m.k === "rest").map(m => ({ ...m, del: m.k === "del" })), mid = M.filter(m => !top.includes(m) && !["del", "rest"].includes(m.k));
-        sviHdrMenu(b, [top, mid, [{ k: "__fmt", lab: "MODIFIER LE FORMAT" }, { k: "__lay", lab: "DISPOSITION PAR DÉFAUT" }], [...bot, { k: "__close", lab: "FERMER" }]], async a => { if (a === "__close") { if (achPathBack()) return; pid = null; ctx.draw(); return; }
+        sviHdrMenu(b, [top, mid, [{ k: "__fmt", lab: "MODIFIER LE FORMAT" }, { k: "__lay", lab: "DISPOSITION PAR DÉFAUT" }], [...bot, { k: "__close", lab: "FERMER" }]], async a => { if (a === "__close") { if (!viaList && achPathBack()) return; viaList = false; pid = null; ctx.draw(); return; }
           if (a === "__fmt") { sviFmtCurWin(); return; }   /* v927 (remarque 12) */
           if (a === "__lay") { if (!(await sviLayAsk())) return; const pg = b.closest(".nvp") || document.querySelector("#ach .nvp"); sviLayReset(pg);
             try { localStorage.removeItem(ACH_NVH_K); } catch (e) {} if (pg) { pg.querySelectorAll(".nvp-max").forEach(x => x.classList.remove("nvp-max")); pg.removeAttribute("style"); } ctx.draw(); return; } if (a === "__apr") { achMepOpen(cfg, P, rec, () => ctx.draw()); return; } if (a === "__aprsp") { achMepOpen(cfg, P, rec, () => ctx.draw(), { noPrice: true }); return; } await P.act(a, () => ctx.draw(), id => open(id)); }); return true; }

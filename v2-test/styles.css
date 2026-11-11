@@ -3901,3 +3901,5 @@ html.svi-nuit #home .home-head :is(.home-close, .home-more) { background: #16213
 #sviFullTip.svi-ta-ed { outline: 2px solid #b91c1c; outline-offset: 0; cursor: text; -webkit-user-select: text; user-select: text; caret-color: #b91c1c; }
 #sviFullTip { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 #sviFullTip { pointer-events: auto; }
+
+.view:not(.active-view) #sviScreenTag { display: none !important; }   /* v1102 : bandeau d'un ecran cache jamais visible sur un autre */

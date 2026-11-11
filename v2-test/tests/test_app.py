@@ -42,6 +42,61 @@ def check(name, ok, info=""):
     RESULTS.append((name, bool(ok)))
     print(("OK    " if ok else "ÉCHEC ") + name + ("" if ok else "  → " + str(info)))
 
+# 11/11 (compte rendu v1089 – v1101) : UN TEST QUI PLANTE N'ARRÊTE PLUS LA SUITE — toute action sur la page (evaluate, locator, clic, souris,
+# clavier…) qui lève une erreur est notée « ERREUR » et rend une valeur « en échec » (Poison) : la vérification qui suit échoue, la suite continue.
+ERRORS = []
+class Poison:
+    def __init__(self, why): self.why = why
+    def __repr__(self): return "ERREUR(" + self.why + ")"
+    __str__ = __repr__
+    def __bool__(self): return False
+    def __len__(self): return 0
+    def __iter__(self): return iter(())
+    def __contains__(self, x): return False
+    def __getitem__(self, k): return self
+    def __getattr__(self, k): return self if not k.startswith("__") else object.__getattribute__(self, k)
+    def __call__(self, *a, **k): return self
+    def __eq__(self, o): return False
+    def __ne__(self, o): return True
+    def __lt__(self, o): return False
+    __le__ = __gt__ = __ge__ = __lt__
+    def __hash__(self): return id(self)
+    def _op(self, *a): return self
+    __add__ = __radd__ = __sub__ = __rsub__ = __mul__ = __rmul__ = __truediv__ = __rtruediv__ = __floordiv__ = __mod__ = __neg__ = __abs__ = _op
+    def __int__(self): return 0
+    def __float__(self): return 0.0
+    def __round__(self, n=0): return self
+    def startswith(self, *a): return False
+    def endswith(self, *a): return False
+    def split(self, *a, **k): return []
+    def strip(self, *a): return ""
+_PRIM = (str, int, float, bool, bytes, list, dict, tuple, type(None))
+class Safe:
+    def __init__(self, o): object.__setattr__(self, "_o", o)
+    def __getattr__(self, k):
+        v = getattr(self._o, k)
+        if callable(v):
+            def f(*a, **kw):
+                try:
+                    r = v(*a, **kw)
+                except Exception as e:
+                    msg = (type(e).__name__ + ": " + str(e)).split("\n")[0][:240]
+                    ERRORS.append(msg); print("ERREUR (la suite continue) : " + k + " → " + msg)
+                    return Poison(msg)
+                return r if isinstance(r, _PRIM) else Safe(r)
+            return f
+        return v if isinstance(v, _PRIM) else Safe(v)
+    def __iter__(self): return (x if isinstance(x, _PRIM) else Safe(x) for x in self._o)
+    def __len__(self): return len(self._o)
+    def __getitem__(self, k): r = self._o[k]; return r if isinstance(r, _PRIM) else Safe(r)
+    def __bool__(self): return bool(self._o)
+    def __enter__(self):
+        r = self._o.__enter__(); return r if isinstance(r, _PRIM) else Safe(r)
+    def __exit__(self, *a):
+        try: return self._o.__exit__(*a)
+        except Exception as e:
+            msg = (type(e).__name__ + ": " + str(e)).split("\n")[0][:240]; ERRORS.append(msg); print("ERREUR (la suite continue) : " + msg); return True
+
 def static_checks():
     import subprocess
     r = subprocess.run([sys.executable, os.path.join(ROOT, "outils", "assembler.py"), "--verifier"], capture_output=True, text=True)
@@ -82,6 +137,7 @@ def main():
         errs = []
         pg.on("pageerror", lambda e: errs.append(str(e)))
         pg.route("https://script.google.com/**", lambda r: r.abort())   # pas de réseau : base Google injoignable
+        pg = Safe(pg)   # 11/11 : une action qui plante est notée, la suite continue
         url = f"http://127.0.0.1:{PORT}/index.html"
         pg.goto(url); pg.wait_for_timeout(1500)
         check("chargement sans erreur JavaScript", not errs, errs[:3])
@@ -4144,6 +4200,7 @@ def main():
         b.close()
     srv.shutdown()
     bad = [n for n, ok in RESULTS if not ok]
+    if ERRORS: print(f"\n{len(ERRORS)} ACTION(S) EN ERREUR PENDANT LA SUITE (voir « ERREUR » ci-dessus)")
     print(f"\n{len(RESULTS) - len(bad)} / {len(RESULTS)} TESTS RÉUSSIS")
     sys.exit(1 if bad else 0)
 
