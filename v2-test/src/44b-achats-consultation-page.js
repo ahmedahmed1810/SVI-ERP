@@ -14,7 +14,7 @@ const achCafId = () => "K" + Date.now().toString(36) + Math.random().toString(36
 /* mise à niveau d'une consultation : identifiants des détails, conditions en tableau (reprises des anciens champs), liaisons */
 function achCafUp(c) { let ch = false;
   (c.lignes || []).forEach(l => { if (!l.id) { l.id = achCafId(); ch = true; } });
-  if (!Array.isArray(c.cond)) { ch = true; c.cond = ACH_CAF_COND.map(([k, lab, t]) => ({ id: k, k, lab, t, v: k === "dlim" ? c.dlim || "" : k === "lieu" ? c.lieu || "" : k === "dSouh" ? c.dSouh || "" : k === "equiv" ? (c.variante ? "OUI" : "NON") : k === "franco" ? (c.franco ? "OUI" : "NON") : "", env: true })); }
+  if (!Array.isArray(c.cond)) { ch = true; c.cond = ACH_CAF_COND.map(([k, lab, t]) => ({ id: k, k, lab, t, v: k === "dlim" ? c.dlim || "" : k === "lieu" ? c.lieu || "" : k === "dSouh" ? c.dSouh || "" : k === "equiv" ? (c.variante ? "OUI" : "NON") : k === "franco" ? (c.franco ? "OUI" : "NON") : "" })); }
   ["lf", "ld", "lc", "fd", "fc"].forEach(k => { if (!c[k] || typeof c[k] !== "object") { c[k] = {}; ch = true; } });
   (c.lignes || []).forEach(l => { if (!Array.isArray(c.lf[l.id])) { c.lf[l.id] = (c.frs || []).slice(); ch = true; } });
   /* série H (H1) : une CONSULTATION PAR FOURNISSEUR (fille) pour chaque fournisseur consulté — numéro jamais réutilisé */
@@ -120,12 +120,13 @@ function achCafPage(x, B) {
       { h: `<input type="checkbox" class="cafp-denv" data-d="${esc(id)}"${(x.denv || []).includes(id) ? " checked" : ""}${dis}>`, t: (x.denv || []).includes(id) ? "OUI" : "NON" }] }; }),
     addFn: async redraw => { const R = achRecBlock(x.ref || x.code); if (await R.addTab("doc")) { const L2 = R.list("doc"), n = L2[L2.length - 1]; if (n) achCafSaveOne(x.id, c => { c.denv = (c.denv || []).concat([n.ref]); }, "DOCUMENT JOINT"); } redraw(); } };
   /* ---- CONDITIONS PARTICULIÈRES (F5) ---- */
-  const CND = { t: "CONDITIONS PARTICULIÈRES", add: open ? "AJOUTER UNE CONDITION ICI…" : "", cols: [["CONDITION"], ["VALEUR"], ["À ENVOYER", "center"]],
+  const CND = { t: "CONDITIONS PARTICULIÈRES", add: open ? "AJOUTER UNE CONDITION ICI…" : "", cols: [["CONDITION"], ["VALEUR"]],
     rows: (x.cond || []).map(cd => { const k = "c|" + cd.id, inp = cd.t === "on" ? `<select class="ins-in cafp-cv" data-cd="${esc(cd.id)}"${dis}>${["", "OUI", "NON"].map(v => `<option value="${v}"${cd.v === v ? " selected" : ""}>${v || "—"}</option>`).join("")}</select>`
         : `<input class="ins-in cafp-cv${cd.t === "num" ? " number" : ""}" data-cd="${esc(cd.id)}"${cd.t === "date" ? ' type="date"' : ""}${cd.t === "num" ? ' inputmode="decimal"' : ""} value="${esc(cd.v || "")}"${dis}>`;
-      return { rd: { k, st: rdSt(k) }, cells: [cd.lab, { h: inp, t: cd.v || "" }, { h: `<input type="checkbox" class="cafp-cenv" data-cd="${esc(cd.id)}"${cd.env !== false ? " checked" : ""}${dis}>`, t: cd.env !== false ? "OUI" : "NON" }] }; }),
+      const miss = achCafCondLinked(x, cd) && !String(cd.v ?? "").trim();
+      return { rd: { k, st: rdSt(k) }, cells: [miss ? { h: `<b class="obs-bang val-bang nv-bang" role="button" data-why="VALEUR MANQUANTE">!</b> ${esc(cd.lab)}`, t: cd.lab } : cd.lab, { h: inp, t: cd.v || "" }] }; }),
     addFn: async redraw => { const lab = await achAsk("NOUVELLE CONDITION PARTICULIÈRE", "INTITULÉ (AJOUTÉ AUSSI À ACHATS › CLAUSES)"); if (!lab) return;
-      achCafSaveOne(x.id, c => { c.cond.push({ id: achCafId(), k: "autre", lab: achU(lab), t: "text", v: "", env: true }); }, "CONDITION AJOUTÉE");
+      achCafSaveOne(x.id, c => { c.cond.push({ id: achCafId(), k: "autre", lab: achU(lab), t: "text", v: "" }); }, "CONDITION AJOUTÉE");
       /* un seul catalogue : la condition rejoint les clauses particulières (ACHATS › CLAUSES) si elle n'y est pas */
       const P = achPrm(), Lp = achClP(P); if (!Lp.some(y => achU(y.txt) === achU(lab))) { P.clP = Lp.concat([{ id: "p" + Date.now().toString(36), t: "autre", txt: achU(lab) }]); achPrmSave(P); }
       redraw(); } };
@@ -146,7 +147,7 @@ function achCafPage(x, B) {
       const C0 = achCaf().find(y => y.id === x.id) || x, LL = (C0.lignes || []).filter(l => ((C0.lf || {})[l.id] || []).includes(v.frs)).map(l => { const p = achCafPrice(C0, v.frs, l); return p.st === "ok" ? { ...p.p.y, q: achN(l.q), bsn: l.bsn || p.p.y.bsn || "", dvf: p.p.v.id } : null; }).filter(Boolean);
       const m = achCmfFrom({ frs: v.frs, caf: x.id, dvf: v.id, lignes: LL.length ? LL : v.lignes, why: "DEPUIS " + x.ref + " — " + v.ref });
       /* F5 : les conditions particulières envoyées passent dans les clauses particulières de la commande (règle 12.3) — rien n'est saisi deux fois */
-      try { const L = achCmf(), cm = L.find(y => y.id === m.id); if (cm) { const C2 = (achCaf().find(y => y.id === x.id) || x); cm.cla = (Array.isArray(cm.cla) ? cm.cla : achClCopy(achPrm().clP)).concat((C2.cond || []).filter(cd => cd.env !== false && cd.v && (!(C2.fc || {})[v.frs] || !(C2.fc[v.frs] || []).length || C2.fc[v.frs].includes(cd.id))).map(cd => ({ id: "c" + cd.id, t: "autre", txt: cd.lab + " : " + cd.v }))); achCmfSave(L); } } catch (e) {}
+      try { const L = achCmf(), cm = L.find(y => y.id === m.id); if (cm) { const C2 = (achCaf().find(y => y.id === x.id) || x); cm.cla = (Array.isArray(cm.cla) ? cm.cla : achClCopy(achPrm().clP)).concat(achCafCondOf(C2, v.frs).filter(cd => String(cd.v ?? "").trim()).map(cd => ({ id: "c" + cd.id, t: "autre", txt: cd.lab + " : " + cd.v }))); achCmfSave(L); } } catch (e) {}
       achGo("cmf", m.id); return true; },
     links: [DET, FRS, FIL, DOC, CND].concat(FC.length ? [CMP] : []).concat([B.DV("DEVIS", DD), B.CM("COMMANDES", achCmf().filter(c => c.caf === x.id))]),
     /* ronds, devis, choix du prix, documents */
@@ -174,11 +175,17 @@ function achCafPage(x, B) {
       if (t.matches(".cafp-pay")) { achCafSaveOne(x.id, c => { c.rep[t.dataset.f] = { ...(c.rep[t.dataset.f] || {}), pay: achU(t.value) }; }, "CONDITIONS DE PAIEMENT"); return true; }
       if (t.matches(".cafp-rep")) { achCafSaveOne(x.id, c => { c.rep[t.dataset.f] = { ...(c.rep[t.dataset.f] || {}), st: t.value, date: achNow() }; }, "RÉPONSE"); redraw(); return true; }
       if (t.matches(".cafp-denv")) { achCafSaveOne(x.id, c => { const L = c.denv || []; c.denv = t.checked ? L.concat([t.dataset.d]) : L.filter(y => y !== t.dataset.d); }); return true; }
-      if (t.matches(".cafp-cenv")) { achCafSaveOne(x.id, c => { const cd = c.cond.find(y => y.id === t.dataset.cd); if (cd) cd.env = t.checked; }); return true; }
       if (t.matches(".cafp-cv")) { achCafSaveOne(x.id, c => { const cd = c.cond.find(y => y.id === t.dataset.cd); if (!cd) return; cd.v = cd.t === "num" ? String(achN(t.value)) : cd.t === "date" || cd.t === "on" ? t.value : achU(t.value);
         if (cd.k === "dlim") c.dlim = t.value; if (cd.k === "lieu") c.lieu = cd.v; if (cd.k === "dSouh") c.dSouh = t.value; if (cd.k === "franco") c.franco = cd.v === "OUI"; if (cd.k === "equiv") c.variante = cd.v === "OUI"; }, "CONDITION : " + t.value); redraw(); return true; }
       return false; } };
 }
+/* 11/11 (Ahmed, validé) : CONDITIONS PARTICULIÈRES ENVOYÉES PAR LA LIAISON — une condition part chez un fournisseur seulement si elle lui est liée
+   par le rond : directement (fc) ou par un article (lc) lié à ce fournisseur (lf) ; une condition liée à rien n'est envoyée à personne ; la colonne
+   À ENVOYER est retirée (champ env des anciennes données ignoré) ; une condition liée doit avoir une valeur */
+const achCafCondOf = (c, f) => { const fc = ((c.fc || {})[f] || []), L = (c.lignes || []).filter(l => ((c.lf || {})[l.id] || []).includes(f));
+  return (c.cond || []).filter(cd => fc.includes(cd.id) || L.some(l => ((c.lc || {})[l.id] || []).includes(cd.id))); };
+const achCafCondLinked = (c, cd) => (c.frs || []).some(f => achCafCondOf(c, f).includes(cd));
+const achCafCondMiss = c => (c.cond || []).filter(cd => achCafCondLinked(c, cd) && !String(cd.v ?? "").trim());
 /* F8 : CRÉER SON DEVIS — prérempli avec les détails liés au fournisseur ; il reste les prix (plusieurs devis du même fournisseur possibles) */
 function achCafMkDvf(id, f, redraw) { const c = achCaf().find(y => y.id === id); if (!c) return; achCafUp(c);
   const Ls = c.lignes.filter(l => ((c.lf || {})[l.id] || []).includes(f)); if (!Ls.length) { svToast("AUCUN DÉTAIL LIÉ À CE FOURNISSEUR.", 3000); return; }
@@ -189,6 +196,7 @@ function achCafMkDvf(id, f, redraw) { const c = achCaf().find(y => y.id === id);
   achDvfFiche(v.id, () => { if (redraw) redraw(); }); }
 /* F9 : ENVOYER LA CONSULTATION — pour chaque bloc : TOUS, ou seulement les cochés ; un bordereau par fournisseur (ses détails liés), sans aucun prix */
 function achCafSend(id) { const c = achCaf().find(y => y.id === id); if (!c) return; achCafUp(c);
+  { const Mi = achCafCondMiss(c); if (Mi.length) { svToast("ENVOI IMPOSSIBLE : CONDITION(S) LIÉE(S) SANS VALEUR — " + Mi.map(cd => cd.lab).join(", ") + ".", 6000); return; } }
   { const ni = (c.lignes || []).filter(l => l.imp).length; if (ni) { svToast("ENVOI IMPOSSIBLE : " + ni + " DÉTAIL(S) IMPORTÉ(S) À VÉRIFIER (EN ROUGE) — LES COCHER PUIS « CONFIRMER LES COCHÉS ».", 5000); return; } }
   const ck = key => { const bl = document.querySelector(`#ach .nvp-blk[data-nvb="${key}"]`); return bl ? [...bl.querySelectorAll("tbody tr[data-ri]")].filter(tr => tr.querySelector(".nvp-cb:checked")).map(tr => +tr.dataset.ri) : []; };
   const B = [["det", "DÉTAIL CONSULTATION", achNvhKey("DÉTAIL CONSULTATION")], ["frs", "FOURNISSEURS", achNvhKey("FOURNISSEURS")], ["doc", "DOCUMENTS", achNvhKey("DOCUMENTS")], ["cnd", "CONDITIONS PARTICULIÈRES ET DÉLAIS", achNvhKey("CONDITIONS PARTICULIÈRES")]];
@@ -197,8 +205,8 @@ function achCafSend(id) { const c = achCaf().find(y => y.id === id); if (!c) ret
   const pickL = () => M.det === "ck" ? det0.filter((o, i) => CK.det.includes(achDetNum(c.lignes, c.grp).indexOf(o))).map(o => o.l) : c.lignes;
   const pickF = () => M.frs === "ck" ? CK.frs.map(i => c.frs[i]).filter(Boolean) : c.frs.slice();
   const DOCS = achJ("svi_docs_v1:ACH-" + c.ref, []) || [], pickD = () => (M.doc === "ck" ? CK.doc.map(i => DOCS[i]).filter(Boolean) : DOCS.filter((x, i) => (c.denv || []).includes(x.ref || "d" + i)));
-  const pickC = () => (M.cnd === "ck" ? CK.cnd.map(i => c.cond[i]).filter(Boolean) : c.cond.filter(x => x.env !== false)).filter(x => x.v);
-  const txtOf = f => { const Ls = pickL().filter(l => ((c.lf || {})[l.id] || []).includes(f)), Cd = pickC().filter(cd => !((c.fc || {})[f] || []).length || c.fc[f].includes(cd.id)), Dc = pickD();
+  const pickC = () => (M.cnd === "ck" ? CK.cnd.map(i => c.cond[i]).filter(Boolean) : c.cond.slice()).filter(x => String(x.v ?? "").trim());   /* 11/11 : cases cochées = réduction parmi les conditions liées */
+  const txtOf = f => { const Ls = pickL().filter(l => ((c.lf || {})[l.id] || []).includes(f)), Cd = (() => { const Lk = achCafCondOf(c, f); return pickC().filter(cd => Lk.includes(cd)); })(), Dc = pickD();
     const pay = ((c.rep || {})[f] || {}).pay; const N = achDetNum(Ls, c.grp);
     return { n: Ls.length, txt: "MADAME, MONSIEUR,\n\nMERCI DE NOUS TRANSMETTRE VOTRE MEILLEURE OFFRE POUR :\n" + N.map(o => o.title ? "\n" + o.no + " " + o.lab : o.no + " — " + o.l.des + " : " + achF2(o.l.q) + " " + (o.l.u || "")).join("\n")
       + (Cd.length || pay ? "\n\nCONDITIONS PARTICULIÈRES :\n" + Cd.map(cd => "- " + cd.lab + " : " + (cd.t === "date" ? achDFr(cd.v) : cd.v)).concat(pay ? ["- CONDITIONS DE PAIEMENT : " + pay] : []).join("\n") : "")
