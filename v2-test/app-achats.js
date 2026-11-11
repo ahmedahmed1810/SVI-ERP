@@ -2010,7 +2010,7 @@ function achCafFiche(id, done) {
         <div class="frs-sec"><div class="frs-g">${achCreeFld(c0)}<label class="frs-f frs-w"><span>OBJET</span><input class="ins-in caf-x" data-k="objet" value="${esc(C.objet)}"${dis} autocomplete="off"></label>
 </div></div>
         <div class="cafw-top">
-        <div class="frs-sec cafw-art"><div class="frs-st">DÉTAIL CONSULTATION ${svCnt(C.lignes.length)}</div>
+        <div class="frs-sec cafw-art"><div class="frs-st">ARTICLES CONSULTÉS ${svCnt(C.lignes.length)}</div>
           <table class="prm-table frs-sub"><thead><tr><th class="center">ARTICLE</th><th>BESOIN</th><th>CODE ARTICLE</th><th>DÉSIGNATION</th><th class="center">U</th><th class="number">QUANTITÉ</th><th class="number">PRIX ESTIMÉ</th><th class="number">MONTANT BUDGÉTÉ (NON ENVOYÉ)</th><th></th></tr></thead><tbody>
           ${C.lignes.map((l, i) => { const b = l.bsn ? achBsn().find(x => x.id === l.bsn) : null, a = achArtOf(l.des, l.u), std = achStdPu(l.des, l.u, l.pu);
             /* besoin (facultatif) : le menu montre aussi l'article, la désignation, l'unité et la quantité ; une désignation déjà prise par un besoin n'est plus proposée */
@@ -2329,8 +2329,8 @@ function achCafPage(x, B) {
       { h: `<input class="ins-in cafp-l number" data-li="${esc(l.id)}" data-c="q" inputmode="decimal" value="${esc(String(l.q ?? "").replace(".", ","))}"${dis}>`, t: achN(l.q) },
       a ? pe : { h: `<input class="ins-in cafp-l number" data-li="${esc(l.id)}" data-c="pu" inputmode="decimal" value="${esc(String(l.pu ?? "").replace(".", ","))}" placeholder="À SAISIR"${dis}>`, t: achN(l.pu) },
       achN(l.q) * pe, b ? achN(l.q) * achN(b.pu) : "", String(nF)] }; });
-  ACH_DET_DRAG[achNvhKey("DÉTAIL CONSULTATION")] = { open, rows: det.map(r => r.rd ? { l: r.rd.k.slice(2) } : { g: r.gid }), apply: f => achCafSaveOne(x.id, c => f(c), "DÉTAIL DÉPLACÉ") };
-  const DET = { t: "DÉTAIL CONSULTATION", add: open ? "CRÉER UN DÉTAIL ICI…" : "", cols: [["ARTICLE", "center"], ["BESOIN"], ["CODE ARTICLE"], ["DÉSIGNATION"], ["U", "center"], ["QUANTITÉ", "number"], ["PRIX ESTIMÉ", "number"], ["MONTANT ESTIMÉ", "number"], ["MONTANT BUDGÉTÉ (NON ENVOYÉ)", "number"], ["FOURNISSEURS", "center"]],
+  ACH_DET_DRAG[achNvhKey("ARTICLES CONSULTÉS")] = { open, rows: det.map(r => r.rd ? { l: r.rd.k.slice(2) } : { g: r.gid }), apply: f => achCafSaveOne(x.id, c => f(c), "DÉTAIL DÉPLACÉ") };
+  const DET = { t: "ARTICLES CONSULTÉS", lines: true, add: open ? "CRÉER UN DÉTAIL ICI…" : "", cols: [["ARTICLE", "center"], ["BESOIN"], ["CODE ARTICLE"], ["DÉSIGNATION"], ["U", "center"], ["QUANTITÉ", "number"], ["PRIX ESTIMÉ", "number"], ["MONTANT ESTIMÉ", "number"], ["MONTANT BUDGÉTÉ (NON ENVOYÉ)", "number"], ["FOURNISSEURS", "center"]],
     rows: det, addFn: redraw => { achCafSaveOne(x.id, c => { const id = achCafId(); c.lignes.push({ id, des: "", u: "", q: "" }); c.lf[id] = (c.frs || []).slice(); }, "DÉTAIL AJOUTÉ"); redraw(); },
     menu: open ? [{ k: "imp", lab: "IMPORTER (EXCEL, GOOGLE SHEETS, CSV, PDF)" }].concat((x.lignes || []).some(l => l.imp) ? [{ k: "impok", lab: "CONFIRMER LES COCHÉS (VÉRIFIÉS)" }] : []).concat([{ k: "bsn", lab: "AJOUTER LES BESOINS VALIDÉS NON COUVERTS" }, { k: "libre", lab: "AJOUTER UN ARTICLE HORS LISTE" }, { k: "up", lab: "MONTER LES COCHÉS" }, { k: "down", lab: "DESCENDRE LES COCHÉS" }, { k: "grp", lab: "GROUPER LES COCHÉS" }, { k: "ungrp", lab: "SORTIR LES COCHÉS DE LEUR GROUPE" }, { k: "rm", lab: "SUPPRIMER LES COCHÉS" }]) : [],
     act: async (a, ck, redraw) => { const rowsL = ck.map(i => det[i]).filter(r => r && r.rd).map(r => r.rd.k.slice(2));
@@ -2347,7 +2347,7 @@ function achCafPage(x, B) {
       if (a === "rm") { if (!(await svConfirm({ title: "SUPPRIMER LES DÉTAILS COCHÉS", text: rowsL.length + " DÉTAIL(S) ; LA NUMÉROTATION SE REFAIT.", ok: "SUPPRIMER" }))) return;
         achCafSaveOne(x.id, c => { c.lignes = c.lignes.filter(l => !rowsL.includes(l.id)); rowsL.forEach(id => { delete c.lf[id]; delete c.ld[id]; delete c.lc[id]; }); }, "DÉTAILS SUPPRIMÉS"); redraw(); } } };
   /* ---- FOURNISSEURS (F12) ---- */
-  const FRS = { t: "FOURNISSEURS", add: open ? "AJOUTER UN FOURNISSEUR ICI…" : "", cols: [["FOURNISSEUR"], ["E-MAIL"], ["CONDITIONS DE PAIEMENT"], ["RÉPONSE", "center"], ["DÉTAILS LIÉS", "center"], ["DEVIS"]],
+  const FRS = { t: "FOURNISSEURS CONSULTÉS", add: open ? "AJOUTER UN FOURNISSEUR ICI…" : "", cols: [["FOURNISSEUR"], ["E-MAIL"], ["CONDITIONS DE PAIEMENT"], ["RÉPONSE", "center"], ["DÉTAILS LIÉS", "center"], ["DEVIS"]],
     rows: (x.frs || []).map(f => { const F = achFrs().find(y => y.id === f) || {}, r = (x.rep || {})[f] || {}, V = DD.filter(v => v.frs === f), k = "f|" + f, nL = (x.lignes || []).filter(l => lk("lf", l.id, f)).length;
       return { rd: { k, st: rdSt(k) }, go: [[0, "frs", f]], cells: [fr(f), ((F.cte || []).find(y => y.email) || {}).email || "",
         { h: `<input class="ins-in cafp-pay" data-f="${esc(f)}" value="${esc(r.pay ?? F.cond ?? "")}"${dis}>`, t: r.pay ?? F.cond ?? "" },
@@ -2369,10 +2369,9 @@ function achCafPage(x, B) {
         { h: V.map(v => `<button type="button" class="ach-link" data-nvgo="dvf|${esc(v.id)}">${esc(v.ref)}</button>`).join(", "), t: V.map(v => v.ref).join(", ") }, ACH_FIL_ST[s0]] }; }) };
   /* ---- DOCUMENTS : ceux de l'onglet DOCUMENTS du SUIVI ; cochés = à envoyer ---- */
   const DOCS = achJ("svi_docs_v1:ACH-" + (x.ref || x.code), []) || [];
-  const DOC = { t: "DOCUMENTS", add: open ? "AJOUTER UN DOCUMENT ICI… (IL S'AJOUTE AUSSI AU SUIVI)" : "", cols: [["RÉFÉRENCE"], ["INTITULÉ"], ["FICHIER", "center"], ["À ENVOYER", "center"]],
-    rows: DOCS.map((d0, i) => { const id = d0.ref || "d" + i, k = "d|" + id; return { rd: { k, st: rdSt(k) }, cells: [d0.ref || "", d0.title || "", d0.fk ? { h: `<button type="button" class="ach-link cafp-doc" data-fk="${esc(d0.fk)}">OUVRIR</button>`, t: "OUVRIR" } : "",
-      { h: `<input type="checkbox" class="cafp-denv" data-d="${esc(id)}"${(x.denv || []).includes(id) ? " checked" : ""}${dis}>`, t: (x.denv || []).includes(id) ? "OUI" : "NON" }] }; }),
-    addFn: async redraw => { const R = achRecBlock(x.ref || x.code); if (await R.addTab("doc")) { const L2 = R.list("doc"), n = L2[L2.length - 1]; if (n) achCafSaveOne(x.id, c => { c.denv = (c.denv || []).concat([n.ref]); }, "DOCUMENT JOINT"); } redraw(); } };
+  const DOC = { t: "DOCUMENTS ENVOYÉS", add: open ? "AJOUTER UN DOCUMENT ICI… (IL S'AJOUTE AUSSI AU SUIVI)" : "", cols: [["RÉFÉRENCE"], ["INTITULÉ"], ["FICHIER", "center"]],
+    rows: DOCS.map((d0, i) => { const id = d0.ref || "d" + i, k = "d|" + id; return { rd: { k, st: rdSt(k) }, cells: [d0.ref || "", d0.title || "", d0.fk ? { h: `<button type="button" class="ach-link cafp-doc" data-fk="${esc(d0.fk)}">OUVRIR</button>`, t: "OUVRIR" } : ""] }; }),
+    addFn: async redraw => { const R = achRecBlock(x.ref || x.code); if (await R.addTab("doc")) { const L2 = R.list("doc"), n = L2[L2.length - 1]; void n; } redraw(); } };
   /* ---- CONDITIONS PARTICULIÈRES (F5) ---- */
   const CND = { t: "CONDITIONS PARTICULIÈRES", add: open ? "AJOUTER UNE CONDITION ICI…" : "", cols: [["CONDITION"], ["VALEUR"]],
     rows: (x.cond || []).map(cd => { const k = "c|" + cd.id, inp = cd.t === "on" ? `<select class="ins-in cafp-cv" data-cd="${esc(cd.id)}"${dis}>${["", "OUI", "NON"].map(v => `<option value="${v}"${cd.v === v ? " selected" : ""}>${v || "—"}</option>`).join("")}</select>`
@@ -2428,7 +2427,6 @@ function achCafPage(x, B) {
         return true; }
       if (t.matches(".cafp-pay")) { achCafSaveOne(x.id, c => { c.rep[t.dataset.f] = { ...(c.rep[t.dataset.f] || {}), pay: achU(t.value) }; }, "CONDITIONS DE PAIEMENT"); return true; }
       if (t.matches(".cafp-rep")) { achCafSaveOne(x.id, c => { c.rep[t.dataset.f] = { ...(c.rep[t.dataset.f] || {}), st: t.value, date: achNow() }; }, "RÉPONSE"); redraw(); return true; }
-      if (t.matches(".cafp-denv")) { achCafSaveOne(x.id, c => { const L = c.denv || []; c.denv = t.checked ? L.concat([t.dataset.d]) : L.filter(y => y !== t.dataset.d); }); return true; }
       if (t.matches(".cafp-cv")) { achCafSaveOne(x.id, c => { const cd = c.cond.find(y => y.id === t.dataset.cd); if (!cd) return; cd.v = cd.t === "num" ? String(achN(t.value)) : cd.t === "date" || cd.t === "on" ? t.value : achU(t.value);
         if (cd.k === "dlim") c.dlim = t.value; if (cd.k === "lieu") c.lieu = cd.v; if (cd.k === "dSouh") c.dSouh = t.value; if (cd.k === "franco") c.franco = cd.v === "OUI"; if (cd.k === "equiv") c.variante = cd.v === "OUI"; }, "CONDITION : " + t.value); redraw(); return true; }
       return false; } };
@@ -2439,6 +2437,9 @@ function achCafPage(x, B) {
 const achCafCondOf = (c, f) => { const fc = ((c.fc || {})[f] || []), L = (c.lignes || []).filter(l => ((c.lf || {})[l.id] || []).includes(f));
   return (c.cond || []).filter(cd => fc.includes(cd.id) || L.some(l => ((c.lc || {})[l.id] || []).includes(cd.id))); };
 const achCafCondLinked = (c, cd) => (c.frs || []).some(f => achCafCondOf(c, f).includes(cd));
+/* 11/11 (Ahmed, validé) : les DOCUMENTS partent comme les conditions — liés au fournisseur par le rond, directement (fd) ou par un article (ld) */
+const achCafDocOf = (c, f, DOCS) => { const fd = ((c.fd || {})[f] || []), L = (c.lignes || []).filter(l => ((c.lf || {})[l.id] || []).includes(f));
+  return DOCS.filter((d0, i) => { const id = d0.ref || "d" + i; return fd.includes(id) || L.some(l => ((c.ld || {})[l.id] || []).includes(id)); }); };
 const achCafCondMiss = c => (c.cond || []).filter(cd => achCafCondLinked(c, cd) && !String(cd.v ?? "").trim());
 /* F8 : CRÉER SON DEVIS — prérempli avec les détails liés au fournisseur ; il reste les prix (plusieurs devis du même fournisseur possibles) */
 function achCafMkDvf(id, f, redraw) { const c = achCaf().find(y => y.id === id); if (!c) return; achCafUp(c);
@@ -2453,14 +2454,14 @@ function achCafSend(id) { const c = achCaf().find(y => y.id === id); if (!c) ret
   { const Mi = achCafCondMiss(c); if (Mi.length) { svToast("ENVOI IMPOSSIBLE : CONDITION(S) LIÉE(S) SANS VALEUR — " + Mi.map(cd => cd.lab).join(", ") + ".", 6000); return; } }
   { const ni = (c.lignes || []).filter(l => l.imp).length; if (ni) { svToast("ENVOI IMPOSSIBLE : " + ni + " DÉTAIL(S) IMPORTÉ(S) À VÉRIFIER (EN ROUGE) — LES COCHER PUIS « CONFIRMER LES COCHÉS ».", 5000); return; } }
   const ck = key => { const bl = document.querySelector(`#ach .nvp-blk[data-nvb="${key}"]`); return bl ? [...bl.querySelectorAll("tbody tr[data-ri]")].filter(tr => tr.querySelector(".nvp-cb:checked")).map(tr => +tr.dataset.ri) : []; };
-  const B = [["det", "DÉTAIL CONSULTATION", achNvhKey("DÉTAIL CONSULTATION")], ["frs", "FOURNISSEURS", achNvhKey("FOURNISSEURS")], ["doc", "DOCUMENTS", achNvhKey("DOCUMENTS")], ["cnd", "CONDITIONS PARTICULIÈRES ET DÉLAIS", achNvhKey("CONDITIONS PARTICULIÈRES")]];
+  const B = [["det", "ARTICLES CONSULTÉS", achNvhKey("ARTICLES CONSULTÉS")], ["frs", "FOURNISSEURS CONSULTÉS", achNvhKey("FOURNISSEURS CONSULTÉS")], ["doc", "DOCUMENTS ENVOYÉS", achNvhKey("DOCUMENTS ENVOYÉS")], ["cnd", "CONDITIONS PARTICULIÈRES ET DÉLAIS", achNvhKey("CONDITIONS PARTICULIÈRES")]];
   const CK = Object.fromEntries(B.map(([k, , key]) => [k, ck(key)])), M = Object.fromEntries(B.map(([k]) => [k, CK[k].length ? "ck" : "all"])), d = sviWinNew();
   const det0 = achDetNum(c.lignes, c.grp).filter(o => !o.title);
   const pickL = () => M.det === "ck" ? det0.filter((o, i) => CK.det.includes(achDetNum(c.lignes, c.grp).indexOf(o))).map(o => o.l) : c.lignes;
   const pickF = () => M.frs === "ck" ? CK.frs.map(i => c.frs[i]).filter(Boolean) : c.frs.slice();
-  const DOCS = achJ("svi_docs_v1:ACH-" + c.ref, []) || [], pickD = () => (M.doc === "ck" ? CK.doc.map(i => DOCS[i]).filter(Boolean) : DOCS.filter((x, i) => (c.denv || []).includes(x.ref || "d" + i)));
+  const DOCS = achJ("svi_docs_v1:ACH-" + c.ref, []) || [], pickD = () => (M.doc === "ck" ? CK.doc.map(i => DOCS[i]).filter(Boolean) : DOCS.slice());   /* 11/11 : cases cochées = réduction parmi les documents liés */
   const pickC = () => (M.cnd === "ck" ? CK.cnd.map(i => c.cond[i]).filter(Boolean) : c.cond.slice()).filter(x => String(x.v ?? "").trim());   /* 11/11 : cases cochées = réduction parmi les conditions liées */
-  const txtOf = f => { const Ls = pickL().filter(l => ((c.lf || {})[l.id] || []).includes(f)), Cd = (() => { const Lk = achCafCondOf(c, f); return pickC().filter(cd => Lk.includes(cd)); })(), Dc = pickD();
+  const txtOf = f => { const Ls = pickL().filter(l => ((c.lf || {})[l.id] || []).includes(f)), Cd = (() => { const Lk = achCafCondOf(c, f); return pickC().filter(cd => Lk.includes(cd)); })(), Dc = (() => { const Lk = achCafDocOf(c, f, DOCS); return pickD().filter(d0 => Lk.includes(d0)); })();
     const pay = ((c.rep || {})[f] || {}).pay; const N = achDetNum(Ls, c.grp);
     return { n: Ls.length, txt: "MADAME, MONSIEUR,\n\nMERCI DE NOUS TRANSMETTRE VOTRE MEILLEURE OFFRE POUR :\n" + N.map(o => o.title ? "\n" + o.no + " " + o.lab : o.no + " — " + o.l.des + " : " + achF2(o.l.q) + " " + (o.l.u || "")).join("\n")
       + (Cd.length || pay ? "\n\nCONDITIONS PARTICULIÈRES :\n" + Cd.map(cd => "- " + cd.lab + " : " + (cd.t === "date" ? achDFr(cd.v) : cd.v)).concat(pay ? ["- CONDITIONS DE PAIEMENT : " + pay] : []).join("\n") : "")
@@ -3675,6 +3676,14 @@ const achStTxt = v => { const u = String(v || "").toUpperCase(); if (!u) return 
   if (/PARTIEL/.test(u)) return "partiel"; if (/FIG/.test(u)) return "fige"; if (/ÉMIS|REMIS/.test(u)) return "remis"; if (/INSTANCE|OUVERTE|RÉCLAM|ATTENTE/.test(u)) return "instance"; return "valide"; };
 const achNvhKey = t => String(t).toLowerCase().replace(/[^a-z]+/g, "");
 const ACH_NVH_K = "svi_ach_nvh_v1";
+/* 11/11 (Ahmed, validé) : blocs de la consultation renommés — ARTICLES CONSULTÉS, FOURNISSEURS CONSULTÉS, DOCUMENTS ENVOYÉS ;
+   les réglages gardés sous les anciens noms (hauteur, largeurs, colonnes masquées, ordre) sont recopiés une fois sous les nouveaux */
+(() => { try { if (localStorage.getItem("svi_mig_cafblk_v1")) return; const M = [["dtailconsultation", "articlesconsults"], ["fournisseurs", "fournisseursconsults"], ["documents", "documentsenvoys"]];
+  const J = k => { try { return JSON.parse(localStorage.getItem(k) || "{}") || {}; } catch (e) { return {}; } }, S = (k, o) => { try { localStorage.setItem(k, JSON.stringify(o)); } catch (e) {} };
+  const H = J(ACH_NVH_K); M.forEach(([a, b]) => { if (H[a] !== undefined && H[b] === undefined) H[b] = H[a]; }); S(ACH_NVH_K, H);
+  ["svi_colw_v1", "svi_colh_v1", "svi_colorder_v1"].forEach(k => { const O = J(k); Object.keys(O).forEach(x => M.forEach(([a, b]) => { const pa = "achp_" + a, pb = "achp_" + b;
+    if (x === pa || x.startsWith(pa + ".") || x === pa + "_i" || x === pa + "_v") { const y = pb + x.slice(pa.length); if (O[y] === undefined) O[y] = O[x]; } })); S(k, O); });
+  localStorage.setItem("svi_mig_cafblk_v1", "1"); } catch (e) {} })();
 /* 05/11 (document unique 4.3) : pendant la saisie, la DERNIÈRE ligne écrite se voit — après une création par la ligne CRÉER … ICI d'un bloc,
    son tableau descend jusqu'en bas dès qu'il est redessiné avec une ligne de plus (au repos, il montre la première) */
 { let pend = null;
@@ -3732,7 +3741,7 @@ function achNvPageHTML(p, rec, ctx) {
     const head = C.map(c => ctx && ctx.cfHead ? ctx.cfHead(t, c[0], c[1], c[3]) : `<th class="${c[3]}">${esc(c[1])}</th>`).join("");
     /* v793 : largeur des colonnes réglable et gardée (moteur commun sviCwCols / data-svcw) */
     const CG = sviCwCols(t, (L.rows.some(r => r.rd) ? [["_rd", 28]] : []).concat(C.map((c, j) => [c[0], j === 0 ? 170 : /number/.test(c[3]) ? 110 : /center/.test(c[3]) ? 90 : 150])), [["_cb", 28]]);
-    const iM = L.cols.findIndex(c => /^MONTANT/.test(c[0])), isL = /^DÉTAIL (?!FACTURE STANDARD)/.test(L.t) && iM >= 0;   /* F11 : TOTAL des DÉTAILS (TOTAL PARTIEL si filtre) */
+    const iM = L.cols.findIndex(c => /^MONTANT/.test(c[0])), isL = (/^DÉTAIL (?!FACTURE STANDARD)/.test(L.t) || L.lines) && iM >= 0;   /* F11 : TOTAL des DÉTAILS (TOTAL PARTIEL si filtre) */
     /* B3 (série B, 04/11/2026) : toute la ligne d'une pièce liée prend la couleur de son état (rouge, vert, bleu, orange, noir) */
     const iE = L.cols.findIndex(c => /^ÉTAT|^RÉPONSE/.test(c[0])), stOf = r => r.st !== undefined ? r.st : iE < 0 ? "" : achStTxt(r.cells[iE]);
     const tot = isL ? R.reduce((s2, r) => s2 + (typeof tv(r.cells[iM]) === "number" ? tv(r.cells[iM]) : achN(tv(r.cells[iM])) || 0), 0) : 0;
@@ -3751,7 +3760,7 @@ function achNvPageHTML(p, rec, ctx) {
       <span class="bdg-d-badge ach-h" data-h="${esc(p.code)}" role="button" title="Historique">H</span>${sviPinBtn(p.ref || p.code)}
       ${sviHdrBar({ attr: "nvp", n: p.why.length, why: { undo: "RIEN À ANNULER SUR CETTE FICHE.", redo: "RIEN À RÉTABLIR SUR CETTE FICHE.", todo: p.why.length ? "" : "AUCUNE ALERTE." } })}
     </div></div>
-    ${p.links.filter(L => (L.rows && L.rows.length) || L.add || /^DÉTAIL/.test(L.t)).map(blk).join("")}
+    ${p.links.filter(L => (L.rows && L.rows.length) || L.add || L.lines || /^DÉTAIL/.test(L.t)).map(blk).join("")}
     ${rec.html(ctx)}
   </div>`;
 }
@@ -3766,7 +3775,7 @@ const achPrtAuto = P => { const C = achCmf().find(c => c.ref === (P.ref || P.cod
     return [String(k).replace(/[^a-z0-9]/gi, "_"), S.lab || S.olab || f, v === undefined || v === null ? "" : String(v)]; }).filter(x => x[2] !== ""); };
 function achMepOpen(cfg, P, rec, redraw, o) {
   o = o || {};
-  const Lg0 = P.links.find(l => /^DÉTAIL (?!FACTURE STANDARD)/.test(l.t)) || P.links[0] || { t: "", cols: [], rows: [] };
+  const Lg0 = P.links.find(l => l.lines || /^DÉTAIL (?!FACTURE STANDARD)/.test(l.t)) || P.links[0] || { t: "", cols: [], rows: [] };
   /* v786 : l'aperçu suit les colonnes affichées à l'écran */
   const tb = document.querySelector(`#ach table[data-colh="achp_${achNvhKey(Lg0.t)}"]`), vis = tb ? sviColhVis(tb) : null, vf = a => vis ? a.filter((_, i) => vis.includes(i)) : a;
   let Lg = { ...Lg0, cols: vf(Lg0.cols), rows: Lg0.rows.map(r => ({ ...r, cells: vf(r.cells) })) };

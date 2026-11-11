@@ -298,6 +298,14 @@ const achStTxt = v => { const u = String(v || "").toUpperCase(); if (!u) return 
   if (/PARTIEL/.test(u)) return "partiel"; if (/FIG/.test(u)) return "fige"; if (/ÉMIS|REMIS/.test(u)) return "remis"; if (/INSTANCE|OUVERTE|RÉCLAM|ATTENTE/.test(u)) return "instance"; return "valide"; };
 const achNvhKey = t => String(t).toLowerCase().replace(/[^a-z]+/g, "");
 const ACH_NVH_K = "svi_ach_nvh_v1";
+/* 11/11 (Ahmed, validé) : blocs de la consultation renommés — ARTICLES CONSULTÉS, FOURNISSEURS CONSULTÉS, DOCUMENTS ENVOYÉS ;
+   les réglages gardés sous les anciens noms (hauteur, largeurs, colonnes masquées, ordre) sont recopiés une fois sous les nouveaux */
+(() => { try { if (localStorage.getItem("svi_mig_cafblk_v1")) return; const M = [["dtailconsultation", "articlesconsults"], ["fournisseurs", "fournisseursconsults"], ["documents", "documentsenvoys"]];
+  const J = k => { try { return JSON.parse(localStorage.getItem(k) || "{}") || {}; } catch (e) { return {}; } }, S = (k, o) => { try { localStorage.setItem(k, JSON.stringify(o)); } catch (e) {} };
+  const H = J(ACH_NVH_K); M.forEach(([a, b]) => { if (H[a] !== undefined && H[b] === undefined) H[b] = H[a]; }); S(ACH_NVH_K, H);
+  ["svi_colw_v1", "svi_colh_v1", "svi_colorder_v1"].forEach(k => { const O = J(k); Object.keys(O).forEach(x => M.forEach(([a, b]) => { const pa = "achp_" + a, pb = "achp_" + b;
+    if (x === pa || x.startsWith(pa + ".") || x === pa + "_i" || x === pa + "_v") { const y = pb + x.slice(pa.length); if (O[y] === undefined) O[y] = O[x]; } })); S(k, O); });
+  localStorage.setItem("svi_mig_cafblk_v1", "1"); } catch (e) {} })();
 /* 05/11 (document unique 4.3) : pendant la saisie, la DERNIÈRE ligne écrite se voit — après une création par la ligne CRÉER … ICI d'un bloc,
    son tableau descend jusqu'en bas dès qu'il est redessiné avec une ligne de plus (au repos, il montre la première) */
 { let pend = null;
@@ -355,7 +363,7 @@ function achNvPageHTML(p, rec, ctx) {
     const head = C.map(c => ctx && ctx.cfHead ? ctx.cfHead(t, c[0], c[1], c[3]) : `<th class="${c[3]}">${esc(c[1])}</th>`).join("");
     /* v793 : largeur des colonnes réglable et gardée (moteur commun sviCwCols / data-svcw) */
     const CG = sviCwCols(t, (L.rows.some(r => r.rd) ? [["_rd", 28]] : []).concat(C.map((c, j) => [c[0], j === 0 ? 170 : /number/.test(c[3]) ? 110 : /center/.test(c[3]) ? 90 : 150])), [["_cb", 28]]);
-    const iM = L.cols.findIndex(c => /^MONTANT/.test(c[0])), isL = /^DÉTAIL (?!FACTURE STANDARD)/.test(L.t) && iM >= 0;   /* F11 : TOTAL des DÉTAILS (TOTAL PARTIEL si filtre) */
+    const iM = L.cols.findIndex(c => /^MONTANT/.test(c[0])), isL = (/^DÉTAIL (?!FACTURE STANDARD)/.test(L.t) || L.lines) && iM >= 0;   /* F11 : TOTAL des DÉTAILS (TOTAL PARTIEL si filtre) */
     /* B3 (série B, 04/11/2026) : toute la ligne d'une pièce liée prend la couleur de son état (rouge, vert, bleu, orange, noir) */
     const iE = L.cols.findIndex(c => /^ÉTAT|^RÉPONSE/.test(c[0])), stOf = r => r.st !== undefined ? r.st : iE < 0 ? "" : achStTxt(r.cells[iE]);
     const tot = isL ? R.reduce((s2, r) => s2 + (typeof tv(r.cells[iM]) === "number" ? tv(r.cells[iM]) : achN(tv(r.cells[iM])) || 0), 0) : 0;
@@ -374,7 +382,7 @@ function achNvPageHTML(p, rec, ctx) {
       <span class="bdg-d-badge ach-h" data-h="${esc(p.code)}" role="button" title="Historique">H</span>${sviPinBtn(p.ref || p.code)}
       ${sviHdrBar({ attr: "nvp", n: p.why.length, why: { undo: "RIEN À ANNULER SUR CETTE FICHE.", redo: "RIEN À RÉTABLIR SUR CETTE FICHE.", todo: p.why.length ? "" : "AUCUNE ALERTE." } })}
     </div></div>
-    ${p.links.filter(L => (L.rows && L.rows.length) || L.add || /^DÉTAIL/.test(L.t)).map(blk).join("")}
+    ${p.links.filter(L => (L.rows && L.rows.length) || L.add || L.lines || /^DÉTAIL/.test(L.t)).map(blk).join("")}
     ${rec.html(ctx)}
   </div>`;
 }
@@ -389,7 +397,7 @@ const achPrtAuto = P => { const C = achCmf().find(c => c.ref === (P.ref || P.cod
     return [String(k).replace(/[^a-z0-9]/gi, "_"), S.lab || S.olab || f, v === undefined || v === null ? "" : String(v)]; }).filter(x => x[2] !== ""); };
 function achMepOpen(cfg, P, rec, redraw, o) {
   o = o || {};
-  const Lg0 = P.links.find(l => /^DÉTAIL (?!FACTURE STANDARD)/.test(l.t)) || P.links[0] || { t: "", cols: [], rows: [] };
+  const Lg0 = P.links.find(l => l.lines || /^DÉTAIL (?!FACTURE STANDARD)/.test(l.t)) || P.links[0] || { t: "", cols: [], rows: [] };
   /* v786 : l'aperçu suit les colonnes affichées à l'écran */
   const tb = document.querySelector(`#ach table[data-colh="achp_${achNvhKey(Lg0.t)}"]`), vis = tb ? sviColhVis(tb) : null, vf = a => vis ? a.filter((_, i) => vis.includes(i)) : a;
   let Lg = { ...Lg0, cols: vf(Lg0.cols), rows: Lg0.rows.map(r => ({ ...r, cells: vf(r.cells) })) };

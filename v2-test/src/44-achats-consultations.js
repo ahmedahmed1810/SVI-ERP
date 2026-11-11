@@ -166,7 +166,7 @@ function achCafFiche(id, done) {
         <div class="frs-sec"><div class="frs-g">${achCreeFld(c0)}<label class="frs-f frs-w"><span>OBJET</span><input class="ins-in caf-x" data-k="objet" value="${esc(C.objet)}"${dis} autocomplete="off"></label>
 </div></div>
         <div class="cafw-top">
-        <div class="frs-sec cafw-art"><div class="frs-st">DÉTAIL CONSULTATION ${svCnt(C.lignes.length)}</div>
+        <div class="frs-sec cafw-art"><div class="frs-st">ARTICLES CONSULTÉS ${svCnt(C.lignes.length)}</div>
           <table class="prm-table frs-sub"><thead><tr><th class="center">ARTICLE</th><th>BESOIN</th><th>CODE ARTICLE</th><th>DÉSIGNATION</th><th class="center">U</th><th class="number">QUANTITÉ</th><th class="number">PRIX ESTIMÉ</th><th class="number">MONTANT BUDGÉTÉ (NON ENVOYÉ)</th><th></th></tr></thead><tbody>
           ${C.lignes.map((l, i) => { const b = l.bsn ? achBsn().find(x => x.id === l.bsn) : null, a = achArtOf(l.des, l.u), std = achStdPu(l.des, l.u, l.pu);
             /* besoin (facultatif) : le menu montre aussi l'article, la désignation, l'unité et la quantité ; une désignation déjà prise par un besoin n'est plus proposée */
