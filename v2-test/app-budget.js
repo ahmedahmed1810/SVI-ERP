@@ -3451,9 +3451,11 @@ function renderBudgetList() {
     if (ied && !event.target.closest("input")) {
       if (!ied.dataset.sel1) { document.querySelectorAll("td.bdg-ied[data-sel1]").forEach(t => delete t.dataset.sel1); ied.dataset.sel1 = "1"; return; }
       const ref = ied.dataset.ied, L0 = sviInstGet(), it0 = L0.find(x => x.ref === ref); if (!it0) return;
-      const v0 = it0.intitule || "", inp = document.createElement("input"); inp.className = "ins-in nv-edin"; inp.value = v0;
+      /* 11/11 (Ahmed, règle 6.9) : INTITULÉ saisi sur PLUSIEURS LIGNES — la case s'ouvre sur sa largeur, la ligne grandit, tout est visible */
+      const ML = typeof window.sviTaEdit === "function";
+      const v0 = it0.intitule || "", inp = ML ? { value: v0, isConnected: false, addEventListener() {}, focus() {}, select() {} } : document.createElement("input"); inp.className = "ins-in nv-edin"; inp.value = v0;
       inp.__edit = true;   /* 09/11 : champ ouvert en saisie (clavier), pas en simple sélection */
-      ied.textContent = ""; ied.appendChild(inp); inp.focus(); try { inp.select(); } catch (er) {}
+      if (!ML) { ied.textContent = ""; ied.appendChild(inp); inp.focus(); try { inp.select(); } catch (er) {} }
       const t0 = Date.now();
       let done = false; const fin = ok => { if (done) return; if (ok === "blur" && Date.now() - t0 < 600 && inp.isConnected) { setTimeout(() => { inp.__edit = true; inp.focus(); }, 0); return; } done = true; const nv = String(inp.value || "").trim().toUpperCase().replace(/\s+/g, " ");
         const keep = ok && nv ? nv : v0;
@@ -3464,7 +3466,8 @@ function renderBudgetList() {
         if (ok !== "blur") { if (!ied.hasAttribute("tabindex")) ied.setAttribute("tabindex", "-1"); ied.classList.add("svi-tdf"); try { ied.focus({ preventScroll: true }); } catch (er) {} }   /* ENTRÉE / ÉCHAP : la case reste sélectionnée (cadre + point) */
         try { (bdgRows || []).forEach(r => { if (r && r.ref === ref) r.intitule = keep; }); } catch (er) {} };
       inp.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); fin(true); } if (ev.key === "Escape") { ev.preventDefault(); fin(false); } });
-      inp.addEventListener("blur", () => fin("blur")); return;
+      inp.addEventListener("blur", () => fin("blur"));
+      if (ML) window.sviTaEdit(ied, v0, (ok, v) => { inp.value = v; fin(ok); }); return;
     }
     if (ied) return;
     if (row && !event.target.closest(".bdg-reflink")) { document.querySelectorAll("td.bdg-ied[data-sel1]").forEach(t => delete t.dataset.sel1); return; }

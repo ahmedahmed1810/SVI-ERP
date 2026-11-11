@@ -372,6 +372,11 @@ sviRowHApply();
 /* 09/11 (remarque) : même geste partout — cases des tableaux, lignes du bloc TÂCHES (LOT, activités) et champs (fiches, fenêtres, listes),
    en lecture seule comme modifiables ; détection au lâcher du doigt (Safari n'envoie pas toujours le « click » sur une case) ;
    un champ coupé montre son texte entier dans une bulle sous lui ; le message « LECTURE SEULE » n'apparaît que si rien n'est coupé */
+/* 11/11 (compte rendu d'Ahmed) : un nom souligné n'est coupé que s'il dépasse VRAIMENT le bord de sa case (ou finit par « … ») —
+   on mesure le nom lui-même, pas la case entière (signe « ! », épingle) qui donnait de faux « coupé » : 1er toucher sans effet */
+const lkCut = (lk, td) => { const r = lk.getBoundingClientRect(), t = td.getBoundingClientRect(), cs = getComputedStyle(td);
+  if (lk.clientWidth && lk.scrollWidth > lk.clientWidth + 1) return true;   /* nom en bloc, coupé par « … » */
+  return r.right > t.right - (parseFloat(cs.paddingRight) || 0) + 1.5 || r.left < t.left - 1; };
 const SVI_LK_CUT = ".ach-link, .nv-reflink, .bdg-reflink, .cafw-go, [data-nvgo], [data-gofrs], [data-goart]";
 { let cur = null, tip = null, tm = 0, x0 = 0, y0 = 0, t0 = 0, eat = false;
   const FLD = "input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=hidden]):not([type=file]), textarea";
@@ -577,7 +582,7 @@ const SVI_LK_CUT = ".ach-link, .nv-reflink, .bdg-reflink, .cafw-go, [data-nvgo],
     /* 10/11 (Ahmed, document unique 2.10 complément) : NOM SOULIGNÉ COUPÉ — 1er toucher = le nom en entier (la case s'agrandit, deux lignes ou plus),
        2e toucher sur le même nom = sa fiche ; un nom entier ouvre sa fiche dès le 1er toucher */
     { const lk = e.target.closest(SVI_LK_CUT), td = lk && lk.closest("table tbody td");
-      if (td && cur !== td && (isCut(lk) || isCut(td))) { show(td); window.__sviCutT = Date.now(); eat = true; return; } }
+      if (td && cur !== td && lkCut(lk, td)) { show(td); window.__sviCutT = Date.now(); eat = true; return; } }
     const el = el0; if (!el || el === cur || (tip && tip.__el === el) || e.target.closest("button, a, .ach-link, .nv-reflink, .bdg-reflink, .cf-btn, [data-why], .lk-rd, .ins-rd, .lot-fold, .ins-cb")) return; if (!isCut(el)) return;
     show(el); window.__sviCutT = Date.now();
     /* une case qui ouvre la pièce l'ouvre au 2e toucher ; un champ modifiable garde son 1er toucher */
@@ -622,7 +627,9 @@ const SVI_LK_CUT = ".ach-link, .nv-reflink, .bdg-reflink, .cafw-go, [data-nvgo],
   const taOpen = () => { if (TA.on || !tip) return; TA.on = true; TA.ed = !!(tip.__el && canEd(tip.__el)); TA.dirty = false; try { tip.__key = window.sviCellKey ? window.sviCellKey(tip.__el) : null; } catch (er) {}
     if (TA.ed) { tip.setAttribute("contenteditable", "true"); tip.setAttribute("spellcheck", "false"); tip.setAttribute("autocapitalize", "characters"); tip.classList.add("svi-ta-ed"); try { tip.focus({ preventScroll: true }); } catch (er) {} } };
   function taEnd() { if (!tip || TA.ending) return; TA.ending = true; try { taEnd0(); } finally { TA.ending = false; } }
-  function taEnd0() { const el = taEl(); taHide(); TA.sel = null; TA.on = false; if (TA.ed && tip.isContentEditable) { tip.removeAttribute("contenteditable"); try { tip.blur(); } catch (er) {} }
+  function taEnd0() { if (tip.__cb) { const cb = tip.__cb, ok = !TA.cancel, v = taTxt().replace(/\s+/g, " ").trim(); tip.__cb = null; taHide(); TA.sel = null; TA.on = false; TA.cancel = false;
+      if (tip.isContentEditable) { tip.removeAttribute("contenteditable"); try { tip.blur(); } catch (er) {} } TA.ed = false; TA.dirty = false; if (tip.__td) { tip.__td.style.height = tip.__h0 || ""; tip.__td.classList.remove("svi-ta-src"); } try { cb(ok, v); } catch (er) {} return; }
+    const el = taEl(); taHide(); TA.sel = null; TA.on = false; if (TA.ed && tip.isContentEditable) { tip.removeAttribute("contenteditable"); try { tip.blur(); } catch (er) {} }
     if (el && TA.dirty) { el.value = taTxt().replace(/\s+/g, " ").trim() ? taTxt().replace(/\n/g, " ") : ""; el.dispatchEvent(new InputEvent("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); el.__svDirty = false; } TA.dirty = false; TA.ed = false; }
   document.addEventListener("pointerdown", e => { const t = e.target.closest && e.target.closest("#sviFullTip"); TA.down = t && t === tip ? { x: e.clientX, y: e.clientY, t: Date.now() } : null; }, true);
   document.addEventListener("pointerup", e => { const d = TA.down; TA.down = null; if (!d || !tip || !(e.target.closest && e.target.closest("#sviFullTip"))) return; if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > SVI_G.drag) return;
@@ -640,7 +647,19 @@ const SVI_LK_CUT = ".ach-link, .nv-reflink, .bdg-reflink, .cafw-go, [data-nvgo],
   document.addEventListener("input", e => { if (!tip || e.target !== tip || !TA.ed) return; const S = getSelection(); let c = 0; try { const r = S.getRangeAt(0), pre = document.createRange(); pre.selectNodeContents(tip); pre.setEnd(r.endContainer, r.endOffset); c = pre.toString().length; } catch (er) {}
     const v = taTxt().replace(/\n/g, " "), up = v.toUpperCase(); if (tip.childNodes.length !== 1 || up !== v) { tip.textContent = up; taCaret(c); } TA.sel = null; taHide();
     const el = taEl(); if (el) { el.value = up; el.__svDirty = true; TA.dirty = true; } }, true);   /* enregistré à la fermeture (un redessin pendant la frappe perdrait le champ) */
-  document.addEventListener("keydown", e => { if (tip && e.target === tip && e.key === "Escape") { off(); } }, true);
+  document.addEventListener("keydown", e => { if (tip && e.target === tip && e.key === "Escape") { e.preventDefault(); TA.cancel = true; off(); } }, true);
+  /* 11/11 (Ahmed) : SAISIE D'UNE CASE DE LISTE OU DE BLOC SUR PLUSIEURS LIGNES — la case s'ouvre sur toute sa largeur, sur autant de lignes que le
+     texte (la ligne du tableau grandit), tout le texte sélectionné ; mêmes gestes que le texte agrandi ; ENTRÉE / toucher ailleurs = enregistré, ÉCHAP = annulé */
+  window.sviTaEdit = (td, v0, cb) => { off(); const r = td.getBoundingClientRect(), cs = getComputedStyle(td);
+    tip = document.createElement("div"); tip.id = "sviFullTip"; tip.textContent = String(v0 ?? "");
+    Object.assign(tip.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px", minHeight: r.height + "px", font: cs.font, fontWeight: cs.fontWeight, textTransform: cs.textTransform, letterSpacing: cs.letterSpacing,
+      color: cs.webkitTextFillColor && !/rgba\(0, 0, 0, 0\)/.test(cs.webkitTextFillColor) ? cs.webkitTextFillColor : cs.color, paddingLeft: cs.paddingLeft, paddingRight: cs.paddingRight, textAlign: "left", background: bgOf(td) });
+    document.body.appendChild(tip); tip.__el = null; tip.__cb = cb; tip.__td = td; tip.__h0 = td.style.height; tip.__t0 = 0; tip.__y = r.top; tip.__x = r.left; td.classList.add("svi-ta-src");
+    tip.__elFake = td; TA.on = true; TA.ed = true; TA.dirty = false; TA.cancel = false; tip.setAttribute("contenteditable", "true"); tip.setAttribute("spellcheck", "false"); tip.setAttribute("autocapitalize", "characters"); tip.classList.add("svi-ta-ed");
+    try { tip.focus({ preventScroll: true }); } catch (er) {}
+    const fit = () => { if (!tip || tip.__td !== td) return; const h = tip.getBoundingClientRect().height; td.style.height = Math.ceil(Math.max(h, r.height)) + "px"; };
+    fit(); tip.addEventListener("input", () => requestAnimationFrame(fit));
+    taSel(0, taTxt().length); return tip; };
   /* pas de sélection de Safari dans le texte agrandi : une sélection native devient la sélection dessinée */
   document.addEventListener("selectionchange", () => { if (!tip || !TA.on) return; const S = getSelection(); if (!S.rangeCount || S.isCollapsed) return; const r = S.getRangeAt(0); if (!tip.contains(r.startContainer)) return;
     const pre = document.createRange(); pre.selectNodeContents(tip); pre.setEnd(r.startContainer, r.startOffset); const a = pre.toString().length, b = a + r.toString().length; S.collapse(r.endContainer, r.endOffset); taSel(a, b); });
@@ -651,7 +670,7 @@ const SVI_LK_CUT = ".ach-link, .nv-reflink, .bdg-reflink, .cafw-go, [data-nvgo],
   document.addEventListener("input", e => { if (tip && e.target === tip.__el) off(); }, true);
   /* champ ouvert en saisie (2e toucher) : le texte agrandi s'efface, le champ reste visible */
   document.addEventListener("focusin", e => { const t = e.target; if (!t || !t.matches || !t.matches(FLD)) return; setTimeout(() => { if (document.activeElement === t && !t.classList.contains("svi-nav") && !t.readOnly && !t.disabled) { off(); if (cur && cur.contains(t)) off(); } }, 0); }, true);
-  document.addEventListener("scroll", () => { if (!tip) return; const r = tip.__el.getBoundingClientRect(), moved = Math.abs(r.top - tip.__y) > 6 || Math.abs(r.left - tip.__x) > 6;
+  document.addEventListener("scroll", () => { if (!tip) return; const r = (tip.__el || tip.__td).getBoundingClientRect(), moved = Math.abs(r.top - tip.__y) > 6 || Math.abs(r.left - tip.__x) > 6;
     if (TA.on) { tip.style.left = r.left + "px"; tip.style.top = r.top + "px"; tip.__y = r.top; tip.__x = r.left; taDraw(); return; }   /* 11/11 : en saisie ou sélection, le texte agrandi suit (clavier, défilement) */
     if (Date.now() - tip.__t0 < 700 || !moved) { tip.style.left = r.left + "px"; tip.style.top = r.top + "px"; if (Date.now() - tip.__t0 < 700) { tip.__y = r.top; tip.__x = r.left; } return; } off(); }, true);
   document.addEventListener("contextmenu", e => { if (cutTd(e.target)) e.preventDefault(); }, true);

@@ -1077,6 +1077,7 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
   document.addEventListener("focusout", e => { const t = e.target; if (t && t.classList && t.classList.contains("svi-tdf")) t.classList.remove("svi-tdf"); });
   document.addEventListener("click", e => {
     if (e.defaultPrevented || !e.target.closest || e.target.closest(NOSEL)) return;
+    if (document.activeElement && document.activeElement.id === "sviFullTip") return;   /* 11/11 : saisie sur plusieurs lignes en cours — la case ne reprend pas le focus */
     const td = e.target.closest("td");
     const c = td ? sviCellOf(td) : null;
     if (!c || !sviCellOk(c)) return;

@@ -170,9 +170,12 @@ function achNvList(ctx, o) {
     if (E.type === "sel") { const O = (E.opts ? E.opts(x) : []); sviEtatMenu(td, O.map(([v, l]) => ({ k: String(v), lab: l })), String(v0 ?? ""), nv => {
         const L2 = o.all(), y = L2.find(z => z.id === id); if (!y || String(nv) === String(v0 ?? "")) { draw(); return; } const bad = E.check ? E.check(y, nv, L2) : ""; if (bad) { svToast(bad, 3500, td); draw(); return; }
         if (E.set) E.set(y, nv); else y[f] = nv; y.mod = achNow(); o.save(L2); achHist(o.code ? o.code(y) : y.ref, "MODIFIÉ DANS LA LISTE", (E.lab || k).toUpperCase() + " : " + ((O.find(z => String(z[0]) === String(nv)) || [nv, nv])[1])); draw(); }); return; }
-    const inp = document.createElement("input"); inp.className = "ins-in nv-edin" + (E.type === "num" ? " number" : "");
+    /* 11/11 (Ahmed, règle 6.9) : un texte se saisit sur PLUSIEURS LIGNES (la case s'ouvre sur toute sa largeur, la ligne grandit, tout est visible) ;
+       nombres et dates gardent leur champ d'une ligne */
+    const ML = E.type !== "num" && E.type !== "date" && typeof window.sviTaEdit === "function";
+    const inp = ML ? { value: String(v0 ?? ""), isConnected: false, addEventListener() {}, focus() {}, select() {} } : document.createElement("input"); inp.className = "ins-in nv-edin" + (E.type === "num" ? " number" : "");
     if (E.type === "date") inp.type = "date"; else if (E.type === "num") inp.inputMode = "decimal"; inp.value = E.type === "num" ? String(v0 ?? "").replace(".", ",") : String(v0 ?? "");
-    const txt0 = td.textContent; inp.__edit = true; td.textContent = ""; td.appendChild(inp); inp.focus(); try { inp.select(); } catch (er) {}
+    const txt0 = td.textContent; inp.__edit = true; if (!ML) { td.textContent = ""; td.appendChild(inp); inp.focus(); try { inp.select(); } catch (er) {} }
     /* 10/11 (comme l'INTITULÉ de la liste BDG) : la case est remise en place SANS redessiner — ENTRÉE / ÉCHAP gardent la case sélectionnée ; ANNULER / RÉTABLIR */
     const t0 = Date.now(); let done = false; const fin = ok => { if (done) return; if (ok === "blur" && Date.now() - t0 < 600 && inp.isConnected) { setTimeout(() => { inp.__edit = true; inp.focus(); }, 0); return; } done = true; let show = txt0;
       if (ok) { const nv = E.type === "num" ? achN(inp.value) : E.type === "date" ? inp.value : E.keep ? String(inp.value).trim() : achU(inp.value);
@@ -183,7 +186,8 @@ function achNvList(ctx, o) {
       td.textContent = show; td.title = show; td.classList.remove("nv-sel");
       if (ok !== "blur") { if (!td.hasAttribute("tabindex")) td.setAttribute("tabindex", "-1"); td.classList.add("svi-tdf"); try { td.focus({ preventScroll: true }); } catch (er) {} } };
     inp.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); fin(true); } if (ev.key === "Escape") { ev.preventDefault(); fin(false); } });
-    inp.addEventListener("blur", () => fin("blur")); };
+    inp.addEventListener("blur", () => fin("blur"));
+    if (ML) window.sviTaEdit(td, inp.value, (ok, v) => { inp.value = v; fin(ok); }); };
   /* 10/11 : plage de cases modifiables de la liste — COLLER (une ligne par case, ou la même partout) / EFFACER sur chaque case, une seule annulation */
   (window.__sviNvEdMods = window.__sviNvEdMods || {})[o.t] = async (v, tds) => { let lines = [""];
     if (v === "paste") { let t = ""; try { t = await navigator.clipboard.readText(); } catch (er) {} if (!t) t = window.__sviSelClip || ""; lines = String(t).split(/\r?\n/).map(z => z.split("\t")[0].trim()).filter(Boolean); if (!lines.length) { svToast("RIEN À COLLER : COPIEZ D'ABORD DES CASES.", 2200); return; } }
