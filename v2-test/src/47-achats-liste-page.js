@@ -393,7 +393,7 @@ function achNvPageHTML(p, rec, ctx) {
       <span class="bdg-d-badge bdg-d-inf" data-nvp="info" role="button" title="Informations">i</span>
       <span class="bdg-d-badge ach-h" data-h="${esc(p.code)}" role="button" title="Historique">H</span>${sviPinBtn(p.ref || p.code)}
       ${sviHdrBar({ attr: "nvp", n: p.why.length, why: { undo: "RIEN À ANNULER SUR CETTE FICHE.", redo: "RIEN À RÉTABLIR SUR CETTE FICHE.", todo: p.why.length ? "" : "AUCUNE ALERTE." } })}
-    </div></div>
+    </div>${p.lkBar ? `<div class="nvp-lkbar">${p.lkBar}</div>` : ""}</div>   <!-- v1126 (L6 – L8) : ✓ LIER / ✕ DÉLIER en haut à droite -->
     ${p.links.filter(L => (L.rows && L.rows.length) || L.add || L.lines || /^DÉTAIL/.test(L.t)).map(blk).join("")}
     ${rec.html(ctx)}
   </div>`;

@@ -3974,3 +3974,22 @@ html body #svConf .svc-card[data-st="valide"] > .svc-t:not(#svi-st1):not(#svi-st
 html body #svConf .svc-card[data-st="annule"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3), html body #svConf .svc-card[data-st="bloque"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3), html body #svConf .svc-card[data-st="expire"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3), html body #svConf .svc-card[data-st="archive"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3) { background: var(--st-annule, #6b7280) !important; }
 html body #svConf .svc-card[data-st] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3), html body #svConf .svc-card[data-st] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3) * { color: #fff !important; -webkit-text-fill-color: #fff !important; }
 html body #svConf .svc-card[data-st] > .svc-close:not(#svi-st1):not(#svi-st2):not(#svi-st3) { color: #fff !important; -webkit-text-fill-color: #fff !important; z-index: 2; }   /* v1122 : ✕ blanc sur le bandeau coloré */
+/* v1126 (série L, L6 – L8) : liaisons de la consultation au format du budget (document unique 2.5) — moteur commun sviLk (09g) */
+.nvp-rd { position: relative; width: 16px; height: 16px; border: 2px solid var(--inst, #b91c1c); border-radius: 50%; box-sizing: border-box; background: #fff; }
+.nvp-rd::before { content: ""; position: absolute; inset: -7px -11px; }
+.nvp-rd.rd-lie { background: #fff; border-color: var(--inst, #b91c1c); }
+.nvp-rd.rd-exact { border-color: #1d4ed8; background: radial-gradient(circle, #1d4ed8 0 3px, #fff 3.5px); }
+.nvp-rd.rd-choisi { border-color: var(--inst, #b91c1c); background: var(--inst, #b91c1c); }
+.nvp-rd.rd-choisi::after { content: ""; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+:is(.nvp-blk, .cai-t) tr.lk-link > td { background: #dbeafe !important; color: #1d4ed8 !important; font-weight: 700; }
+:is(.nvp-blk, .cai-t) tr.lk-hit > td { background: #bfdbfe !important; color: #1e3a8a !important; font-weight: 800; }
+:is(.nvp-blk, .cai-t) tr.lk-sel > td { background: #fde8e8 !important; font-weight: 800; }
+:is(.nvp-blk, .cai-t) tr.lk-link > td :is(input, select), :is(.nvp-blk, .cai-t) tr.lk-hit > td :is(input, select) { color: inherit !important; -webkit-text-fill-color: currentColor; background: transparent; }
+html.svi-nuit :is(.nvp-blk, .cai-t) tr.lk-link > td { background: #1e3a5f !important; color: #bfdbfe !important; }
+html.svi-nuit :is(.nvp-blk, .cai-t) tr.lk-hit > td { background: #1d4ed8 !important; color: #fff !important; }
+html.svi-nuit :is(.nvp-blk, .cai-t) tr.lk-sel > td { background: #4c1d1d !important; }
+.nvp-lkbar { display: flex; justify-content: flex-end; padding: 4px 12px 6px; }
+.svlk-win { margin-left: auto; margin-right: 8px; display: inline-flex; align-items: center; }
+.svlk-go { border: 0; border-radius: 8px; padding: 7px 12px; font-size: 12px; font-weight: 800; cursor: pointer; background: #15803d; color: #fff; display: inline-flex; align-items: center; gap: 6px; }
+.svlk-go.svlk-del { background: #b91c1c; }
+.svlk-go:disabled { background: #e5e7eb; color: #9ca3af; cursor: help; }

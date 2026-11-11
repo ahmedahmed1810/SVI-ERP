@@ -49,7 +49,7 @@ function achListMod(ctx, o) {
     pageOf: id => { const x = o.list().find(y => y.id === id); if (!x) return null; if (o.mOf && o.mOf(x)) return achListPage(o.mOf(x).o, id);
       const D = achDocPage(o.k, x);
       return { id, code: x.ref, ref: x.ref, title: D.title || x.ref, party: x.frs ? achFrsNom(x.frs) : "", partyGo: x.frs ? "frs|" + x.frs : "", date: achDFr(x.date || x.dFac || x.cree), tot: D.tot || [], ttc: D.ttc || 0, numFrs: x.refFrs || x.num || x.nbl || "", st: achPcSt(o.k, x) || ((o.inst || (() => false))(x) ? "instance" : "valide"), step: achPcStep(o.k, x), del: dead(x), why: o.why(x, o.list()),
-        info: done => (o.info || o.open)(id, () => done()), click: D.click, change: D.change,
+        info: done => (o.info || o.open)(id, () => done()), click: D.click, change: D.change, lkBar: D.lkBar || "",   /* v1126 (L6 – L8) */
         menu: [{ k: "fiche", lab: "OUVRIR LA FICHE" }].concat(D.menu || []).concat(kill && !dead(x) ? [{ k: "del", lab: "ANNULER" }] : []),
         act: async (k, redraw) => { if (k === "fiche") { o.open(id, redraw); return; } if (D.act && await D.act(k, redraw)) return; if (k === "del") { const y = o.list().find(z => z.id === id); if (y && await kill(y)) redraw(); } },
         links: D.links.map(L => L.add && !dead(x) && (L.addAny || (o.inst || (() => false))(x)) ? { ...L, addFn: L.addFn || (redraw => o.open(id, redraw)) } : { ...L, add: "" }) }; }
