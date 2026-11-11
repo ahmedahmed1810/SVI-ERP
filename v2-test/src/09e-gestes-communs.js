@@ -552,14 +552,14 @@ const SVI_LK_CUT = ".ach-link, .nv-reflink, .bdg-reflink, .cafw-go, [data-nvgo],
   /* jamais la bulle de Safari (Copier / Rechercher la sélection) sur les cases des tableaux */
   document.addEventListener("selectstart", e => { const t = e.target && e.target.nodeType === 1 ? e.target : e.target && e.target.parentElement; if (t && t.closest && t.closest("table tbody td, .ins-hcol .ins-li") && !t.closest("input, textarea")) e.preventDefault(); }, true);
   document.addEventListener("pointerdown", e => { if (!e.target.closest || !e.target.closest(".cell-all, #sviEtatMenu")) document.querySelectorAll(".cell-all").forEach(x => x.classList.remove("cell-all")); }, true);
-  const off = () => { if (cur) { cur.classList.remove("cell-x"); cur.parentElement && cur.parentElement.classList.remove("row-x"); cur = null; } if (tip) { tip.remove(); tip = null; } };
+  const off = () => { if (TA && TA.ending) return; if (cur) { cur.classList.remove("cell-x"); cur.parentElement && cur.parentElement.classList.remove("row-x"); cur = null; } if (tip) { try { taEnd(); } catch (er) {} tip.remove(); tip = null; } };
   const show = el => { off(); if (el.matches(FLD)) { const r = el.getBoundingClientRect(); tip = document.createElement("div"); tip.id = "sviFullTip"; tip.textContent = txtOf(el);
       /* 09/11 (règle 6.9) : le texte entier s'affiche SUR le champ, à sa largeur exacte, sur plusieurs lignes — le champ semble s'agrandir vers le bas */
     const cs = getComputedStyle(el); Object.assign(tip.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px", minHeight: r.height + "px", font: cs.font, color: cs.color, textAlign: cs.textAlign,
       paddingLeft: cs.paddingLeft, paddingRight: cs.paddingRight, letterSpacing: cs.letterSpacing, textTransform: cs.textTransform, fontWeight: cs.fontWeight, fontStyle: cs.fontStyle, textDecoration: cs.textDecoration,
       color: cs.webkitTextFillColor && !/rgba\(0, 0, 0, 0\)/.test(cs.webkitTextFillColor) ? cs.webkitTextFillColor : cs.color, background: bgOf(el) }); document.body.appendChild(tip); tip.__el = el; tip.__t0 = Date.now(); tip.__y = r.top; tip.__x = r.left; return; }
     cur = el; el.classList.add("cell-x"); el.tagName === "TD" && el.parentElement.classList.add("row-x"); };
-  document.addEventListener("pointerdown", e => { if (e.target && (e.target.id === "sviSelHandle" || (e.target.closest && e.target.closest("#sviLpBar, #sviSelBar")))) return;   /* 09/11 : toucher le point ou un menu ne referme pas le texte agrandi */
+  document.addEventListener("pointerdown", e => { if (e.target && (e.target.id === "sviSelHandle" || (e.target.closest && e.target.closest("#sviLpBar, #sviSelBar, #sviFullTip, .svi-ta-h")))) return;   /* 09/11 : toucher le point ou un menu ne referme pas le texte agrandi */
     const el = cutTd(e.target); if ((cur && !cur.contains(e.target)) || (tip && (tip.__el !== el || document.activeElement === el))) off();   /* 2e toucher sur le champ = saisie : le texte agrandi s'efface */ clearTimeout(tm); if (!el) return; x0 = e.clientX; y0 = e.clientY; t0 = Date.now();
     if (isCut(el)) window.__sviCutT = Date.now();   /* le message LECTURE SEULE se tait : le toucher sert à lire */
     tm = setTimeout(() => { tm = 0; lastT = null; lpMenu(el); }, SVI_G.lp); }, true);
@@ -584,6 +584,67 @@ const SVI_LK_CUT = ".ach-link, .nv-reflink, .bdg-reflink, .cafw-go, [data-nvgo],
     /* 09/11 : le toucher garde aussi son effet habituel (sélection, 2e toucher = modification) — plus rien n'est avalé */
     eat = false; }, true);
   document.addEventListener("pointerdown", () => { eat = false; }, true);
+  /* 11/11 (Ahmed, validé, document unique 6.3) : TEXTE AGRANDI — tant qu'un texte coupé est agrandi (#sviFullTip), les touchers portent sur
+     TOUT le texte agrandi, sur toutes ses lignes : 2e toucher = tout sélectionné (COPIER ; champ modifiable : saisie ouverte, COUPER / COPIER /
+     COLLER / EFFACER) ; 3e toucher = sélection enlevée (champ modifiable : curseur à l'endroit touché) ; double toucher sur un mot = ce mot ;
+     double toucher sur une case coupée = agrandi déjà tout sélectionné ; deux poignées pour élargir ou réduire ; toucher ailleurs = refermé
+     (la saisie est enregistrée). Jamais la sélection de Safari. */
+  const TA = { sel: null, down: null, lastT: 0, lastX: 0, lastY: 0, dirty: false, ed: false, on: false, hl: null, ha: null, hb: null };
+  const taTxt = () => tip ? String(tip.textContent || "") : "";
+  const taNode = () => { if (!tip.firstChild || tip.childNodes.length > 1 || tip.firstChild.nodeType !== 3) tip.textContent = taTxt().replace(/\n/g, " "); if (!tip.firstChild) tip.appendChild(document.createTextNode("")); return tip.firstChild; };
+  const taRng = (a, b) => { const n = taNode(), L = n.length, r = document.createRange(); r.setStart(n, Math.max(0, Math.min(a, L))); r.setEnd(n, Math.max(0, Math.min(b, L))); return r; };
+  const taAt = (x, y) => { let r = null; try { r = document.caretRangeFromPoint ? document.caretRangeFromPoint(x, y) : null; if (!r && document.caretPositionFromPoint) { const q = document.caretPositionFromPoint(x, y); if (q) { r = document.createRange(); r.setStart(q.offsetNode, q.offset); } } } catch (er) {}
+    const L = taTxt().length; if (!r || !tip.contains(r.startContainer)) { const R = tip.getBoundingClientRect(); return y < R.top + 4 ? 0 : y > R.bottom - 4 ? L : x < R.left + R.width / 2 ? 0 : L; }
+    return r.startContainer.nodeType === 3 ? Math.min(L, r.startOffset) : (r.startOffset ? L : 0); };
+  const taWord = o => { const t = taTxt(), W = /[0-9A-Za-zÀ-ÿ'’._-]/; let a = o, b = o; while (a > 0 && W.test(t[a - 1])) a--; while (b < t.length && W.test(t[b])) b++; if (a === b && b < t.length) b++; return [a, b]; };
+  const taHide = () => { [TA.hl, TA.ha, TA.hb].forEach(x => { if (x) x.style.display = "none"; }); if (TA.hl) TA.hl.innerHTML = ""; lbOff(); };
+  const taCaret = o => { if (!TA.ed) return; try { const r = taRng(o, o), S = getSelection(); S.removeAllRanges(); S.addRange(r); } catch (er) {} };
+  const taMenu = () => { const ed = TA.ed, H = ed ? ['<button type="button" data-lp="cut">COUPER</button><button type="button" data-lp="copy">COPIER</button><button type="button" data-lp="paste">COLLER</button><div class="blk-sep"></div><button type="button" data-lp="clear" class="sb-del">EFFACER</button>'] : ['<button type="button" data-lp="copy">COPIER</button>'];
+    lbBar(tip, H, async k => { const [a, b] = TA.sel || [0, 0], t = taTxt(), part = t.slice(a, b);
+      if (k === "copy" || k === "cut") { try { await navigator.clipboard.writeText(part); } catch (er) {} window.__sviSelClip = part; if (k === "copy") { if (typeof svToast === "function") svToast("COPIÉ.", 1500, tip); taDraw(); return; } }
+      if (!ed) return; let v = ""; if (k === "paste") { try { v = await navigator.clipboard.readText(); } catch (er) {} if (!v) v = window.__sviSelClip || ""; v = String(v || "").replace(/\s+/g, " ").toUpperCase(); }
+      taSet(t.slice(0, a) + v + t.slice(b), a + v.length); }); };
+  const taDraw = () => { if (!tip) return; const sel = TA.sel; if (!sel || sel[0] === sel[1]) { taHide(); return; }
+    if (!TA.hl) { TA.hl = document.createElement("div"); TA.hl.id = "sviTaHi"; document.body.appendChild(TA.hl); }
+    const mk = c => { const d = document.createElement("div"); d.className = "svi-th svi-ta-h " + c; d.innerHTML = "<i></i>"; document.body.appendChild(d); d.addEventListener("pointerdown", taDrag); return d; };
+    if (!TA.ha) TA.ha = mk("svi-th-a"); if (!TA.hb) TA.hb = mk("svi-th-b");
+    const R = [...taRng(sel[0], sel[1]).getClientRects()].filter(q => q.width > 0.5); if (!R.length) { taHide(); return; }
+    TA.hl.innerHTML = R.map(q => `<span style="left:${q.left}px;top:${q.top}px;width:${q.width}px;height:${q.height}px"></span>`).join(""); TA.hl.style.display = "block";
+    const A = R[0], B = R[R.length - 1]; Object.assign(TA.ha.style, { display: "block", left: A.left + "px", top: A.top + "px", height: A.height + "px" }); Object.assign(TA.hb.style, { display: "block", left: B.right + "px", top: B.top + "px", height: B.height + "px" });
+    taMenu(); };
+  const taSel = (a, b) => { TA.sel = [Math.min(a, b), Math.max(a, b)]; if (TA.ed) taCaret(TA.sel[1]); taDraw(); };
+  const taSet = (v, caret) => { tip.textContent = v; TA.sel = null; taHide(); const el = taEl(); if (el) { el.value = v; el.__svDirty = true; TA.dirty = true; } taCaret(caret); };
+  function taDrag(e) { e.preventDefault(); e.stopPropagation(); const isA = this === TA.ha; const mv = ev => { if (!TA.sel) return; const o = taAt(ev.clientX, ev.clientY + (isA ? 6 : -6)); if (isA) TA.sel = [Math.min(o, TA.sel[1]), TA.sel[1]]; else TA.sel = [TA.sel[0], Math.max(o, TA.sel[0])]; taDraw(); };
+    const up = () => { document.removeEventListener("pointermove", mv, true); document.removeEventListener("pointerup", up, true); document.removeEventListener("pointercancel", up, true); if (TA.sel && TA.ed) taCaret(TA.sel[1]); };
+    document.addEventListener("pointermove", mv, true); document.addEventListener("pointerup", up, true); document.addEventListener("pointercancel", up, true); }
+  /* ouverture : un champ modifiable devient la zone de saisie (le texte agrandi lui-même), sans jamais quitter l'affichage sur plusieurs lignes */
+  const taEl = () => { const el = tip && tip.__el; if (el && el.isConnected) return el; let n = null; try { n = tip && tip.__key && window.sviCellFind ? window.sviCellFind(tip.__key) : null; } catch (er) {} if (n && tip) tip.__el = n; return n || el; };   /* le tableau a pu être redessiné */
+  const taOpen = () => { if (TA.on || !tip) return; TA.on = true; TA.ed = !!(tip.__el && canEd(tip.__el)); TA.dirty = false; try { tip.__key = window.sviCellKey ? window.sviCellKey(tip.__el) : null; } catch (er) {}
+    if (TA.ed) { tip.setAttribute("contenteditable", "true"); tip.setAttribute("spellcheck", "false"); tip.setAttribute("autocapitalize", "characters"); tip.classList.add("svi-ta-ed"); try { tip.focus({ preventScroll: true }); } catch (er) {} } };
+  function taEnd() { if (!tip || TA.ending) return; TA.ending = true; try { taEnd0(); } finally { TA.ending = false; } }
+  function taEnd0() { const el = taEl(); taHide(); TA.sel = null; TA.on = false; if (TA.ed && tip.isContentEditable) { tip.removeAttribute("contenteditable"); try { tip.blur(); } catch (er) {} }
+    if (el && TA.dirty) { el.value = taTxt().replace(/\s+/g, " ").trim() ? taTxt().replace(/\n/g, " ") : ""; el.dispatchEvent(new InputEvent("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); el.__svDirty = false; } TA.dirty = false; TA.ed = false; }
+  document.addEventListener("pointerdown", e => { const t = e.target.closest && e.target.closest("#sviFullTip"); TA.down = t && t === tip ? { x: e.clientX, y: e.clientY, t: Date.now() } : null; }, true);
+  document.addEventListener("pointerup", e => { const d = TA.down; TA.down = null; if (!d || !tip || !(e.target.closest && e.target.closest("#sviFullTip"))) return; if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > SVI_G.drag) return;
+    const now = Date.now(), dbl = now - TA.lastT < 350 && Math.hypot(e.clientX - TA.lastX, e.clientY - TA.lastY) < 24, young = now - (tip.__t0 || 0) < 450; TA.lastT = now; TA.lastX = e.clientX; TA.lastY = e.clientY;
+    const o = taAt(e.clientX, e.clientY);
+    if (young) { taOpen(); taSel(0, taTxt().length); return; }   /* double toucher sur une case coupée : agrandi et déjà tout sélectionné */
+    if (dbl && TA.on) { taSel(...taWord(o)); return; }           /* double toucher sur un mot : ce mot */
+    if (!TA.on) { taOpen(); taSel(0, taTxt().length); return; }  /* 2e toucher : tout le texte agrandi */
+    if (TA.sel && TA.sel[0] !== TA.sel[1]) { TA.sel = null; taHide(); taCaret(o); return; }   /* 3e toucher : sélection enlevée */
+    taCaret(o); }, true);
+  /* saisie dans le texte agrandi : la sélection dessinée est remplacée ; une seule ligne de texte (ENTRÉE = enregistrer et refermer) */
+  document.addEventListener("beforeinput", e => { if (!tip || e.target !== tip || !TA.ed) return; const t = taTxt();
+    if (e.inputType === "insertParagraph" || e.inputType === "insertLineBreak") { e.preventDefault(); off(); return; }
+    if (TA.sel && TA.sel[0] !== TA.sel[1]) { e.preventDefault(); const [a, b] = TA.sel; const ins = /^insert/.test(e.inputType) ? String(e.data || (e.dataTransfer && e.dataTransfer.getData("text")) || "").replace(/\s+/g, " ").toUpperCase() : ""; taSet(t.slice(0, a) + ins + t.slice(b), a + ins.length); } }, true);
+  document.addEventListener("input", e => { if (!tip || e.target !== tip || !TA.ed) return; const S = getSelection(); let c = 0; try { const r = S.getRangeAt(0), pre = document.createRange(); pre.selectNodeContents(tip); pre.setEnd(r.endContainer, r.endOffset); c = pre.toString().length; } catch (er) {}
+    const v = taTxt().replace(/\n/g, " "), up = v.toUpperCase(); if (tip.childNodes.length !== 1 || up !== v) { tip.textContent = up; taCaret(c); } TA.sel = null; taHide();
+    const el = taEl(); if (el) { el.value = up; el.__svDirty = true; TA.dirty = true; } }, true);   /* enregistré à la fermeture (un redessin pendant la frappe perdrait le champ) */
+  document.addEventListener("keydown", e => { if (tip && e.target === tip && e.key === "Escape") { off(); } }, true);
+  /* pas de sélection de Safari dans le texte agrandi : une sélection native devient la sélection dessinée */
+  document.addEventListener("selectionchange", () => { if (!tip || !TA.on) return; const S = getSelection(); if (!S.rangeCount || S.isCollapsed) return; const r = S.getRangeAt(0); if (!tip.contains(r.startContainer)) return;
+    const pre = document.createRange(); pre.selectNodeContents(tip); pre.setEnd(r.startContainer, r.startOffset); const a = pre.toString().length, b = a + r.toString().length; S.collapse(r.endContainer, r.endOffset); taSel(a, b); });
+  window.__sviTa = TA;
   document.addEventListener("click", e => { if (!eat) return; eat = false; e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); }, true);
   /* 09/11 : le défilement que l'application fait elle-même juste après le toucher (case choisie, champ mis en vue) ne ferme pas le texte : il le suit ;
      ensuite, seul un vrai défilement du doigt (le champ bouge) le ferme */
@@ -591,6 +652,7 @@ const SVI_LK_CUT = ".ach-link, .nv-reflink, .bdg-reflink, .cafw-go, [data-nvgo],
   /* champ ouvert en saisie (2e toucher) : le texte agrandi s'efface, le champ reste visible */
   document.addEventListener("focusin", e => { const t = e.target; if (!t || !t.matches || !t.matches(FLD)) return; setTimeout(() => { if (document.activeElement === t && !t.classList.contains("svi-nav") && !t.readOnly && !t.disabled) { off(); if (cur && cur.contains(t)) off(); } }, 0); }, true);
   document.addEventListener("scroll", () => { if (!tip) return; const r = tip.__el.getBoundingClientRect(), moved = Math.abs(r.top - tip.__y) > 6 || Math.abs(r.left - tip.__x) > 6;
+    if (TA.on) { tip.style.left = r.left + "px"; tip.style.top = r.top + "px"; tip.__y = r.top; tip.__x = r.left; taDraw(); return; }   /* 11/11 : en saisie ou sélection, le texte agrandi suit (clavier, défilement) */
     if (Date.now() - tip.__t0 < 700 || !moved) { tip.style.left = r.left + "px"; tip.style.top = r.top + "px"; if (Date.now() - tip.__t0 < 700) { tip.__y = r.top; tip.__x = r.left; } return; } off(); }, true);
   document.addEventListener("contextmenu", e => { if (cutTd(e.target)) e.preventDefault(); }, true);
 }

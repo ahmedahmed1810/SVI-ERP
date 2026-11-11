@@ -3895,3 +3895,9 @@ html body #sviScreenTag .ach-link[data-nvgo].lk-annule { color: color-mix(in srg
 #home .home-head .home-close.hdr-off { opacity: .45; }
 #home .home-head :is(.home-close, .home-more) { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; padding: 0; background: #fff; border: 1px solid #d5dbe3; border-radius: 10px; color: #172033; font-size: 20px; cursor: pointer; }
 html.svi-nuit #home .home-head :is(.home-close, .home-more) { background: #16213a; border-color: #2c3a57; color: #e5e9f0; }
+/* v1101 (6.3) : texte agrandi — sélection dessinée sur toutes ses lignes, saisie dans le texte agrandi */
+#sviTaHi { position: fixed; left: 0; top: 0; width: 0; height: 0; z-index: 100011; pointer-events: none; display: none; }
+#sviTaHi span { position: fixed; background: rgba(185,28,28,.18); border-radius: 2px; }
+#sviFullTip.svi-ta-ed { outline: 2px solid #b91c1c; outline-offset: 0; cursor: text; -webkit-user-select: text; user-select: text; caret-color: #b91c1c; }
+#sviFullTip { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+#sviFullTip { pointer-events: auto; }
