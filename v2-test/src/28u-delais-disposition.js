@@ -608,13 +608,13 @@ function sviBdgDelaisDisposition(C) {
   const coDrag = (event, th) => {
     const isHier = th.classList.contains("bdg-h-head");
     const table = th.closest("table");
-    const t = isHier ? "hierCols" : th.querySelector(".cf-btn").dataset.cf;
+    const t = isHier ? "hierCols" : th.querySelector(".cf-btn")?.dataset.cf || table.querySelector("thead .cf-btn[data-cf]")?.dataset.cf;
     const ths = () => isHier
       ? [...$("bdgHier").querySelectorAll(".bdg-h-head")]
       : [...table.querySelectorAll("thead tr:first-child > th")];
     const keyOf = x => isHier
       ? x.querySelector(".cf-btn")?.dataset.cf
-      : x.querySelector(".cf-btn")?.dataset.col;
+      : x.dataset.cokey || x.querySelector(".cf-btn")?.dataset.col;
     const x0 = event.clientX, y0 = event.clientY;
     let on = false, target = null, ghost = null, mv = 0; const arm = sviColArm(event, th);
     const clear = () => ths().forEach(x => x.classList.remove("co-before", "co-after"));

@@ -499,6 +499,7 @@ function sviLayReset(root) {
   (root ? root.querySelectorAll("table") : []).forEach(t => { const b = t.tHead && t.tHead.querySelector(".cf-btn[data-cf]"); [b && b.dataset.cf, t.dataset.colh, t.dataset.svcw].forEach(k => { if (k) keys.add(k); }); });
   try { const S = colhLoad(); keys.forEach(k => { delete S[k]; delete S[k + "_i"]; delete S[k + "_v"]; }); colhSave(S); } catch (e) {}
   try { const W = cwLoad(); Object.keys(W).forEach(c => { if ([...keys].some(k => c.startsWith(k + "."))) delete W[c]; }); cwSave(W); } catch (e) {}
+  try { const O = coLoad(); keys.forEach(k => { delete O[k]; }); coSave(O); } catch (e) {}   /* 11/11 : ordre d'origine des colonnes (cases à cocher en dernier) */
   return keys.size;
 }
 const sviLayAsk = () => svConfirm({ title: "DISPOSITION PAR DÉFAUT", text: "LES BLOCS ET LES COLONNES DE CET ÉCRAN REVIENNENT À LEUR FORMAT D'ORIGINE.", ok: "RÉTABLIR", tone: "neutral" });

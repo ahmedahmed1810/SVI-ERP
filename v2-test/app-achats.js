@@ -1227,9 +1227,9 @@ function sviAchInit() {
       document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
       return;
     }
-    const th = e.target.closest("th"); if (!th || e.target.closest(".cf-btn, input") || !th.querySelector(".cf-btn")) return;
-    const table = th.closest("table"), t = th.querySelector(".cf-btn").dataset.cf;
-    const ths = () => [...table.querySelectorAll("thead tr:first-child > th")].filter(x => x.querySelector(".cf-btn"));
+    const th = e.target.closest("th"); if (!th || e.target.closest(".cf-btn:not(.nvl-cff), input") || !(th.querySelector(".cf-btn") || th.dataset.cokey)) return;   /* 11/11 : la colonne des cases se déplace aussi */
+    const table = th.closest("table"), t = th.querySelector(".cf-btn").dataset.cf || table.querySelector("thead .cf-btn[data-cf]")?.dataset.cf;
+    const ths = () => [...table.querySelectorAll("thead tr:first-child > th")].filter(x => x.querySelector(".cf-btn") || x.dataset.cokey);
     const x0 = e.clientX; let on = false, target = null, ghost = null; const arm = sviColArm(e, th);
     const clear = () => ths().forEach(x => x.classList.remove("co-before", "co-after"));
     const mv = ev => {
@@ -1241,7 +1241,7 @@ function sviAchInit() {
       document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
       clear(); th.classList.remove("co-src"); ghost && ghost.remove();
       if (!on || !target) return;
-      const keyOf = x => x.querySelector(".cf-btn").dataset.col, keys = ths().map(keyOf), from = keys.indexOf(keyOf(th)), to = keys.indexOf(keyOf(target));
+      const keyOf = x => x.dataset.cokey || x.querySelector(".cf-btn").dataset.col, keys = ths().map(keyOf), from = keys.indexOf(keyOf(th)), to = keys.indexOf(keyOf(target));
       const [k] = keys.splice(from, 1); keys.splice(to, 0, k);
       const all = coLoad(); all[t] = keys; coSave(all);
       view.addEventListener("click", ev => { ev.stopPropagation(); ev.preventDefault(); }, { capture: true, once: true });
@@ -3721,7 +3721,7 @@ function achNvPageHTML(p, rec, ctx) {
     const iE = L.cols.findIndex(c => /^ÉTAT|^RÉPONSE/.test(c[0])), stOf = r => r.st !== undefined ? r.st : iE < 0 ? "" : achStTxt(r.cells[iE]);
     const tot = isL ? R.reduce((s2, r) => s2 + (typeof tv(r.cells[iM]) === "number" ? tv(r.cells[iM]) : achN(tv(r.cells[iM])) || 0), 0) : 0;
     return `<div class="bdg-d-block nvp-blk" data-nvb="${k}"><div class="bdg-d-block-title blk-head"><span class="ttl">${esc(L.t)} ${svCnt(R.length, L.rows.length)}</span>${achBlkTools(k)}</div>
-      <div class="rec-scroll" style="${achNvhSc(k)}"><table class="bdg-d-table rec-table" data-colh="${esc(t)}" data-svcw="${esc(t)}" style="${CG.style}">${CG.cg}<thead><tr>${RD ? '<th class="nvp-rdh"></th>' : ""}${head}<th class="center nvp-cbh"><input type="checkbox" class="nvp-all" aria-label="Tout cocher"></th></tr></thead>
+      <div class="rec-scroll" style="${achNvhSc(k)}"><table class="bdg-d-table rec-table" data-colh="${esc(t)}" data-svcw="${esc(t)}" style="${CG.style}">${CG.cg}<thead><tr>${RD ? '<th class="nvp-rdh"></th>' : ""}${head}<th class="center nvp-cbh" data-cokey="_cb"><input type="checkbox" class="nvp-all" aria-label="Tout cocher"><span class="col-rs" data-col="_cb"></span></th></tr></thead>
       <tbody>${R.map(r => `<tr class="${r.cls || ""}${stOf(r) ? " nvr-" + stOf(r) : ""}" data-ri="${r.__i}">${RD ? `<td class="nvp-rdc">${r.rd ? `<button type="button" class="nvp-rd${r.rd.st ? " rd-" + r.rd.st : ""}" data-rd="${esc(r.rd.k)}" aria-label="Liaison"></button>` : ""}</td>` : ""}${J.map(j => { const v = r.cells[j], g = (r.go || []).find(z => z[0] === j); if (v && typeof v === "object" && v.h !== undefined) return `<td class="${L.cols[j][1] || ""}">${v.h}</td>`; return `<td class="${L.cols[j][1] || ""}">${j === 0 && r.open ? `<button type="button" class="ach-link" data-nvl="${esc(L.t)}|${r.__i}">${esc(v)}</button>` : g ? `<button type="button" class="ach-link" data-nvgo="${esc(g[1] + "|" + g[2])}">${esc(v)}</button>` : esc(typeof v === "number" ? achF2(v) : v)}</td>`; }).join("")}<td class="center"><input type="checkbox" class="nvp-cb"></td></tr>`).join("")}${L.add ? `<tr class="rec-new" data-nvadd="${k}"><td colspan="${n + 1 + (RD ? 1 : 0)}">${esc(L.add)}</td></tr>` : ""}</tbody>
       ${isL ? `<tfoot><tr class="bdg-d-total-row">${RD ? "<td></td>" : ""}${J.map((j, jj) => j === iM ? `<td class="number">${achF2(tot)}</td>` : jj === J.indexOf(iM) - 1 ? `<td class="number">${R.length < L.rows.length ? "TOTAL PARTIEL" : "TOTAL"}</td>` : "<td></td>").join("")}<td></td></tr></tfoot>` : ""}</table></div>
       <div class="blk-rsz nvp-rsz" data-nvh="${k}" title="Glisser pour changer la hauteur"></div></div>`; };

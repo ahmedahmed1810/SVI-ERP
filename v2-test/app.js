@@ -3913,6 +3913,7 @@ function sviLayReset(root) {
   (root ? root.querySelectorAll("table") : []).forEach(t => { const b = t.tHead && t.tHead.querySelector(".cf-btn[data-cf]"); [b && b.dataset.cf, t.dataset.colh, t.dataset.svcw].forEach(k => { if (k) keys.add(k); }); });
   try { const S = colhLoad(); keys.forEach(k => { delete S[k]; delete S[k + "_i"]; delete S[k + "_v"]; }); colhSave(S); } catch (e) {}
   try { const W = cwLoad(); Object.keys(W).forEach(c => { if ([...keys].some(k => c.startsWith(k + "."))) delete W[c]; }); cwSave(W); } catch (e) {}
+  try { const O = coLoad(); keys.forEach(k => { delete O[k]; }); coSave(O); } catch (e) {}   /* 11/11 : ordre d'origine des colonnes (cases à cocher en dernier) */
   return keys.size;
 }
 const sviLayAsk = () => svConfirm({ title: "DISPOSITION PAR DÉFAUT", text: "LES BLOCS ET LES COLONNES DE CET ÉCRAN REVIENNENT À LEUR FORMAT D'ORIGINE.", ok: "RÉTABLIR", tone: "neutral" });
@@ -4303,7 +4304,7 @@ document.addEventListener("pointerdown", e => {
   { const W = hs.map(x => Math.round(x.getBoundingClientRect().width)); cols.forEach((c, i) => { if (W[i]) c.style.width = W[i] + "px"; }); const tw0 = W.reduce((a, b) => a + (b || 0), 0) + "px"; table.style.width = tw0; table.style.minWidth = tw0; }
   const x0 = e.clientX, w0 = parseFloat(col.style.width) || 120; let w = w0;
   h.classList.add("on");
-  const mv = ev => { w = Math.max(64, Math.round(w0 + ev.clientX - x0)); col.style.width = w + "px"; const tw = cols.reduce((s, c) => s + (parseFloat(c.style.width) || 0), 0) + "px"; table.style.width = tw; table.style.minWidth = tw; };
+  const mv = ev => { w = Math.max(/^_/.test(h.dataset.col) ? 28 : 64, Math.round(w0 + ev.clientX - x0)); col.style.width = w + "px"; const tw = cols.reduce((s, c) => s + (parseFloat(c.style.width) || 0), 0) + "px"; table.style.width = tw; table.style.minWidth = tw; };
   const up = () => { document.removeEventListener("pointermove", mv, true); document.removeEventListener("pointerup", up, true); document.removeEventListener("pointercancel", up, true); h.classList.remove("on");
     const all = cwLoad(); cols.forEach(c => { if (c.dataset.k) all[t + "." + c.dataset.k] = Math.round(parseFloat(c.style.width) || 0) || all[t + "." + c.dataset.k]; }); all[t + "." + h.dataset.col] = w; cwSave(all); };
   document.addEventListener("pointermove", mv, true); document.addEventListener("pointerup", up, true); document.addEventListener("pointercancel", up, true);
@@ -4312,8 +4313,19 @@ document.addEventListener("pointerdown", e => {
    toucher la case (ou sa cellule) coche sans ouvrir la ligne ; l'APERÇU de la liste prend les lignes cochées s'il y en a */
 /* 09/11 (Ahmed) : en tête de la colonne des cases, un entonnoir comme les autres colonnes (plus de case) :
    TOUT COCHER, TOUT DÉCOCHER, SEULEMENT LES COCHÉES, TOUT AFFICHER */
+/* 11/11 (Ahmed, validé) : la colonne des cases à cocher se règle (poignée, 28 px au moins) et se DÉPLACE comme les autres colonnes ;
+   sa place est gardée dans l'ordre des colonnes (clé « _cb ») et posée après chaque dessin ; par défaut : 28 px, en dernier */
+function sviCbPlace(t) { const hr = t.tHead && t.tHead.rows[0]; if (!hr) return; const th = hr.querySelector(":scope > th[data-cokey='_cb']"); if (!th) return;
+  const key = t.querySelector("thead .cf-btn[data-cf]")?.dataset.cf || t.dataset.svcw; let S = null; try { S = (coLoad() || {})[key]; } catch (e) {} if (!Array.isArray(S) || !S.includes("_cb")) return;
+  const H = [...hr.cells], kOf = c => c.dataset.cokey || c.querySelector(".cf-btn[data-col]")?.dataset.col, nk = S.slice(S.indexOf("_cb") + 1).find(k => H.some(c => kOf(c) === k));
+  const ti = nk ? H.findIndex(c => kOf(c) === nk) : -1, ci = th.cellIndex; if (ti < 0 || ci === ti - 1) return;
+  const n = H.length, cols = [...t.querySelectorAll(":scope > colgroup > col")];
+  if (cols.length === n) cols[0].parentElement.insertBefore(cols[ci], cols[ti]);
+  [...t.rows].forEach(r => { if (r.cells.length !== n) return; r.insertBefore(r.cells[ci], r.cells[ti]); }); }
+{ let q = 0; new MutationObserver(() => { if (q) return; q = requestAnimationFrame(() => { q = 0; document.querySelectorAll("th[data-cokey='_cb']").forEach(th => { try { sviCbPlace(th.closest("table")); } catch (e) {} }); }); })
+    .observe(document.documentElement, { childList: true, subtree: true }); }
 const SVI_NVL_ONLY = new Set();
-const sviListCbTh = () => `<th class="center nvl-cbh"><input type="checkbox" class="nvl-all" hidden aria-label="Tout cocher"><span class="cf-btn nvl-cff" role="button" aria-label="Cases cochées">${SVI_CF_IC}</span></th>`;
+const sviListCbTh = () => `<th class="center nvl-cbh" data-cokey="_cb"><input type="checkbox" class="nvl-all" hidden aria-label="Tout cocher"><span class="cf-btn nvl-cff" role="button" aria-label="Cases cochées">${SVI_CF_IC}</span><span class="col-rs" data-col="_cb"></span></th>`;
 const sviListCbTd = () => `<td class="center nvl-cbc"><input type="checkbox" class="nvl-cb" aria-label="Cocher"></td>`;
 document.addEventListener("click", e => {
   const c = e.target.closest && e.target.closest("td.nvl-cbc, th.nvl-cbh"); if (!c) return;
@@ -4836,7 +4848,8 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
      (largeur tirée à la main, colonne masquée ou affichée, hauteur ou ordre des blocs du budget) ; la largeur optimisée compte comme défaut */
   const layDirty = host => { const CW = cwLoad(), A = cwaLoad(); let S = {}; try { S = colhLoad(); } catch (e) {}
     for (const t of host.querySelectorAll("table")) {
-      for (const c of t.querySelectorAll(":scope > colgroup > col")) { const k = keyOf(t, c) || (t.dataset.svcw && c.dataset.k ? t.dataset.svcw + "." + c.dataset.k : ""); if (k && CW[k] && Math.abs(CW[k] - (A[k] || 0)) > 1) return true; }
+      for (const c of t.querySelectorAll(":scope > colgroup > col")) { const k = keyOf(t, c) || (t.dataset.svcw && c.dataset.k ? t.dataset.svcw + "." + c.dataset.k : ""); if (k && CW[k] && Math.abs(CW[k] - (A[k] || (/\._cb$/.test(k) ? 28 : 0))) > 1) return true; }
+      { const S0 = (typeof coLoad === "function" ? coLoad() : {})[t.querySelector("thead .cf-btn[data-cf]")?.dataset.cf || t.dataset.svcw]; if (Array.isArray(S0) && S0.length) return true; }   /* ordre des colonnes changé */
       let id = null; try { const I = sviColhInfo(t); id = I && I.id; } catch (e) {} if (id && [S[id], S[id + "_i"], S[id + "_v"]].some(x => Array.isArray(x) && JSON.stringify(x) !== JSON.stringify(SVI_COLH_DEF[id] || []))) return true; }
     if (host.matches(".bdg-d-page") || host.querySelector(".bdg-d-page")) { let L = {}; try { L = layLoad(); } catch (e) {} if (!L.def && Object.keys(L).length) return true; }
     return false; };

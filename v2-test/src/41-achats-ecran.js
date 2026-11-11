@@ -438,9 +438,9 @@ function sviAchInit() {
       document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
       return;
     }
-    const th = e.target.closest("th"); if (!th || e.target.closest(".cf-btn, input") || !th.querySelector(".cf-btn")) return;
-    const table = th.closest("table"), t = th.querySelector(".cf-btn").dataset.cf;
-    const ths = () => [...table.querySelectorAll("thead tr:first-child > th")].filter(x => x.querySelector(".cf-btn"));
+    const th = e.target.closest("th"); if (!th || e.target.closest(".cf-btn:not(.nvl-cff), input") || !(th.querySelector(".cf-btn") || th.dataset.cokey)) return;   /* 11/11 : la colonne des cases se déplace aussi */
+    const table = th.closest("table"), t = th.querySelector(".cf-btn").dataset.cf || table.querySelector("thead .cf-btn[data-cf]")?.dataset.cf;
+    const ths = () => [...table.querySelectorAll("thead tr:first-child > th")].filter(x => x.querySelector(".cf-btn") || x.dataset.cokey);
     const x0 = e.clientX; let on = false, target = null, ghost = null; const arm = sviColArm(e, th);
     const clear = () => ths().forEach(x => x.classList.remove("co-before", "co-after"));
     const mv = ev => {
@@ -452,7 +452,7 @@ function sviAchInit() {
       document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
       clear(); th.classList.remove("co-src"); ghost && ghost.remove();
       if (!on || !target) return;
-      const keyOf = x => x.querySelector(".cf-btn").dataset.col, keys = ths().map(keyOf), from = keys.indexOf(keyOf(th)), to = keys.indexOf(keyOf(target));
+      const keyOf = x => x.dataset.cokey || x.querySelector(".cf-btn").dataset.col, keys = ths().map(keyOf), from = keys.indexOf(keyOf(th)), to = keys.indexOf(keyOf(target));
       const [k] = keys.splice(from, 1); keys.splice(to, 0, k);
       const all = coLoad(); all[t] = keys; coSave(all);
       view.addEventListener("click", ev => { ev.stopPropagation(); ev.preventDefault(); }, { capture: true, once: true });

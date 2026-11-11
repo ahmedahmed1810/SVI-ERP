@@ -2237,15 +2237,15 @@ function renderBudgetList() {
     KIT.cfOpenMenu(b);
   };
 
-  const coDragList = e => { const th = e.target.closest("th"); if (!th || e.target.closest(".cf-btn, input") || !th.querySelector(".cf-btn")) return;
-    const ths = () => [...thead.querySelectorAll("tr:first-child > th")].filter(x => x.querySelector(".cf-btn")), x0 = e.clientX; let on = false, target = null, ghost = null; const arm = sviColArm(e, th);
+  const coDragList = e => { const th = e.target.closest("th"); if (!th || e.target.closest(".cf-btn:not(.nvl-cff), input") || !(th.querySelector(".cf-btn") || th.dataset.cokey)) return;
+    const ths = () => [...thead.querySelectorAll("tr:first-child > th")].filter(x => x.querySelector(".cf-btn") || x.dataset.cokey), x0 = e.clientX; let on = false, target = null, ghost = null; const arm = sviColArm(e, th);
     const clear = () => ths().forEach(x => x.classList.remove("co-before", "co-after"));
     const mv = ev => { if (!on) { if (Math.abs(ev.clientX - x0) < SVI_G.drag) return; if (!arm(ev)) return; on = true; th.classList.add("co-src"); ghost = document.createElement("div"); ghost.id = "coGhost"; ghost.textContent = (th.querySelector(".cf-lab")?.textContent || "").trim(); document.body.appendChild(ghost); }
       ev.preventDefault(); ghost.style.left = ev.clientX + 8 + "px"; ghost.style.top = ev.clientY - 28 + "px"; clear(); target = null;
       const L = ths(); for (const x of L) { const r = x.getBoundingClientRect(); if (ev.clientX >= r.left && ev.clientX < r.right) { if (x !== th) { x.classList.add(L.indexOf(x) > L.indexOf(th) ? "co-after" : "co-before"); target = x; } break; } } };
     const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
       clear(); th.classList.remove("co-src"); ghost && ghost.remove(); if (!on || !target) return;
-      const keyOf = x => x.querySelector(".cf-btn").dataset.col, keys = ths().map(keyOf), from = keys.indexOf(keyOf(th)), to = keys.indexOf(keyOf(target));
+      const keyOf = x => x.dataset.cokey || x.querySelector(".cf-btn").dataset.col, keys = ths().map(keyOf), from = keys.indexOf(keyOf(th)), to = keys.indexOf(keyOf(target));
       const [k] = keys.splice(from, 1); keys.splice(to, 0, k); const all = coLoad(); all.bdgl = keys; coSave(all);
       table.addEventListener("click", ev => { ev.stopPropagation(); ev.preventDefault(); }, { capture: true, once: true });
       renderHead(); renderRows(); };
@@ -11591,13 +11591,13 @@ function sviBdgDelaisDisposition(C) {
   const coDrag = (event, th) => {
     const isHier = th.classList.contains("bdg-h-head");
     const table = th.closest("table");
-    const t = isHier ? "hierCols" : th.querySelector(".cf-btn").dataset.cf;
+    const t = isHier ? "hierCols" : th.querySelector(".cf-btn")?.dataset.cf || table.querySelector("thead .cf-btn[data-cf]")?.dataset.cf;
     const ths = () => isHier
       ? [...$("bdgHier").querySelectorAll(".bdg-h-head")]
       : [...table.querySelectorAll("thead tr:first-child > th")];
     const keyOf = x => isHier
       ? x.querySelector(".cf-btn")?.dataset.cf
-      : x.querySelector(".cf-btn")?.dataset.col;
+      : x.dataset.cokey || x.querySelector(".cf-btn")?.dataset.col;
     const x0 = event.clientX, y0 = event.clientY;
     let on = false, target = null, ghost = null, mv = 0; const arm = sviColArm(event, th);
     const clear = () => ths().forEach(x => x.classList.remove("co-before", "co-after"));
