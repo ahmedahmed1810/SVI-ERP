@@ -5225,7 +5225,12 @@ const sviMep = (() => {
       if (Ly.totaux && Ly.totaux.flow && lastPg) { const tb = lastPg.querySelector(".mep-totaux"), cp = lastPg.querySelector(".mep-corps"); if (tb && cp) { const t = cp.querySelector("table"); tb.style.top = (cp.offsetTop + (t ? t.offsetHeight : 0) + 12) + "px"; tb.style.left = (cp.offsetLeft + cp.offsetWidth - Ly.totaux.w) + "px"; } }
       return await pdfOf(pgs, Ly.__o || "p"); }
     finally { box.remove(); } };
-  const pdf = doc => (Q = Q.then(() => pdfRun(doc), () => pdfRun(doc)));
+  /* v1125 (agent de test) : délai maximal de 20 s — passé ce délai, #sviMepOff est retiré, l'appelant reçoit une erreur (message d'échec)
+     et la file passe au PDF suivant */
+  const PDF_MAX = 20000;
+  const pdfTimed = doc => new Promise((ok, ko) => { const t = setTimeout(() => { document.querySelectorAll("#sviMepOff").forEach(x => x.remove()); ko(new Error("PDF : délai dépassé")); }, PDF_MAX);
+    pdfRun(doc).then(v => { clearTimeout(t); ok(v); }, e => { clearTimeout(t); ko(e); }); });
+  const pdf = doc => (Q = Q.then(() => pdfTimed(doc), () => pdfTimed(doc)));
   return { open, close, layOf, pdf };
 })();
 window.sviMep = sviMep;
@@ -7922,6 +7927,8 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
     /* v553 (partie 11, remarque 5) : case de date (calendrier) = ni contour ni point au coin */
     const isDate = !!(document.getElementById("svCal") && act && act.matches && act.matches("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]")) || !!(act && act.matches && act.matches("input.sv-date")) || !!(cell && cell.querySelector && cell.querySelector("input.sv-date, input.dlp-in[data-f=deb], input.dlp-in[data-f=fin]"));
     if (!cell || isDate || !matchMedia("(pointer: coarse)").matches) { if (H) H.style.display = "none"; return; }
+    /* v1125 (agent de test) : case de l'icône d'aperçu = pas de point — posé sous le doigt au premier toucher, il prenait le relâcher et le clic de l'icône */
+    if ((cell.closest && cell.closest(".nv-apc")) || (act && act.closest && act.closest(".nv-ap"))) { if (H) H.style.display = "none"; return; }
     /* 09/11 : champ ouvert en saisie = pas de point (le bord droit sert au curseur) */
     if (act && act.matches && act.matches("input, textarea") && !act.classList.contains("svi-nav") && !act.readOnly && !act.disabled) { if (H) H.style.display = "none"; return; }
     const td = cell.tagName === "TD" ? cell : null;

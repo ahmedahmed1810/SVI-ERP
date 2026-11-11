@@ -245,7 +245,12 @@ const sviMep = (() => {
       if (Ly.totaux && Ly.totaux.flow && lastPg) { const tb = lastPg.querySelector(".mep-totaux"), cp = lastPg.querySelector(".mep-corps"); if (tb && cp) { const t = cp.querySelector("table"); tb.style.top = (cp.offsetTop + (t ? t.offsetHeight : 0) + 12) + "px"; tb.style.left = (cp.offsetLeft + cp.offsetWidth - Ly.totaux.w) + "px"; } }
       return await pdfOf(pgs, Ly.__o || "p"); }
     finally { box.remove(); } };
-  const pdf = doc => (Q = Q.then(() => pdfRun(doc), () => pdfRun(doc)));
+  /* v1125 (agent de test) : délai maximal de 20 s — passé ce délai, #sviMepOff est retiré, l'appelant reçoit une erreur (message d'échec)
+     et la file passe au PDF suivant */
+  const PDF_MAX = 20000;
+  const pdfTimed = doc => new Promise((ok, ko) => { const t = setTimeout(() => { document.querySelectorAll("#sviMepOff").forEach(x => x.remove()); ko(new Error("PDF : délai dépassé")); }, PDF_MAX);
+    pdfRun(doc).then(v => { clearTimeout(t); ok(v); }, e => { clearTimeout(t); ko(e); }); });
+  const pdf = doc => (Q = Q.then(() => pdfTimed(doc), () => pdfTimed(doc)));
   return { open, close, layOf, pdf };
 })();
 window.sviMep = sviMep;
