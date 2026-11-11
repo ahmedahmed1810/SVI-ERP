@@ -5137,15 +5137,18 @@ const sviMep = (() => {
   const draw = () => { if (!ROOT) return; ROOT.querySelector(".mep-side").innerHTML = sideHTML(); ROOT.querySelector(".mep-pages").innerHTML = pagesHTML(); requestAnimationFrame(fit); };
   const saveO = () => { const o = { ...O }; delete o.orient; ls.set(OKEY, o); };
   const load = src => new Promise((ok, ko) => { if (document.querySelector(`script[src="${src}"]`)) return ok(); const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); });
-  const genPdf = async () => {
-    const msg = ROOT.querySelector("#mepMsg"); if (msg) msg.textContent = "PRÉPARATION DU PDF…";
+  /* pages (.mep-pg) → PDF A4 ; v1124 : commun à l'aperçu et au PDF sans écran */
+  const pdfOf = async (pgs, orient) => {
     await load("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"); await load("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
-    const orient = L().__o || "p", pdf = new window.jspdf.jsPDF({ orientation: orient === "l" ? "landscape" : "portrait", unit: "mm", format: "a4" });
-    const pgs = [...ROOT.querySelectorAll(".mep-pg")];
+    const pdf = new window.jspdf.jsPDF({ orientation: orient === "l" ? "landscape" : "portrait", unit: "mm", format: "a4" });
     for (let i = 0; i < pgs.length; i++) { const p = pgs[i], tr = p.style.transform; p.style.transform = "none";
       const c = await window.html2canvas(p, { scale: 2, backgroundColor: "#fff", useCORS: true }); p.style.transform = tr;
       if (i) pdf.addPage("a4", orient === "l" ? "landscape" : "portrait"); const [w, h] = orient === "l" ? [297, 210] : [210, 297]; pdf.addImage(c.toDataURL("image/jpeg", .92), "JPEG", 0, 0, w, h); }
     return pdf.output("blob");
+  };
+  const genPdf = async () => {
+    const msg = ROOT.querySelector("#mepMsg"); if (msg) msg.textContent = "PRÉPARATION DU PDF…";
+    return pdfOf([...ROOT.querySelectorAll(".mep-pg")], L().__o || "p");
   };
   const click = async e => {
     const t = e.target, a = t.closest && t.closest("[data-act]");
@@ -5205,17 +5208,23 @@ const sviMep = (() => {
     RES = () => fit(); window.addEventListener("resize", RES);
     draw();
   };
-  /* v1123 (L21) : PDF sans écran — mêmes pages que l'aperçu (mise en page gardée pour doc.key), dessinées hors de la vue, puis retirées ;
-     un PDF à la fois (file d'attente), pour que deux envois rapprochés ne se mélangent pas */
+  /* v1123 (L21) : PDF sans écran — mêmes pages que l'aperçu (mise en page gardée pour doc.key) ; un PDF à la fois (file d'attente).
+     v1124 (agent de test) : conteneur à part (#sviMepOff), hors de la vue ; l'aperçu ouvert (#sviMep, mep-open) n'est jamais touché —
+     ses variables (D, O, ED, SEL) ne sont prêtées que le temps, sans attente, de dessiner les pages, puis rendues */
   let Q = Promise.resolve();
   const pdfRun = async doc => {
-    close(); D = doc || {}; O = opt0(); O.orient = (ls.get(LKEY, {})[D.key] || {}).__o || D.orient || "p";
-    ROOT = document.createElement("div"); ROOT.id = "sviMep"; ROOT.setAttribute("aria-hidden", "true");
-    ROOT.style.cssText = "left:-30000px;right:auto;top:0;bottom:auto;width:1500px;height:1300px;pointer-events:none";
-    ROOT.innerHTML = `<aside class="mep-side"></aside><div class="mep-area"><div class="mep-pages"></div></div>`;
-    document.body.appendChild(ROOT);
-    try { ROOT.querySelector(".mep-pages").innerHTML = pagesHTML(); await new Promise(ok => requestAnimationFrame(() => ok())); fit(); return await genPdf(); }
-    finally { close(); } };
+    const keep = [D, O, ED, SEL]; let html = "", Ly = null;
+    try { D = doc || {}; O = opt0(); O.orient = (ls.get(LKEY, {})[D.key] || {}).__o || D.orient || "p"; ED = null; SEL = null; html = pagesHTML(); Ly = L(); }
+    finally { [D, O, ED, SEL] = keep; }
+    const box = document.createElement("div"); box.id = "sviMepOff"; box.setAttribute("aria-hidden", "true");
+    box.style.cssText = "position:fixed;left:-30000px;top:0;width:1200px;height:1200px;overflow:visible;pointer-events:none";
+    box.innerHTML = `<div class="mep-pages">${html}</div>`; document.body.appendChild(box);
+    try { await new Promise(ok => requestAnimationFrame(() => ok()));
+      const pgs = [...box.querySelectorAll(".mep-pg")], lastPg = pgs[pgs.length - 1];
+      /* TOTAUX à la suite du tableau (comme fit) */
+      if (Ly.totaux && Ly.totaux.flow && lastPg) { const tb = lastPg.querySelector(".mep-totaux"), cp = lastPg.querySelector(".mep-corps"); if (tb && cp) { const t = cp.querySelector("table"); tb.style.top = (cp.offsetTop + (t ? t.offsetHeight : 0) + 12) + "px"; tb.style.left = (cp.offsetLeft + cp.offsetWidth - Ly.totaux.w) + "px"; } }
+      return await pdfOf(pgs, Ly.__o || "p"); }
+    finally { box.remove(); } };
   const pdf = doc => (Q = Q.then(() => pdfRun(doc), () => pdfRun(doc)));
   return { open, close, layOf, pdf };
 })();

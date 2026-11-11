@@ -278,8 +278,8 @@ async function achCafSendPdf(c, f, T, redraw) { const nom = achFrsNom(f);
     rows: T.N.map(o => o.title ? [o.no, o.lab, "", ""] : [o.no, o.l.des || "", o.l.u || "", achF2(o.l.q)]),
     note: [(T.Cd.length || T.pay ? "CONDITIONS PARTICULIÈRES :\n" + T.Cd.map(cd => "- " + cd.lab + " : " + (cd.t === "date" ? achDFr(cd.v) : cd.v)).concat(T.pay && !T.Cd.some(cd => cd.k === "pay") ? ["- CONDITIONS DE PAIEMENT : " + T.pay] : []).join("\n") : ""),
       T.Dc.length ? "DOCUMENTS JOINTS : " + T.Dc.map(x => x.title || x.ref).join(", ") : "", "MERCI DE RAPPELER LA RÉFÉRENCE " + T.ref + " DANS VOTRE DEVIS."].filter(Boolean).join("\n\n") };
-  const name = ("CONSULTATION " + T.ref + " — " + nom).replace(/[\\/:*?"<>|]+/g, "-").trim() + ".pdf";
-  try { const blob = await sviMep.pdf(D), r = await achRecBlock(c.ref).savePdf(blob, name);
+  const title = "CONSULTATION " + T.ref + " — " + nom, name = title.replace(/[\\/:*?"<>|]+/g, "-").trim() + ".pdf";   /* v1124 : vrai intitulé au SUIVI, nom nettoyé pour le fichier seulement */
+  try { const blob = await sviMep.pdf(D), r = await achRecBlock(c.ref).savePdf(blob, name, title);
     achCafSaveOne(c.id, x => { x.dhide = [...new Set((x.dhide || []).concat([r]))]; });
     svToast("PDF DE " + nom + " CLASSÉ DANS SUIVI › DOCUMENTS (" + r + ").", 3500);
     if (typeof redraw === "function") redraw(); }

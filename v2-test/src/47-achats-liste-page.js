@@ -81,9 +81,10 @@ function achRecBlock(code) {
   };
   const change = e => { const c = e.target.closest(".rec-done"); if (!c) return false; const L = get("taf"), x = L[+c.dataset.i]; if (x) { x.done = c.checked; achW(K.taf, L); } return true; };
   /* v783 : GÉNÉRER PDF de l'aperçu = classé dans DOCUMENTS de la pièce */
-  const savePdf = async (blob, name) => { const L = get("doc"), n = L.length + 1, k = "ach:doc:" + code + ":" + Date.now().toString(36);
+  /* v1124 : title = intitulé exact (facultatif ; sinon le nom du fichier sans .pdf, comme avant) */
+  const savePdf = async (blob, name, title) => { const L = get("doc"), n = L.length + 1, k = "ach:doc:" + code + ":" + Date.now().toString(36);
     try { await sviFiles.put(k, new File([blob], name, { type: "application/pdf" })); } catch (e) {}
-    const x = { ref: "ACH DOC " + code + "/" + String(n).padStart(3, "0"), date: new Date().toISOString(), title: name.replace(/\.pdf$/i, ""), fk: k, fname: name };
+    const x = { ref: "ACH DOC " + code + "/" + String(n).padStart(3, "0"), date: new Date().toISOString(), title: title || name.replace(/\.pdf$/i, ""), fk: k, fname: name };
     L.push(x); achW(K.doc, L); achHist(code, "DOCUMENT", x.title); return x.ref; };
   return { html, click, change, savePdf, addTab: t => { tab = t; return add(); }, list: get };
 }
