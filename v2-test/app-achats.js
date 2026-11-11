@@ -3818,7 +3818,11 @@ function achNvMod(ctx, cfg) {
     requestAnimationFrame(achNvhFloor);   /* 08/11 : une hauteur gardée trop petite remonte au minimum (une ligne de données visible) */
     return achNvPageHTML(P, rec, ctx);
   };
-  const h1 = () => pid && P ? esc(cfg.list.one) + " — " + (P.partyGo && P.party === P.title ? `<button type="button" class="ach-link nvp-party" data-nvgo="${esc(P.partyGo)}">${esc(P.title)}</button>` : esc(P.title)) : LST.h1();
+  /* 11/11 (compte rendu v1089 – v1092, 2.10 / 3.6) : le nom du tiers est TOUJOURS un lien (souligné, couleur de son état) — seul, dans le titre ou à sa suite */
+  const pLk = () => `<button type="button" class="ach-link nvp-party" data-nvgo="${esc(P.partyGo)}">${esc(P.party)}</button>`;
+  const h1 = () => { if (!(pid && P)) return LST.h1(); const T = String(P.title || ""), N = String(P.party || "");
+    if (!P.partyGo || !N) return esc(cfg.list.one) + " — " + esc(T);
+    const i = T.indexOf(N); return esc(cfg.list.one) + " — " + (i >= 0 ? esc(T.slice(0, i)) + pLk() + esc(T.slice(i + N.length)) : (T && T !== P.ref ? esc(T) + " — " : "") + pLk()); };
   const click = async e => {
     if (!pid) return LST.click(e);
     if (await rec.click(e, () => ctx.draw())) return true;
