@@ -3994,11 +3994,12 @@ html.svi-nuit body :is(.nvp-blk, .cai-t) tr.lk-sel > td:not(#svi-z1):not(#svi-z2
 .svlk-go { border: 0; border-radius: 8px; padding: 7px 12px; font-size: 12px; font-weight: 800; cursor: pointer; background: #15803d; color: #fff; display: inline-flex; align-items: center; gap: 6px; }
 .svlk-go.svlk-del { background: #b91c1c; }
 .svlk-go:disabled { background: #e5e7eb; color: #9ca3af; cursor: help; }
+/* v1129 : boutons à fond propre (ach-b, svc-b, svlk-go) exclus de la couleur héritée */
 /* v1128 (agent de test) : palette NUIT — lisibilité des liens, du SUIVI et des lignes de liaison */
 html.svi-nuit body .ach-link[data-nvgo].lk-valide:not(#svi-z1), html.svi-nuit body :is(#ach, #svConf) .ach-link:not([data-nvgo]):not(#svi-z1),
 html.svi-nuit body :is(#ach, #svConf) .ach-link[data-nvgo]:not([class*="lk-"]):not(#svi-z1) { color: #e2e8f0 !important; -webkit-text-fill-color: currentColor !important; }
 html.svi-nuit body .nvp-rec .rec-table tbody tr:not(.rec-new) > td:not(#svi-z1):not(#svi-z2):not(#svi-z3),
 html.svi-nuit body .nvp-rec .rec-table tbody tr:not(.rec-new) > td:not(#svi-z1):not(#svi-z2):not(#svi-z3) * { color: #e2e8f0 !important; -webkit-text-fill-color: currentColor !important; }
-html.svi-nuit body :is(.nvp-blk, .cai-t) tr:is(.lk-hit, .lk-sel) > td:not(#svi-z1):not(#svi-z2):not(#svi-z3) *:not(.nvp-rd) { color: inherit !important; -webkit-text-fill-color: currentColor !important; }
+html.svi-nuit body :is(.nvp-blk, .cai-t) tr:is(.lk-hit, .lk-sel) > td:not(#svi-z1):not(#svi-z2):not(#svi-z3) *:not(.nvp-rd):not(:is(.ach-b, .svc-b, .svlk-go, .ach-b *, .svc-b *, .svlk-go *)) { color: inherit !important; -webkit-text-fill-color: currentColor !important; }
 html.svi-nuit body :is(.nvp-blk, .cai-t) tr:is(.lk-hit, .lk-sel) > td:not(#svi-z1):not(#svi-z2):not(#svi-z3) :is(input, textarea)::placeholder { color: inherit !important; -webkit-text-fill-color: currentColor !important; opacity: .85; }
 html.svi-nuit body .cai-card .cai-new:not(#svi-z1) { color: #fcd34d !important; -webkit-text-fill-color: currentColor !important; }
