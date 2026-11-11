@@ -225,7 +225,19 @@ const sviMep = (() => {
     RES = () => fit(); window.addEventListener("resize", RES);
     draw();
   };
-  return { open, close, layOf };
+  /* v1123 (L21) : PDF sans écran — mêmes pages que l'aperçu (mise en page gardée pour doc.key), dessinées hors de la vue, puis retirées ;
+     un PDF à la fois (file d'attente), pour que deux envois rapprochés ne se mélangent pas */
+  let Q = Promise.resolve();
+  const pdfRun = async doc => {
+    close(); D = doc || {}; O = opt0(); O.orient = (ls.get(LKEY, {})[D.key] || {}).__o || D.orient || "p";
+    ROOT = document.createElement("div"); ROOT.id = "sviMep"; ROOT.setAttribute("aria-hidden", "true");
+    ROOT.style.cssText = "left:-30000px;right:auto;top:0;bottom:auto;width:1500px;height:1300px;pointer-events:none";
+    ROOT.innerHTML = `<aside class="mep-side"></aside><div class="mep-area"><div class="mep-pages"></div></div>`;
+    document.body.appendChild(ROOT);
+    try { ROOT.querySelector(".mep-pages").innerHTML = pagesHTML(); await new Promise(ok => requestAnimationFrame(() => ok())); fit(); return await genPdf(); }
+    finally { close(); } };
+  const pdf = doc => (Q = Q.then(() => pdfRun(doc), () => pdfRun(doc)));
+  return { open, close, layOf, pdf };
 })();
 window.sviMep = sviMep;
 

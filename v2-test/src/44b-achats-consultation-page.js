@@ -179,7 +179,7 @@ function achCafPage(x, B) {
   return { title: x.objet || "",
     menu: (open ? [x.val ? { k: "send", lab: "REMETTRE LA CONSULTATION (ENVOI AUX FOURNISSEURS)" } : { k: "val", lab: x.circ && !achCircDone(x) ? "CIRCUIT DE VALIDATION" : "VALIDER LA CONSULTATION" }].concat(FC.length ? [{ k: "close", lab: "CLÔTURER (CHOIX DU RETENU)" }] : []) : []),   /* v1119 (L13) : une commande ne se crée que depuis un devis (page du devis retenu) */
     act: async (k, redraw) => {
-      if (k === "send") { achCafSend(x.id); return true; }
+      if (k === "send") { achCafSend(x.id, redraw); return true; }
       /* v1121 (L20) : VALIDER avant la remise — circuit de validation des consultations s'il s'applique (vert), puis validée, à remettre (orange) */
       if (k === "val") { const L = achCaf(), C = L.find(y => y.id === x.id); if (!C) return true;
         if (!(C.lignes || []).length || !(C.frs || []).length) { svToast("IL FAUT AU MOINS UN ARTICLE ET UN FOURNISSEUR.", 3000); return true; }
@@ -236,7 +236,7 @@ function achCafMkDvf(id, f, redraw) { const c = achCaf().find(y => y.id === id);
   achCafSaveOne(id, x => { x.rep[f] = { ...(x.rep[f] || {}), st: "repondu", date: now, dvf: v.id }; }, "DEVIS CRÉÉ — " + v.ref);
   achDvfFiche(v.id, () => { if (redraw) redraw(); }); }
 /* F9 : ENVOYER LA CONSULTATION — pour chaque bloc : TOUS, ou seulement les cochés ; un bordereau par fournisseur (ses détails liés), sans aucun prix */
-function achCafSend(id) { const c = achCaf().find(y => y.id === id); if (!c) return; achCafUp(c);
+function achCafSend(id, redraw) { const c = achCaf().find(y => y.id === id); if (!c) return; achCafUp(c);
   if (!c.val) { svToast("VALIDER D'ABORD LA CONSULTATION (⋯ › VALIDER LA CONSULTATION).", 3500); return; }   /* v1121 (L20) */
   { const Mi = achCafCondMiss(c); if (Mi.length) { svToast("ENVOI IMPOSSIBLE : CONDITION(S) LIÉE(S) SANS VALEUR — " + Mi.map(cd => cd.lab).join(", ") + ".", 6000); return; } }
   { const ni = (c.lignes || []).filter(l => l.imp).length; if (ni) { svToast("ENVOI IMPOSSIBLE : " + ni + " DÉTAIL(S) IMPORTÉ(S) À VÉRIFIER (EN ROUGE) — LES COCHER PUIS « CONFIRMER LES COCHÉS ».", 5000); return; } }
@@ -250,7 +250,7 @@ function achCafSend(id) { const c = achCaf().find(y => y.id === id); if (!c) ret
   const pickC = () => (M.cnd === "ck" ? CK.cnd.map(i => c.cond[i]).filter(Boolean) : c.cond.slice()).filter(x => String(x.v ?? "").trim());   /* 11/11 : cases cochées = réduction parmi les conditions liées */
   const txtOf = f => { const Ls = pickL().filter(l => ((c.lf || {})[l.id] || []).includes(f)), Cd = (() => { const Lk = achCafCondOf(c, f); return pickC().filter(cd => Lk.includes(cd)); })(), Dc = (() => { const Lk = achCafDocOf(c, f, DOCS); return pickD().filter(d0 => Lk.includes(d0)); })();
     const pay = ((c.rep || {})[f] || {}).pay; const N = achDetNum(Ls, c.grp);
-    return { n: Ls.length, txt: "MADAME, MONSIEUR,\n\nMERCI DE NOUS TRANSMETTRE VOTRE MEILLEURE OFFRE POUR :\n" + N.map(o => o.title ? "\n" + o.no + " " + o.lab : o.no + " — " + o.l.des + " : " + achF2(o.l.q) + " " + (o.l.u || "")).join("\n")
+    return { n: Ls.length, N, Cd, Dc, pay, ref: achFilRefOf(c, f) || c.ref, txt: "MADAME, MONSIEUR,\n\nMERCI DE NOUS TRANSMETTRE VOTRE MEILLEURE OFFRE POUR :\n" + N.map(o => o.title ? "\n" + o.no + " " + o.lab : o.no + " — " + o.l.des + " : " + achF2(o.l.q) + " " + (o.l.u || "")).join("\n")
       + (Cd.length || pay ? "\n\nCONDITIONS PARTICULIÈRES :\n" + Cd.map(cd => "- " + cd.lab + " : " + (cd.t === "date" ? achDFr(cd.v) : cd.v)).concat(pay && !Cd.some(cd => cd.k === "pay") ? ["- CONDITIONS DE PAIEMENT : " + pay] : []).join("\n") : "")
       + (Dc.length ? "\n\nDOCUMENTS JOINTS : " + Dc.map(x => x.title || x.ref).join(", ") : "") + "\n\nMERCI DE RAPPELER LA RÉFÉRENCE " + (achFilRefOf(c, f) || c.ref) + " DANS VOTRE DEVIS.\n\nCORDIALEMENT." }; };
   const draw = () => { d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: "ENVOYER LA CONSULTATION — " + esc(c.ref),
@@ -265,9 +265,25 @@ function achCafSend(id) { const c = achCaf().find(y => y.id === id); if (!c) ret
     const sb = e.target.closest("[data-send]"); if (!sb) return; const f = sb.dataset.send, F = achFrs().find(y => y.id === f) || {}, em = ((F.cte || []).find(y => y.email) || {}).email || "", T = txtOf(f);
     if (!T.n) { svToast("AUCUN DÉTAIL POUR CE FOURNISSEUR.", 2500, sb); return; }
     location.href = "mailto:" + encodeURIComponent(em) + "?subject=" + encodeURIComponent("CONSULTATION " + (achFilRefOf(c, f) || c.ref) + (c.objet ? " — " + c.objet : "")) + "&body=" + encodeURIComponent(T.txt);
+    achCafSendPdf(c, f, T, redraw);   /* v1123 (L21) : PDF du fournisseur classé dans SUIVI › DOCUMENTS */
     /* série H : la fille est ENVOYÉE ; son empreinte est gardée (un changement de ses articles la met À RENVOYER) */
     achCafSaveOne(id, x => { const t0 = achNow(); x.rep[f] = { ...(x.rep[f] || {}), env: t0 }; x.fil[f] = { ...(x.fil[f] || {}), env: t0, sig: achFilSig(x, f) }; }, "ENVOYÉE À " + achFrsNom(f) + " (" + achFilRefOf(c, f) + ")"); sb.textContent = "ENVOYÉ"; });
 }
+/* v1123 (L21) : à l'envoi, le PDF de la consultation de ce fournisseur (ses articles, ses conditions, ses documents joints, aucun prix)
+   est rangé dans SUIVI › DOCUMENTS de la consultation (mise en page « ACH-CAF-ENV », réglable dans l'aperçu) ; il n'entre pas dans
+   les DOCUMENTS ENVOYÉS (c.dhide) — c'est une trace de l'envoi, pas une pièce jointe à renvoyer */
+async function achCafSendPdf(c, f, T, redraw) { const nom = achFrsNom(f);
+  const D = { key: "ACH-CAF-ENV", title: "CONSULTATION", ref: T.ref, party: nom, date: achDFr(achNow()),
+    cols: [["no", "ARTICLE", "center"], ["des", "DÉSIGNATION", ""], ["u", "U", "center"], ["q", "QUANTITÉ", "number"]],
+    rows: T.N.map(o => o.title ? [o.no, o.lab, "", ""] : [o.no, o.l.des || "", o.l.u || "", achF2(o.l.q)]),
+    note: [(T.Cd.length || T.pay ? "CONDITIONS PARTICULIÈRES :\n" + T.Cd.map(cd => "- " + cd.lab + " : " + (cd.t === "date" ? achDFr(cd.v) : cd.v)).concat(T.pay && !T.Cd.some(cd => cd.k === "pay") ? ["- CONDITIONS DE PAIEMENT : " + T.pay] : []).join("\n") : ""),
+      T.Dc.length ? "DOCUMENTS JOINTS : " + T.Dc.map(x => x.title || x.ref).join(", ") : "", "MERCI DE RAPPELER LA RÉFÉRENCE " + T.ref + " DANS VOTRE DEVIS."].filter(Boolean).join("\n\n") };
+  const name = ("CONSULTATION " + T.ref + " — " + nom).replace(/[\\/:*?"<>|]+/g, "-").trim() + ".pdf";
+  try { const blob = await sviMep.pdf(D), r = await achRecBlock(c.ref).savePdf(blob, name);
+    achCafSaveOne(c.id, x => { x.dhide = [...new Set((x.dhide || []).concat([r]))]; });
+    svToast("PDF DE " + nom + " CLASSÉ DANS SUIVI › DOCUMENTS (" + r + ").", 3500);
+    if (typeof redraw === "function") redraw(); }
+  catch (e) { svToast("ENVOI FAIT, MAIS LE PDF DE " + nom + " N'A PAS PU ÊTRE CRÉÉ (CONNEXION ?).", 5000); } }
 /* fenêtre i de la consultation — 11/11 (Ahmed, validé, document unique 10.2 modifiée) : à la création comme à la réouverture,
    DATE DE CRÉATION (remplie seule), OBJET, puis quatre blocs : ARTICLES CONSULTÉS (besoin, article, unité, quantité ; IMPORTER),
    FOURNISSEURS CONSULTÉS, DOCUMENTS ENVOYÉS, CONDITIONS PARTICULIÈRES (avec valeur). Besoin choisi parmi les existants (jamais créé ici) ;
