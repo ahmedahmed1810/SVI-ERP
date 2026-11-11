@@ -3057,7 +3057,7 @@ def main():
         ro15 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const L = achCaf();
             L.push({ id: 'cx15', code: 'CAF-X15', ref: 'CAF-X15', state: 'close', lignes: [{ id: 'l1', des: 'SABLE', q: 1, u: 'T' }], frs: ['f1'], lf: { l1: ['f1'] } }); achCafSave(L);
             achCafInfo('cx15'); await w(400); document.querySelector('.cai-card [data-rg="L"]')?.click(); await w(200);
-            const a = document.querySelector('.cai-card [data-rg="L"]')?.classList.contains('rd-choisi'), b = document.querySelector('.cai-card [data-rg="F"]')?.classList.contains('rd-lie');
+            const a = document.querySelector('.cai-card [data-rg="L"]')?.classList.contains('rd-choisi'), b = document.querySelector('.cai-card [data-rg="F"]')?.classList.contains('rd-exact');   /* v1127 : lié à l'article choisi = bleu foncé (moteur commun, v1126) */
             document.querySelector('.cai-card [data-rg="F"]')?.click(); await w(200); const lf = JSON.stringify(achCaf().find(c => c.id === 'cx15').lf);
             document.querySelector('#svConf [data-x]')?.click(); await w(150); achCafSave(achCaf().filter(c => c.id !== 'cx15'));
             return [a, b, lf]; }""")

@@ -7995,6 +7995,8 @@ document.addEventListener("scroll", e => { const sc = e.target && e.target.close
     if (!cell || isDate || !matchMedia("(pointer: coarse)").matches) { if (H) H.style.display = "none"; return; }
     /* v1125 (agent de test) : case de l'icône d'aperçu = pas de point — posé sous le doigt au premier toucher, il prenait le relâcher et le clic de l'icône */
     if ((cell.closest && cell.closest(".nv-apc")) || (act && act.closest && act.closest(".nv-ap"))) { if (H) H.style.display = "none"; return; }
+    /* v1127 (agent de test) : même chose pour la case d'un rond de liaison (page et fenêtre de la consultation) */
+    if ((cell.querySelector && cell.querySelector(".nvp-rd")) || (act && act.closest && act.closest(".nvp-rd"))) { if (H) H.style.display = "none"; return; }
     /* 09/11 : champ ouvert en saisie = pas de point (le bord droit sert au curseur) */
     if (act && act.matches && act.matches("input, textarea") && !act.classList.contains("svi-nav") && !act.readOnly && !act.disabled) { if (H) H.style.display = "none"; return; }
     const td = cell.tagName === "TD" ? cell : null;

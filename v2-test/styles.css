@@ -3981,13 +3981,14 @@ html body #svConf .svc-card[data-st] > .svc-close:not(#svi-st1):not(#svi-st2):no
 .nvp-rd.rd-exact { border-color: #1d4ed8; background: radial-gradient(circle, #1d4ed8 0 3px, #fff 3.5px); }
 .nvp-rd.rd-choisi { border-color: var(--inst, #b91c1c); background: var(--inst, #b91c1c); }
 .nvp-rd.rd-choisi::after { content: ""; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
-:is(.nvp-blk, .cai-t) tr.lk-link > td { background: #dbeafe !important; color: #1d4ed8 !important; font-weight: 700; }
-:is(.nvp-blk, .cai-t) tr.lk-hit > td { background: #bfdbfe !important; color: #1e3a8a !important; font-weight: 800; }
-:is(.nvp-blk, .cai-t) tr.lk-sel > td { background: #fde8e8 !important; font-weight: 800; }
-:is(.nvp-blk, .cai-t) tr.lk-link > td :is(input, select), :is(.nvp-blk, .cai-t) tr.lk-hit > td :is(input, select) { color: inherit !important; -webkit-text-fill-color: currentColor; background: transparent; }
-html.svi-nuit :is(.nvp-blk, .cai-t) tr.lk-link > td { background: #1e3a5f !important; color: #bfdbfe !important; }
-html.svi-nuit :is(.nvp-blk, .cai-t) tr.lk-hit > td { background: #1d4ed8 !important; color: #fff !important; }
-html.svi-nuit :is(.nvp-blk, .cai-t) tr.lk-sel > td { background: #4c1d1d !important; }
+/* v1127 (agent de test) : plus fortes que la règle des cases blanches (html body table tbody td:not(#svi-z1):not(#svi-z2)), JOUR et NUIT */
+html body :is(.nvp-blk, .cai-t) tr.lk-link > td:not(#svi-z1):not(#svi-z2):not(#svi-z3) { background: #dbeafe !important; color: #1d4ed8 !important; font-weight: 700; }
+html body :is(.nvp-blk, .cai-t) tr.lk-hit > td:not(#svi-z1):not(#svi-z2):not(#svi-z3) { background: #bfdbfe !important; color: #1e3a8a !important; font-weight: 800; }
+html body :is(.nvp-blk, .cai-t) tr.lk-sel > td:not(#svi-z1):not(#svi-z2):not(#svi-z3) { background: #fde8e8 !important; font-weight: 800; }
+html body :is(.nvp-blk, .cai-t) tr:is(.lk-link, .lk-hit) > td:not(#svi-z1):not(#svi-z2):not(#svi-z3) :is(input, select) { color: inherit !important; -webkit-text-fill-color: currentColor !important; background: transparent !important; }
+html.svi-nuit body :is(.nvp-blk, .cai-t) tr.lk-link > td:not(#svi-z1):not(#svi-z2):not(#svi-z3) { background: #1e3a5f !important; color: #bfdbfe !important; }
+html.svi-nuit body :is(.nvp-blk, .cai-t) tr.lk-hit > td:not(#svi-z1):not(#svi-z2):not(#svi-z3) { background: #1d4ed8 !important; color: #fff !important; }
+html.svi-nuit body :is(.nvp-blk, .cai-t) tr.lk-sel > td:not(#svi-z1):not(#svi-z2):not(#svi-z3) { background: #4c1d1d !important; color: #fde8e8 !important; }
 .nvp-lkbar { display: flex; justify-content: flex-end; padding: 4px 12px 6px; }
 .svlk-win { margin-left: auto; margin-right: 8px; display: inline-flex; align-items: center; }
 .svlk-go { border: 0; border-radius: 8px; padding: 7px 12px; font-size: 12px; font-weight: 800; cursor: pointer; background: #15803d; color: #fff; display: inline-flex; align-items: center; gap: 6px; }
