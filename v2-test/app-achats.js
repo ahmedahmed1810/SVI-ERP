@@ -2283,6 +2283,11 @@ function achDvfMkCmf(dvfId) { const v = achDvf().find(y => y.id === dvfId); if (
    articles, fournisseurs, documents, conditions : ne restent que les lignes liées aux cochées (un document ou une condition liés au fournisseur
    coché par un article comptent) ; à l'écran, sans redessin ; compteur « retenues/total » et TOTAL PARTIEL des ARTICLES CONSULTÉS */
 let ACH_CAF_FLT = null;
+/* v1133 : cases cochées de la page gardées au redessin (rond, rond d'en-tête, ✓ LIER…) puis filtre réappliqué ; oubliées à l'ouverture (achNvMod.open) */
+let ACH_CAF_CK = null;
+const achCafCkSave = () => { const F = ACH_CAF_FLT, pg = document.querySelector("#ach .nvp"); if (!F || !pg) return;
+  ACH_CAF_CK = { id: F.id, S: new Set([...pg.querySelectorAll(".nvp-blk tbody tr[data-ri]")].filter(tr => tr.querySelector(".nvp-cb:checked")).map(tr => (tr.querySelector(".nvp-rd[data-rd]") || {}).dataset?.rd).filter(Boolean)) }; };
+const achCafCkOf = (x, k) => !!(ACH_CAF_CK && ACH_CAF_CK.id === x.id && ACH_CAF_CK.S.has(k));
 function achCafFilter() { const F = ACH_CAF_FLT, pg = document.querySelector("#ach .nvp"); if (!F || !pg) return;
   const h1 = pg.querySelector(".nvp-ref"); if (!h1 || h1.textContent.trim() !== String(F.ref)) return;
   const rows = [...pg.querySelectorAll(".nvp-blk tbody tr[data-ri]")].map(tr => { const b = tr.querySelector(".nvp-rd[data-rd]"); if (!b) return null; const [g, id] = b.dataset.rd.split("|");
@@ -2296,8 +2301,9 @@ function achCafFilter() { const F = ACH_CAF_FLT, pg = document.querySelector("#a
     if (!C[i].dataset.lab0) C[i].dataset.lab0 = C[i].textContent.trim();
     const num = t => { const v = String(t || "").replace(/[\s\u00a0\u202f]/g, "").replace(",", "."); return /^-?\d+(\.\d+)?$/.test(v) ? +v : 0; };
     const sum = R.filter(tr => !tr.classList.contains("svlk-hid")).reduce((a, tr) => a + num((tr.cells[i + 1] || {}).textContent), 0);
-    C[i].textContent = nv < R.length || C[i].dataset.lab0 === "TOTAL PARTIEL" ? "TOTAL PARTIEL" : "TOTAL"; if (C[i + 1]) C[i + 1].textContent = achF2(sum); }); }
-document.addEventListener("change", e => { if (e.target.closest && e.target.closest("#ach .nvp .nvp-blk") && e.target.matches(".nvp-cb, .nvp-all")) setTimeout(achCafFilter, 0); });
+    C[i].textContent = nv < R.length || C[i].dataset.lab0 === "TOTAL PARTIEL" ? "TOTAL PARTIEL" : "TOTAL"; if (C[i + 1]) C[i + 1].textContent = achF2(sum); });
+  if (typeof achNvpAllSt === "function") pg.querySelectorAll(".nvp-blk table").forEach(achNvpAllSt); }   /* v1133 : état des cases d'en-tête recalculé après le filtre */
+document.addEventListener("change", e => { if (e.target.closest && e.target.closest("#ach .nvp .nvp-blk") && e.target.matches(".nvp-cb, .nvp-all")) setTimeout(() => { achCafFilter(); achCafCkSave(); }, 0); });
 /* v1126 (L6 – L8) : liaisons par le moteur commun (09g, sviLk) — choix de plusieurs lignes, puis ✓ LIER / ✕ DÉLIER en haut à droite */
 const ACH_CAF_LKG = { a: ["ARTICLE", "ARTICLES"], f: ["FOURNISSEUR", "FOURNISSEURS"], d: ["DOCUMENT", "DOCUMENTS"], c: ["CONDITION", "CONDITIONS"] };
 const achCafLk = (key, data, alive, G) => sviLk(key, { groups: G || ACH_CAF_LKG, data, alive, hub: G ? "L" : "a",
@@ -2358,6 +2364,7 @@ function achCafPage(x, B) {
   const rdSt = k => { const [t, id] = k.split("|"); return LK.state(t, id); };
   const lkC = k => LK.rowCls(rdSt(k));
   ACH_CAF_FLT = { id: x.id, ref: x.ref || x.code, LK };   /* v1130 : filtre des blocs liés par les cases cochées (achCafFilter) */
+  const ckC = k => achCafCkOf(x, k); requestAnimationFrame(() => achCafFilter());   /* v1133 : cases gardées et filtre réappliqué après chaque dessin */
   const dis = open ? "" : " disabled";
   /* ---- DÉTAIL CONSULTATION ---- */
   const usedB = new Set((x.lignes || []).filter(l => l.bsn).map(l => l.bsn)), takenD = new Set((x.lignes || []).filter(l => l.bsn).map(l => achKey(l.des, l.u)));
@@ -2366,7 +2373,7 @@ function achCafPage(x, B) {
     const BO = achBsnOpen().filter(y => !usedB.has(y.id) || y.id === l.bsn).concat(b && !achBsnOpen().some(y => y.id === b.id) ? [b] : []);
     const AO = achArts().filter(y => !y.del && !y.bloq && !y.arch && (!takenD.has(achKey(y.des, y.u)) || achKey(y.des, y.u) === achKey(l.des, l.u)));
     const nF = ((x.lf || {})[l.id] || []).filter(f => (x.frs || []).includes(f)).length;
-    return { rd: { k, st: rdSt(k) }, cls: (l.imp ? "cafp-imp " : "") + (l.g && (x.grp || []).some(g => g.id === l.g) ? "svlk-g-" + l.g + " " : "") + lkC(k), go: a ? [[2, "art", a.id]] : [], cells: [o.no,
+    return { rd: { k, st: rdSt(k) }, ck: ckC(k), cls: (l.imp ? "cafp-imp " : "") + (l.g && (x.grp || []).some(g => g.id === l.g) ? "svlk-g-" + l.g + " " : "") + lkC(k), go: a ? [[2, "art", a.id]] : [], cells: [o.no,
       { h: `<select class="ins-in cafp-bsn" data-li="${esc(l.id)}"${dis}><option value="">—</option>${BO.map(y => `<option value="${esc(y.id)}"${y.id === l.bsn ? " selected" : ""}>${esc(y.ref + " · " + (achArtOf(y.des, y.u) ? achRefSvi(achArtOf(y.des, y.u), achArts(), "ARA") : "HORS LISTE") + " · " + y.des + " · " + y.u + " · " + achF2(y.q))}</option>`).join("")}</select>`, t: b ? b.ref : "" },
       a ? achRefSvi(a, achArts(), "ARA") : "HORS LISTE",
       l.libre ? { h: `<input class="ins-in cafp-l" data-li="${esc(l.id)}" data-c="des" value="${esc(l.des || "")}"${dis}>`, t: l.des || "" } : { h: `<select class="ins-in cafp-des" data-li="${esc(l.id)}"${dis}><option value="">—</option>${AO.map(y => `<option value="${esc(y.id)}"${achKey(y.des, y.u) === achKey(l.des, l.u) ? " selected" : ""}>${esc(y.des + " (" + y.u + ")")}</option>`).join("")}</select>`, t: l.des || "" },
@@ -2396,7 +2403,7 @@ function achCafPage(x, B) {
      la référence de sa consultation fille (H1), l'état de la fille (F18), ses devis (références liées) et leur montant TTC ; le principe mère / filles reste */
   const FRS = { t: "FOURNISSEURS", rdh: LK.rdAll("f"), add: open ? "AJOUTER UN FOURNISSEUR ICI…" : "", cols: [["FOURNISSEUR"], ["CONSULTATION"], ["ÉTAT", "center"], ["DEVIS"], ["MONTANT TTC", "number"]],
     rows: (x.frs || []).map(f => { const V = DD.filter(v => v.frs === f), k = "f|" + f, fil = (x.fil || {})[f], s0 = fil ? achFilSt(x, f, D) : "", mt = V.filter(v => v.state !== "annule" && v.state !== "rejete").reduce((t, v) => t + achDvfTot(v).ttc, 0);
-      return { rd: { k, st: rdSt(k) }, cls: lkC(k), go: [[0, "frs", f]], st: s0 || undefined, cells: [fr(f), fil ? achFilRefOf(x, f) : "", s0 ? ACH_FIL_ST[s0] : "",
+      return { rd: { k, st: rdSt(k) }, ck: ckC(k), cls: lkC(k), go: [[0, "frs", f]], st: s0 || undefined, cells: [fr(f), fil ? achFilRefOf(x, f) : "", s0 ? ACH_FIL_ST[s0] : "",
         { h: V.map(v => `<button type="button" class="ach-link" data-nvgo="dvf|${esc(v.id)}">${esc(v.ref)}</button>`).join(", ") + (open ? ` <button type="button" class="ach-b cafp-mkdvf" data-f="${esc(f)}">CRÉER SON DEVIS</button>` : ""), t: V.map(v => v.ref).join(", ") },
         V.length ? mt : ""] }; }),
     addFn: async redraw => { const K = new Set((x.lignes || []).map(l => achKey(l.des, l.u)));
@@ -2418,7 +2425,7 @@ function achCafPage(x, B) {
   /* ---- DOCUMENTS : ceux de l'onglet DOCUMENTS du SUIVI ; cochés = à envoyer ---- */
   const DOCS = (achJ("svi_docs_v1:ACH-" + (x.ref || x.code), []) || []).map((d0, i) => ({ ...d0, __id: d0.ref || "d" + i })).filter(d0 => !(x.dhide || []).includes(d0.__id));   /* 11/11 : documents retirés de la consultation (gardés au SUIVI) */
   const DOC = { t: "DOCUMENTS ENVOYÉS", rdh: LK.rdAll("d"), add: open ? "AJOUTER UN DOCUMENT ICI… (IL S'AJOUTE AUSSI AU SUIVI)" : "", cols: [["RÉFÉRENCE"], ["INTITULÉ"]],   /* 11/11 (Ahmed) : la référence soulignée ouvre le document (plus de colonne FICHIER) */
-    rows: DOCS.map((d0, i) => { const id = d0.__id, k = "d|" + id; return { rd: { k, st: rdSt(k) }, cls: lkC(k), cells: [d0.fk ? { h: `<button type="button" class="ach-link cafp-doc" data-fk="${esc(d0.fk)}">${esc(d0.ref || "DOCUMENT")}</button>`, t: d0.ref || "" } : d0.ref || "", d0.title || ""] }; }),
+    rows: DOCS.map((d0, i) => { const id = d0.__id, k = "d|" + id; return { rd: { k, st: rdSt(k) }, ck: ckC(k), cls: lkC(k), cells: [d0.fk ? { h: `<button type="button" class="ach-link cafp-doc" data-fk="${esc(d0.fk)}">${esc(d0.ref || "DOCUMENT")}</button>`, t: d0.ref || "" } : d0.ref || "", d0.title || ""] }; }),
     addFn: async redraw => { const R = achRecBlock(x.ref || x.code); if (await R.addTab("doc")) { const L2 = R.list("doc"), n = L2[L2.length - 1]; void n; } redraw(); },
     /* 11/11 (Ahmed) : SUPPRIMER LES DOCUMENTS COCHÉS — retirés de la consultation (plus envoyés, liaisons retirées), gardés au SUIVI */
     menu: open ? [{ k: "rmd", lab: "SUPPRIMER LES DOCUMENTS COCHÉS", del: true }] : [],
@@ -2432,7 +2439,7 @@ function achCafPage(x, B) {
     rows: (x.cond || []).map(cd => { const k = "c|" + cd.id, inp = cd.t === "on" ? `<select class="ins-in cafp-cv" data-cd="${esc(cd.id)}"${dis}>${["", "OUI", "NON"].map(v => `<option value="${v}"${cd.v === v ? " selected" : ""}>${v || "—"}</option>`).join("")}</select>`
         : `<input class="ins-in cafp-cv${cd.t === "num" ? " number" : ""}" data-cd="${esc(cd.id)}"${cd.t === "date" ? ' type="date"' : ""}${cd.t === "num" ? ' inputmode="decimal"' : ""} value="${esc(cd.v || "")}"${dis}>`;
       const miss = achCafCondLinked(x, cd) && !String(cd.v ?? "").trim();
-      return { rd: { k, st: rdSt(k) }, cls: lkC(k), cells: [miss ? { h: `<b class="obs-bang val-bang nv-bang" role="button" data-why="VALEUR MANQUANTE">!</b> ${esc(cd.lab)}`, t: cd.lab } : cd.lab, { h: inp, t: cd.v || "" }] }; }),
+      return { rd: { k, st: rdSt(k) }, ck: ckC(k), cls: lkC(k), cells: [miss ? { h: `<b class="obs-bang val-bang nv-bang" role="button" data-why="VALEUR MANQUANTE">!</b> ${esc(cd.lab)}`, t: cd.lab } : cd.lab, { h: inp, t: cd.v || "" }] }; }),
     addFn: async redraw => { const lab = await achAsk("NOUVELLE CONDITION PARTICULIÈRE", "INTITULÉ (AJOUTÉ AUSSI À ACHATS › CLAUSES)"); if (!lab) return;
       achCafSaveOne(x.id, c => { c.cond.push({ id: achCafId(), k: "autre", lab: achU(lab), t: "text", v: "" }); }, "CONDITION AJOUTÉE");
       /* un seul catalogue : la condition rejoint les clauses particulières (ACHATS › CLAUSES) si elle n'y est pas */
@@ -2643,7 +2650,9 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
       foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${ro ? "" : `<button type="button" class="svc-b svc-ok svc-neutral" data-ok>${c0 ? "ENREGISTRER" : "CRÉER"}</button>`}` }); fltW(); };
   /* v1130 (L6 – L8, exception 6.4) : cases cochées = filtre des autres listes de la fenêtre (articles, fournisseurs, documents, conditions) */
   const fltW = () => { const rows = [...d.querySelectorAll("tr[data-g][data-i]")].map(tr => { const b = tr.querySelector("[data-rg]"); return b ? { tr, g: b.dataset.rg, id: b.dataset.rk, ck: !!tr.querySelector(".nvl-cb:checked") } : null; }).filter(Boolean);
-    sviLkDomFilter(LKW, rows, "tr.cai-gt"); };
+    sviLkDomFilter(LKW, rows, "tr.cai-gt");
+    /* v1133 : état de la case d'en-tête de chaque liste = lignes affichées seulement */
+    d.querySelectorAll(".cai-t").forEach(t => { const all = t.querySelector(".nvl-all"); if (!all) return; const C = [...t.querySelectorAll("tbody tr[data-i]:not(.svlk-hid) .nvl-cb")], n = C.filter(c => c.checked).length; all.checked = n > 0 && n === C.length; all.indeterminate = n > 0 && n < C.length; }); };
   d.addEventListener("change", e => { if (e.target.matches && e.target.matches(".nvl-cb, .nvl-all")) setTimeout(fltW, 0); });
   const sync = () => { d.querySelectorAll(".cai-x").forEach(i => { const g = i.dataset.g, k = i.dataset.k, o = (g === "L" ? S.L : S.K)[+i.dataset.i]; if (!o) return;
       if (g === "L" && k === "q") o.q = String(i.value).trim() === "" ? "" : achN(i.value); else if (g === "L" && k === "bsn") o.bsn = i.value || ""; else o[k] = k === "v" && i.type === "date" ? i.value : achU(i.value); });
@@ -4046,7 +4055,7 @@ function achNvPageHTML(p, rec, ctx) {
     const tot = isL ? R.reduce((s2, r) => s2 + (typeof tv(r.cells[iM]) === "number" ? tv(r.cells[iM]) : achN(tv(r.cells[iM])) || 0), 0) : 0;
     return `<div class="bdg-d-block nvp-blk" data-nvb="${k}"><div class="bdg-d-block-title blk-head"><span class="ttl">${esc(L.t)} ${(nt => svCnt(R.filter(nt).length, L.rows.filter(nt).length))(r => !/\bnvp-gt\b/.test(r.cls || ""))}</span>${achBlkTools(k)}</div>
       <div class="rec-scroll" style="${achNvhSc(k)}"><table class="bdg-d-table rec-table" data-colh="${esc(t)}" data-svcw="${esc(t)}" style="${CG.style}">${CG.cg}<thead>${L.grp ? grpRow(L, J, RD, AP) : ""}<tr>${RD ? `<th class="nvp-rdh">${L.rdh || ""}</th>` : ""}${head}${AP ? achApTh() : ""}<th class="center nvp-cbh" data-cokey="_cb"><input type="checkbox" class="nvp-all" aria-label="Tout cocher"></th></tr></thead>
-      <tbody>${R.map(r => `<tr class="${r.cls || ""}${stOf(r) ? " nvr-" + stOf(r) : ""}" data-ri="${r.__i}">${RD ? `<td class="nvp-rdc">${r.rd ? `<button type="button" class="nvp-rd${r.rd.st ? " rd-" + r.rd.st : ""}" data-rd="${esc(r.rd.k)}" aria-label="Liaison"></button>` : ""}</td>` : ""}${J.map(j => { const v = r.cells[j], g = (r.go || []).find(z => z[0] === j); if (v && typeof v === "object" && v.h !== undefined) return `<td class="${L.cols[j][1] || ""}"${v.st ? ` style="${esc(v.st)}"` : ""}>${v.h}</td>`;   /* v1119 : style de case (dégradé du comparatif) */ return `<td class="${L.cols[j][1] || ""}">${j === 0 && r.open ? `<button type="button" class="ach-link" data-nvl="${esc(L.t)}|${r.__i}">${esc(v)}</button>` : g ? `<button type="button" class="ach-link" data-nvgo="${esc(g[1] + "|" + g[2])}">${esc(v)}</button>` : esc(typeof v === "number" ? achF2(v) : v)}</td>`; }).join("")}${AP ? achApTd(achApOf(r)) : ""}<td class="center"><input type="checkbox" class="nvp-cb"></td></tr>`).join("")}${L.add ? `<tr class="rec-new" data-nvadd="${k}"><td colspan="${n + 1 + (RD ? 1 : 0) + (AP ? 1 : 0)}">${esc(L.add)}</td></tr>` : ""}</tbody>
+      <tbody>${R.map(r => `<tr class="${r.cls || ""}${stOf(r) ? " nvr-" + stOf(r) : ""}" data-ri="${r.__i}">${RD ? `<td class="nvp-rdc">${r.rd ? `<button type="button" class="nvp-rd${r.rd.st ? " rd-" + r.rd.st : ""}" data-rd="${esc(r.rd.k)}" aria-label="Liaison"></button>` : ""}</td>` : ""}${J.map(j => { const v = r.cells[j], g = (r.go || []).find(z => z[0] === j); if (v && typeof v === "object" && v.h !== undefined) return `<td class="${L.cols[j][1] || ""}"${v.st ? ` style="${esc(v.st)}"` : ""}>${v.h}</td>`;   /* v1119 : style de case (dégradé du comparatif) */ return `<td class="${L.cols[j][1] || ""}">${j === 0 && r.open ? `<button type="button" class="ach-link" data-nvl="${esc(L.t)}|${r.__i}">${esc(v)}</button>` : g ? `<button type="button" class="ach-link" data-nvgo="${esc(g[1] + "|" + g[2])}">${esc(v)}</button>` : esc(typeof v === "number" ? achF2(v) : v)}</td>`; }).join("")}${AP ? achApTd(achApOf(r)) : ""}<td class="center"><input type="checkbox" class="nvp-cb"${r.ck ? " checked" : ""}></td></tr>`).join("")}${L.add ? `<tr class="rec-new" data-nvadd="${k}"><td colspan="${n + 1 + (RD ? 1 : 0) + (AP ? 1 : 0)}">${esc(L.add)}</td></tr>` : ""}</tbody>
       ${isL ? `<tfoot><tr class="bdg-d-total-row">${RD ? "<td></td>" : ""}${J.map((j, jj) => j === iM ? `<td class="number">${achF2(tot)}</td>` : jj === J.indexOf(iM) - 1 ? `<td class="number">${R.length < L.rows.length ? "TOTAL PARTIEL" : "TOTAL"}</td>` : "<td></td>").join("")}${AP ? "<td></td>" : ""}<td></td></tr></tfoot>` : ""}</table></div>
       <div class="blk-rsz nvp-rsz" data-nvh="${k}" title="Glisser pour changer la hauteur"></div></div>`; };
   /* 06/11 (décision) : un seul type de fiche, colorée selon l'état de la pièce (palette : en instance, remise, en cours de validation, en partie, validée…) */
@@ -4155,7 +4164,7 @@ function achNvMod(ctx, cfg) {
      sans prendre l'écran d'avant la liste dans le chemin ; une fiche ouverte par un lien (achGo) suit le chemin */
   let viaList = false;
   /* v1130 (décision d'Ahmed, 11/11) : les ronds choisis d'une pièce sont libérés à chaque ouverture (moteur commun, clé « type:id ») */
-  const open = id => { if (id && typeof SVI_LK === "object") delete SVI_LK[(cfg.list && cfg.list.k) + ":" + id]; pid = id; rec = null; viaList = !!id && !(typeof achGo === "function" && achGo.busy) && !(typeof achPathBack === "function" && achPathBack.on); ctx.draw(); };
+  const open = id => { if (id && typeof SVI_LK === "object") delete SVI_LK[(cfg.list && cfg.list.k) + ":" + id]; if (typeof ACH_CAF_CK !== "undefined") ACH_CAF_CK = null;   /* v1133 : cases gardées au redessin, oubliées à l'ouverture */ pid = id; rec = null; viaList = !!id && !(typeof achGo === "function" && achGo.busy) && !(typeof achPathBack === "function" && achPathBack.on); ctx.draw(); };
   const LST = achNvList(ctx, { ...cfg.list, page: open });
   if (cfg.list && cfg.list.k) ACH_PREV[cfg.list.k] = id => { const Pp = cfg.pageOf(id); if (Pp) achMepOpen(cfg, Pp, achRecBlock(Pp.code), () => {}); };   /* v1119 (L19) */
   const html = () => {
@@ -4438,9 +4447,11 @@ function achBdglSync(root) {
 }
 /* v790 : case d'en-tête des blocs des pages d'achat = toutes les lignes du bloc */
 /* v1132 (L6 – L8) : TOUT COCHER = les lignes affichées (pas celles cachées par le filtre des blocs liés) ; case d'en-tête à trois états (vide, à moitié, pleine) */
-const achNvpAllSt = t => { const all = t && t.querySelector(".nvp-all"); if (!all) return; const C = [...t.querySelectorAll("tbody tr:not(.svlk-hid) .nvp-cb")], n = C.filter(c => c.checked).length;
+/* v1133 : lignes de données seulement (ni titre de groupe, ni ligne cachée) */
+const ACH_NVP_ROWCB = "tbody tr[data-ri]:not(.svlk-hid):not(.nvp-gt) .nvp-cb";
+const achNvpAllSt = t => { const all = t && t.querySelector(".nvp-all"); if (!all) return; const C = [...t.querySelectorAll(ACH_NVP_ROWCB)], n = C.filter(c => c.checked).length;
   all.checked = n > 0 && n === C.length; all.indeterminate = n > 0 && n < C.length; };
-document.addEventListener("change", e => { const a = e.target.closest && e.target.closest(".nvp-all"); if (a) { const t = a.closest("table"); t.querySelectorAll("tbody tr:not(.svlk-hid) .nvp-cb").forEach(c => { c.checked = a.checked; }); achNvpAllSt(t); return; }
+document.addEventListener("change", e => { const a = e.target.closest && e.target.closest(".nvp-all"); if (a) { const t = a.closest("table"); t.querySelectorAll(ACH_NVP_ROWCB).forEach(c => { c.checked = a.checked; }); achNvpAllSt(t); return; }
   const c = e.target.closest && e.target.closest(".nvp-cb"); if (c) achNvpAllSt(c.closest("table")); });
 /* ⟪ src/48-achats-import-novapp.js ⟫ */
 /* =========================================================

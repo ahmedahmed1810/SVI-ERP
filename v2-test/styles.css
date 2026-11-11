@@ -4007,3 +4007,6 @@ html.svi-nuit body .cai-card .cai-new:not(#svi-z1) { color: #fcd34d !important; 
 html body tr.svlk-hid:not(#svi-z1):not(#svi-z2):not(#svi-z3) { display: none !important; }
 /* v1132 (L6 – L8) : rond d'en-tête (tout choisir) — grisé quand une ligne est choisie à la main */
 .nvp-rd.nvp-rdall.rd-off { opacity: .35; }
+/* v1133 (agent de test) : la ligne CRÉER … ICI d'une liste vidée par le filtre reste dans sa liste (fenêtre DÉTAIL CONSULTATION) */
+.cai-card .cai-ls { position: relative; contain: paint; min-width: 0; }
+.cai-card .cai-t tr.rec-new > td:not(#svi-z1) { width: auto !important; max-width: 0; position: static !important; overflow: hidden; }
