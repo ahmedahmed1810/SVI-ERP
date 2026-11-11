@@ -258,6 +258,8 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
   const S = { L: C.lignes.map(l => ({ ...l })), F: C.frs.map(f => ({ k: f, id: f, nom: achFrsNom(f) })), D: docs0.filter(x => !(C.dhide || []).includes(x.__id)).map(x => ({ ...x, k: x.__id })), Dh: [],
     K: (C.cond || []).map(x => ({ ...x })), lk: {}, sel: null };
   ["lf", "ld", "lc", "fd", "fc"].forEach(o => { S.lk[o] = JSON.parse(JSON.stringify(C[o] || {})); });
+  /* v1115 (Ahmed) : une ligne en cours de création (encore vide) cache la ligne « CRÉER … ICI » de sa liste */
+  const EMPTY = { L: () => S.L.some(r => !r.des && !r.bsn), F: () => S.F.some(r => !r.nom), D: () => false, K: () => S.K.some(r => r.k === "autre" && !r.lab) };
   const PAIR = { "L-F": ["lf", 0, 1], "F-L": ["lf", 1, 0], "L-D": ["ld", 0, 1], "D-L": ["ld", 1, 0], "L-K": ["lc", 0, 1], "K-L": ["lc", 1, 0], "F-D": ["fd", 0, 1], "D-F": ["fd", 1, 0], "F-K": ["fc", 0, 1], "K-F": ["fc", 1, 0] };
   const lkHas = (o, a, b) => ((S.lk[o] || {})[a] || []).includes(b);
   const lkTog = (o, a, b) => { const M = S.lk[o] = S.lk[o] || {}, A = M[a] = M[a] || []; const i = A.indexOf(b); if (i >= 0) A.splice(i, 1); else A.push(b); };
@@ -291,7 +293,7 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
       + `<style>.cai-card .cai-t[data-svcw="${t}"]{width:100%!important;min-width:0!important}.cai-card .cai-t[data-svcw="${t}"] col:nth-child(1){width:30px!important}.cai-card .cai-t[data-svcw="${t}"] col:nth-child(${CO.length + 2}){width:32px!important}</style>`;
         const [cg1, st1] = cg.split("<style>"); return `<div class="cai-ls" data-g="${g}"><style>${st1}<table class="bdg-d-table rec-table cai-t" id="caiT${g}" data-svcw="${t}" style="width:100%">${cg1}<thead><tr><th class="cai-rdh"></th>${CO.map(c => KIT.cfHead(t, c[0], c[1] + (c[0] === { L: "des", F: "nom", D: "title", K: "lab" }[g] ? " " + svCnt(R.length, R0.length) : ""), c[3])).join("")}${sviListCbTh()}</tr></thead>
       <tbody>${R.map(r => `<tr data-g="${g}" data-i="${r.__i}"${r.imp ? ' class="cai-imp"' : ""}><td class="center"><button type="button" class="nvp-rd${(st => st ? " rd-" + st : "")(rdSt(g, kOf(g, r)))}" data-rg="${g}" data-rk="${esc(kOf(g, r))}" aria-label="Liaison"></button></td>${CO.map(c => cell(g, c, r, r.__i)).join("")}<td class="center nvl-cbc"><input type="checkbox" class="nvl-cb" aria-label="Cocher"${(S.ck[g] || new Set()).has(r.__i) ? " checked" : ""}></td></tr>`).join("")}
-      ${ro ? "" : `<tr class="rec-new" data-cai-new="${g}"><td colspan="${CO.length + 2}">${NEW[g]}</td></tr>`}</tbody></table></div>`; };
+      ${ro || EMPTY[g]() ? "" : `<tr class="rec-new" data-cai-new="${g}"><td colspan="${CO.length + 2}">${NEW[g]}</td></tr>`}</tbody></table></div>`; };
   S.ck = {};
   const draw = () => { if (d.isConnected) ckRead(); const ob = d.querySelector('.cafi-x[data-k="objet"]'); if (ob) C.objet = achU(ob.value);
     d.innerHTML = sviWinCard({ cls: "frs-card caf-card caf-info cai-card", close: "data-x", title: "DÉTAIL CONSULTATION",   /* 11/11 (validé, 10.2) : même fenêtre à la création, en instance et validée (référence dans la barre) */
@@ -333,25 +335,31 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
   const sugOn = (tip, items, pickFn) => { const paint = () => { if (!tip.isConnected) { sugOff(); return; } const q = achU(tip.textContent || "").trim(), L = items.filter(x => !q || achU(x.lab).includes(q)).slice(0, 12);
       if (!L.length) { sugOff(); return; } if (!SUG) { SUG = document.createElement("div"); SUG.id = "caiSug"; SUG.className = "svi-stf-menu cai-sug"; document.body.appendChild(SUG); }
       SUG.innerHTML = L.map((x, n) => `<button type="button" data-n="${n}"><b>${esc(x.lab)}</b>${x.sub ? `<span>${esc(x.sub)}</span>` : ""}</button>`).join(""); SUG.__L = L;
-      const r = tip.getBoundingClientRect(); Object.assign(SUG.style, { left: r.left + "px", top: (r.bottom + 2) + "px", minWidth: r.width + "px" }); };
-    paint(); tip.addEventListener("input", () => requestAnimationFrame(paint));
-    SUG.__pick = x => { tip.textContent = x.lab; pickFn(x); }; };
+      /* v1115 : menu lisible — 8 lignes au plus (défilement), ouvert au-dessus de la case s'il n'y a pas la place dessous */
+      const r = tip.getBoundingClientRect(); Object.assign(SUG.style, { left: Math.max(4, Math.min(r.left, innerWidth - 260)) + "px", minWidth: r.width + "px", top: "0px", bottom: "auto" });
+      const h = SUG.getBoundingClientRect().height, below = innerHeight - r.bottom - 6; SUG.style.top = (h > below && r.top - 6 > below ? Math.max(4, r.top - 2 - h) : r.bottom + 2) + "px"; };
+    const pk = x => { tip.textContent = x.lab; pickFn(x); };   /* v1115 : aucun menu au départ (liste vide) = plus d'erreur */
+    paint(); if (SUG) SUG.__pick = pk; tip.addEventListener("input", () => requestAnimationFrame(() => { paint(); if (SUG) SUG.__pick = pk; }));
+  };
   window.addEventListener("pointerdown", e => { const b = SUG && e.target.closest && e.target.closest("#caiSug [data-n]"); if (!b) return; e.preventDefault(); const x = SUG.__L[+b.dataset.n]; SUG.__pick(x); }, true);
   const editCell = td => { const g = td.dataset.g, k = td.dataset.ed, i = +td.dataset.i, r = LST[g]()[i]; if (!r) return;
     if (td.dataset.edsel) { const O = g === "L" ? [{ k: "", lab: "—" }].concat(BSN.map(b => ({ k: b.id, lab: b.ref + " — " + b.des + " (" + achF2(b.q) + " " + b.u + ")" }))) : ["", "OUI", "NON"].map(v => ({ k: v, lab: v || "—" }));
       sviEtatMenu(td, O, String(g === "L" ? r.bsn || "" : r.v || ""), nv => { if (g === "L") { r.bsn = nv; const b = BS.get(nv); if (b) { r.des = b.des; r.u = b.u; r.q = achN(b.q); } } else r.v = nv; draw(); }); return; }
     const v0 = g === "K" && k === "v" && r.t === "date" ? achDFr(r.v || "") : g === "L" && k === "q" ? (r.q === "" || r.q === undefined ? "" : String(r.q).replace(".", ",")) : String(r[k] ?? "");
     let pick = null;
-    const tip = window.sviTaEdit(td, v0, (ok, v) => { sugOff(); if (!ok) { if (g === "F" && !r.nom) S.F = S.F.filter(x => x !== r); if (g === "K" && !r.lab) S.K = S.K.filter(x => x !== r); draw(); return; }
+    const tip = window.sviTaEdit(td, v0, (ok, v) => { sugOff(); const dropL = () => { S.L = S.L.filter(x => x !== r); Object.values(S.lk).forEach(M => { delete M[r.id]; }); };   /* ligne d'article vide retirée */
+      if (!ok) { if (g === "L" && !r.des && !r.bsn) dropL(); if (g === "F" && !r.nom) S.F = S.F.filter(x => x !== r); if (g === "K" && !r.lab) S.K = S.K.filter(x => x !== r); draw(); return; }
       if (g === "L" && k === "q") r.q = String(v).trim() === "" ? "" : achN(v);
       else if (g === "K" && k === "v" && r.t === "date") r.v = (typeof cfDate === "function" && cfDate(v)) || v;
       else if (g === "F") { const nom = achU(v); if (!nom) { if (!r.nom) S.F = S.F.filter(x => x !== r); draw(); return; } const f = FRS.find(x => achU(x.nom) === nom);
         if (S.F.some(x => x !== r && ((f && x.id === f.id) || achU(x.nom) === nom))) { svToast("DÉJÀ DANS LA CONSULTATION.", 2500); if (!r.nom) S.F = S.F.filter(x => x !== r); draw(); return; }
         r.nom = f ? f.nom : nom; if (f) { const old = r.k; r.id = f.id; r.k = f.id; Object.values(S.lk).forEach(M => { if (M[old]) { M[f.id] = M[old]; delete M[old]; } Object.keys(M).forEach(a => { M[a] = (M[a] || []).map(b => b === old ? f.id : b); }); }); if (S.sel && S.sel.k === old) S.sel.k = f.id; } }
+      else if (g === "L" && k === "des" && achU(v) && S.L.some(x => x !== r && achU(x.des) === achU(v))) { svToast("ARTICLE DÉJÀ DANS LA CONSULTATION.", 2500); if (!r.des && !r.bsn) dropL(); draw(); return; }   /* v1115 : pas d'article en double */
+      else if (g === "L" && k === "des" && !achU(v) && !r.bsn) { dropL(); draw(); return; }
       else { r[k] = achU(v); if (g === "L" && k === "des") { const a = (pick && achU(pick.lab) === achU(v)) ? pick.a : ARTS.find(y => achU(y.des) === achU(v)); if (a && (!r.u || pick)) r.u = a.u || r.u; } }
       if (g === "K" && k === "lab" && r.lab) { const P = achPrm(), Lp = achClP(P); if (!Lp.some(y => achU(y.txt) === r.lab)) { P.clP = Lp.concat([{ id: "p" + Date.now().toString(36), t: "autre", txt: r.lab }]); achPrmSave(P); } }
       draw(); });
-    if (tip && g === "L" && k === "des") sugOn(tip, ARTS.map(a => ({ lab: a.des, sub: a.u || "", a })), x => { pick = x; });
+    if (tip && g === "L" && k === "des") sugOn(tip, ARTS.filter(a => !S.L.some(x => x !== r && achU(x.des) === achU(a.des))).map(a => ({ lab: a.des, sub: a.u || "", a })), x => { pick = x; });
     if (tip && g === "F") sugOn(tip, FRS.filter(f => !S.F.some(x => x.id === f.id)).map(f => ({ lab: f.nom, sub: f.ville || "" })), () => {}); };
   const pickCell = td => { d.querySelectorAll("td.nv-sel").forEach(x => x.classList.remove("nv-sel")); td.classList.add("nv-sel"); if (!td.hasAttribute("tabindex")) td.setAttribute("tabindex", "-1"); td.classList.add("svi-tdf"); try { td.focus({ preventScroll: true }); } catch (er) {} };
   /* glisser un titre de colonne = ordre des colonnes de cette liste (gardé) */
@@ -369,7 +377,9 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
     if (e.target === d || e.target.closest("[data-x]")) { KIT.cfClose(); d.remove(); if (done) done(); return; }
     const cfb = e.target.closest(".cf-btn[data-cf]"); if (cfb) { e.stopPropagation(); sync(); KIT.cfOpenMenu(cfb); return; }
     if (e.target.closest(".cafp-doc")) { achCopyOpen(e.target.closest(".cafp-doc").dataset.fk); return; }
-    if (ro) { if (e.target.closest("[data-ok]")) { d.remove(); if (done) done(); } return; }
+    /* v1115 (Ahmed) : consultation close — toucher un rond le choisit pour VOIR ses liaisons (rien n'est lié ni délié) */
+    if (ro) { const rr = e.target.closest("[data-rg]"); if (rr) { const g = rr.dataset.rg, k = rr.dataset.rk; S.sel = S.sel && S.sel.g === g && S.sel.k === k ? null : { g, k }; draw(); return; }
+      if (e.target.closest("[data-ok]")) { d.remove(); if (done) done(); } return; }
     const ed = e.target.closest("td.nv-ed"); if (ed && d.contains(ed)) { if (ed.classList.contains("nv-sel")) editCell(ed); else pickCell(ed); return; }
     /* ronds : toucher un rond le choisit ; toucher un rond d'une autre liste lie ou délie les deux */
     const rd = e.target.closest("[data-rg]"); if (rd) { sync(); const g = rd.dataset.rg, k = rd.dataset.rk;

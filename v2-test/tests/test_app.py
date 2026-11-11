@@ -1188,22 +1188,26 @@ def main():
         pg.evaluate(f"() => {{ const X = {ins}; X.INS.des = X.INS.des.filter(r => !/^dw/.test(r.id)); X.insSave(); X.refreshAll(); }}"); pg.wait_for_timeout(300)
         check("v525 remarque 6 : glisser près du bord bas = défilement automatique", d6 is not None and d6[3] and s6 > 20, [d6, s6])
 
-        # v1115 : texte agrandi d'une DÉSIGNATION CLIENT coupée — 1er toucher (agrandi), 2e toucher (tout sélectionné), frappe, toucher ailleurs = enregistré ; ANNULER le remet
+        # v1115 : texte agrandi d'une DÉSIGNATION CLIENT coupée, avec de VRAIS touchers (CDP) — 1er toucher (agrandi), 2e toucher (tout sélectionné), frappe, toucher ailleurs = enregistré ; ANNULER le remet
         pg.mouse.click(5, 5); pg.wait_for_timeout(200)
+        cdp15 = ctx.new_cdp_session(pg)
+        def tap15(x, y):
+            cdp15.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y}]}); pg.wait_for_timeout(60)
+            cdp15.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
         d0 = pg.evaluate(f"() => {{ const X = {ins}; const r = X.INS.des.find(x => x.id === 'd1'); const o = r.des; r.des = 'DESIGNATION TRES LONGUE '.repeat(5).trim(); X.insSave(); X.refreshAll(); return o; }}"); pg.wait_for_timeout(500)
         ta = pg.evaluate("""() => { const c = document.querySelector('#bdgClientBody tr[data-iid="d1"] .ins-dv'); if (!c) return null; c.scrollIntoView({ block: 'center' }); const r = c.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }""")
         if ta:
-            pg.mouse.click(*ta); pg.wait_for_timeout(600)
+            tap15(*ta); pg.wait_for_timeout(600)
             tb = pg.evaluate("() => { const t = document.getElementById('sviFullTip'); if (!t) return null; const r = t.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }")
-            if tb: pg.mouse.click(*tb); pg.wait_for_timeout(600)
+            if tb: tap15(*tb); pg.wait_for_timeout(600)
             pg.keyboard.type("NOUVELLE DESIGNATION"); pg.wait_for_timeout(200)
             tp = pg.evaluate("""() => { const tr = [...document.querySelectorAll('#bdgClientBody tr[data-iid]')].filter(t => !t.classList.contains('ins-title') && t.offsetParent && t.dataset.iid !== 'd1')[0]; const i = tr && tr.querySelector('[data-f="p"]'); if (!i) return null; const r = i.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }""")
-            if tp: pg.mouse.click(*tp); pg.wait_for_timeout(900)
+            if tp: tap15(*tp); pg.wait_for_timeout(900)
         v15 = pg.evaluate(f"() => {{ const X = {ins}; return X.INS.des.find(x => x.id === 'd1').des; }}")
         pg.mouse.click(5, 5); pg.wait_for_timeout(500); pg.evaluate("() => document.getElementById('instUndo')?.click()"); pg.wait_for_timeout(700)
         u15 = pg.evaluate(f"() => {{ const X = {ins}; return X.INS.des.find(x => x.id === 'd1').des; }}")
         pg.evaluate(f"(o) => {{ const X = {ins}; X.INS.des.find(x => x.id === 'd1').des = o; X.insSave(); X.refreshAll(); }}", d0); pg.wait_for_timeout(400)
-        check("v1115 : texte agrandi d'une désignation coupée — saisie enregistrée en touchant une autre case, puis ANNULER la remet", ta is not None and v15 == "NOUVELLE DESIGNATION" and u15.startswith("DESIGNATION TRES LONGUE"), [ta, v15, u15])
+        check("v1115 : texte agrandi d'une désignation coupée (au doigt) — saisie enregistrée en touchant une autre case, puis ANNULER la remet", ta is not None and v15 == "NOUVELLE DESIGNATION" and u15.startswith("DESIGNATION TRES LONGUE"), [ta, v15, u15])
 
         # ===== v527 : remarques du 22/10 (fin de journée) =====
         pg.mouse.click(5, 5); pg.wait_for_timeout(200)
@@ -3015,18 +3019,20 @@ def main():
             const pg800 = !!v.querySelector('.nvp-ref'); v.querySelector('[data-nvp="close"]')?.click(); await w(250); if (!pg800) return 'v800 : page du nouveau fournisseur non ouverte';
             const n1 = achFrs().filter(f => !f.del).length + (v.querySelectorAll('#achFrsT tbody tr[data-id]').length === 4 ? 0 : 100);
             (v.querySelector(`#achFrsT button[data-nvo="${a.id}"]`) || v.querySelector(`#achFrsT [data-nvo="${a.id}"]`)).click(); await w(250);
+            for (let i = 0; i < 8 && !/^FOURNISSEUR — BETON SUD/.test((document.getElementById('sviScreenTag') || {}).textContent || ''); i++) await w(150);   /* v1115 : titre de la barre posé un peu plus tard dans la suite complète */
+            const tag759 = ((document.getElementById('sviScreenTag') || {}).textContent || '').slice(0, 40), ref759 = (v.querySelector('.nvp-ref') || {}).textContent || '', nb759 = v.querySelectorAll('.nvp-blk').length;
             const pgOk = /^FOURNISSEUR — BETON SUD/.test((document.getElementById('sviScreenTag') || {}).textContent || '') && /^FRS \\d{2}-\\d{4}\\/\\d{3}$/.test(v.querySelector('.nvp-ref').textContent) && v.querySelectorAll('.nvp-blk').length >= 3;   /* 11/11 (v1097) : blocs de pièces liées vides masqués — le nombre varie */   /* D1 : plus de blocs RETOURS / AVOIRS (dans COMMANDES, RÉCEPTIONS, FACTURES) */   /* v921 (remarque 4) : + CONSULTATIONS, RÉCEPTIONS, RETOURS, AVOIRS */
-            v.querySelector('[data-nvp="info"]').click(); await w(300); const fc = document.querySelector('.frs-card');
+            v.querySelector('[data-nvp="info"]').click(); await w(300); const fc = [...document.querySelectorAll('.frs-card')].filter(x => x.offsetParent).pop() || document.querySelector('.frs-card');
             const secs = fc ? [...fc.querySelectorAll('.frs-st')].map(x => x.textContent.replace(/\\s*\\d+$/, '').split(' ')[0]).join(',') + '|' + [...fc.querySelectorAll('.frs-tabs .rec-tab')].map(x => x.textContent.trim()).join(',') + '|' + [...fc.querySelectorAll('.frs-sec')].filter(x => !x.hidden).length : 'pas de fiche';
             const ri = fc.querySelector('.frs-sub[data-sub="ribs"] .frs-s[data-c="rib"]'); ri.value = '011780000123456789012386'; fc.querySelector('[data-save]').click(); await w(250);
             const cf = document.querySelector('#svConf .svc-t'); const conf = cf ? cf.textContent : ''; document.querySelector('#svConf [data-r="1"]')?.click(); await w(300);
             const a2 = achFrs().find(x => x.id === a.id), sig = !!a2.ribChg && achFrsWhy(a2, achFrs()).some(m => /RIB MODIFIÉ/.test(m)), hist = achHistGet(a.code).some(h => h.a === 'RIB MODIFIÉ');
-            v.querySelector('[data-nvp="info"]').click(); await w(300); document.querySelector('.frs-card [data-ribok]').click(); await w(100); document.querySelector('.frs-card [data-save]').click(); await w(250);
+            v.querySelector('[data-nvp="info"]').click(); await w(300); { const fcv = [...document.querySelectorAll('.frs-card')].filter(x => x.offsetParent).pop() || document.querySelector('.frs-card');   /* v1115 : la fiche affichée (une fiche restée d'un test d'avant est ignorée) */ fcv.querySelector('[data-ribok]').click(); await w(100); fcv.querySelector('[data-save]').click(); await w(250); }
             const ok = !achFrs().find(x => x.id === a.id).ribChg;
             if (keepF === null) localStorage.removeItem('svi_ach_frs_v1'); else localStorage.setItem('svi_ach_frs_v1', keepF);
             if (keepE === null) localStorage.removeItem('svi_ach_frs_etat_v1'); else localStorage.setItem('svi_ach_frs_etat_v1', keepE); localStorage.removeItem('svi_stf_v1:ach_frs');   /* choix des états remis par défaut */
             v.__achTab('art'); document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300);
-            return [r1, wc.length, wa.join('|'), h1, n0, n1, secs, conf, sig, hist, ok && pgOk]; }""")
+            return [r1, wc.length, wa.join('|'), h1, n0, n1, secs, conf, sig, hist, ok && pgOk, { ribVerifie: ok, page: pgOk, tag: tag759, ref: ref759, blocs: nb759 }]; }""")
         check("v759 : FOURNISSEURS — ICE (15 chiffres, unique), RIB 24 chiffres, occasionnel sans ICE ni RIB, document expiré ; onglet, création, fiche ; changement de RIB confirmé, signalé, noté dans H, puis RIB VÉRIFIÉ",
               f759[0] == ["FRS-0001", "FRS-0002", False, True, "FRS-0001", True] and f759[1] == 0 and "DOCUMENT EXPIRÉ : ATTESTATION CNSS" in f759[2] and "ICE EN DOUBLE" in f759[2]
               and f759[3] == "FOURNISSEURS 3" and f759[4] == 3 and f759[5] == 3 and f759[6] == "IDENTITÉ,FISCAL,QUALIFICATION,ASSURANCES,,COMPTE,RIB,ENCOURS,CAUTIONS,CONDITIONS,COMMANDE,IMPORT,FERMETURES,GARANTIE,TARIFS,FAMILLES,DOCUMENTS,CONTACTS,RISQUE,MOYENS,RÉFÉRENCES,ÉVALUATIONS,CONTRATS,SPÉCIALITÉ,FOURNISSEURS,STATISTIQUES,PARTS,CLAUSES|IDENTITÉ,FISCAL ET LÉGAL,BANQUE ET PAIEMENT,CONDITIONS D'ACHAT,RISQUE ET MOYENS,FOURNISSEURS SIMILAIRES,STATISTIQUES|2"
@@ -3047,6 +3053,15 @@ def main():
             c15 = pg.evaluate("() => Object.keys(cwLoad()).filter(k => /^cai_/.test(k)).length") - k0
         pg.evaluate("() => { const a = cwLoad(); Object.keys(a).filter(k => /^cai_/.test(k)).forEach(k => delete a[k]); cwSave(a); document.querySelector('#svConf .svc-close')?.click(); document.querySelector('#navMenu .nav-btn[data-view=\"bdg\"]')?.click(); }"); pg.wait_for_timeout(400)
         check("v1115 : DÉTAIL CONSULTATION — menu ⋯ affiché au-dessus de la fenêtre (sans LARGEUR OPTIMISÉE) ; un bord tiré = une seule largeur gardée", m15 == [True, False] and c15 == 1, [m15, c15])
+        # v1115 (Ahmed) : consultation close — toucher un rond le choisit pour voir ses liaisons, sans rien lier ni délier
+        ro15 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const L = achCaf();
+            L.push({ id: 'cx15', code: 'CAF-X15', ref: 'CAF-X15', state: 'close', lignes: [{ id: 'l1', des: 'SABLE', q: 1, u: 'T' }], frs: ['f1'], lf: { l1: ['f1'] } }); achCafSave(L);
+            achCafInfo('cx15'); await w(400); document.querySelector('.cai-card [data-rg="L"]')?.click(); await w(200);
+            const a = document.querySelector('.cai-card [data-rg="L"]')?.classList.contains('rd-choisi'), b = document.querySelector('.cai-card [data-rg="F"]')?.classList.contains('rd-lie');
+            document.querySelector('.cai-card [data-rg="F"]')?.click(); await w(200); const lf = JSON.stringify(achCaf().find(c => c.id === 'cx15').lf);
+            document.querySelector('#svConf [data-x]')?.click(); await w(150); achCafSave(achCaf().filter(c => c.id !== 'cx15'));
+            return [a, b, lf]; }""")
+        check("v1115 : consultation close — un rond touché est choisi et montre ses liaisons, rien n'est modifié", ro15 == [True, True, '{"l1":["f1"]}'], ro15)
         # v760 : BESOINS — charges du budget avec leurs tâches, contrôle prévu / déjà demandé, dépassement BLOQUÉ (justifier puis DÉBLOQUER),
         # seuil 90 %, centre SIÈGE hors budget ; menu ☰ › BESOIN, fiche de création (budget › charge › tâche), validation
         n760 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const keepB = localStorage.getItem('svi_ach_bsn_v1'), keepE = localStorage.getItem('svi_ach_bsn_etat_v1'); localStorage.removeItem('svi_ach_bsn_v1'); localStorage.removeItem('svi_ach_bsn_etat_v1');

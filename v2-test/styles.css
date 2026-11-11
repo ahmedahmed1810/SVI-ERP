@@ -3947,3 +3947,6 @@ html body #sviScreenTag.svi-tag-open { white-space: normal; overflow: visible; t
 #caiSug.cai-sug button span { color: #6b7280; font-weight: 500; }
 #caiSug.cai-sug button:hover { background: #eef2ff; }
 .cai-card .cai-t td:first-child, .cai-card .cai-t th:first-child { padding: 0 !important; text-overflow: clip !important; text-align: center; }
+/* v1115 : menu des suggestions de la fenêtre DÉTAIL CONSULTATION — fond blanc, bord, ombre, 8 lignes au plus avec défilement */
+#caiSug.cai-sug { background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 8px 24px rgba(15, 23, 42, .18); max-height: 252px; overflow-y: auto; }
+#caiSug.cai-sug button { min-height: 30px; flex: 0 0 auto; }
