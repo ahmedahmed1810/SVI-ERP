@@ -75,7 +75,9 @@ const sviLkWrite = (data, L, on) => L.forEach(({ m, a, b }) => { const Mp = data
 function sviLkDomFilter(LK, rows, titleSel) { const CK = {}; rows.forEach(r => { if (r.ck) (CK[r.g] = CK[r.g] || new Set()).add(r.id); });
   const vis = LK.filterFn(CK), hid = {};
   rows.forEach(r => { const on = vis(r.g, r.id); r.tr.classList.toggle("svlk-hid", !on); if (!on) hid[r.g] = (hid[r.g] || 0) + 1; });
-  if (titleSel) { const tbs = new Set(rows.map(r => r.tr.parentElement)); tbs.forEach(tb => { let cur = null, any = false;
-    const end = () => { if (cur) cur.classList.toggle("svlk-hid", !any); };
-    [...tb.rows].forEach(tr => { if (tr.matches(titleSel)) { end(); cur = tr; any = false; } else if (tr.matches("[data-ri], [data-i]") && !tr.classList.contains("svlk-hid")) any = true; }); end(); }); }
+  /* v1131 : un titre de groupe (classe svlk-gt-<groupe>) est caché quand toutes les lignes de SON groupe (classe svlk-g-<groupe>) le sont —
+     les lignes hors groupe qui le suivent ne comptent pas */
+  if (titleSel) { const tbs = new Set(rows.map(r => r.tr.parentElement)); tbs.forEach(tb => [...tb.querySelectorAll(titleSel)].forEach(tt => {
+    const m = String(tt.className).match(/\bsvlk-gt-(\S+)/); if (!m) return; const It = [...tb.querySelectorAll("tr.svlk-g-" + CSS.escape(m[1]))];
+    tt.classList.toggle("svlk-hid", !!It.length && It.every(x => x.classList.contains("svlk-hid"))); })); }
   return hid; }
