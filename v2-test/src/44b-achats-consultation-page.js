@@ -356,6 +356,7 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
         r.nom = f ? f.nom : nom; if (f) { const old = r.k; r.id = f.id; r.k = f.id; Object.values(S.lk).forEach(M => { if (M[old]) { M[f.id] = M[old]; delete M[old]; } Object.keys(M).forEach(a => { M[a] = (M[a] || []).map(b => b === old ? f.id : b); }); }); if (S.sel && S.sel.k === old) S.sel.k = f.id; } }
       else if (g === "L" && k === "des" && achU(v) && S.L.some(x => x !== r && achU(x.des) === achU(v))) { svToast("ARTICLE DÉJÀ DANS LA CONSULTATION.", 2500); if (!r.des && !r.bsn) dropL(); draw(); return; }   /* v1115 : pas d'article en double */
       else if (g === "L" && k === "des" && !achU(v) && !r.bsn) { dropL(); draw(); return; }
+      else if (g === "K" && k === "lab" && r.k === "autre" && !achU(v)) { S.K = S.K.filter(x => x !== r); draw(); return; }   /* v1116 : condition laissée vide retirée, CRÉER revient */
       else { r[k] = achU(v); if (g === "L" && k === "des") { const a = (pick && achU(pick.lab) === achU(v)) ? pick.a : ARTS.find(y => achU(y.des) === achU(v)); if (a && (!r.u || pick)) r.u = a.u || r.u; } }
       if (g === "K" && k === "lab" && r.lab) { const P = achPrm(), Lp = achClP(P); if (!Lp.some(y => achU(y.txt) === r.lab)) { P.clP = Lp.concat([{ id: "p" + Date.now().toString(36), t: "autre", txt: r.lab }]); achPrmSave(P); } }
       draw(); });

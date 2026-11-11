@@ -1190,7 +1190,7 @@ def main():
 
         # v1115 : texte agrandi d'une DÉSIGNATION CLIENT coupée, avec de VRAIS touchers (CDP) — 1er toucher (agrandi), 2e toucher (tout sélectionné), frappe, toucher ailleurs = enregistré ; ANNULER le remet
         pg.mouse.click(5, 5); pg.wait_for_timeout(200)
-        cdp15 = ctx.new_cdp_session(pg)
+        cdp15 = Safe(ctx).new_cdp_session(pg)   # v1116 : la vraie page est passée (Safe la déballe) ; une erreur est notée, la suite continue
         def tap15(x, y):
             cdp15.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y}]}); pg.wait_for_timeout(60)
             cdp15.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
