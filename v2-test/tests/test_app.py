@@ -3063,7 +3063,7 @@ def main():
             return [a, b, lf]; }""")
         check("v1115 : consultation close — un rond touché est choisi et montre ses liaisons, rien n'est modifié", ro15 == [True, True, '{"l1":["f1"]}'], ro15)
         # v1119 (série L, lot 1) : L1 date et objet sur une ligne ; L4 AGRANDIR du bloc CONSULTATION ; L9 entonnoir des cases au-dessus de la fenêtre ;
-        # L13 commande depuis le devis seulement ; L15 CONDITIONS DE PAIEMENT = condition particulière ; L20 couleurs (rouge, bleu envoyée, noir close)
+        # L13 commande depuis le devis seulement ; L15 CONDITIONS DE PAIEMENT = condition particulière ; L20 couleurs (rouge, orange validée, bleu remise, noir close)
         l119 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const r = {};
             achCafInfo(null); await w(400); const g = document.querySelector('.cafi-g'), f = g ? [...g.querySelectorAll('.frs-f')].map(x => Math.round(x.getBoundingClientRect().top)) : [];
             r.l1 = f.length === 2 && f[0] === f[1];
@@ -3073,13 +3073,13 @@ def main():
             const m = document.getElementById('sviEtatMenu'); if (m) { const q = m.getBoundingClientRect(), e = document.elementFromPoint(q.left + q.width / 2, q.top + 12); r.l9 = m.contains(e); m.remove(); }
             document.querySelector('#svConf [data-x]')?.click(); await w(150);
             const L = achCaf(); L.push({ id: 'cl19', ref: 'CAF-L19', state: 'ouverte', lignes: [], frs: ['fz'], rep: {} }); achCafSave(L);
-            const c = () => achCaf().find(x => x.id === 'cl19'); r.l20 = [achPcSt('caf', c())];
+            const c = () => achCaf().find(x => x.id === 'cl19'); r.l20 = [achPcSt('caf', c())]; achCafSaveOne('cl19', x => { x.val = achNow(); }); r.l20.push(achPcSt('caf', c()), achPcStep('caf', c()));
             achCafSaveOne('cl19', x => { x.fil = { fz: { n: 1, env: achNow() } }; }); r.l20.push(achPcSt('caf', c()), achPcStep('caf', c()));
             achCafSaveOne('cl19', x => { x.state = 'close'; }); r.l20.push(achPcSt('caf', c()));
             r.l13 = !(achDocPage('caf', c()).menu || []).some(x => x.k === 'mkcmf');
             achCafSave(achCaf().filter(x => x.id !== 'cl19')); return r; }""")
         check("v1119 (série L, lot 1) : date et objet sur une ligne, AGRANDIR du bloc CONSULTATION, entonnoir des cases visible dans la fenêtre, plus de commande depuis la consultation, CONDITIONS DE PAIEMENT en condition, couleurs de la consultation",
-              l119 == {"l1": True, "l4": True, "l15": True, "l9": True, "l20": ["instance", "partiel", "ENVOYÉE — 0 / 1 DEVIS", "valide"], "l13": True}, l119)
+              l119 == {"l1": True, "l4": True, "l15": True, "l9": True, "l20": ["instance", "remis", "VALIDÉE — À REMETTRE", "partiel", "REMISE — 0 / 1 DEVIS", "valide"], "l13": True}, l119)
         # v1120 (série L, lot 3) : L10 un seul bloc FOURNISSEURS (fille, état, devis, montant) ; L12 titres de groupes dans la fenêtre ; L14 comparatif TTC en dégradé ; L19 icône d'aperçu
         l120 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const r = {}; const F = achFrs(); const a = achFrsNew(F, { nom: 'ALPHA20' }), b = achFrsNew(F, { nom: 'BETA20' }); achFrsSave(F);
             achCafSave(achCaf().concat([{ id: 'cl20', ref: 'CAF-L20', state: 'ouverte', objet: 'L20', grp: [{ id: 'g1', lab: 'TERRASSEMENT' }], lignes: [{ id: 'l1', des: 'SABLE', u: 'T', q: 10 }, { id: 'l2', des: 'CIMENT', u: 'T', q: 5, g: 'g1' }], frs: [a.id, b.id], lf: { l1: [a.id, b.id], l2: [a.id, b.id] }, rep: {} }]));
@@ -3098,6 +3098,13 @@ def main():
         check("v1120 (série L, lot 3) : un seul bloc FOURNISSEURS, comparatif TTC par fournisseur en dégradé, icône d'aperçu, titres de groupes dans la fenêtre",
               l120.get("l10") == [True, False, False, "FOURNISSEUR|CONSULTATION|ÉTAT|DEVIS|MONTANT TTC"] and l120.get("l14") == [True, "SABLE (T)|10,00|120,00|1\u202f200,00|144,00|1\u202f440,00", True, True]
               and l120.get("l19") == [True, True, True] and l120.get("l12") == ["SABLET10,00", "2 TERRASSEMENT", "CIMENTT5,00"], l120)
+        # v1121 (série L, lot 4) : L2 bandeau de la fenêtre à la couleur de l'état ; L16 conditions particulières dans PARAMÉTRAGE › ACHATS › CONSULTATIONS (menu de la fenêtre) ; L17 minimum de fournisseurs
+        l121 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const r = {};
+            achCafInfo(null); await w(400); const c = document.querySelector('.cai-card'); r.st = c.dataset.st; r.bg = getComputedStyle(c.querySelector(':scope > .svc-t')).backgroundColor !== 'rgb(11, 37, 69)';
+            document.querySelector('[data-cai-new="K"] td').click(); await w(300); const sg = document.getElementById('caiSug'); r.sug = !!sg && sg.querySelectorAll('button').length > 0; document.querySelector('#svConf [data-x]')?.click(); await w(150);
+            r.tab = SVI_PG_TABS.some(t => t.k === 'acaf' && t.ach === 'caf'); return r; }""")
+        check("v1121 (série L, lot 4) : fenêtre colorée selon l'état, catalogue des conditions particulières dans PARAMÉTRAGE › ACHATS › CONSULTATIONS et proposé dans la fenêtre",
+              l121 == {"st": "instance", "bg": True, "sug": True, "tab": True}, l121)
         # v760 : BESOINS — charges du budget avec leurs tâches, contrôle prévu / déjà demandé, dépassement BLOQUÉ (justifier puis DÉBLOQUER),
         # seuil 90 %, centre SIÈGE hors budget ; menu ☰ › BESOIN, fiche de création (budget › charge › tâche), validation
         n760 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)); const keepB = localStorage.getItem('svi_ach_bsn_v1'), keepE = localStorage.getItem('svi_ach_bsn_etat_v1'); localStorage.removeItem('svi_ach_bsn_v1'); localStorage.removeItem('svi_ach_bsn_etat_v1');
@@ -3708,8 +3715,9 @@ def main():
   r.def = achNextRef('CMF', [{ ref: achRefFill('CMF {AA}-{MM}{JJ}/{NNN}', d0, 3), cree: d0.toISOString() }, { ref: 'CMF 20-0101/009', cree: '2020-01-01T10:00:00Z' }]) === achRefFill('CMF {AA}-{MM}{JJ}/{NNN}', d0, 4);
   await w(100); await pgo('acla');
   r.fold = v.querySelectorAll('details.ach-pfold').length; r.g = achPrm().clG.length;
-  const nw = v.querySelectorAll('.ach-clnew')[1]; nw.value = 'garantie un an'; nw.dispatchEvent(new Event('change', { bubbles: true })); await w(150);
-  const tsel = v.querySelectorAll('details.ach-pfold')[1].querySelector('tr[data-clid] select.ach-cl'); tsel.value = 'val'; tsel.dispatchEvent(new Event('change', { bubbles: true })); await w(150);
+  await pgo('acaf'); r.fold += v.querySelectorAll('details.ach-pfold').length;   /* v1121 (L16) : CONDITIONS PARTICULIÈRES dans PARAMÉTRAGE › ACHATS › CONSULTATIONS */
+  const nw = v.querySelectorAll('.ach-clnew')[0]; nw.value = 'garantie un an'; nw.dispatchEvent(new Event('change', { bubbles: true })); await w(150);
+  const tsel = v.querySelectorAll('details.ach-pfold')[0].querySelector('tr[data-clid] select.ach-cl'); tsel.value = 'val'; tsel.dispatchEvent(new Event('change', { bubbles: true })); await w(150);
   r.p = achPrm().clP.map(x => x.t + ':' + x.txt).join('|');
   const L = achFrs(); const f = achFrsNew(L, { nom: 'TEST CLAUSES' }); r.fcla = f.cla.length === r.g && f.cla[0].t === 'pay';
   const c = achCmfFrom({ why: 'T' }); r.ccla = (c.cla || []).length; r.cref = /^CMF /.test(c.ref);

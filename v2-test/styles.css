@@ -3963,3 +3963,14 @@ html body #sviScreenTag.svi-tag-open { white-space: normal; overflow: visible; t
 .nv-apc { padding: 0 !important; }
 .nv-ap { border: 0; background: none; color: #64748b; padding: 2px 4px; cursor: pointer; line-height: 0; }
 .nv-ap:hover, .nv-ap:active { color: #1d4ed8; }
+/* v1121 (L20) : consultation annulée = noire (close), dans la liste et les blocs */
+table[data-ach="caf"] tr.st-annule td { color: var(--st-valide, #111827) !important; }
+/* v1121 (L2, série L) : une seule fenêtre par pièce — le bandeau prend la couleur de l'état (palette 1.2) ; texte blanc */
+html body #svConf .svc-card[data-st="instance"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3) { background: var(--st-instance, #dc2626) !important; }
+html body #svConf .svc-card[data-st="fige"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3), html body #svConf .svc-card[data-st="encours"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3) { background: var(--st-fige, #15803d) !important; }
+html body #svConf .svc-card[data-st="remis"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3) { background: var(--st-remis, #ea580c) !important; }
+html body #svConf .svc-card[data-st="partiel"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3) { background: var(--st-partiel, #1d4ed8) !important; }
+html body #svConf .svc-card[data-st="valide"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3) { background: var(--st-valide, #111827) !important; }
+html body #svConf .svc-card[data-st="annule"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3), html body #svConf .svc-card[data-st="bloque"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3), html body #svConf .svc-card[data-st="expire"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3), html body #svConf .svc-card[data-st="archive"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3) { background: var(--st-annule, #6b7280) !important; }
+html body #svConf .svc-card[data-st] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3), html body #svConf .svc-card[data-st] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3) * { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+html body #svConf .svc-card[data-st] > .svc-close { color: #fff !important; }

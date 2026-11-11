@@ -117,7 +117,7 @@ const SVI_PG_TABS = [
   { k: "ref", ach: "ref", lab: "RÉFÉRENCES", sub: "FORMAT DES RÉFÉRENCES DES PIÈCES" },
   { k: "cat", g: "art", ach: "cat", lab: "CATÉGORIES", sub: "FAMILLES D'ARTICLES" },
   { k: "aregl", g: "ach", ach: "regl", lab: "RÈGLES INTERNES", sub: "" }, { k: "aalr", g: "ach", ach: "alr", lab: "ALERTES DE RETARD", sub: "" },
-  { k: "ament", g: "ach", ach: "ment", lab: "MENTIONS IMPRIMÉES", sub: "" }, { k: "acla", g: "ach", ach: "cla", lab: "CLAUSES", sub: "" },
+  { k: "ament", g: "ach", ach: "ment", lab: "MENTIONS IMPRIMÉES", sub: "" }, { k: "acla", g: "ach", ach: "cla", lab: "CLAUSES", sub: "" }, { k: "acaf", g: "ach", ach: "caf", lab: "CONSULTATIONS", sub: "CONDITIONS PARTICULIÈRES, MINIMUM DE FOURNISSEURS CONSULTÉS" },   /* v1121 (L16, L17) */
   { k: "ftypes", g: "ach", lab: "TYPES DE FOURNISSEURS", sub: "MÉTIER DU FOURNISSEUR, CHOISI SUR SA FICHE" }
 ].map(T => ({ g: "gen", ...T }));
 const SVI_PG_ORD = "svi_pgord_v1";

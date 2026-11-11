@@ -177,9 +177,15 @@ function achCafPage(x, B) {
     grp: ["", ""].concat(...FC.map(f => [fr(f), fr(f)])),
     rows: cmpRows.concat([{ cls: "caf-tot", cells: ["TOTAL TTC (ARTICLES CHIFFRÉS)", ""].concat(...TT.map(v => ["", { h: achF2(v), t: v, st: grad(v, TT) }])) }]) };
   return { title: x.objet || "",
-    menu: (open ? [{ k: "send", lab: "ENVOYER LA CONSULTATION" }].concat(FC.length ? [{ k: "close", lab: "CLÔTURER (CHOIX DU RETENU)" }] : []) : []),   /* v1119 (L13) : une commande ne se crée que depuis un devis (page du devis retenu) */
+    menu: (open ? [x.val ? { k: "send", lab: "REMETTRE LA CONSULTATION (ENVOI AUX FOURNISSEURS)" } : { k: "val", lab: x.circ && !achCircDone(x) ? "CIRCUIT DE VALIDATION" : "VALIDER LA CONSULTATION" }].concat(FC.length ? [{ k: "close", lab: "CLÔTURER (CHOIX DU RETENU)" }] : []) : []),   /* v1119 (L13) : une commande ne se crée que depuis un devis (page du devis retenu) */
     act: async (k, redraw) => {
       if (k === "send") { achCafSend(x.id); return true; }
+      /* v1121 (L20) : VALIDER avant la remise — circuit de validation des consultations s'il s'applique (vert), puis validée, à remettre (orange) */
+      if (k === "val") { const L = achCaf(), C = L.find(y => y.id === x.id); if (!C) return true;
+        if (!(C.lignes || []).length || !(C.frs || []).length) { svToast("IL FAUT AU MOINS UN ARTICLE ET UN FOURNISSEUR.", 3000); return true; }
+        if (await achCircGate("caf", C, achStdMt(C.lignes), async lab => { C.mod = achNow(); achCafSave(L); achHist(C.ref, lab, ""); redraw(); })) return true;
+        if (!(await svConfirm({ title: "VALIDER LA CONSULTATION", text: C.ref + " : VALIDÉE, ELLE POURRA ÊTRE REMISE AUX FOURNISSEURS.", ok: "VALIDER", tone: "neutral" }))) return true;
+        C.val = achNow(); C.mod = achNow(); achCafSave(L); achHist(C.ref, "VALIDÉE — À REMETTRE", ""); redraw(); return true; }
       if (k === "close") { achCafClose(x.id, redraw); return true; }
       return false; },
     links: [DET, FRS, DOC, CND].concat(FC.length ? [CMP] : []).concat([B.CM("COMMANDES", achCmf().filter(c => c.caf === x.id))]),   /* v1119 (L10) : plus de blocs CONSULTATIONS PAR FOURNISSEUR ni DEVIS */
@@ -231,6 +237,7 @@ function achCafMkDvf(id, f, redraw) { const c = achCaf().find(y => y.id === id);
   achDvfFiche(v.id, () => { if (redraw) redraw(); }); }
 /* F9 : ENVOYER LA CONSULTATION — pour chaque bloc : TOUS, ou seulement les cochés ; un bordereau par fournisseur (ses détails liés), sans aucun prix */
 function achCafSend(id) { const c = achCaf().find(y => y.id === id); if (!c) return; achCafUp(c);
+  if (!c.val) { svToast("VALIDER D'ABORD LA CONSULTATION (⋯ › VALIDER LA CONSULTATION).", 3500); return; }   /* v1121 (L20) */
   { const Mi = achCafCondMiss(c); if (Mi.length) { svToast("ENVOI IMPOSSIBLE : CONDITION(S) LIÉE(S) SANS VALEUR — " + Mi.map(cd => cd.lab).join(", ") + ".", 6000); return; } }
   { const ni = (c.lignes || []).filter(l => l.imp).length; if (ni) { svToast("ENVOI IMPOSSIBLE : " + ni + " DÉTAIL(S) IMPORTÉ(S) À VÉRIFIER (EN ROUGE) — LES COCHER PUIS « CONFIRMER LES COCHÉS ».", 5000); return; } }
   const ck = key => { const bl = document.querySelector(`#ach .nvp-blk[data-nvb="${key}"]`); return bl ? [...bl.querySelectorAll("tbody tr[data-ri]")].filter(tr => tr.querySelector(".nvp-cb:checked")).map(tr => +tr.dataset.ri) : []; };
@@ -320,7 +327,7 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
       ${ro || EMPTY[g]() ? "" : `<tr class="rec-new" data-cai-new="${g}"><td colspan="${CO.length + 2}">${NEW[g]}</td></tr>`}</tbody></table></div>`; };
   S.ck = {};
   const draw = () => { if (d.isConnected) ckRead(); const ob = d.querySelector('.cafi-x[data-k="objet"]'); if (ob) C.objet = achU(ob.value);
-    d.innerHTML = sviWinCard({ cls: "frs-card caf-card caf-info cai-card", close: "data-x", title: "DÉTAIL CONSULTATION",   /* 11/11 (validé, 10.2) : même fenêtre à la création, en instance et validée (référence dans la barre) */
+    d.innerHTML = sviWinCard({ st: c0 ? achPcSt("caf", c0) : "instance", cls: "frs-card caf-card caf-info cai-card",   /* v1121 (L2) : seule la couleur change selon l'état */ close: "data-x", title: "DÉTAIL CONSULTATION",   /* 11/11 (validé, 10.2) : même fenêtre à la création, en instance et validée (référence dans la barre) */
       body: `<div class="frs-g cafi-g">${achCreeFld(c0)}<label class="frs-f frs-w"><span>OBJET</span><input class="ins-in cafi-x" data-k="objet" value="${esc(C.objet || "")}"${dis} autocomplete="off"></label></div>
         <div class="bdg-d-block cai-blk${S.max ? " cai-blk-max" : ""}"><div class="bdg-d-block-title blk-head"><span class="ttl">CONSULTATION</span><span class="blk-tools"><button type="button" class="blk-btn blk-max-btn cai-max${S.max ? " on" : ""}" aria-label="Agrandir / réduire"></button>${ro ? "" : `<button type="button" class="blk-more cai-more" aria-label="Actions">⋯</button>`}</span></div>
         <div class="cai-grid">${["L", "F", "D", "K"].map(list).join("")}</div></div>
@@ -385,6 +392,8 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
       if (g === "K" && k === "lab" && r.lab) { const P = achPrm(), Lp = achClP(P); if (!Lp.some(y => achU(y.txt) === r.lab)) { P.clP = Lp.concat([{ id: "p" + Date.now().toString(36), t: "autre", txt: r.lab }]); achPrmSave(P); } }
       draw(); });
     if (tip && g === "L" && k === "des") sugOn(tip, ARTS.filter(a => !S.L.some(x => x !== r && achU(x.des) === achU(a.des))).map(a => ({ lab: a.des, sub: a.u || "", a })), x => { pick = x; });
+    /* v1121 (L16) : le catalogue des CONDITIONS PARTICULIÈRES (PARAMÉTRAGE › ACHATS › CONSULTATIONS) alimente le menu de la condition */
+    if (tip && g === "K" && k === "lab") { const have = new Set(S.K.filter(y => y !== r).map(y => achU(y.lab))); sugOn(tip, achClP(achPrm()).map(c => achU(c.txt) || ((ACH_CLT.find(t => t[0] === c.t) || [])[1] || "")).filter(l => l && !have.has(l)).filter((l, i, A) => A.indexOf(l) === i).map(l => ({ lab: l })), () => {}); }
     if (tip && g === "F") sugOn(tip, FRS.filter(f => !S.F.some(x => x.id === f.id)).map(f => ({ lab: f.nom, sub: f.ville || "" })), () => {}); };
   const pickCell = td => { d.querySelectorAll("td.nv-sel").forEach(x => x.classList.remove("nv-sel")); td.classList.add("nv-sel"); if (!td.hasAttribute("tabindex")) td.setAttribute("tabindex", "-1"); td.classList.add("svi-tdf"); try { td.focus({ preventScroll: true }); } catch (er) {} };
   /* glisser un titre de colonne = ordre des colonnes de cette liste (gardé) */

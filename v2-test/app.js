@@ -6004,8 +6004,9 @@ function sviWinShow(d) {
   svShortLists(d);
   return d;
 }
-function sviWinCard({ title = "", body = "", foot = "", cls = "", close = 'data-r="0"' } = {}) {
-  return `<div class="svc-card${cls ? " " + cls : ""}" role="dialog" aria-modal="true">
+/* v1121 (L2, série L) : st = état de la pièce (instance, fige, encours, remis, partiel, valide, annule…) — le bandeau de la fenêtre prend sa couleur (palette 1.2) */
+function sviWinCard({ title = "", body = "", foot = "", cls = "", close = 'data-r="0"', st = "" } = {}) {
+  return `<div class="svc-card${cls ? " " + cls : ""}"${st ? ` data-st="${String(st).replace(/[^a-z]/g, "")}"` : ""} role="dialog" aria-modal="true">
       ${close ? `<button type="button" class="svc-close" ${close} aria-label="Fermer">✕</button>` : ""}
       <div class="svc-t">${title}</div>${body}
       ${foot ? `<div class="svc-f">${foot}</div>` : ""}
@@ -6996,7 +6997,7 @@ const SVI_PG_TABS = [
   { k: "ref", ach: "ref", lab: "RÉFÉRENCES", sub: "FORMAT DES RÉFÉRENCES DES PIÈCES" },
   { k: "cat", g: "art", ach: "cat", lab: "CATÉGORIES", sub: "FAMILLES D'ARTICLES" },
   { k: "aregl", g: "ach", ach: "regl", lab: "RÈGLES INTERNES", sub: "" }, { k: "aalr", g: "ach", ach: "alr", lab: "ALERTES DE RETARD", sub: "" },
-  { k: "ament", g: "ach", ach: "ment", lab: "MENTIONS IMPRIMÉES", sub: "" }, { k: "acla", g: "ach", ach: "cla", lab: "CLAUSES", sub: "" },
+  { k: "ament", g: "ach", ach: "ment", lab: "MENTIONS IMPRIMÉES", sub: "" }, { k: "acla", g: "ach", ach: "cla", lab: "CLAUSES", sub: "" }, { k: "acaf", g: "ach", ach: "caf", lab: "CONSULTATIONS", sub: "CONDITIONS PARTICULIÈRES, MINIMUM DE FOURNISSEURS CONSULTÉS" },   /* v1121 (L16, L17) */
   { k: "ftypes", g: "ach", lab: "TYPES DE FOURNISSEURS", sub: "MÉTIER DU FOURNISSEUR, CHOISI SUR SA FICHE" }
 ].map(T => ({ g: "gen", ...T }));
 const SVI_PG_ORD = "svi_pgord_v1";

@@ -53,8 +53,9 @@ function sviWinShow(d) {
   svShortLists(d);
   return d;
 }
-function sviWinCard({ title = "", body = "", foot = "", cls = "", close = 'data-r="0"' } = {}) {
-  return `<div class="svc-card${cls ? " " + cls : ""}" role="dialog" aria-modal="true">
+/* v1121 (L2, série L) : st = état de la pièce (instance, fige, encours, remis, partiel, valide, annule…) — le bandeau de la fenêtre prend sa couleur (palette 1.2) */
+function sviWinCard({ title = "", body = "", foot = "", cls = "", close = 'data-r="0"', st = "" } = {}) {
+  return `<div class="svc-card${cls ? " " + cls : ""}"${st ? ` data-st="${String(st).replace(/[^a-z]/g, "")}"` : ""} role="dialog" aria-modal="true">
       ${close ? `<button type="button" class="svc-close" ${close} aria-label="Fermer">✕</button>` : ""}
       <div class="svc-t">${title}</div>${body}
       ${foot ? `<div class="svc-f">${foot}</div>` : ""}

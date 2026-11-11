@@ -35,7 +35,7 @@ function achBsnFiche(id, done) {
     const ctl = achBsnCtl(B, achBsn()), why = achBsnWhy(B, achBsn());
     const nf = v => (Number(v) || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const dis = ro ? " disabled" : "";
-    d.innerHTML = sviWinCard({ cls: "frs-card bsn-card", close: "data-x", title: achWinTtl(b0 && B.ref, "NOUVEAU BESOIN"),
+    d.innerHTML = sviWinCard({ st: b0 ? achPcSt("bsn", b0) : "instance", cls: "frs-card bsn-card", close: "data-x", title: achWinTtl(b0 && B.ref, "NOUVEAU BESOIN"),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
         <div class="frs-sec"><div class="frs-st">AFFECTATION</div><div class="frs-g">${achCreeFld(b0)}
           <label class="frs-f"><span>CENTRE DE COÛT</span><select class="ins-in bsn-x" data-k="centre"${dis}>${opt([["CHANTIER", "CHANTIER (BUDGET)"], ["SIÈGE", "SIÈGE (HORS BUDGET)"]], B.centre)}</select></label>

@@ -325,7 +325,7 @@ function achDvfFiche(id, done) {
   const ro = !!v0 && v0.state !== "recu", d = sviWinNew();
   const draw = () => {
     const t = achDvfTot(V), why = V.id ? achDvfWhy(V) : [], dis = ro ? " disabled" : "", FR = achLive(achFrs()).filter(f => achFrsOk(f) || f.id === V.frs);
-    d.innerHTML = sviWinCard({ cls: "frs-card dvf-card", close: "data-x", title: achWinTtl(v0 && V.ref, "NOUVEAU DEVIS"),   /* série I (I8) : bandeau = la référence seule */
+    d.innerHTML = sviWinCard({ st: v0 ? achPcSt("dvf", v0) : "instance", cls: "frs-card dvf-card", close: "data-x", title: achWinTtl(v0 && V.ref, "NOUVEAU DEVIS"),   /* série I (I8) : bandeau = la référence seule */
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}</div>` : ""}<div class="frs-scroll">
         <div class="frs-sec"><div class="frs-g">${achCreeFld(v0)}
           <label class="frs-f frs-w"><span>FOURNISSEUR <b>*</b></span><select class="ins-in dvf-x" data-k="frs"${dis || (V.caf ? " disabled" : "")}><option value=""></option>${FR.map(f => `<option value="${esc(f.id)}"${f.id === V.frs ? " selected" : ""}>${esc(f.code + " — " + f.nom)}</option>`).join("")}</select></label>
