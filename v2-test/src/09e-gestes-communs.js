@@ -734,12 +734,12 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
         w = Math.max(w, tw(s, cs.font) + (parseFloat(cs.letterSpacing) || 0) * s.length + pad + 8); });
       W[k] = Math.round(Math.max(MIN, Math.min(MAX, w))); });
     return Object.keys(W).length ? W : null; };
-  const apply = (t, W) => { const cols = [...t.querySelectorAll(":scope > colgroup > col")]; cols.forEach(c => { const k = keyOf(t, c); if (k && W[k]) c.style.width = W[k] + "px"; });
+  const apply = (t, W) => { if (t.closest(".cai-card") && !t.__cwForce) return; const cols = [...t.querySelectorAll(":scope > colgroup > col")]; cols.forEach(c => { const k = keyOf(t, c); if (k && W[k]) c.style.width = W[k] + "px"; });
     const H = grid(t.tHead.rows[t.tHead.rows.length - 1]), tot = cols.reduce((s, c, i) => c.classList.contains("svi-colh") || (H[i] && H[i].classList.contains("svi-colh")) ? s : s + (parseFloat(c.style.width) || (H[i] ? H[i].getBoundingClientRect().width : 0)), 0);   /* v1093 : colonnes masquées non comptées (sinon le surplus allait à la dernière colonne) */
     if (tot > 0) { t.style.width = tot + "px"; t.style.minWidth = tot + "px"; }
     /* zones de texte d'une ligne : hauteur recalculée à la nouvelle largeur (plus de ligne restée haute) */
     t.querySelectorAll("tbody textarea").forEach(ta => { if (!ta.style.height) return; ta.style.height = ""; if (ta.scrollHeight > ta.clientHeight + 2) ta.style.height = ta.scrollHeight + "px"; }); };
-  const fit = (t, force) => { const cols = [...t.querySelectorAll(":scope > colgroup > col")], keys = cols.map(c => keyOf(t, c)).filter(Boolean); if (!keys.length) return false;
+  const fit = (t, force) => { if (!force && t.closest(".cai-card")) return false; const cols = [...t.querySelectorAll(":scope > colgroup > col")], keys = cols.map(c => keyOf(t, c)).filter(Boolean); if (!keys.length) return false;
     const CW = cwLoad(); if (!force && keys.some(k => CW[k])) return false;   /* déjà réglé (à la main ou à une ouverture d'avant) */
     const W = measure(t); if (!W) return false; apply(t, W); grow(t, W); shrink(t, W); Object.assign(CW, W); cwSave(CW); cwAuto(W);
     setTimeout(() => { if (t.isConnected && grow(t, W)) { shrink(t, W); const C2 = cwLoad(); Object.assign(C2, W); cwSave(C2); cwAuto(W); } }, 700);   /* zones de texte ajustées après coup */
@@ -775,7 +775,7 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
     const tx = vis.filter(c => !/^_/.test(c.dataset.k || "")), base = tx.reduce((a, c) => a + parseFloat(c.style.width), 0); if (!tx.length || base <= 0) return;
     let left = extra; tx.forEach((c, i) => { const add = i === tx.length - 1 ? left : Math.floor(extra * parseFloat(c.style.width) / base); left -= add; c.dataset.cw0 = c.style.width; c.style.width = (parseFloat(c.style.width) + add) + "px"; }); };
   window.sviCwSpread = spread;
-  let q = 0; const run = () => { q = 0; document.querySelectorAll("table:is([data-svcw], :has(> colgroup > col[data-w]))").forEach(t => { if (t.offsetParent !== null && !t.closest(".fmt-t")) { try { fit(t, false); } catch (e) {} try { spread(t); } catch (e) {} } }); };
+  let q = 0; const run = () => { q = 0; document.querySelectorAll("table:is([data-svcw], :has(> colgroup > col[data-w]))").forEach(t => { if (t.offsetParent !== null && !t.closest(".fmt-t, .cai-card")) { try { fit(t, false); } catch (e) {} try { spread(t); } catch (e) {} } }); };
   addEventListener("resize", () => { if (!q) q = setTimeout(run, 350); });
   const go = () => { if (!q) q = setTimeout(run, 350); };
   const start = () => new MutationObserver(go).observe(document.body, { childList: true, subtree: true });

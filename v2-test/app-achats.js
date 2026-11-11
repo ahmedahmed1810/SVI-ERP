@@ -2501,83 +2501,135 @@ function achCafSend(id) { const c = achCaf().find(y => y.id === id); if (!c) ret
    article ou fournisseur inconnu = créé au nom tapé, EN INSTANCE, « CRÉÉ DEPUIS LA CONSULTATION » (fournisseur occasionnel : ni ICE ni RIB exigés).
    ENREGISTRER crée ou met à jour la consultation puis sa page s'ouvre ; liaisons (rond) dans la page ; consultation close = lecture seule. */
 function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id === id) : null; if (id && !c0) return;
+  /* 11/11 (Ahmed, validé) : forme du bloc TÂCHES / DÉSIGNATIONS CLIENT — un bloc CONSULTATION, quatre listes côte à côte (ARTICLES, FOURNISSEURS,
+     DOCUMENTS, CONDITIONS) : ronds de liaison, loupe par colonne (tri, filtre, masquer), titres glissés = ordre des colonnes, bords tirés = largeur,
+     case d'en-tête et cases des lignes, ligne CRÉER … ICI ; ⋯ du bloc : IMPORTER, SUPPRIMER LES COCHÉS, MODIFIER LE FORMAT */
   const ro = !!c0 && c0.state !== "ouverte", d = sviWinNew(), dis = ro ? " disabled" : "";
   const C = JSON.parse(JSON.stringify(c0 || { objet: "", lignes: [], frs: [] })); if (!c0) { C.lignes = []; C.frs = []; } achCafUp(C);
   const code0 = c0 ? (c0.ref || c0.code) : "";
   const BSN = achBsnOpen(), BS = new Map(achBsn().map(b => [b.id, b])), ARTS = achArts().filter(a => !a.del), FRS = achFrs().filter(f => !f.del);
   const docs0 = code0 ? (achJ("svi_docs_v1:ACH-" + code0, []) || []).map((d0, i) => ({ ...d0, __id: d0.ref || "d" + i })) : [];
-  const S = { L: C.lignes.map(l => ({ ...l })), F: C.frs.map(f => ({ id: f, nom: achFrsNom(f) })), D: docs0.filter(x => !(C.dhide || []).includes(x.__id)), Dn: [], Dh: [], K: (C.cond || []).map(x => ({ ...x })) };
+  const S = { L: C.lignes.map(l => ({ ...l })), F: C.frs.map(f => ({ k: f, id: f, nom: achFrsNom(f) })), D: docs0.filter(x => !(C.dhide || []).includes(x.__id)).map(x => ({ ...x, k: x.__id })), Dh: [],
+    K: (C.cond || []).map(x => ({ ...x })), lk: {}, sel: null };
+  ["lf", "ld", "lc", "fd", "fc"].forEach(o => { S.lk[o] = JSON.parse(JSON.stringify(C[o] || {})); });
+  const PAIR = { "L-F": ["lf", 0, 1], "F-L": ["lf", 1, 0], "L-D": ["ld", 0, 1], "D-L": ["ld", 1, 0], "L-K": ["lc", 0, 1], "K-L": ["lc", 1, 0], "F-D": ["fd", 0, 1], "D-F": ["fd", 1, 0], "F-K": ["fc", 0, 1], "K-F": ["fc", 1, 0] };
+  const lkHas = (o, a, b) => ((S.lk[o] || {})[a] || []).includes(b);
+  const lkTog = (o, a, b) => { const M = S.lk[o] = S.lk[o] || {}, A = M[a] = M[a] || []; const i = A.indexOf(b); if (i >= 0) A.splice(i, 1); else A.push(b); };
+  const rdSt = (g, k) => { if (S.sel && S.sel.g === g && S.sel.k === k) return "choisi"; if (!S.sel) return ""; const P = PAIR[S.sel.g + "-" + g]; if (!P) return ""; const ab = [S.sel.k, k]; return lkHas(P[0], ab[P[1]], ab[P[2]]) ? "lie" : ""; };
+  const LST = { L: () => S.L, F: () => S.F, D: () => S.D, K: () => S.K };
+  const COLS = {
+    L: [["bsn", "BESOIN", r => { const b = BS.get(r.bsn); return b ? b.ref : ""; }], ["des", "ARTICLES", r => r.des || ""], ["u", "U", r => r.u || "", "center"], ["q", "QTÉ", r => r.q === "" || r.q === undefined ? "" : achN(r.q), "number"]],
+    F: [["nom", "FOURNISSEURS", r => r.nom || ""]], D: [["title", "DOCUMENTS", r => (r.title || r.ref || "")]], K: [["lab", "CONDITIONS", r => r.lab || ""], ["v", "VALEUR", r => r.v || ""]] };
+  const NEW = { L: "CRÉER UN ARTICLE ICI…", F: "CRÉER UN FOURNISSEUR ICI…", D: "CRÉER UN DOCUMENT ICI…", K: "CRÉER UNE CONDITION ICI…" };
+  const KIT = sviCfKit({ key: "cai", shell: d, refresh: () => draw() });
+  const kOf = (g, r) => g === "L" ? r.id : g === "F" ? r.k : g === "D" ? r.k : r.id;
   const opt = (v, t, sel) => `<option value="${esc(v)}"${sel ? " selected" : ""}>${esc(t)}</option>`;
-  const cb = (k, i) => ro ? "" : `<input type="checkbox" class="cai-ck" data-g="${k}" data-i="${i}">`;
-  const sec = (k, t, n, body, tools) => `<div class="frs-sec cai-sec" data-sec="${k}"><div class="frs-st">${t} ${svCnt(n)}</div>${body}${ro ? "" : `<div class="cai-tools">${tools}</div>`}</div>`;
-  const tbl = (head, rows) => `<table class="bdg-d-table rec-table cai-t"><thead><tr>${head.map(h => `<th>${h}</th>`).join("")}${ro ? "" : "<th></th>"}</tr></thead><tbody>${rows || `<tr><td colspan="${head.length + 1}" class="cai-empty">—</td></tr>`}</tbody></table>`;
-  const draw = () => {
-    const art = tbl(["BESOIN", "ARTICLE", "U", "QUANTITÉ"], S.L.map((l, i) => `<tr${l.imp ? ' class="cai-imp"' : ""}><td><select class="ins-in cai-x" data-g="L" data-i="${i}" data-k="bsn"${dis}>${opt("", "—", !l.bsn)}${(l.bsn && !BSN.some(b => b.id === l.bsn) && BS.get(l.bsn) ? [BS.get(l.bsn)] : []).concat(BSN).map(b => opt(b.id, b.ref + " — " + b.des, b.id === l.bsn)).join("")}</select></td>
-      <td><input class="ins-in cai-x" data-g="L" data-i="${i}" data-k="des" list="caiArts" value="${esc(l.des || "")}"${dis} autocomplete="off"></td><td><input class="ins-in cai-x" data-g="L" data-i="${i}" data-k="u" value="${esc(l.u || "")}"${dis} autocomplete="off"></td>
-      <td><input class="ins-in cai-x number" data-g="L" data-i="${i}" data-k="q" inputmode="decimal" value="${esc(l.q === "" || l.q === undefined ? "" : String(l.q).replace(".", ","))}"${dis}></td><td class="center">${cb("L", i)}</td></tr>`).join(""));
-    const frs = tbl(["FOURNISSEUR"], S.F.map((f, i) => `<tr><td>${esc(f.nom)}${f.id ? "" : ` <i class="cai-new">(NOUVEAU)</i>`}</td><td class="center">${cb("F", i)}</td></tr>`).join(""));
-    const dc = tbl(["RÉFÉRENCE", "INTITULÉ"], S.D.map((x, i) => `<tr><td>${esc(x.ref || "")}</td><td>${esc(x.title || "")}</td><td class="center">${cb("D", i)}</td></tr>`).concat(S.Dn.map((x, i) => `<tr><td><i class="cai-new">(NOUVEAU)</i></td><td>${esc(x.title)}</td><td class="center">${cb("N", i)}</td></tr>`)).join(""));
-    const cnd = tbl(["CONDITION", "VALEUR"], S.K.map((cd, i) => `<tr><td>${esc(cd.lab)}</td><td>${cd.t === "on" ? `<select class="ins-in cai-x" data-g="K" data-i="${i}" data-k="v"${dis}>${["", "OUI", "NON"].map(v => opt(v, v || "—", cd.v === v)).join("")}</select>`
-      : `<input class="ins-in cai-x${cd.t === "num" ? " number" : ""}" data-g="K" data-i="${i}" data-k="v"${cd.t === "date" ? ' type="date"' : ""} value="${esc(cd.v || "")}"${dis} autocomplete="off">`}</td><td class="center">${cb("K", i)}</td></tr>`).join(""));
-    const rmB = g => `<button type="button" class="svc-b cai-rm" data-g="${g}">RETIRER LES COCHÉS</button>`;
+  const cell = (g, c, r, i) => { const k = c[0], cl = c[3] || "";
+    if (ro) return `<td class="${cl}">${esc(c[2](r))}</td>`;
+    if (g === "L" && k === "bsn") return `<td><select class="ins-in cai-x" data-g="L" data-i="${i}" data-k="bsn">${opt("", "—", !r.bsn)}${(r.bsn && !BSN.some(b => b.id === r.bsn) && BS.get(r.bsn) ? [BS.get(r.bsn)] : []).concat(BSN).map(b => opt(b.id, b.ref + " — " + b.des, b.id === r.bsn)).join("")}</select></td>`;
+    if (g === "L") return `<td class="${cl}"><input class="ins-in cai-x${k === "q" ? " number" : ""}" data-g="L" data-i="${i}" data-k="${k}"${k === "des" ? ' list="caiArts"' : ""}${k === "q" ? ' inputmode="decimal"' : ""} value="${esc(k === "q" ? (r.q === "" || r.q === undefined ? "" : String(r.q).replace(".", ",")) : r[k] || "")}" autocomplete="off"></td>`;
+    if (g === "K" && k === "v") return `<td>${r.t === "on" ? `<select class="ins-in cai-x" data-g="K" data-i="${i}" data-k="v">${["", "OUI", "NON"].map(v => opt(v, v || "—", r.v === v)).join("")}</select>` : `<input class="ins-in cai-x${r.t === "num" ? " number" : ""}" data-g="K" data-i="${i}" data-k="v"${r.t === "date" ? ' type="date"' : ""} value="${esc(r.v || "")}" autocomplete="off">`}</td>`;
+    if (g === "F") return `<td><span class="${r.id ? "ach-link" : "cai-nw"}"${r.id ? ` data-nvgo="frs|${esc(r.id)}"` : ""}>${esc(r.nom)}</span>${r.id ? "" : ' <i class="cai-new">(NOUVEAU)</i>'}</td>`;
+    if (g === "D") return `<td>${r.fk ? `<span class="ach-link cafp-doc" data-fk="${esc(r.fk)}">${esc(r.title || r.ref || "")}</span>` : `${esc(r.title || "")} <i class="cai-new">(NOUVEAU)</i>`}</td>`;
+    return `<td>${esc(c[2](r))}</td>`; };
+  const list = g => { const t = "cai_" + g, C0 = COLS[g], CO = coOrder(t, C0.map(c => [c[0], c[1], c[2], c[3] || ""])), R0 = LST[g]().map((r, i) => ({ ...r, __i: i })), R = KIT.cfApply(t, CO, R0);
+    /* largeurs : partagées dans la largeur de la liste, sauf celles réglées à la main (bord tiré) */
+    const CW = cwLoad(), PR = { bsn: 1, des: 1.6, u: .75, q: .85, nom: 1, title: 1, lab: 1.3, v: 1 };
+    const sum = CO.reduce((x, c) => x + (CW[t + "." + c[0]] ? 0 : PR[c[0]] || 1), 0) || 1;
+    const WD = CO.map(c => { const w = CW[t + "." + c[0]]; return w ? w + "px" : Math.floor((PR[c[0]] || 1) / sum * 82) + "%"; });
+    const cg = `<colgroup><col data-k="_rd" style="width:26px">${CO.map((c, j) => `<col data-k="${c[0]}" style="width:${WD[j]}">`).join("")}<col data-k="_cb" style="width:28px"></colgroup>`
+      /* largeurs tenues (les moteurs de largeur des pages ne s'appliquent pas à cette fenêtre) */
+      + `<style>.cai-card .cai-t[data-svcw="${t}"]{width:100%!important;min-width:0!important}.cai-card .cai-t[data-svcw="${t}"] col:nth-child(1){width:26px!important}.cai-card .cai-t[data-svcw="${t}"] col:nth-child(${CO.length + 2}){width:28px!important}${CO.map((c, j) => `.cai-card .cai-t[data-svcw="${t}"] col:nth-child(${j + 2}){width:${WD[j]}!important}`).join("")}</style>`;
+    const all = R.length && R.every(r => (S.ck[g] || new Set()).has(r.__i));
+    const [cg1, st1] = cg.split("<style>"); return `<div class="cai-ls" data-g="${g}"><style>${st1}<table class="bdg-d-table rec-table cai-t" data-svcw="${t}" style="width:100%">${cg1}<thead><tr><th class="cai-rdh"></th>${CO.map(c => KIT.cfHead(t, c[0], c[1] + (c[0] === { L: "des", F: "nom", D: "title", K: "lab" }[g] ? " " + svCnt(R.length, R0.length) : ""), c[3])).join("")}<th class="center">${ro ? "" : `<input type="checkbox" class="cai-all" data-g="${g}"${all ? " checked" : ""}>`}</th></tr></thead>
+      <tbody>${R.map(r => `<tr data-g="${g}" data-i="${r.__i}"${r.imp ? ' class="cai-imp"' : ""}><td class="center"><button type="button" class="nvp-rd${(st => st ? " rd-" + st : "")(rdSt(g, kOf(g, r)))}" data-rg="${g}" data-rk="${esc(kOf(g, r))}" aria-label="Liaison"></button></td>${CO.map(c => cell(g, c, r, r.__i)).join("")}<td class="center">${ro ? "" : `<input type="checkbox" class="cai-ck" data-g="${g}" data-i="${r.__i}"${(S.ck[g] || new Set()).has(r.__i) ? " checked" : ""}>`}</td></tr>`).join("")}
+      ${ro ? "" : `<tr class="rec-new" data-cai-new="${g}"><td colspan="${CO.length + 2}">${NEW[g]}</td></tr>`}</tbody></table></div>`; };
+  S.ck = {};
+  const draw = () => { const ob = d.querySelector('.cafi-x[data-k="objet"]'); if (ob) C.objet = achU(ob.value);
     d.innerHTML = sviWinCard({ cls: "frs-card caf-card caf-info cai-card", close: "data-x", title: achWinTtl(c0 && c0.ref, "NOUVELLE CONSULTATION"),
       body: `<div class="frs-g">${achCreeFld(c0)}<label class="frs-f frs-w"><span>OBJET</span><input class="ins-in cafi-x" data-k="objet" value="${esc(C.objet || "")}"${dis} autocomplete="off"></label></div>
-        ${sec("L", "ARTICLES CONSULTÉS", S.L.length, art, `<button type="button" class="svc-b" data-cai="addL">CRÉER UN DÉTAIL ICI…</button><button type="button" class="svc-b" data-cai="imp">IMPORTER</button>${rmB("L")}`)}
-        ${sec("F", "FOURNISSEURS CONSULTÉS", S.F.length, frs, `<input class="ins-in cai-fin" list="caiFrs" placeholder="NOM DU FOURNISSEUR (LISTE OU NOUVEAU)" autocomplete="off"><button type="button" class="svc-b" data-cai="addF">AJOUTER</button>${rmB("F")}`)}
-        ${sec("D", "DOCUMENTS ENVOYÉS", S.D.length + S.Dn.length, dc, `<button type="button" class="svc-b" data-cai="addD">AJOUTER UN DOCUMENT…</button>${rmB("D")}`)}
-        ${sec("K", "CONDITIONS PARTICULIÈRES", S.K.length, cnd, `<button type="button" class="svc-b" data-cai="addK">AJOUTER UNE CONDITION…</button>${rmB("K")}`)}
+        <div class="bdg-d-block cai-blk"><div class="bdg-d-block-title blk-head"><span class="ttl">CONSULTATION</span><span class="blk-tools"><button type="button" class="blk-more cai-more" aria-label="Actions">⋯</button></span></div>
+        <div class="cai-grid">${["L", "F", "D", "K"].map(list).join("")}</div></div>
         <datalist id="caiArts">${ARTS.map(a => `<option value="${esc(a.des)}">${esc(a.u || "")}</option>`).join("")}</datalist>
         <datalist id="caiFrs">${FRS.filter(f => !S.F.some(x => x.id === f.id)).map(f => `<option value="${esc(f.nom)}"></option>`).join("")}</datalist>`,
       foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${ro ? "" : `<button type="button" class="svc-b svc-ok svc-neutral" data-ok>ENREGISTRER</button>`}` }); };
   const sync = () => { d.querySelectorAll(".cai-x").forEach(i => { const g = i.dataset.g, k = i.dataset.k, o = (g === "L" ? S.L : S.K)[+i.dataset.i]; if (!o) return;
       if (g === "L" && k === "q") o.q = String(i.value).trim() === "" ? "" : achN(i.value); else if (g === "L" && k === "bsn") o.bsn = i.value || ""; else o[k] = k === "v" && i.type === "date" ? i.value : achU(i.value); });
     const ob = d.querySelector('.cafi-x[data-k="objet"]'); if (ob) C.objet = achU(ob.value); };
+  /* suppression des lignes cochées (toutes les listes) : leurs liaisons partent avec elles ; un fournisseur qui a un devis est gardé */
+  const rmChecked = async () => { const n = Object.values(S.ck).reduce((a, x) => a + x.size, 0); if (!n) { svToast("COCHER D'ABORD LES LIGNES À SUPPRIMER (CASES À DROITE).", 3000); return; }
+    const D0 = achDvf(), keepF = S.F.filter((f, i) => (S.ck.F || new Set()).has(i) && f.id && D0.some(v => v.caf === (c0 && c0.id) && v.frs === f.id && v.state !== "annule"));
+    const lab = g => [...(S.ck[g] || [])].map(i => LST[g]()[i]).filter(Boolean).filter(r => !keepF.includes(r)).map(r => "- " + (r.des || r.nom || r.title || r.lab || ""));
+    const all = ["L", "F", "D", "K"].flatMap(lab); if (!all.length) { svToast("GARDÉ(S) : FOURNISSEUR AVEC DEVIS.", 3000); return; }
+    if (!(await sub(() => svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES", html: all.map(x => `<div>${esc(x)}</div>`).join("") + (keepF.length ? `<div style="margin-top:12px">GARDÉ(S) (DEVIS REÇU) : ${esc(keepF.map(f => f.nom).join(", "))}</div>` : ""), ok: "SUPPRIMER" })))) return;
+    const gone = { L: new Set(), F: new Set(), D: new Set(), K: new Set() };
+    ["L", "F", "D", "K"].forEach(g => [...(S.ck[g] || [])].forEach(i => { const r = LST[g]()[i]; if (r && !keepF.includes(r)) gone[g].add(kOf(g, r)); }));
+    S.Dh = S.Dh.concat(S.D.filter(x => gone.D.has(x.k) && x.fk && x.__id).map(x => x.__id));
+    S.L = S.L.filter(r => !gone.L.has(r.id)); S.F = S.F.filter(r => !gone.F.has(r.k)); S.D = S.D.filter(r => !gone.D.has(r.k)); S.K = S.K.filter(r => !gone.K.has(r.id));
+    const G = { lf: ["L", "F"], ld: ["L", "D"], lc: ["L", "K"], fd: ["F", "D"], fc: ["F", "K"] };
+    Object.keys(G).forEach(o => { const M = S.lk[o] || {}, [ga, gb] = G[o]; Object.keys(M).forEach(a => { if (gone[ga].has(a)) { delete M[a]; return; } M[a] = (M[a] || []).filter(b => !gone[gb].has(b)); }); });
+    if (S.sel && gone[S.sel.g].has(S.sel.k)) S.sel = null; S.ck = {}; draw(); };
+  /* une seule fenêtre à la fois (#svConf) : une fenêtre ouverte depuis celle-ci la remplace le temps de la réponse, puis celle-ci revient telle quelle */
+  const sub = async fn => { sync(); d.remove(); try { return await fn(); } finally { document.getElementById("svConf")?.remove(); document.body.appendChild(d); } };
+  const subWin = open => sub(() => new Promise(ok => { open(); const t0 = Date.now(); const tm = setInterval(() => { if (Date.now() - t0 > 300 && !document.getElementById("svConf")) { clearInterval(tm); ok(); } }, 250); }));
   draw(); sviWinShow(d);
-  /* un besoin choisi remplit l'article, l'unité et la quantité */
-  d.addEventListener("change", e => { const t = e.target; if (!t.matches('.cai-x[data-k="bsn"]')) { if (t.matches('.cai-x[data-k="des"]')) { const a = ARTS.find(y => achU(y.des) === achU(t.value)), u = t.closest("tr").querySelector('[data-k="u"]'); if (a && u && !u.value) u.value = a.u || ""; } return; }
-    const b = BS.get(t.value), tr = t.closest("tr"); if (!b) return; sync(); const l = S.L[+t.dataset.i]; l.des = b.des; l.u = b.u; l.q = achN(b.q); draw(); void tr; });
+  d.addEventListener("change", e => { const t = e.target;
+    if (t.matches(".cai-ck")) { const g = t.dataset.g, A = S.ck[g] = S.ck[g] || new Set(); if (t.checked) A.add(+t.dataset.i); else A.delete(+t.dataset.i); return; }
+    if (t.matches(".cai-all")) { sync(); const g = t.dataset.g, A = S.ck[g] = new Set(); if (t.checked) d.querySelectorAll(`.cai-ck[data-g="${g}"]`).forEach(x => A.add(+x.dataset.i)); draw(); return; }
+    if (t.matches('.cai-x[data-k="des"]')) { const a = ARTS.find(y => achU(y.des) === achU(t.value)), u = t.closest("tr").querySelector('[data-k="u"]'); if (a && u && !u.value) u.value = a.u || ""; return; }
+    if (t.matches('.cai-x[data-k="bsn"]')) { const b = BS.get(t.value); if (!b) return; sync(); const l = S.L[+t.dataset.i]; l.des = b.des; l.u = b.u; l.q = achN(b.q); draw(); } });
+  /* glisser un titre de colonne = ordre des colonnes de cette liste (gardé) */
+  d.addEventListener("pointerdown", e => { const th = e.target.closest && e.target.closest(".cai-t thead th"); if (!th || e.target.closest(".cf-btn, .col-rs, input") || !th.querySelector(".cf-btn")) return;
+    const table = th.closest("table"), t = th.querySelector(".cf-btn").dataset.cf, ths = () => [...table.querySelectorAll("thead tr:first-child > th")].filter(x => x.querySelector(".cf-btn"));
+    const x0 = e.clientX; let on = false, target = null, ghost = null; const arm = sviColArm(e, th); const clear = () => ths().forEach(x => x.classList.remove("co-before", "co-after"));
+    const mv = ev => { if (!on) { if (Math.abs(ev.clientX - x0) < 8) return; if (!arm(ev)) return; on = true; th.classList.add("co-src"); ghost = document.createElement("div"); ghost.id = "coGhost"; ghost.textContent = (th.querySelector(".cf-lt")?.textContent || "").trim(); document.body.appendChild(ghost); }
+      ev.preventDefault(); ghost.style.left = ev.clientX + 8 + "px"; ghost.style.top = ev.clientY - 28 + "px"; clear(); target = null;
+      const L = ths(); for (const x of L) { const r = x.getBoundingClientRect(); if (ev.clientX >= r.left && ev.clientX < r.right) { if (x !== th) { x.classList.add(L.indexOf(x) > L.indexOf(th) ? "co-after" : "co-before"); target = x; } break; } } };
+    const up = () => { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up); clear(); th.classList.remove("co-src"); ghost && ghost.remove();
+      if (!on || !target) return; sync(); const kf = x => x.querySelector(".cf-btn").dataset.col, keys = ths().map(kf), from = keys.indexOf(kf(th)), to = keys.indexOf(kf(target)); const [k] = keys.splice(from, 1); keys.splice(to, 0, k);
+      const all = coLoad(); all[t] = keys; coSave(all); d.addEventListener("click", ev => { ev.stopPropagation(); ev.preventDefault(); }, { capture: true, once: true }); draw(); };
+    document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up); });
   d.addEventListener("click", async e => {
-    if (e.target === d || e.target.closest("[data-x]")) { d.remove(); if (done) done(); return; }
-    const a = e.target.closest("[data-cai]"), rm = e.target.closest(".cai-rm");
-    if (rm && !ro) { sync(); const g = rm.dataset.g, ck = k => [...d.querySelectorAll(`.cai-ck[data-g="${k}"]:checked`)].map(x => +x.dataset.i);
-      if (g === "L") { const I = ck("L"); if (!I.length) { svToast("COCHER D'ABORD LES DÉTAILS À RETIRER.", 2500); return; } S.L = S.L.filter((_, i) => !I.includes(i)); }
-      if (g === "F") { const I = ck("F"), D0 = achDvf(); const keep = S.F.filter((f, i) => I.includes(i) && f.id && D0.some(v => v.caf === (c0 && c0.id) && v.frs === f.id && v.state !== "annule"));
-        if (!I.length) { svToast("COCHER D'ABORD LES FOURNISSEURS À RETIRER.", 2500); return; } if (keep.length) svToast("GARDÉ(S) : " + keep.map(f => f.nom).join(", ") + " (DEVIS REÇU).", 3500); S.F = S.F.filter((f, i) => !I.includes(i) || keep.includes(f)); }
-      if (g === "D") { const I = ck("D"), N = ck("N"); if (!I.length && !N.length) { svToast("COCHER D'ABORD LES DOCUMENTS À RETIRER.", 2500); return; } S.Dh = S.Dh.concat(S.D.filter((_, i) => I.includes(i)).map(x => x.__id)); S.D = S.D.filter((_, i) => !I.includes(i)); S.Dn = S.Dn.filter((_, i) => !N.includes(i)); }
-      if (g === "K") { const I = ck("K"); if (!I.length) { svToast("COCHER D'ABORD LES CONDITIONS À RETIRER.", 2500); return; } S.K = S.K.filter((_, i) => !I.includes(i)); }
-      draw(); return; }
-    if (a && !ro) { sync(); const k = a.dataset.cai;
-      if (k === "addL") { S.L.push({ id: achCafId(), bsn: "", des: "", u: "", q: "" }); draw(); const ins = d.querySelectorAll('.cai-x[data-k="des"]'); ins[ins.length - 1]?.focus(); return; }
-      if (k === "imp") { const R = await achCafImpRead(S.D.filter(x => x.fk), c0 && c0.id); if (!R) return; let g = null; const G = C.grp = C.grp || [];
-        R.rows.forEach(r => { if (r.title) { g = { id: achCafId(), lab: achU(r.title) }; G.push(g); return; } const ar = achArtOf(r.des, r.u); S.L.push({ id: achCafId(), bsn: "", des: ar ? ar.des : achU(r.des), u: ar ? ar.u : achU(r.u), q: r.q, imp: true, ...(g ? { g: g.id } : {}) }); });
-        if (R.file) S.Dn.push({ f: R.file, title: "IMPORT — " + R.file.name }); const n = R.rows.filter(r => !r.title).length;
-        svToast(n ? n + " DÉTAIL(S) IMPORTÉ(S) : À VÉRIFIER DANS LA PAGE (EN ROUGE) PUIS CONFIRMER." : "AUCUNE LIGNE RECONNUE DANS « " + R.from + " ».", 4000); draw(); return; }
-      if (k === "addF") { const inp = d.querySelector(".cai-fin"), nom = achU(inp && inp.value || ""); if (!nom) { svToast("TAPER LE NOM DU FOURNISSEUR.", 2500); return; }
-        const f = FRS.find(x => achU(x.nom) === nom); if (S.F.some(x => (f && x.id === f.id) || achU(x.nom) === nom)) { svToast("DÉJÀ DANS LA CONSULTATION.", 2500); return; }
-        S.F.push(f ? { id: f.id, nom: f.nom } : { id: "", nom }); draw(); return; }
-      if (k === "addD") { const f = await new Promise(ok => { const i = document.createElement("input"); i.type = "file"; i.onchange = () => ok(i.files[0] || null); i.click(); }); if (!f) return;
-        const t = await achAsk("NOUVEAU DOCUMENT", "INTITULÉ") || f.name; S.Dn.push({ f, title: achU(t) }); draw(); return; }
-      if (k === "addK") { const lab = await achAsk("NOUVELLE CONDITION PARTICULIÈRE", "INTITULÉ (AJOUTÉ AUSSI À ACHATS › CLAUSES)"); if (!lab) return; S.K.push({ id: achCafId(), k: "autre", lab: achU(lab), t: "text", v: "" });
+    if (e.target === d || e.target.closest("[data-x]")) { KIT.cfClose(); d.remove(); if (done) done(); return; }
+    const cfb = e.target.closest(".cf-btn[data-cf]"); if (cfb) { e.stopPropagation(); sync(); KIT.cfOpenMenu(cfb); return; }
+    if (e.target.closest(".cafp-doc")) { achCopyOpen(e.target.closest(".cafp-doc").dataset.fk); return; }
+    if (ro) { if (e.target.closest("[data-ok]")) { d.remove(); if (done) done(); } return; }
+    /* ronds : toucher un rond le choisit ; toucher un rond d'une autre liste lie ou délie les deux */
+    const rd = e.target.closest("[data-rg]"); if (rd) { sync(); const g = rd.dataset.rg, k = rd.dataset.rk;
+      if (S.sel && S.sel.g === g && S.sel.k === k) S.sel = null; else if (S.sel && S.sel.g !== g && PAIR[S.sel.g + "-" + g]) { const P = PAIR[S.sel.g + "-" + g], ab = [S.sel.k, k]; lkTog(P[0], ab[P[1]], ab[P[2]]); } else S.sel = { g, k }; draw(); return; }
+    const mo = e.target.closest(".cai-more"); if (mo) { e.stopPropagation(); sync();
+      sviHdrMenu(mo, [[{ k: "imp", lab: "IMPORTER DES ARTICLES" }], [{ k: "__fmt", lab: "MODIFIER LE FORMAT" }], [{ k: "rm", lab: "SUPPRIMER LES COCHÉS", del: true }]], async a => {
+        if (a === "__fmt") { await subWin(() => sviFmtCurWin()); draw(); return; } if (a === "rm") { rmChecked(); return; }
+        if (a === "imp") { const R = await sub(() => achCafImpRead(S.D.filter(x => x.fk), c0 && c0.id)); if (!R) return; let g = null; const G = C.grp = C.grp || [];
+          R.rows.forEach(r => { if (r.title) { g = { id: achCafId(), lab: achU(r.title) }; G.push(g); return; } const ar = achArtOf(r.des, r.u), lid = achCafId(); S.L.push({ id: lid, bsn: "", des: ar ? ar.des : achU(r.des), u: ar ? ar.u : achU(r.u), q: r.q, imp: true, ...(g ? { g: g.id } : {}) }); S.lk.lf[lid] = S.F.map(f => f.k); });
+          if (R.file) { const k = "n" + Date.now().toString(36); S.D.push({ k, title: "IMPORT — " + R.file.name, f: R.file }); } const n = R.rows.filter(r => !r.title).length;
+          svToast(n ? n + " ARTICLE(S) IMPORTÉ(S) : À VÉRIFIER DANS LA PAGE (EN ROUGE) PUIS CONFIRMER." : "AUCUNE LIGNE RECONNUE DANS « " + R.from + " ».", 4000); draw(); } }); return; }
+    const nw = e.target.closest("[data-cai-new]"); if (nw) { sync(); const g = nw.dataset.caiNew;
+      if (g === "L") { const lid = achCafId(); S.L.push({ id: lid, bsn: "", des: "", u: "", q: "" }); S.lk.lf[lid] = S.F.map(f => f.k); draw(); const ins = d.querySelectorAll('.cai-x[data-k="des"]'); ins[ins.length - 1]?.focus(); return; }
+      if (g === "F") { const nom = achU(await sub(() => achAsk("FOURNISSEUR CONSULTÉ", "NOM (DE LA LISTE OU NOUVEAU)")) || ""); if (!nom) return; const f = FRS.find(x => achU(x.nom) === nom);
+        if (S.F.some(x => (f && x.id === f.id) || achU(x.nom) === nom)) { svToast("DÉJÀ DANS LA CONSULTATION.", 2500); return; } const k = f ? f.id : "n:" + nom; S.F.push({ k, id: f ? f.id : "", nom: f ? f.nom : nom }); S.L.forEach(l => { const A = S.lk.lf[l.id] = S.lk.lf[l.id] || []; if (!A.includes(k)) A.push(k); }); draw(); return; }
+      if (g === "D") { const f = await new Promise(ok => { const i = document.createElement("input"); i.type = "file"; i.onchange = () => ok(i.files[0] || null); i.click(); }); if (!f) return;
+        const t = await sub(() => achAsk("NOUVEAU DOCUMENT", "INTITULÉ")) || f.name; S.D.push({ k: "n" + Date.now().toString(36), title: achU(t), f }); draw(); return; }
+      if (g === "K") { const lab = await sub(() => achAsk("NOUVELLE CONDITION PARTICULIÈRE", "INTITULÉ (AJOUTÉ AUSSI À ACHATS › CLAUSES)")); if (!lab) return; S.K.push({ id: achCafId(), k: "autre", lab: achU(lab), t: "text", v: "" });
         const P = achPrm(), Lp = achClP(P); if (!Lp.some(y => achU(y.txt) === achU(lab))) { P.clP = Lp.concat([{ id: "p" + Date.now().toString(36), t: "autre", txt: achU(lab) }]); achPrmSave(P); } draw(); return; }
       return; }
-    if (!e.target.closest("[data-ok]") || ro) return;
-    sync(); const now = achNow(), Lc = achCaf();
-    /* articles et fournisseurs inconnus : créés au nom tapé, EN INSTANCE, « CRÉÉ DEPUIS LA CONSULTATION » */
+    if (!e.target.closest("[data-ok]")) return;
+    sync(); const now = achNow(), Lc = achCaf(); KIT.cfClose();
     let c = c0 ? Lc.find(x => x.id === id) : null;
     if (!c) { c = { id: "C" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), ref: achNextRef("CAF", Lc), objet: C.objet, date: now.slice(0, 10), dlim: "", lignes: [], frs: [], rep: {}, state: "ouverte", cree: now }; achCafUp(c); Lc.push(c); }
-    const ref = c.ref, AL = achArts(); let na = 0; S.L.filter(l => achU(l.des)).forEach(l => { if (!achArtOf(l.des, l.u)) { const a = achArtNew(AL, { des: l.des, u: l.u, src: "CONSULTATION " + ref }); a.st = "instance"; a.fromCaf = ref; achHist(a.code, "CRÉATION", "CRÉÉ DEPUIS LA CONSULTATION " + ref); na++; } }); if (na) achArtsSave(AL);
-    const FL = achFrs(); let nf = 0; S.F.forEach(f => { if (f.id) return; const n = achFrsNew(FL, { nom: f.nom, occ: true }); n.st = "instance"; n.fromCaf = ref; f.id = n.id; achHist(n.code, "CRÉATION", "CRÉÉ DEPUIS LA CONSULTATION " + ref); nf++; }); if (nf) achFrsSave(FL);
-    const oldF = c.frs || [], newF = S.F.map(f => f.id), addF = newF.filter(f => !oldF.includes(f)), delF = oldF.filter(f => !newF.includes(f));
-    c.objet = C.objet; c.frs = newF;
-    const old = new Map((c.lignes || []).map(l => [l.id, l]));
+    const ref = c.ref, AL = achArts(); let na = 0;
+    S.L.filter(l => achU(l.des)).forEach(l => { if (!achArtOf(l.des, l.u)) { const a = achArtNew(AL, { des: l.des, u: l.u, src: "CONSULTATION " + ref }); a.st = "instance"; a.fromCaf = ref; achHist(a.code, "CRÉATION", "CRÉÉ DEPUIS LA CONSULTATION " + ref); na++; } }); if (na) achArtsSave(AL);
+    const FL = achFrs(), KM = {}; let nf = 0; S.F.forEach(f => { if (f.id) { KM[f.k] = f.id; return; } const n = achFrsNew(FL, { nom: f.nom, occ: true }); n.st = "instance"; n.fromCaf = ref; f.id = n.id; KM[f.k] = n.id; achHist(n.code, "CRÉATION", "CRÉÉ DEPUIS LA CONSULTATION " + ref); nf++; }); if (nf) achFrsSave(FL);
+    const DM = {}; S.D.forEach(x => { if (x.__id) DM[x.k] = x.__id; }); for (const x of S.D.filter(y => y.f)) { try { const dx = await achCafDocAdd(ref, x.f, x.title); DM[x.k] = dx.ref; } catch (er) {} }
+    const LIDS = new Set(S.L.filter(l => achU(l.des)).map(l => l.id)), KIDS = new Set(S.K.map(x => x.id)), mapK = { L: k => LIDS.has(k) ? k : null, F: k => KM[k] || null, D: k => DM[k] || null, K: k => KIDS.has(k) ? k : null };
+    const G = { lf: ["L", "F"], ld: ["L", "D"], lc: ["L", "K"], fd: ["F", "D"], fc: ["F", "K"] };
+    Object.keys(G).forEach(o => { const [ga, gb] = G[o], M = {}; Object.keys(S.lk[o] || {}).forEach(a => { const A = mapK[ga](a); if (!A) return; const B = (S.lk[o][a] || []).map(mapK[gb]).filter(Boolean); if (B.length) M[A] = [...new Set(B)]; }); c[o] = M; });
+    const oldF = c.frs || [], newF = S.F.map(f => f.id); oldF.filter(f => !newF.includes(f)).forEach(f => { delete (c.rep || {})[f]; });
+    c.objet = C.objet; c.frs = newF; const old = new Map((c.lignes || []).map(l => [l.id, l]));
     c.lignes = S.L.filter(l => achU(l.des)).map(l => { const o = old.get(l.id) || {}, a = achArtOf(l.des, l.u); return { ...o, id: l.id, bsn: l.bsn || "", des: a ? a.des : achU(l.des), u: a ? a.u : achU(l.u), q: l.q === "" ? "" : achN(l.q), ...(l.imp ? { imp: true } : {}), ...(l.g ? { g: l.g } : {}) }; });
-    c.grp = (C.grp || c.grp || []).filter(g => c.lignes.some(l => l.g === g.id));
-    c.lf = c.lf || {}; c.lignes.forEach(l => { if (!Array.isArray(c.lf[l.id])) c.lf[l.id] = newF.slice(); else c.lf[l.id] = c.lf[l.id].filter(f => !delF.includes(f)).concat(addF.filter(f => !c.lf[l.id].includes(f))); });
-    Object.keys(c.lf).forEach(k => { if (!c.lignes.some(l => l.id === k)) { delete c.lf[k]; delete (c.ld || {})[k]; delete (c.lc || {})[k]; } });
-    delF.forEach(f => { delete (c.rep || {})[f]; delete (c.fd || {})[f]; delete (c.fc || {})[f]; });
-    c.cond = S.K; const kid = new Set(S.K.map(x => x.id)); Object.keys(c.fc || {}).forEach(f => { c.fc[f] = (c.fc[f] || []).filter(y => kid.has(y)); }); Object.keys(c.lc || {}).forEach(l => { c.lc[l] = (c.lc[l] || []).filter(y => kid.has(y)); });
+    c.lignes.forEach(l => { if (!Array.isArray(c.lf[l.id])) c.lf[l.id] = []; });
+    c.grp = (C.grp || c.grp || []).filter(g => c.lignes.some(l => l.g === g.id)); c.cond = S.K;
     c.dhide = [...new Set((c.dhide || []).concat(S.Dh))]; c.mod = now; achCafUp(c); achCafSave(Lc); achHist(ref, c0 ? "MODIFICATION" : "CRÉATION", c.objet);
-    for (const x of S.Dn) { try { await achCafDocAdd(ref, x.f, x.title); } catch (er) {} }
     if (na || nf) svToast((na ? na + " ARTICLE(S)" : "") + (na && nf ? " ET " : "") + (nf ? nf + " FOURNISSEUR(S)" : "") + " CRÉÉ(S) EN INSTANCE (DEPUIS LA CONSULTATION).", 3500);
     d.remove(); if (done) done(); });
 }
