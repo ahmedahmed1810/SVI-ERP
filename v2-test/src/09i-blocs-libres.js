@@ -65,6 +65,8 @@ document.addEventListener("pointerdown", e => {
     else { b.style.transform = `translate(${dx}px, ${dy}px)`; } };
   const up = ev => { document.removeEventListener("pointermove", mv, true); document.removeEventListener("pointerup", up, true); document.removeEventListener("pointercancel", up, true);
     if (!on) return; b.classList.remove("svf-drag"); document.body.classList.remove("svf-moving"); b.style.removeProperty("transform");
+    /* v1148 : pointercancel (défilement pris par le navigateur…) = annulation, le bloc reprend sa place */
+    if (ev.type === "pointercancel") { delete b.__svfNew; sviFreeLayout(host); return; }
     const o = L[b.dataset.svfk], W = sviFreeW(host);
     if (rz) { if (b.__svfNew) { o.w = b.__svfNew.w; o.h = b.__svfNew.h; delete b.__svfNew; } }
     else { const dx = ev.clientX - x0, dy = ev.clientY - y0;
