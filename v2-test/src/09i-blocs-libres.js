@@ -100,8 +100,10 @@ function sviWinGeo(c) { if (!c || !c.matches(".svc-card")) return;
   if (G.h) { c.style.setProperty("height", Math.min(G.h, innerHeight - 16) + "px", "important"); c.classList.add("svw-h"); }
   requestAnimationFrame(() => { const R = c.getBoundingClientRect(); const dx = Math.max(-R.left + 8, Math.min(innerWidth - R.right - 8 + R.width - 80, G.dx || 0)), dy = Math.max(-R.top + 8, Math.min(innerHeight - R.top - 48, G.dy || 0)); c.style.translate = dx + "px " + dy + "px"; }); }
 /* v1150b : absorbe le clic qui suit un geste (double toucher, déplacement), y compris sur le fond #svConf */
-function sviWinEat() { const stop = ce => { ce.stopPropagation(); ce.stopImmediatePropagation(); ce.preventDefault(); };
-  window.addEventListener("click", stop, { capture: true, once: true }); setTimeout(() => window.removeEventListener("click", stop, true), 350); }
+function sviWinEat() {   /* v1152 : le blocage tombe dès l'appui suivant (un glissé au doigt ne produit pas de clic) */
+  const off = () => { window.removeEventListener("click", stop, true); window.removeEventListener("pointerdown", off, true); };
+  const stop = ce => { ce.stopPropagation(); ce.stopImmediatePropagation(); ce.preventDefault(); off(); };
+  window.addEventListener("click", stop, true); setTimeout(() => window.addEventListener("pointerdown", off, true), 0); setTimeout(off, 350); }
 { const watch = w => { if (w.__svwObs) return; w.__svwObs = new MutationObserver(() => w.querySelectorAll(":scope > .svc-card").forEach(c => { if (!c.__svw) { c.__svw = 1; sviWinGeo(c); } }));
     w.__svwObs.observe(w, { childList: true }); w.querySelectorAll(":scope > .svc-card").forEach(c => { c.__svw = 1; sviWinGeo(c); }); };
   new MutationObserver(M => M.forEach(m => m.addedNodes.forEach(n => { if (n.id === "svConf") watch(n); }))).observe(document.body || document.documentElement, { childList: true });
@@ -110,7 +112,7 @@ function sviWinEat() { const stop = ce => { ce.stopPropagation(); ce.stopImmedia
     const rz = t.closest("#svConf > .svc-card > .svw-rz"), bd = !rz && t.closest("#svConf > .svc-card > .svc-t"); if (!rz && !bd) return;
     if (bd && t.closest("button, input, select, a, .ach-link")) return;
     const c = (rz || bd).parentElement, k = sviWinKey(c);
-    if (bd && Date.now() - lastT < ((window.SVI_G && SVI_G.dbl) || 350)) { lastT = 0; c.classList.remove("svc-full"); if (k) sviWinPosSet(k, null); sviWinGeo(c); sviWinEat(); return; }   /* double toucher = défaut */
+    if (bd && Date.now() - lastT < ((window.SVI_G && SVI_G.dbl) || 350)) { lastT = 0; e.preventDefault(); c.classList.remove("svc-full"); if (k) sviWinPosSet(k, null); sviWinGeo(c); sviWinEat(); return; }   /* double toucher = défaut */
     lastT = Date.now();
     const x0 = e.clientX, y0 = e.clientY, R0 = c.getBoundingClientRect(), tr = String(c.style.translate || "0px 0px").split(" ").map(v => parseFloat(v) || 0); let on = false;
     const mv = ev => { const dx = ev.clientX - x0, dy = ev.clientY - y0; if (!on) { if (Math.hypot(dx, dy) < 8) return; on = true; c.classList.add("svw-move"); } ev.preventDefault();
