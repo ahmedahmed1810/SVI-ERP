@@ -101,8 +101,9 @@ function sviImpPreview(o, R) { return new Promise(ok => { const cols = o.cols ||
     if (t.matches(".simp-c")) { const j = +t.dataset.j, C = { ...G.C }; Object.keys(C).forEach(k => { if (C[k] === j) delete C[k]; }); if (t.value) C[t.value] = j; G = { h: G.h, C }; draw(); } });
   d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); ok(null); return; } if (e.target.closest("[data-ok]")) { const r = rowsNow(); d.remove(); ok(r.rows); } }); }); }
 /* v1139 (10.9, 3.8) : une erreur d'import s'affiche dans une fenêtre de l'application, avec ce qu'il faut faire */
-function sviImpErr(m) { const M = String(m || "").toUpperCase(), d = sviWinNew();
-  const todo = /INDISPONIBLE|CONNEXION|FETCH|NETWORK/.test(M) ? "VÉRIFIER LA CONNEXION INTERNET DE L'APPAREIL, PUIS RECOMMENCER."
+function sviImpErr(m) { let M = String(m || "").toUpperCase(); const d = sviWinNew();
+  if (/FAILED TO FETCH|NETWORKERROR|LOAD FAILED|NETWORK REQUEST FAILED/.test(M)) M = "PAS DE CONNEXION";   /* v1140 : message du navigateur remplacé */
+  const todo = /INDISPONIBLE|CONNEXION/.test(M) ? "VÉRIFIER LA CONNEXION INTERNET DE L'APPAREIL, PUIS RECOMMENCER."
     : /ACCÈS REFUSÉ|NON PARTAGÉE/.test(M) ? "DANS GOOGLE SHEETS : PARTAGER › TOUTE PERSONNE AYANT LE LIEN (LECTEUR), PUIS RECOMMENCER."
     : /NON RECONNU/.test(M) ? "COLLER LE LIEN COMPLET DE LA FEUILLE (IL CONTIENT /spreadsheets/d/…)."
     : /AUCUNE LIGNE/.test(M) ? "VÉRIFIER QUE LE FICHIER CONTIENT UN TABLEAU (DÉSIGNATION, UNITÉ, QUANTITÉ), OU CHOISIR UNE AUTRE SOURCE."
