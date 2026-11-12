@@ -6145,6 +6145,45 @@ document.addEventListener("pointerdown", e => {
   document.addEventListener("pointermove", mv, true); document.addEventListener("pointerup", up, true); document.addEventListener("pointercancel", up, true);
 }, true);
 window.addEventListener("resize", () => document.querySelectorAll(".svf-host.svf-on").forEach(h => sviFreeLayout(h)));
+/* =========================================================
+   v1149 (série L, L3 ; document unique 10.2) : FENÊTRES LIBRES — toute fenêtre de l'application (#svConf) se déplace en entier par son bandeau
+   et se règle par son coin (largeur et hauteur ; le contenu défile dedans). Place et taille gardées par type de fenêtre (classes de la carte),
+   pas pour les simples confirmations (carte sans classe propre) ; double toucher sur le bandeau = place et taille par défaut.
+   ========================================================= */
+const SVI_WIN_K = "svi_winpos_v1";
+const sviWinPosAll = () => { try { return JSON.parse(localStorage.getItem(SVI_WIN_K) || "{}") || {}; } catch (e) { return {}; } };
+const sviWinPosSet = (k, v) => { const A = sviWinPosAll(); if (v) A[k] = v; else delete A[k]; try { localStorage.setItem(SVI_WIN_K, JSON.stringify(A)); } catch (e) {} };
+const sviWinKey = c => { const k = [...c.classList].filter(x => x !== "svc-card" && !/^st-|^on$|^svw-/.test(x)).sort().join(" "); return k ? "w:" + k : ""; };
+function sviWinGeo(c) { if (!c || !c.matches(".svc-card")) return;
+  if (!c.querySelector(":scope > .svw-rz")) { const r = document.createElement("div"); r.className = "svw-rz"; r.title = "Glisser pour changer la taille"; c.appendChild(r); }
+  const k = sviWinKey(c), G = k ? sviWinPosAll()[k] : null;
+  ["translate", "width", "max-width", "height"].forEach(p => c.style.removeProperty(p)); c.classList.remove("svw-h");
+  if (!G) return;
+  if (G.w) { c.style.setProperty("width", Math.min(G.w, innerWidth - 16) + "px", "important"); c.style.setProperty("max-width", "none", "important"); }
+  if (G.h) { c.style.setProperty("height", Math.min(G.h, innerHeight - 16) + "px", "important"); c.classList.add("svw-h"); }
+  requestAnimationFrame(() => { const R = c.getBoundingClientRect(); const dx = Math.max(-R.left + 8, Math.min(innerWidth - R.right - 8 + R.width - 80, G.dx || 0)), dy = Math.max(-R.top + 8, Math.min(innerHeight - R.top - 48, G.dy || 0)); c.style.translate = dx + "px " + dy + "px"; }); }
+{ const watch = w => { if (w.__svwObs) return; w.__svwObs = new MutationObserver(() => w.querySelectorAll(":scope > .svc-card").forEach(c => { if (!c.__svw) { c.__svw = 1; sviWinGeo(c); } }));
+    w.__svwObs.observe(w, { childList: true }); w.querySelectorAll(":scope > .svc-card").forEach(c => { c.__svw = 1; sviWinGeo(c); }); };
+  new MutationObserver(M => M.forEach(m => m.addedNodes.forEach(n => { if (n.id === "svConf") watch(n); }))).observe(document.body || document.documentElement, { childList: true });
+  let lastT = 0;
+  document.addEventListener("pointerdown", e => { const t = e.target; if (!t.closest || e.button > 0) return;
+    const rz = t.closest("#svConf > .svc-card > .svw-rz"), bd = !rz && t.closest("#svConf > .svc-card > .svc-t"); if (!rz && !bd) return;
+    if (bd && t.closest("button, input, select, a, .ach-link")) return;
+    const c = (rz || bd).parentElement, k = sviWinKey(c);
+    if (bd && Date.now() - lastT < ((window.SVI_G && SVI_G.dbl) || 350)) { lastT = 0; if (k) sviWinPosSet(k, null); sviWinGeo(c); return; }   /* double toucher = défaut */
+    lastT = Date.now();
+    const x0 = e.clientX, y0 = e.clientY, R0 = c.getBoundingClientRect(), tr = String(c.style.translate || "0px 0px").split(" ").map(v => parseFloat(v) || 0); let on = false;
+    const mv = ev => { const dx = ev.clientX - x0, dy = ev.clientY - y0; if (!on) { if (Math.hypot(dx, dy) < 8) return; on = true; c.classList.add("svw-move"); } ev.preventDefault();
+      if (rz) { c.style.setProperty("width", Math.max(280, Math.min(innerWidth - 16, R0.width + dx)) + "px", "important"); c.style.setProperty("max-width", "none", "important"); c.style.setProperty("height", Math.max(160, Math.min(innerHeight - 16, R0.height + dy)) + "px", "important"); c.classList.add("svw-h"); }
+      else { const nx = Math.max(-R0.left + tr[0] + 8 - R0.width + 80, Math.min(innerWidth - R0.right + tr[0] - 8 + R0.width - 80, tr[0] + dx)), ny = Math.max(-R0.top + tr[1] + 8, Math.min(innerHeight - R0.top + tr[1] - 48, tr[1] + dy)); c.style.translate = nx + "px " + ny + "px"; } };
+    const up = ev => { document.removeEventListener("pointermove", mv, true); document.removeEventListener("pointerup", up, true); document.removeEventListener("pointercancel", up, true);
+      if (!on) return; c.classList.remove("svw-move");
+      if (ev.type === "pointercancel") { sviWinGeo(c); return; }
+      if (k) { const T = String(c.style.translate || "0px 0px").split(" ").map(v => parseFloat(v) || 0), R = c.getBoundingClientRect(), G = sviWinPosAll()[k] || {};
+        sviWinPosSet(k, { ...G, dx: Math.round(T[0]), dy: Math.round(T[1]), ...(rz ? { w: Math.round(R.width), h: Math.round(R.height) } : {}) }); }
+      const stop = ce => { ce.stopPropagation(); ce.preventDefault(); }; document.addEventListener("click", stop, { capture: true, once: true }); setTimeout(() => document.removeEventListener("click", stop, true), 300); };
+    document.addEventListener("pointermove", mv, true); document.addEventListener("pointerup", up, true); document.addEventListener("pointercancel", up, true);
+  }, true); }
 /* ⟪ src/32-demarrage.js ⟫ */
 /* =========================================================
    DEMARRAGE
