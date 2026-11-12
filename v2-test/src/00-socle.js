@@ -67,6 +67,7 @@ const sviClean = v => String(v ?? "").replace(/\s+/g, " ").trim();
 document.addEventListener("change", e => {
   const t = e.target;
   if (!t || !(t.tagName === "TEXTAREA" || (t.tagName === "INPUT" && /^(text|search|url|email|tel|)$/i.test(t.type || "")))) return;
+  if (t.closest && t.closest("[data-raw]")) return;   /* v1139 : contenu gardé tel quel (tableau collé, lien) — fenêtre IMPORTER */
   if (t.tagName === "TEXTAREA") { const c = t.value.split("\n").map(x => x.replace(/[ \t]+/g, " ").trim()).join("\n").trim(); if (c !== t.value) { t.value = c; t.dispatchEvent(new Event("input", { bubbles: true })); } return; }
   const c = sviClean(t.value);
   if (c !== t.value) { t.value = c; t.dispatchEvent(new Event("input", { bubbles: true })); }

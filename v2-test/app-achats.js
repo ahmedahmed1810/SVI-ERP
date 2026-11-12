@@ -1174,7 +1174,7 @@ function sviAchInit() {
     if (t.classList.contains("ach-ment")) { const P = achPrm(); P.ment = { ...P.ment, [t.dataset.f]: t.checked }; achPrmSave(P); return; }
     if (t.classList.contains("ach-seu") || t.classList.contains("ach-seunew")) { const P = achPrm(), gr = sviPgL("grades").map(g => String(g.n));
       const SL = seuEdit(P, seuKOf(t));
-      if (t.classList.contains("ach-seunew")) { const v = achN(t.value); if (!(v >= 0) || String(t.value).trim() === "") return; SL.push({ id: "s" + Date.now().toString(36), mt: v, fin: "", g: [], h: true }); SL.sort((a, b) => a.mt - b.mt); achPrmSave(P); draw(); return; }
+      if (t.classList.contains("ach-seunew")) { if (t.__done) return; t.__done = true; const v = achN(t.value);   /* v1139 : une seule création (Entrée puis sortie du champ) */ if (!(v >= 0) || String(t.value).trim() === "") return; SL.push({ id: "s" + Date.now().toString(36), mt: v, fin: "", g: [], h: true }); SL.sort((a, b) => a.mt - b.mt); achPrmSave(P); draw(); return; }
       const x = SL.find(y => y.id === t.closest("tr").dataset.sid); if (!x) return; const f = t.dataset.f;
       if (f === "g1") x.g = t.value ? [t.value] : [];   /* v1135 (L25) : un seul validateur par tranche */
       else if (f === "h") x.h = t.checked; else if (f === "mt") { const v = achN(t.value); if (!(v >= 0) || String(t.value).trim() === "") { svToast("MONTANT NON VALIDE.", 3000, t); draw(); return; } x.mt = v; }

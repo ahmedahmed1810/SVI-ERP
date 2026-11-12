@@ -68,6 +68,7 @@ const sviClean = v => String(v ?? "").replace(/\s+/g, " ").trim();
 document.addEventListener("change", e => {
   const t = e.target;
   if (!t || !(t.tagName === "TEXTAREA" || (t.tagName === "INPUT" && /^(text|search|url|email|tel|)$/i.test(t.type || "")))) return;
+  if (t.closest && t.closest("[data-raw]")) return;   /* v1139 : contenu gardé tel quel (tableau collé, lien) — fenêtre IMPORTER */
   if (t.tagName === "TEXTAREA") { const c = t.value.split("\n").map(x => x.replace(/[ \t]+/g, " ").trim()).join("\n").trim(); if (c !== t.value) { t.value = c; t.dispatchEvent(new Event("input", { bubbles: true })); } return; }
   const c = sviClean(t.value);
   if (c !== t.value) { t.value = c; t.dispatchEvent(new Event("input", { bubbles: true })); }
@@ -5937,6 +5938,9 @@ function sviImpText(txt) { const out = [], NUM = "(?:\\d{1,3}(?:[\\s\\u00a0\\u20
 function sviImpGuess(A, cols) { let h = -1, C = {};
   for (let i = 0; i < Math.min(A.length, 15) && h < 0; i++) { const c = {}; A[i].forEach((v, j) => cols.forEach(cc => { if (c[cc.k] === undefined && cc.rx && cc.rx.test(v) && !(cc.k === "des" && /PRIX/i.test(v))) c[cc.k] = j; }));
     if (c.des !== undefined && (c.q !== undefined || cols.length < 3)) { h = i; C = c; } }
+  /* v1139 : en-tête reconnu même sans colonne QUANTITÉ (ex. une colonne collée qui commence par « DÉSIGNATION ») */
+  if (h < 0 && A.length) { const c = {}; A[0].forEach((v, j) => cols.forEach(cc => { if (c[cc.k] === undefined && cc.rx && cc.rx.test(v) && !(cc.k === "des" && /PRIX/i.test(v))) c[cc.k] = j; }));
+    if (c.des !== undefined && A[0].every(v => isNaN(sviImpNum(v)))) { h = 0; C = c; } }
   if (h < 0 && A.length) { const n = Math.max(...A.map(r => r.length)), avg = j => A.reduce((s, r) => s + (isNaN(sviImpNum(r[j])) ? (r[j] || "").length : 0), 0) / A.length;
     let d = 0; for (let j = 1; j < n; j++) if (avg(j) > avg(d)) d = j; C.des = d;
     for (let j = 0; j < n; j++) { if (j === d) continue; const num = A.filter(r => !isNaN(sviImpNum(r[j]))).length, sh = A.filter(r => r[j] && isNaN(sviImpNum(r[j])) && r[j].length <= 5).length;
@@ -5992,6 +5996,24 @@ function sviImpPreview(o, R) { return new Promise(ok => { const cols = o.cols ||
   d.addEventListener("change", e => { const t = e.target; if (t.matches(".simp-h")) { G = { h: +t.value, C: G.C }; draw(); }
     if (t.matches(".simp-c")) { const j = +t.dataset.j, C = { ...G.C }; Object.keys(C).forEach(k => { if (C[k] === j) delete C[k]; }); if (t.value) C[t.value] = j; G = { h: G.h, C }; draw(); } });
   d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); ok(null); return; } if (e.target.closest("[data-ok]")) { const r = rowsNow(); d.remove(); ok(r.rows); } }); }); }
+/* v1139 (10.9, 3.8) : une erreur d'import s'affiche dans une fenêtre de l'application, avec ce qu'il faut faire */
+function sviImpErr(m) { const M = String(m || "").toUpperCase(), d = sviWinNew();
+  const todo = /INDISPONIBLE|CONNEXION|FETCH|NETWORK/.test(M) ? "VÉRIFIER LA CONNEXION INTERNET DE L'APPAREIL, PUIS RECOMMENCER."
+    : /ACCÈS REFUSÉ|NON PARTAGÉE/.test(M) ? "DANS GOOGLE SHEETS : PARTAGER › TOUTE PERSONNE AYANT LE LIEN (LECTEUR), PUIS RECOMMENCER."
+    : /NON RECONNU/.test(M) ? "COLLER LE LIEN COMPLET DE LA FEUILLE (IL CONTIENT /spreadsheets/d/…)."
+    : /AUCUNE LIGNE/.test(M) ? "VÉRIFIER QUE LE FICHIER CONTIENT UN TABLEAU (DÉSIGNATION, UNITÉ, QUANTITÉ), OU CHOISIR UNE AUTRE SOURCE."
+    : /INTROUVABLE/.test(M) ? "LE FICHIER N'EST PAS SUR CET APPAREIL : L'IMPORTER DEPUIS L'APPAREIL QUI L'A, OU LE RAJOUTER."
+    : "VÉRIFIER LE FICHIER (FORMAT, CONTENU) OU CHOISIR UNE AUTRE SOURCE.";
+  d.innerHTML = sviWinCard({ cls: "frs-card simp-card", close: "data-x", title: "IMPORT IMPOSSIBLE", body: `<div class="frs-st">${esc(M.replace(/^IMPORT IMPOSSIBLE\s*:\s*/, ""))}</div><div>${todo.replace(/\/spreadsheets\/d\/…/, "/spreadsheets/d/…")}</div>`, foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-x>OK</button>` });
+  sviWinShow(d); d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) d.remove(); }); }
+/* lien saisi tel quel (sans majuscules forcées : l'identifiant d'une feuille Google distingue les majuscules) */
+const sviImpAsk = (title, lab) => new Promise(ok => { const d = sviWinNew(); d.innerHTML = sviWinCard({ cls: "frs-card simp-card", close: "data-x", title: esc(title),
+    body: `<div class="frs-g"><label class="frs-f frs-w"><span>${esc(lab)}</span><input class="ins-in simp-url" data-raw data-keepcase style="text-transform:none" autocomplete="off" autocapitalize="off" spellcheck="false"></label></div>`,
+    foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>SUIVANT</button>` });
+  sviWinShow(d); setTimeout(() => d.querySelector(".simp-url")?.focus(), 50);
+  const go = () => { const v = String(d.querySelector(".simp-url").value || "").trim(); d.remove(); ok(v); };
+  d.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.matches(".simp-url")) { e.preventDefault(); go(); } });
+  d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); ok(""); } else if (e.target.closest("[data-ok]")) go(); }); });
 function sviImport(o) { return new Promise(done => { const d = sviWinNew(), docs = o.docs || [], app = o.app || [];
   const fam = (t, h) => h ? `<div class="frs-st">${t}</div><div class="cmpm-list">${h}</div>` : "";
   d.innerHTML = sviWinCard({ cls: "cmpm-pick simp-card", close: "data-x", title: esc(o.title || "IMPORTER"), body:
@@ -6001,7 +6023,7 @@ function sviImport(o) { return new Promise(done => { const d = sviWinNew(), docs
     + fam("DEPUIS L'APPLICATION", app.map((x, i) => `<button type="button" class="svc-b" data-s="a${i}">${esc(x.lab)}</button>`).join("")),
     foot: `<button type="button" class="svc-b" data-x>ANNULER</button>` });
   sviWinShow(d);
-  const fail = err => { svToast("IMPORT IMPOSSIBLE : " + String(err && err.message || err).toUpperCase() + ".", 5000); done(null); };
+  const fail = err => { sviImpErr(String(err && err.message || err)); done(null); };
   const msg = t => { let m = document.getElementById("sviImpMsg"); if (!m) { m = document.createElement("div"); m.id = "sviImpMsg"; document.body.appendChild(m); } m.textContent = t; };
   const end = () => { const m = document.getElementById("sviImpMsg"); if (m) m.remove(); };
   d.addEventListener("click", async e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); done(null); return; }
@@ -6009,17 +6031,17 @@ function sviImport(o) { return new Promise(done => { const d = sviWinNew(), docs
     try { let R = null, file = null, extra = null;
       if (s === "file" || s[0] === "d") { const f = s === "file" ? await new Promise(ok => { const i = document.createElement("input"); i.type = "file"; i.accept = ".xlsx,.xls,.csv,.txt,.json,.pdf,.docx,image/*"; i.onchange = () => ok(i.files[0] || null); i.click(); }) : await docs[+s.slice(1)].get();
         if (!f) { done(null); return; } if (s === "file") file = f; R = { ...(await sviImpFile(f, msg)), from: f.name || (docs[+s.slice(1)] || {}).lab || "FICHIER" }; }
-      else if (s === "gs") { const url = typeof achAsk === "function" ? await achAsk("IMPORTER UN LIEN GOOGLE SHEETS", "LIEN DE LA FEUILLE (PARTAGÉE EN LECTURE)") : prompt("LIEN GOOGLE SHEETS"); if (!url) { done(null); return; }
+      else if (s === "gs") { const url = await sviImpAsk("IMPORTER UN LIEN GOOGLE SHEETS", "LIEN DE LA FEUILLE (PARTAGÉE EN LECTURE)"); if (!url) { done(null); return; }
         const id = (url.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1], gid = (url.match(/[#&?]gid=(\d+)/) || [])[1] || "0"; if (!id) throw new Error("LIEN GOOGLE SHEETS NON RECONNU");
         const r = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`); if (!r.ok) throw new Error("ACCÈS REFUSÉ (FEUILLE NON PARTAGÉE EN LECTURE ?)");
         const X = await loadXLSX(), wb = X.read(await r.text(), { type: "string", raw: true }); R = { aoa: X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: false }).map(x => x.map(v => String(v ?? "").trim())), from: "GOOGLE SHEETS" }; }
       else if (s === "clip") { const t = await new Promise(ok => { const w = sviWinNew(); w.innerHTML = sviWinCard({ cls: "frs-card simp-card", close: "data-x", title: "COLLER UNE COLONNE OU UN TABLEAU",
-          body: `<div class="frs-g"><label class="frs-f frs-w"><span>CONTENU COPIÉ (EXCEL, GOOGLE SHEETS, TEXTE)</span><textarea class="ins-in simp-ta" rows="10"></textarea></label></div>`, foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>SUIVANT</button>` });
+          body: `<div class="frs-g"><label class="frs-f frs-w"><span>CONTENU COPIÉ (EXCEL, GOOGLE SHEETS, TEXTE)</span><textarea class="ins-in simp-ta" rows="10" data-raw style="text-transform:none"></textarea></label></div>`, foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>SUIVANT</button>` });
           sviWinShow(w); setTimeout(() => w.querySelector(".simp-ta")?.focus(), 50);
           w.addEventListener("click", ev => { if (ev.target === w || ev.target.closest("[data-x]")) { w.remove(); ok(""); } else if (ev.target.closest("[data-ok]")) { const v = w.querySelector(".simp-ta").value; w.remove(); ok(v); } }); });
         if (!t.trim()) { done(null); return; } R = { aoa: sviImpAoaText(t), from: "PRESSE-PAPIERS" }; }
       else { const a = app[+s.slice(1)], r = a && await a.run(); if (!r) { done(null); return; } R = { rows: r.rows || [], from: r.from || a.lab }; extra = r.extra || null; }
-      end(); if (!R || (!R.aoa && !(R.rows || []).length)) { svToast("AUCUNE LIGNE RECONNUE DANS « " + ((R && R.from) || "L'IMPORT") + " ».", 4500); done(null); return; }
+      end(); if (!R || (!R.aoa && !(R.rows || []).length)) { sviImpErr("AUCUNE LIGNE RECONNUE DANS « " + ((R && R.from) || "L'IMPORT") + " »"); done(null); return; }
       const rows = await sviImpPreview(o, R); done(rows ? { rows, from: R.from, file, extra } : null); }
     catch (err) { end(); fail(err); } }); }); }
 window.sviImport = sviImport;
