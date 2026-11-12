@@ -2426,13 +2426,10 @@ function achCafPage(x, B) {
   ACH_DET_DRAG[achNvhKey("ARTICLES CONSULTÉS")] = { open, rows: det.map(r => r.rd ? { l: r.rd.k.slice(2) } : { g: r.gid }), apply: f => achCafSaveOne(x.id, c => f(c), "DÉTAIL DÉPLACÉ") };
   const DET = { t: "ARTICLES CONSULTÉS", lines: true, rdh: LK.rdAll("a"), add: open ? "CRÉER UN DÉTAIL ICI…" : "", cols: [["ARTICLE", "center"], ["BESOIN"], ["CODE ARTICLE"], ["DÉSIGNATION"], ["U", "center"], ["QUANTITÉ", "number"], ["PRIX ESTIMÉ", "number"], ["SOURCE DU PRIX"], ["MONTANT ESTIMÉ", "number"], ["FOURNISSEURS", "center"]],   /* v1134 (L24) : plus de MONTANT BUDGÉTÉ */
     rows: det, addFn: redraw => { achCafSaveOne(x.id, c => { const id = achCafId(); c.lignes.push({ id, des: "", u: "", q: "" }); c.lf[id] = (c.frs || []).slice(); }, "DÉTAIL AJOUTÉ"); redraw(); },
-    menu: open ? [{ k: "imp", lab: "IMPORTER (EXCEL, GOOGLE SHEETS, CSV, PDF)" }].concat((x.lignes || []).some(l => l.imp) ? [{ k: "impok", lab: "CONFIRMER LES COCHÉS (VÉRIFIÉS)" }] : []).concat([{ k: "bsn", lab: "AJOUTER LES BESOINS VALIDÉS NON COUVERTS" }, { k: "libre", lab: "AJOUTER UN ARTICLE HORS LISTE" }, { k: "up", lab: "MONTER LES COCHÉS" }, { k: "down", lab: "DESCENDRE LES COCHÉS" }, { k: "grp", lab: "GROUPER LES COCHÉS" }, { k: "ungrp", lab: "SORTIR LES COCHÉS DE LEUR GROUPE" }, { k: "rm", lab: "SUPPRIMER LES COCHÉS" }]) : [],
+    menu: open ? [{ k: "imp", lab: "IMPORTER" }].concat((x.lignes || []).some(l => l.imp) ? [{ k: "impok", lab: "CONFIRMER LES COCHÉS (VÉRIFIÉS)" }] : []).concat([{ k: "libre", lab: "AJOUTER UN ARTICLE HORS LISTE" }, { k: "up", lab: "MONTER LES COCHÉS" }, { k: "down", lab: "DESCENDRE LES COCHÉS" }, { k: "grp", lab: "GROUPER LES COCHÉS" }, { k: "ungrp", lab: "SORTIR LES COCHÉS DE LEUR GROUPE" }, { k: "rm", lab: "SUPPRIMER LES COCHÉS" }]) : [],
     act: async (a, ck, redraw) => { const rowsL = ck.map(i => det[i]).filter(r => r && r.rd).map(r => r.rd.k.slice(2));
       if (a === "imp") { await achCafImport(x, redraw); return; }
       if (a === "libre") { achCafSaveOne(x.id, c => { const id = achCafId(); c.lignes.push({ id, des: "", u: "", q: "", pu: "", libre: true }); c.lf[id] = (c.frs || []).slice(); }, "DÉTAIL HORS LISTE AJOUTÉ"); redraw(); return; }
-      if (a === "bsn") { const have = new Set((x.lignes || []).map(l => l.bsn).filter(Boolean)), BB = achBsnOpen().filter(b => !have.has(b.id)); if (!BB.length) { svToast("AUCUN BESOIN VALIDÉ NON COUVERT.", 3000); return; }
-        const pick = await achPickWin("BESOINS VALIDÉS NON COUVERTS", BB.map(b => ({ v: b.id, lab: b.ref + " — " + b.des + " (" + achF2(b.q) + " " + b.u + ")" }))); if (!pick.length) return;
-        achCafSaveOne(x.id, c => BB.filter(b => pick.includes(b.id)).forEach(b => { const id = achCafId(); c.lignes.push({ id, bsn: b.id, des: b.des, u: b.u, q: achN(b.q) }); c.lf[id] = (c.frs || []).slice(); }), "BESOINS AJOUTÉS"); redraw(); return; }
       if (!rowsL.length) { svToast("COCHER D'ABORD DES DÉTAILS.", 2500); return; }
       if (a === "impok") { achCafSaveOne(x.id, c => c.lignes.forEach(l => { if (rowsL.includes(l.id)) delete l.imp; }), "DÉTAILS IMPORTÉS VÉRIFIÉS"); redraw(); return; }
       if (a === "up" || a === "down") { achCafSaveOne(x.id, c => { c.lignes = achDetMove(c.lignes, rowsL, a === "up" ? -1 : 1); }, "DÉTAILS DÉPLACÉS"); redraw(); return; }
@@ -2796,10 +2793,12 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
       sviHdrMenu(mo, [[{ k: "max", lab: S.max ? "RÉDUIRE" : "AGRANDIR" }], [{ k: "imp", lab: "IMPORTER DES ARTICLES" }], [{ k: "__fmt", lab: "MODIFIER LE FORMAT" }], [{ k: "rm", lab: "SUPPRIMER LES COCHÉS", del: true }]], async a => {
         if (a === "max") { S.max = !S.max; draw(); return; }
         if (a === "__fmt") { await subWin(() => sviFmtCurWin()); draw(); return; } if (a === "rm") { rmChecked(); return; }
-        if (a === "imp") { const R = await sub(() => achCafImpRead(S.D.filter(x => x.fk), c0 && c0.id)); if (!R) return; let g = null; const G = C.grp = C.grp || [];
-          R.rows.forEach(r => { if (r.title) { g = { id: achCafId(), lab: achU(r.title) }; G.push(g); return; } const ar = achArtOf(r.des, r.u), lid = achCafId(); S.L.push({ id: lid, bsn: "", des: ar ? ar.des : achU(r.des), u: ar ? ar.u : achU(r.u), q: r.q, imp: true, ...(g ? { g: g.id } : {}) }); S.lk.lf[lid] = S.F.map(f => f.k); });
-          if (R.file) { const k = "n" + Date.now().toString(36); S.D.push({ k, title: "IMPORT — " + R.file.name, f: R.file }); } const n = R.rows.filter(r => !r.title).length;
-          svToast(n ? n + " ARTICLE(S) IMPORTÉ(S) : À VÉRIFIER DANS LA PAGE (EN ROUGE) PUIS CONFIRMER." : "AUCUNE LIGNE RECONNUE DANS « " + R.from + " ».", 4000); draw(); } }); return; }
+        if (a === "imp") { const R = await sub(() => achCafImpRead(S.D, c0 && c0.id, S.L.map(l => achKey(l.des, l.u)))); if (!R) return; let g = null; const G = C.grp = C.grp || [];
+          /* v1137 (L22) : fournisseurs gardés d'une autre consultation ajoutés ; besoin repris s'il vient des besoins ; rouge seulement pour PDF, Word, photo */
+          ((R.extra && R.extra.frs) || []).forEach(f => { if (!S.F.some(x => x.k === f)) S.F.push({ k: f, id: f, nom: achFrsNom(f) }); });
+          R.rows.forEach(r => { if (r.title) { g = { id: achCafId(), lab: achU(r.title) }; G.push(g); return; } const ar = achArtOf(r.des, r.u), lid = achCafId(); S.L.push({ id: lid, bsn: r.bsn || "", des: ar ? ar.des : achU(r.des), u: ar ? ar.u : achU(r.u), q: r.q, ...(r.imp ? { imp: true } : {}), ...(g ? { g: g.id } : {}) }); S.lk.lf[lid] = S.F.map(f => f.k); });
+          if (R.file) { const k = "n" + Date.now().toString(36); S.D.push({ k, title: "IMPORT — " + R.file.name, f: R.file }); } const n = R.rows.filter(r => !r.title).length, ni = R.rows.filter(r => !r.title && r.imp).length;
+          svToast(n + " ARTICLE(S) IMPORTÉ(S)" + (ni ? ", DONT " + ni + " EN ROUGE : À VÉRIFIER DANS LA PAGE PUIS CONFIRMER" : "") + ".", 4000); draw(); } }); return; }
     const nw = e.target.closest("[data-cai-new]"); if (nw) { sync(); const g = nw.dataset.caiNew;
       const go = (gg, kk) => { const td = d.querySelector(`#caiT${gg} td.nv-ed[data-i="${LST[gg]().length - 1}"][data-ed="${kk}"]`); if (td) { pickCell(td); editCell(td); } };
       if (g === "L") { const lid = achCafId(); S.L.push({ id: lid, bsn: "", des: "", u: "", q: "" }); S.lk.lf[lid] = S.F.map(f => f.k); draw(); go("L", "des"); return; }
@@ -2900,48 +2899,55 @@ async function achImpBlob(f) { const nm = String(f.name || "") + " " + String(f.
   if (/pdf/i.test(nm)) return achImpPdfRows(await achPdfText(f));
   const X = await loadXLSX(), wb = /csv|text/i.test(nm) ? X.read(await f.text(), { type: "string", raw: true }) : X.read(await f.arrayBuffer(), { type: "array" });
   return achImpRows(X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: false })); }
-const achImpSrcWin = DOCS => new Promise(ok => { const d = sviWinNew(), D = DOCS.filter(x => x.fk);
-  d.innerHTML = sviWinCard({ cls: "cmpm-pick", close: "data-x", title: "IMPORTER DANS LE DÉTAIL CONSULTATION", body: `<div class="cmpm-list">
-    <button type="button" class="svc-b" data-s="file">UN FICHIER DE L'EXTÉRIEUR (EXCEL, CSV, PDF)</button>
-    <button type="button" class="svc-b" data-s="gs">UN LIEN GOOGLE SHEETS</button>
-    <button type="button" class="svc-b" data-s="caf">UNE AUTRE CONSULTATION DE L'APPLICATION</button>
-    ${D.length ? `<div class="frs-st">UN DOCUMENT DE LA CONSULTATION</div>` + D.map((x, i) => `<button type="button" class="svc-b" data-s="d${i}">${esc((x.ref || "") + " — " + (x.title || x.fname || ""))}</button>`).join("") : ""}
-</div>`,   /* 10.5 : pas de bandeau ; le message après l'import dit que les lignes sont à vérifier */
-    foot: `<button type="button" class="svc-b" data-x>ANNULER</button>` });
-  sviWinShow(d);
-  d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); ok(null); return; }
-    const b = e.target.closest("[data-s]"); if (!b) return; const s = b.dataset.s; d.remove(); ok(s[0] === "d" ? { doc: D[+s.slice(1)] } : { s }); }); });
-/* 11/11 (Ahmed, validé, 10.2) : LECTURE D'UN IMPORT, sans rien enregistrer — { rows, from, file } ; source en plus : UNE AUTRE CONSULTATION de l'application
-   (on coche ses articles à reprendre ; titres de groupes repris ; les besoins liés ne sont pas repris) */
-async function achCafImpRead(DOCS, selfId) { const src = await achImpSrcWin(DOCS || []); if (!src) return null;
-  let rows = null, from = "", file = null;
-  try {
-    if (src.doc) { const f = await sviFiles.get(src.doc.fk); if (!f) { svToast("FICHIER DU DOCUMENT INTROUVABLE SUR CET APPAREIL.", 3500); return null; } rows = await achImpBlob(f.name ? f : new File([f], src.doc.fname || "doc", { type: f.type })); from = src.doc.ref || "DOCUMENT"; }
-    else if (src.s === "caf") { const C = achCaf().filter(c => c.id !== selfId && (c.lignes || []).length); if (!C.length) { svToast("AUCUNE AUTRE CONSULTATION AVEC DES ARTICLES.", 3000); return null; }
-      const pk = await achPickWin("REPRENDRE LES ARTICLES D'UNE CONSULTATION", C.map(c => ({ v: c.id, lab: c.ref + " — " + (c.objet || "") + " (" + c.lignes.length + " ARTICLE(S))" }))); if (!pk.length) return null;
+/* v1137 (série L, L22 et L26 ; document unique 10.9) : IMPORTER du DÉTAIL CONSULTATION par la fenêtre commune (sviImport, 09h) — rien n'est enregistré
+   avant OK ; doublons (même article et unité, déjà dans la consultation ou deux fois dans l'import) ignorés ; seules les lignes lues dans un PDF,
+   un fichier Word ou une photo arrivent en rouge (à vérifier). Sources DEPUIS L'APPLICATION : une autre consultation (articles, fournisseurs gardés
+   ou non), le DÉTAIL CHARGES d'un budget (quantité proposée = budget − déjà commandé, 0 au plus bas), les besoins validés non couverts, une commande
+   déjà passée, la liste des ARTICLES. Aucun besoin n'est créé à l'import ; les quantités ne sont qu'une proposition (circuit de validation ensuite). */
+const achCmdQOf = (bref, key) => { const B = new Map(achBsn().map(b => [b.id, b])); return achCmf().filter(c => c.state !== "annule").reduce((t, c) => t + (c.lignes || []).reduce((u, l) => { const b = l.bsn && B.get(l.bsn); return u + (b && b.bdg === bref && b.chg === key ? achN(l.q) : 0); }, 0), 0); };
+function achCafImpApp(selfId, have) { return [
+  { lab: "UNE AUTRE CONSULTATION (ARTICLES, FOURNISSEURS AU CHOIX)", run: async () => { const C = achCaf().filter(c => c.id !== selfId && (c.lignes || []).length); if (!C.length) { svToast("AUCUNE AUTRE CONSULTATION AVEC DES ARTICLES.", 3000); return null; }
+      const pk = await sviImpPick("REPRENDRE UNE CONSULTATION", C.map(c => ({ v: c.id, lab: c.ref + " — " + (c.objet || "") + " (" + c.lignes.length + " ARTICLE(S), " + (c.frs || []).length + " FOURNISSEUR(S))" })), true); if (!pk.length) return null;
       const c = C.find(y => y.id === pk[0]), G = new Map((c.grp || []).map(g => [g.id, g.lab || ""]));
-      const L = await achPickWin("ARTICLES À REPRENDRE — " + c.ref, c.lignes.map((l, i) => ({ v: String(i), lab: (l.des || "") + " — " + achF2(l.q) + " " + (l.u || ""), on: true }))); if (!L.length) return null;
-      rows = []; let g0 = null; c.lignes.forEach((l, i) => { if (!L.includes(String(i))) return; const gl = l.g ? G.get(l.g) || "" : ""; if (gl && gl !== g0) { rows.push({ title: gl }); g0 = gl; } rows.push({ des: l.des, u: l.u, q: achN(l.q), pu: "" }); }); from = c.ref; }
-    else if (src.s === "gs") { const url = await achAsk("IMPORTER UN LIEN GOOGLE SHEETS", "LIEN DE LA FEUILLE (PARTAGÉE EN LECTURE)"); if (!url) return null;
-      const id = (url.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1], gid = (url.match(/[#&?]gid=(\d+)/) || [])[1] || "0"; if (!id) { svToast("LIEN GOOGLE SHEETS NON RECONNU.", 3000); return null; }
-      const r = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`); if (!r.ok) throw new Error("ACCÈS REFUSÉ (FEUILLE NON PARTAGÉE ?)");
-      const X = await loadXLSX(), wb = X.read(await r.text(), { type: "string", raw: true }); rows = achImpRows(X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: false })); from = "GOOGLE SHEETS"; }
-    else { const f = await new Promise(ok => { const i = document.createElement("input"); i.type = "file"; i.accept = ".xlsx,.xls,.csv,.pdf"; i.onchange = () => ok(i.files[0] || null); i.click(); }); if (!f) return null;
-      rows = await achImpBlob(f); from = f.name; file = f; }
-  } catch (err) { svToast("IMPORT IMPOSSIBLE : " + String(err && err.message || err).toUpperCase(), 4500); return null; }
-  return { rows: rows || [], from, file }; }
+      const L = await sviImpPick("ARTICLES À REPRENDRE — " + c.ref, c.lignes.map((l, i) => ({ v: String(i), lab: (l.des || "") + " — " + achF2(l.q) + " " + (l.u || ""), on: true }))); if (!L.length) return null;
+      const F = (c.frs || []).length ? await sviImpPick("FOURNISSEURS À GARDER — " + c.ref + " (DÉCOCHER POUR EN CHANGER)", c.frs.map(f => ({ v: f, lab: achFrsNom(f), on: true }))) : [];
+      const rows = []; let g0 = null; c.lignes.forEach((l, i) => { if (!L.includes(String(i))) return; const gl = l.g ? G.get(l.g) || "" : ""; if (gl && gl !== g0) { rows.push({ title: gl }); g0 = gl; } rows.push({ des: l.des, u: l.u, q: achN(l.q), pu: "" }); });
+      return { rows, from: c.ref, extra: { frs: F } }; } },
+  { lab: "LE DÉTAIL CHARGES D'UN BUDGET (RESTE À COMMANDER)", run: async () => { const BL = achBdgList(); if (!BL.length) { svToast("AUCUN BUDGET SUR CET APPAREIL.", 3000); return null; }
+      const pb = await sviImpPick("CHOISIR LE BUDGET", BL.map(b => ({ v: b.ref, lab: b.lab })), true); if (!pb.length) return null;
+      const ref = pb[0], CH = achBdgCharges(ref).map(c => { const cq = achCmdQOf(ref, c.key); return { ...c, cq, r: Math.max(0, achN(c.q) - cq) }; }); if (!CH.length) { svToast("CE BUDGET N'A PAS DE CHARGES.", 3000); return null; }
+      const pk = await sviImpPick("CHARGES À CONSULTER — " + ref, CH.map((c, i) => ({ v: String(i), lab: c.des + " (" + c.u + ") — BUDGET " + achF2(c.q) + " — COMMANDÉ " + achF2(c.cq) + " — RESTE " + achF2(c.r) }))); if (!pk.length) return null;
+      return { rows: CH.filter((c, i) => pk.includes(String(i))).map(c => ({ des: c.des, u: c.u, q: c.r, pu: "" })), from: "BUDGET " + ref }; } },
+  { lab: "LES BESOINS VALIDÉS NON COUVERTS", run: async () => { const used = new Set(achCaf().flatMap(c => (c.lignes || []).map(l => l.bsn)).filter(Boolean)), BB = achBsnOpen().filter(b => !used.has(b.id));
+      if (!BB.length) { svToast("AUCUN BESOIN VALIDÉ NON COUVERT.", 3000); return null; }
+      const pk = await sviImpPick("BESOINS VALIDÉS NON COUVERTS", BB.map(b => ({ v: b.id, lab: b.ref + " — " + b.des + " (" + achF2(b.q) + " " + b.u + ")" }))); if (!pk.length) return null;
+      return { rows: BB.filter(b => pk.includes(b.id)).map(b => ({ des: b.des, u: b.u, q: achN(b.q), pu: "", bsn: b.id })), from: "BESOINS" }; } },
+  { lab: "UNE COMMANDE DÉJÀ PASSÉE", run: async () => { const CM = achCmf().filter(c => c.state !== "annule" && (c.lignes || []).length); if (!CM.length) { svToast("AUCUNE COMMANDE.", 3000); return null; }
+      const pk = await sviImpPick("CHOISIR LA COMMANDE", CM.map(c => ({ v: c.id, lab: c.ref + " — " + achFrsNom(c.frs) + " (" + c.lignes.length + " LIGNE(S))" })), true); if (!pk.length) return null;
+      const c = CM.find(y => y.id === pk[0]), L = await sviImpPick("LIGNES À REPRENDRE — " + c.ref, c.lignes.map((l, i) => ({ v: String(i), lab: (l.des || "") + " — " + achF2(l.q) + " " + (l.u || ""), on: true }))); if (!L.length) return null;
+      return { rows: c.lignes.filter((l, i) => L.includes(String(i))).map(l => ({ des: l.des, u: l.u, q: achN(l.q), pu: "" })), from: c.ref }; } },
+  { lab: "LA LISTE DES ARTICLES", run: async () => { const A = achArts().filter(a => !a.del && !a.bloq && !a.arch); if (!A.length) { svToast("LA LISTE DES ARTICLES EST VIDE.", 3000); return null; }
+      const pk = await sviImpPick("ARTICLES À CONSULTER", A.map(a => ({ v: a.id, lab: a.des + " (" + (a.u || "") + ")" }))); if (!pk.length) return null;
+      return { rows: A.filter(a => pk.includes(a.id)).map(a => ({ des: a.des, u: a.u, q: "", pu: "" })), from: "ARTICLES" }; } } ]; }
+async function achCafImpRead(DOCS, selfId, have) {
+  return sviImport({ title: "IMPORTER DANS LE DÉTAIL CONSULTATION", key: r => achKey(r.des, r.u), have: new Set(have || []),
+    docs: (DOCS || []).filter(x => x.fk || x.f).map(x => ({ lab: "DOCUMENT : " + (x.ref || "") + " — " + (x.title || x.fname || ""), get: async () => { if (x.f) return x.f; const f = await sviFiles.get(x.fk); if (!f) throw new Error("FICHIER DU DOCUMENT INTROUVABLE SUR CET APPAREIL"); return f.name ? f : new File([f], x.fname || "document", { type: f.type }); } })),
+    app: achCafImpApp(selfId, have) }); }
 /* un fichier venu de l'extérieur rejoint les DOCUMENTS de la consultation (SUIVI) */
 async function achCafDocAdd(code, f, title) { const L = achJ("svi_docs_v1:ACH-" + code, []) || [], k = "ach:doc:" + code + ":" + Date.now().toString(36) + Math.random().toString(36).slice(2, 4); try { await sviFiles.put(k, f); } catch (e) {}
   const dx = { ref: "ACH DOC " + code + "/" + String(L.length + 1).padStart(3, "0"), date: new Date().toISOString(), title: title || f.name, fk: k, fname: f.name }; L.push(dx); achW("svi_docs_v1:ACH-" + code, L); achHist(code, "DOCUMENT", dx.title); return dx; }
-async function achCafImport(x, redraw) { const code = x.ref || x.code, DOCS = achJ("svi_docs_v1:ACH-" + code, []) || [], R = await achCafImpRead(DOCS, x.id); if (!R) return;
-  const { rows, from, file } = R; if (file) await achCafDocAdd(code, file, "IMPORT — " + file.name);
+async function achCafImport(x, redraw) { const code = x.ref || x.code, DOCS = achJ("svi_docs_v1:ACH-" + code, []) || [], R = await achCafImpRead(DOCS, x.id, (x.lignes || []).map(l => achKey(l.des, l.u))); if (!R) return;
+  const { rows, from, file, extra } = R; if (file) await achCafDocAdd(code, file, "IMPORT — " + file.name);
   const n = (rows || []).filter(r => !r.title).length; if (!n) { svToast("AUCUNE LIGNE RECONNUE DANS « " + from + " ».", 4000); if (redraw) redraw(); return; }
-  achCafSaveOne(x.id, c => { let g = null; c.grp = c.grp || [];
+  const nImp = rows.filter(r => !r.title && r.imp).length;
+  achCafSaveOne(x.id, c => { let g = null; c.grp = c.grp || []; const ids = [];
+    /* fournisseurs gardés d'une autre consultation : ajoutés et liés aux articles importés */
+    const NF = ((extra && extra.frs) || []).filter(f => !(c.frs || []).includes(f)); NF.forEach(f => { c.frs.push(f); c.rep = c.rep || {}; c.rep[f] = { st: "attente" }; });
     rows.forEach(r => { if (r.title) { g = { id: achCafId(), lab: achU(r.title) }; g.n = 0; c.grp.push(g); return; }
-      const a = achArtOf(r.des, r.u), id = achCafId(), l = a ? { id, des: a.des, u: a.u, q: r.q, imp: true } : { id, des: achU(r.des), u: achU(r.u), q: r.q, pu: r.pu, libre: true, imp: true };
-      if (g) { l.g = g.id; g.n++; } c.lignes.push(l); c.lf[id] = (c.frs || []).slice(); });
-    c.grp = c.grp.filter(y => y.n !== 0).map(y => { delete y.n; return y; }); }, "IMPORT — " + n + " DÉTAIL(S) À VÉRIFIER (" + from + ")");
-  svToast(n + " DÉTAIL(S) IMPORTÉ(S), EN ROUGE : À VÉRIFIER PUIS CONFIRMER (COCHER › CONFIRMER LES COCHÉS).", 5000); if (redraw) redraw(); }
+      const a = achArtOf(r.des, r.u), id = achCafId(), l = a ? { id, des: a.des, u: a.u, q: r.q } : { id, des: achU(r.des), u: achU(r.u), q: r.q, pu: r.pu, libre: true };
+      if (r.imp) l.imp = true; if (r.bsn) l.bsn = r.bsn; if (g) { l.g = g.id; g.n++; } c.lignes.push(l); c.lf[id] = (c.frs || []).slice(); ids.push(id); });
+    c.grp = c.grp.filter(y => y.n !== 0).map(y => { delete y.n; return y; }); }, "IMPORT — " + n + " DÉTAIL(S) (" + from + ")");
+  svToast(n + " DÉTAIL(S) IMPORTÉ(S)" + (nImp ? ", DONT " + nImp + " EN ROUGE : À VÉRIFIER PUIS CONFIRMER (COCHER › CONFIRMER LES COCHÉS)" : "") + ".", 5000); if (redraw) redraw(); }
 
 /* ---------- GLISSER UNE LIGNE DU DÉTAIL CONSULTATION (07/11), comme dans le budget ----------
    appui long sur une ligne = la prendre (les cochées partent avec elle si elle est cochée) ; la déposer :

@@ -4013,3 +4013,10 @@ html body tr.svlk-hid:not(#svi-z1):not(#svi-z2):not(#svi-z3) { display: none !im
 /* v1134 (L24) : prix estimé bloqué (budget actif ou prix standard) — gris, non modifiable */
 .nvp-blk td .cafp-lock { color: #6b7280; font-style: italic; }
 html.svi-nuit body .nvp-blk td .cafp-lock { color: #9ca3af; }
+/* v1137 (L26, document unique 10.9) : fenêtre IMPORTER commune — aperçu, choix des colonnes, lignes à vérifier en rouge */
+.simp-card .simp-map { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin: 6px 0 10px; }
+.simp-card .simp-ex { display: block; font-size: 11px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.simp-card .simp-prev { max-height: 46vh; overflow: auto; }
+.simp-card tr.simp-red td { color: #b91c1c !important; -webkit-text-fill-color: #b91c1c !important; }
+.simp-card .simp-list { max-height: 48vh; overflow: auto; }
+#sviImpMsg { position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%); z-index: 10095; background: #172033; color: #fff; padding: 14px 20px; border-radius: 10px; font-weight: 800; font-size: 13px; }
