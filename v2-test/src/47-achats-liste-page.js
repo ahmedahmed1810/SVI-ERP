@@ -414,7 +414,7 @@ function achMepOpen(cfg, P, rec, redraw, o) {
   const tb = document.querySelector(`#ach table[data-colh="achp_${achNvhKey(Lg0.t)}"]`), vis = tb ? sviColhVis(tb) : null, vf = a => vis ? a.filter((_, i) => vis.includes(i)) : a;
   let Lg = { ...Lg0, cols: vf(Lg0.cols), rows: Lg0.rows.map(r => ({ ...r, cells: vf(r.cells) })) };
   /* F10 (série F) : le prix standard, le PRIX ESTIMÉ et les montants estimés ou budgétés ne sont JAMAIS imprimés pour le fournisseur */
-  { const keep = Lg.cols.map((c, i) => /PRIX ESTIMÉ|PRIX STANDARD|MONTANT ESTIMÉ|BUDGÉTÉ|BUDGET HT/.test(c[0]) ? -1 : i).filter(i => i >= 0); if (keep.length < Lg.cols.length) Lg = { ...Lg, cols: keep.map(i => Lg.cols[i]), rows: Lg.rows.map(r => ({ ...r, cells: keep.map(i => r.cells[i]) })) }; }
+  { const keep = Lg.cols.map((c, i) => /PRIX ESTIMÉ|PRIX STANDARD|MONTANT ESTIMÉ|BUDGÉTÉ|BUDGET HT|SOURCE DU PRIX/.test(c[0]) ? -1 : i).filter(i => i >= 0); if (keep.length < Lg.cols.length) Lg = { ...Lg, cols: keep.map(i => Lg.cols[i]), rows: Lg.rows.map(r => ({ ...r, cells: keep.map(i => r.cells[i]) })) }; }
   if (o.noPrice) { const keep = Lg.cols.map((c, i) => /PU|PRIX|MONTANT|TVA/.test(c[0]) ? -1 : i).filter(i => i >= 0); Lg = { ...Lg, cols: keep.map(i => Lg.cols[i]), rows: Lg.rows.map(r => ({ ...r, cells: keep.map(i => r.cells[i]) })) }; }
   const K = cfg.list.k, pr = achPrm(), lettres = P.ttc && !o.noPrice ? "ARRÊTÉ(E) À LA SOMME DE : " + frMoney(P.ttc) + " TTC." : "";
   const mention = K === "cmf" ? "N° " + (P.ref || P.code) + " À REPORTER SUR LE BON DE LIVRAISON ET LA FACTURE." : K === "caf" ? "MERCI DE RAPPELER LA RÉFÉRENCE " + (P.ref || P.code) + " DANS VOTRE DEVIS." : "";

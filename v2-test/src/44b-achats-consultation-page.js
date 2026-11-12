@@ -86,6 +86,7 @@ function achDetNum(L, G) { G = G || []; const out = [], seen = new Set(); let n 
     let m = 0; L.forEach((y, j) => { if (y.g === l.g) out.push({ l: y, i: j, no: gn + "." + (++m) }); }); });
   return out; }
 function achCafPage(x, B) {
+  const BP = achCafBdgPx();   /* v1134 (L24) : prix des budgets actifs, lus une fois par dessin */
   if (achCafUp(x)) { const L = achCaf(), i = L.findIndex(y => y.id === x.id); if (i >= 0) { L[i] = x; achCafSave(L); } }   /* mêmes identifiants que ceux affichés */
   /* F8 : un devis lié depuis sa fiche (champ CONSULTATION) amène son fournisseur, lié aux détails qu'il chiffre */
   { const miss = achDvf().filter(v => v.caf === x.id && v.state !== "annule" && v.frs && !(x.frs || []).includes(v.frs));
@@ -106,7 +107,7 @@ function achCafPage(x, B) {
   /* ---- DÉTAIL CONSULTATION ---- */
   const usedB = new Set((x.lignes || []).filter(l => l.bsn).map(l => l.bsn)), takenD = new Set((x.lignes || []).filter(l => l.bsn).map(l => achKey(l.des, l.u)));
   const det = achDetNum(x.lignes || [], x.grp).map(o => { if (o.title) return { cls: "ins-title nvp-gt svlk-gt-" + o.title.id, gid: o.title.id, cells: [o.no, { h: "<b>" + esc(o.lab) + "</b>", t: o.lab }, "", "", "", "", "", "", "", ""] };
-    const l = o.l, i = o.i, a = achArtOf(l.des, l.u), b = l.bsn ? achBsn().find(y => y.id === l.bsn) : null, pe = achStdPu(l.des, l.u, l.pu), k = "a|" + l.id;
+    const l = o.l, i = o.i, a = achArtOf(l.des, l.u), b = l.bsn ? achBsn().find(y => y.id === l.bsn) : null, es = achCafEst(l, BP), k = "a|" + l.id;
     const BO = achBsnOpen().filter(y => !usedB.has(y.id) || y.id === l.bsn).concat(b && !achBsnOpen().some(y => y.id === b.id) ? [b] : []);
     const AO = achArts().filter(y => !y.del && !y.bloq && !y.arch && (!takenD.has(achKey(y.des, y.u)) || achKey(y.des, y.u) === achKey(l.des, l.u)));
     const nF = ((x.lf || {})[l.id] || []).filter(f => (x.frs || []).includes(f)).length;
@@ -116,10 +117,11 @@ function achCafPage(x, B) {
       l.libre ? { h: `<input class="ins-in cafp-l" data-li="${esc(l.id)}" data-c="des" value="${esc(l.des || "")}"${dis}>`, t: l.des || "" } : { h: `<select class="ins-in cafp-des" data-li="${esc(l.id)}"${dis}><option value="">—</option>${AO.map(y => `<option value="${esc(y.id)}"${achKey(y.des, y.u) === achKey(l.des, l.u) ? " selected" : ""}>${esc(y.des + " (" + y.u + ")")}</option>`).join("")}</select>`, t: l.des || "" },
       l.libre ? { h: `<input class="ins-in cafp-l center" data-li="${esc(l.id)}" data-c="u" value="${esc(l.u || "")}"${dis}>`, t: l.u || "" } : l.u || "",
       { h: `<input class="ins-in cafp-l number" data-li="${esc(l.id)}" data-c="q" inputmode="decimal" value="${esc(String(l.q ?? "").replace(".", ","))}"${dis}>`, t: achN(l.q) },
-      a ? pe : { h: `<input class="ins-in cafp-l number" data-li="${esc(l.id)}" data-c="pu" inputmode="decimal" value="${esc(String(l.pu ?? "").replace(".", ","))}" placeholder="À SAISIR"${dis}>`, t: achN(l.pu) },
-      achN(l.q) * pe, b ? achN(l.q) * achN(b.pu) : "", String(nF)] }; });
+      /* v1134 (L24) : prix du budget ou prix standard = bloqué (gris) ; à saisir seulement s'il n'existe nulle part ; source dans la colonne suivante */
+      es.lock ? { h: `<span class="cafp-lock" data-tip="${esc(es.lab)}">${esc(achF2(es.pu))}</span>`, t: es.pu } : { h: `<input class="ins-in cafp-l number" data-li="${esc(l.id)}" data-c="pu" inputmode="decimal" value="${esc(String(l.pu ?? "").replace(".", ","))}" placeholder="À SAISIR"${dis}>`, t: achN(l.pu) },
+      es.lab, achN(l.q) * es.pu, String(nF)] }; });
   ACH_DET_DRAG[achNvhKey("ARTICLES CONSULTÉS")] = { open, rows: det.map(r => r.rd ? { l: r.rd.k.slice(2) } : { g: r.gid }), apply: f => achCafSaveOne(x.id, c => f(c), "DÉTAIL DÉPLACÉ") };
-  const DET = { t: "ARTICLES CONSULTÉS", lines: true, rdh: LK.rdAll("a"), add: open ? "CRÉER UN DÉTAIL ICI…" : "", cols: [["ARTICLE", "center"], ["BESOIN"], ["CODE ARTICLE"], ["DÉSIGNATION"], ["U", "center"], ["QUANTITÉ", "number"], ["PRIX ESTIMÉ", "number"], ["MONTANT ESTIMÉ", "number"], ["MONTANT BUDGÉTÉ (NON ENVOYÉ)", "number"], ["FOURNISSEURS", "center"]],
+  const DET = { t: "ARTICLES CONSULTÉS", lines: true, rdh: LK.rdAll("a"), add: open ? "CRÉER UN DÉTAIL ICI…" : "", cols: [["ARTICLE", "center"], ["BESOIN"], ["CODE ARTICLE"], ["DÉSIGNATION"], ["U", "center"], ["QUANTITÉ", "number"], ["PRIX ESTIMÉ", "number"], ["SOURCE DU PRIX"], ["MONTANT ESTIMÉ", "number"], ["FOURNISSEURS", "center"]],   /* v1134 (L24) : plus de MONTANT BUDGÉTÉ */
     rows: det, addFn: redraw => { achCafSaveOne(x.id, c => { const id = achCafId(); c.lignes.push({ id, des: "", u: "", q: "" }); c.lf[id] = (c.frs || []).slice(); }, "DÉTAIL AJOUTÉ"); redraw(); },
     menu: open ? [{ k: "imp", lab: "IMPORTER (EXCEL, GOOGLE SHEETS, CSV, PDF)" }].concat((x.lignes || []).some(l => l.imp) ? [{ k: "impok", lab: "CONFIRMER LES COCHÉS (VÉRIFIÉS)" }] : []).concat([{ k: "bsn", lab: "AJOUTER LES BESOINS VALIDÉS NON COUVERTS" }, { k: "libre", lab: "AJOUTER UN ARTICLE HORS LISTE" }, { k: "up", lab: "MONTER LES COCHÉS" }, { k: "down", lab: "DESCENDRE LES COCHÉS" }, { k: "grp", lab: "GROUPER LES COCHÉS" }, { k: "ungrp", lab: "SORTIR LES COCHÉS DE LEUR GROUPE" }, { k: "rm", lab: "SUPPRIMER LES COCHÉS" }]) : [],
     act: async (a, ck, redraw) => { const rowsL = ck.map(i => det[i]).filter(r => r && r.rd).map(r => r.rd.k.slice(2));
@@ -212,7 +214,7 @@ function achCafPage(x, B) {
       /* v1121 (L20) : VALIDER avant la remise — circuit de validation des consultations s'il s'applique (vert), puis validée, à remettre (orange) */
       if (k === "val") { const L = achCaf(), C = L.find(y => y.id === x.id); if (!C) return true;
         if (!(C.lignes || []).length || !(C.frs || []).length) { svToast("IL FAUT AU MOINS UN ARTICLE ET UN FOURNISSEUR.", 3000); return true; }
-        if (await achCircGate("caf", C, achStdMt(C.lignes), async lab => { C.mod = achNow(); achCafSave(L); achHist(C.ref, lab, ""); redraw(); })) return true;
+        if (await achCafGate(C, async lab => { C.mod = achNow(); achCafSave(L); achHist(C.ref, lab, ""); redraw(); })) return true;
         if (!(await svConfirm({ title: "VALIDER LA CONSULTATION", text: C.ref + " : VALIDÉE, ELLE POURRA ÊTRE REMISE AUX FOURNISSEURS.", ok: "VALIDER", tone: "neutral" }))) return true;
         C.val = achNow(); C.mod = achNow(); achCafSave(L); achHist(C.ref, "VALIDÉE — À REMETTRE", ""); redraw(); return true; }
       if (k === "close") { achCafClose(x.id, redraw); return true; }
@@ -546,7 +548,7 @@ function achCafClose(id, done) { const c0 = achCaf().find(y => y.id === id); if 
     if (r.ht > min + 1e-6 && !motif) { svToast("LE RETENU N'EST PAS LE MOINS CHER : MOTIF OBLIGATOIRE.", 4000); return; }
     const used = D.filter(v => r.use.has(v.id)); if (used.some(v => achDvfWhy(v).some(m => /REÇU APRÈS LA DATE LIMITE$|DEVIS EXPIRÉ/.test(m)))) { svToast("UN DEVIS RETENU EST EXPIRÉ OU REÇU APRÈS LA DATE LIMITE : L'ACCEPTER AVEC UN MOTIF (FICHE DU DEVIS).", 5000); return; }
     const C = achCaf().find(y => y.id === id); if (!C) return; achCafUp(C);
-    if (await achCircGate("caf", C, achStdMt(C.lignes), async lab => { const L = achCaf(), i = L.findIndex(y => y.id === id); if (i >= 0) { L[i] = C; C.mod = achNow(); achCafSave(L); achHist(C.ref, lab, ""); } })) { d.remove(); if (done) done(); return; }
+    if (await achCafGate(C, async lab => { const L = achCaf(), i = L.findIndex(y => y.id === id); if (i >= 0) { L[i] = C; C.mod = achNow(); achCafSave(L); achHist(C.ref, lab, ""); } })) { d.remove(); if (done) done(); return; }
     if (!(await svConfirm({ title: "CLÔTURER LA CONSULTATION", text: C.ref + " : RETENU " + achFrsNom(ret) + " (" + achF2(r.ht) + " HT). LES AUTRES DEVIS SONT REJETÉS ; LES BESOINS DES DÉTAILS CHIFFRÉS DEVIENNENT COUVERTS.", ok: "CLÔTURER", tone: "neutral" }))) return;
     const now = achNow(), DL = achDvf(); DL.forEach(v => { if (v.caf === id && v.state !== "annule") { v.state = r.use.has(v.id) ? "retenu" : "rejete"; v.mod = now; achHist(v.ref, v.state === "retenu" ? "RETENU" : "REJETÉ", C.ref); } }); achDvfSave(DL);
     const BL = achBsn(); C.lignes.forEach(l => { if (!l.bsn || !((C.lf || {})[l.id] || []).includes(ret)) return; const p = achCafPrice(C, ret, l, DL.map(v => ({ ...v, state: v.state === "rejete" ? "recu" : v.state }))); if (p.st !== "ok") return; const b = BL.find(y => y.id === l.bsn); if (b) { b.couvert = id; b.mod = now; achHist(b.ref, "COUVERT", C.ref + " — " + achFrsNom(ret)); } }); achBsnSave(BL);

@@ -304,7 +304,7 @@ function achCafFiche(id, done) {
       const min = Math.min(...D.map(x => achDvfTot(x).ht).filter(x => x > 0));
       if (achDvfTot(v).ht > min + 1e-6 && !C.motif) { svToast("LE RETENU N'EST PAS LE MOINS CHER : MOTIF OBLIGATOIRE.", 4000); return; }
       /* 06/11 (soir) : circuit de validation propre aux CONSULTATIONS (montant au prix standard) ; DEVIS : seulement s'il a son propre réglage */
-      if (await achCircGate("caf", C, achStdMt(C.lignes), async lab => { store(lab); draw(); })) return;
+      if (await achCafGate(C, async lab => { store(lab); draw(); })) return;
       if (achSeuOwn("dvf")) { const DL0 = achDvf(), v0 = DL0.find(x => x.id === v.id); if (v0 && await achCircGate("dvf", v0, achStdMt(v0.lignes), async lab => { v0.mod = now(); achDvfSave(DL0); achHist(v0.ref, lab, ""); draw(); })) return; }
       if (!(await svConfirm({ title: "CLÔTURER LA CONSULTATION", text: C.ref + " : RETENU " + achFrsNom(C.retenu) + " (" + achF2(achDvfTot(v).ht) + " HT). LES AUTRES DEVIS SONT REJETÉS ; LES BESOINS DES LIGNES DEVIENNENT COUVERTS.", ok: "CLÔTURER", tone: "neutral" }))) return;
       const DL = achDvf(); DL.forEach(x => { if (x.caf === C.id && x.state !== "annule") { x.state = x.id === v.id ? "retenu" : "rejete"; x.mod = now(); achHist(x.ref, x.state === "retenu" ? "RETENU" : "REJETÉ", C.ref); } }); achDvfSave(DL);

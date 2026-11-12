@@ -83,7 +83,7 @@ const achClG = p => Array.isArray(p.clG) ? p.clG : [["pay"], ["val"]].map(([t], 
 const achClP = p => Array.isArray(p.clP) ? p.clP : [{ id: "p1", t: "liv", txt: "" }, { id: "p2", t: "pen", txt: "" }];
 const achClCopy = L => (L || []).map(x => ({ t: x.t, txt: x.txt || "", v: x.v ?? "", u: x.u ?? achCltU(x.t) }));
 const achPrm0 = p => ({ tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: achEspJour(p), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: achAlrJ(p, "av", p.avj === undefined ? 90 : achN(p.avj)), chqj: achAlrJ(p, "chq", p.chqj === undefined ? 30 : achN(p.chqj)), dorm: p.dorm === undefined ? 12 : achN(p.dorm), directJ: p.directJ === undefined ? 30 : Math.max(1, Math.round(achN(p.directJ)) || 1), nfrs: p.nfrs === undefined ? 3 : Math.max(1, Math.round(achN(p.nfrs)) || 1), ncons: p.ncons === undefined ? 3 : Math.max(1, Math.round(achN(p.ncons)) || 1), avMax: p.avMax === undefined ? 30 : achN(p.avMax), delaiLeg: p.delaiLeg === undefined ? 60 : Math.max(1, achN(p.delaiLeg) || 60), seuilBdg: p.seuilBdg === undefined ? 90 : Math.min(100, Math.max(1, achN(p.seuilBdg) || 90)), exFin: p.exFin === undefined ? 12 : Math.min(12, Math.max(1, Math.round(achN(p.exFin)) || 12)), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), socIce: p.socIce || "", socIf: p.socIf || "", banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })), grp: ACH_ORIG.map(g => ({ ...g, req: g.req.slice() })), alr: achAlr(p), espL: achEspL(p), ment: p.ment && typeof p.ment === "object" ? p.ment : { ice: true, if: true }, seuV: Array.isArray(p.seuV) ? p.seuV : [], seuT: p.seuT && typeof p.seuT === "object" ? p.seuT : {},
-  freqA: p.freqA === undefined ? 3 : achN(p.freqA), freqB: p.freqB === undefined ? 6 : achN(p.freqB), plafT: p.plafU === "%" || p.plafT === undefined ? "" : p.plafT, plafP: p.plafP !== undefined ? p.plafP : p.plafU === "%" && p.plafT !== undefined ? p.plafT : "", plafU: "DH", nrep: p.nrep === undefined ? 3 : Math.max(1, Math.round(achN(p.nrep)) || 1), mrep: p.mrep === undefined ? 10 : achN(p.mrep), refs: achRefs(p), clG: achClG(p), clP: achClP(p) });
+  freqA: p.freqA === undefined ? 3 : achN(p.freqA), freqB: p.freqB === undefined ? 6 : achN(p.freqB), plafT: p.plafU === "%" || p.plafT === undefined ? "" : p.plafT, plafP: p.plafP !== undefined ? p.plafP : p.plafU === "%" && p.plafT !== undefined ? p.plafT : "", plafU: "DH", nrep: p.nrep === undefined ? 3 : Math.max(1, Math.round(achN(p.nrep)) || 1), mrep: p.mrep === undefined ? 10 : achN(p.mrep), cafMan: p.cafMan !== false, refs: achRefs(p), clG: achClG(p), clP: achClP(p) });   /* v1134 (L24) : cafMan = prix saisi à la main → validateur obligatoire (OUI par défaut) */
 const achPrmSave = p => achW(ACH_K.prm, p);
 /* v811 : lectures mémorisées. Une donnée dérivée n'est recalculée que si le texte gardé dans l'appareil a changé :
    rien à remettre à zéro, quel que soit celui qui écrit. Le résultat se lit seulement, il ne se modifie jamais. */
@@ -339,6 +339,20 @@ const ACH_CIRC_T = [["gen", "GÉNÉRAL (PROPOSÉ PAR DÉFAUT)"], ["bsn", "BESOIN
 const achArtOf = (des, u) => achArts().find(a => !a.del && achKey(a.des, a.u) === achKey(des, u)) || null;
 const achStdPu = (des, u, pu) => { const a = achArtOf(des, u); return a && achN(a.pref) > 0 ? achN(a.pref) : achN(pu); };
 const achStdMt = L => (L || []).reduce((t, l) => t + achN(l.q) * achStdPu(l.des, l.u, l.pu), 0);
+/* v1134 (L24, décision d'Ahmed du 11/11) : PRIX ESTIMÉ d'un article de consultation — prix du budget actif qui le porte (le moins cher s'il est
+   dans plusieurs budgets), sinon prix standard de l'article ; dans ces deux cas il est bloqué (gris : les seuils de validation ne se contournent pas) ;
+   saisi à la main seulement s'il n'existe nulle part. Budgets actifs = étapes de l'appareil, ni archivés, ni supprimés, ni versions / scénarios / recalages */
+const achCafBdgPx = () => { const M = new Map(); let L = []; try { L = sviInstGet(); } catch (e) {}
+  (L || []).filter(b => b && !b.parent && !b.rclOf && !b.virtual && !b.arch && !b.del).forEach(b => { let C = []; try { C = achBdgCharges(b.ref); } catch (e) {}
+    C.forEach(c => { if (!(c.p > 0)) return; const o = M.get(c.key); if (!o || c.p < o.p) M.set(c.key, { p: c.p, ref: b.ref }); }); });
+  return M; };
+const achCafEst = (l, BP) => { const b = (BP || achCafBdgPx()).get(achKey(l.des, l.u)); if (b) return { pu: b.p, src: "bdg", lab: "BUDGET " + b.ref, lock: true };
+  const a = achArtOf(l.des, l.u); if (a && achN(a.pref) > 0) return { pu: achN(a.pref), src: "std", lab: "PRIX STANDARD", lock: true };
+  return { pu: achN(l.pu), src: "man", lab: achN(l.pu) > 0 ? "SAISI À LA MAIN" : "À SAISIR", lock: false }; };
+const achCafEstMt = (c, BP) => { BP = BP || achCafBdgPx(); return (c.lignes || []).reduce((t, l) => t + achN(l.q) * achCafEst(l, BP).pu, 0); };
+/* une consultation avec au moins un prix saisi à la main passe par un validateur, quel que soit le seuil (réglage PARAMÉTRAGE › ACHATS › CONSULTATIONS) */
+const achCafManForce = c => { if (achPrm().cafMan === false) return ""; const BP = achCafBdgPx(); return (c.lignes || []).some(l => String(l.des || "").trim() && achCafEst(l, BP).src === "man") ? "PRIX SAISI À LA MAIN" : ""; };
+const achCafGate = (C, persist) => achCircGate("caf", C, achCafEstMt(C), persist, achCafManForce(C));
 const achSeuOwn = k => { const T = achPrm().seuT || {}; return !!k && k !== "gen" && Array.isArray(T[k]); };
 const achSeuL = k => achSeuOwn(k) ? achPrm().seuT[k] : achPrm().seuV;
 /* F4 (série F) : chaque NIVEAU a un seuil de départ et de fin (fin vide = sans fin ; 0 et vide = tout passe par ce niveau) ; les niveaux dont
@@ -351,8 +365,13 @@ const achCircNext = c => { const K = c.circ; if (!K) return []; const done = new
 const achCircDone = c => !!c.circ && achCircNext(c).length === 0;
 /* 06/11 : circuit d'une pièce autre que la commande (facture : BON À PAYER ; paiement : VALIDER) — rend true tant que la pièce ne peut pas être validée :
    1er appel = ENVOYER EN VALIDATION (pièce verrouillée) ; ensuite, fenêtre du circuit : chaque grade attendu ACCEPTE ou RENVOIE avec ses remarques */
-async function achCircGate(k, X, ht, persist) {
-  const S = achPcSeu(k, ht); if (!S || achCircDone(X)) return false;
+/* v1134 (L24) : force = validation obligatoire quel que soit le montant (ex. consultation avec un prix saisi à la main) — premier niveau réglé */
+const achPcSeuMin = k => { const S = achSeuL(k).filter(x => (x.g || []).length).sort((a, b) => achN(a.mt) - achN(b.mt))[0]; return S ? { mt: achN(S.mt), g: S.g.map(String), h: !!S.h, k, force: true } : null; };
+async function achCircGate(k, X, ht, persist, force) {
+  if (achCircDone(X)) return false;
+  const S = achPcSeu(k, ht) || (force ? achPcSeuMin(k) : null);
+  if (!S && force) { svToast(force + " : AUCUN VALIDATEUR RÉGLÉ (PARAMÉTRAGE › ACHATS › CONSULTATIONS › VALIDATION).", 5000); return true; }
+  if (!S) return false;
   if (!X.circ) { if (!(await svConfirm({ title: "ENVOYER EN VALIDATION", text: (X.ref || "") + " : " + achF2(ht) + " HT, AU-DELÀ DE " + achF2(S.mt) + " HT — VALIDATION PAR " + S.g.map(achGradeLab).join(S.h ? " PUIS " : " OU ") + ". LA PIÈCE EST VERROUILLÉE PENDANT LE CIRCUIT.", ok: "ENVOYER", tone: "neutral" }))) return true;
     X.circ = { ...S, ok: [], t: achNow() }; await persist("ENVOYÉ EN VALIDATION"); return true; }
   const nx = achCircNext(X), d = sviWinNew();
@@ -592,7 +611,8 @@ const achCafWhy = (c, D) => { const w = [], today = new Date().toISOString().sli
   if (c.state !== "ouverte") return w;
   if (!(c.lignes || []).length) w.push("AUCUNE LIGNE");
   /* 06/11 (soir) : une ligne hors de la liste des articles doit avoir un prix (montant de validation) */
-  (c.lignes || []).forEach(l => { if (l.des && !achArtOf(l.des, l.u) && !(achN(l.pu) > 0)) w.push(l.des + " : HORS LISTE DES ARTICLES, PRIX ESTIMÉ À SAISIR"); });
+  /* v1134 (L24) : prix à saisir seulement s'il n'existe ni dans un budget actif ni en prix standard */
+  { const BP = achCafBdgPx(); (c.lignes || []).forEach(l => { if (l.des && achCafEst(l, BP).src === "man" && !(achN(l.pu) > 0)) w.push(l.des + " : NI BUDGET NI PRIX STANDARD, PRIX ESTIMÉ À SAISIR"); }); }
   /* 07/11 : lignes importées non encore vérifiées */
   { const ni = (c.lignes || []).filter(l => l.imp).length; if (ni) w.push(ni + " DÉTAIL(S) IMPORTÉ(S) À VÉRIFIER"); }
   if (!(c.frs || []).length) w.push("AUCUN FOURNISSEUR CONSULTÉ");
@@ -925,7 +945,9 @@ function sviAchInit() {
     if (T === "caf") return `<div class="ach-prm">${tabs}
       <div class="ach-pbox"><div class="ach-pt">CONSULTATIONS</div><table class="bdg-d-table prm-table ach-pgen ach-pcaf"><colgroup><col style="width:520px"><col style="width:140px"><col style="width:220px"></colgroup>
         <thead><tr><th>RÉGLAGE</th><th class="center">VALEUR</th><th>UNITÉ</th></tr></thead><tbody><tr><td data-tip="NON BLOQUANT : MOINS DE FOURNISSEURS CONSULTÉS POUR UN ARTICLE = ALERTE SUR LA CONSULTATION">NOMBRE MINIMUM DE FOURNISSEURS CONSULTÉS PAR ARTICLE</td>
-          <td class="center"><input class="ins-in ach-pnum number" data-pk="ncons" inputmode="decimal" value="${P.ncons === "" || P.ncons === undefined ? "" : esc(F2(P.ncons))}" autocomplete="off"></td><td>FOURNISSEURS</td></tr></tbody></table></div>
+          <td class="center"><input class="ins-in ach-pnum number" data-pk="ncons" inputmode="decimal" value="${P.ncons === "" || P.ncons === undefined ? "" : esc(F2(P.ncons))}" autocomplete="off"></td><td>FOURNISSEURS</td></tr>
+          <tr><td data-tip="UNE CONSULTATION AVEC AU MOINS UN PRIX ESTIMÉ SAISI À LA MAIN (NI BUDGET ACTIF NI PRIX STANDARD) PASSE PAR UN VALIDATEUR, QUEL QUE SOIT SON MONTANT">PRIX SAISI À LA MAIN : VALIDATION OBLIGATOIRE (QUEL QUE SOIT LE SEUIL)</td>
+          <td class="center"><input type="checkbox" class="ach-pcafman"${P.cafMan !== false ? " checked" : ""} aria-label="Validation obligatoire"></td><td>${P.cafMan !== false ? "OUI" : "NON"}</td></tr></tbody></table></div>
       ${tb("P", "CONDITIONS PARTICULIÈRES (MENU DES CONSULTATIONS ; REPRISES SUR CHAQUE NOUVELLE COMMANDE, IMPRIMÉES EN ANNEXE)", P.clP)}</div>`;
     if (T === "cat") return `<div class="ach-prm">${tabs}
       <div class="ach-pbox"><div class="ach-pt">CATÉGORIES ${svCnt ? svCnt(catRows.length, P.cat.length) : ""}</div>
@@ -1142,6 +1164,7 @@ function sviAchInit() {
       else if (f === "fin") { const s0 = String(t.value).trim(), v = achN(s0); if (s0 && !(v > achN(x.mt))) { svToast("LA FIN DOIT ÊTRE AU-DESSUS DU DÉPART (VIDE = SANS FIN).", 3500, t); draw(); return; } x.fin = s0 ? v : ""; }
       else { const L = String(t.value).split(/[,;\s]+/).filter(Boolean), bad = L.filter(g => !gr.includes(g)); if (bad.length) { svToast("GRADE INCONNU : " + bad.join(", ") + " (PARAMÉTRAGE GÉNÉRAL › GRADES).", 3500, t); draw(); return; } x.g = [...new Set(L)].sort((a, b) => b - a); }
       SL.sort((a, b) => a.mt - b.mt); achPrmSave(P); draw(); return; }
+    if (t.classList.contains("ach-pcafman")) { const P = achPrm(); P.cafMan = !!t.checked; achPrmSave(P); draw(); return; }   /* v1134 (L24) */
     if (t.classList.contains("ach-ptol")) { const P = achPrm(), v = achN(t.value); if (v < 0 || v > 100) { svToast("TOLÉRANCE NON VALIDE (0 À 100 %).", 3000, t); draw(); return; } P.tol = v; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-pdirect")) { const P = achPrm(), v = achN(t.value); if (v < 0) { svToast("SEUIL NON VALIDE.", 3000, t); draw(); return; } P.direct = v; achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-pnum") && (t.dataset.pk === "plafT" || t.dataset.pk === "plafP") && String(t.value).trim() === "") { const P = achPrm(); P[t.dataset.pk] = ""; achPrmSave(P); draw(); return; }
@@ -2155,7 +2178,7 @@ function achCafFiche(id, done) {
       const min = Math.min(...D.map(x => achDvfTot(x).ht).filter(x => x > 0));
       if (achDvfTot(v).ht > min + 1e-6 && !C.motif) { svToast("LE RETENU N'EST PAS LE MOINS CHER : MOTIF OBLIGATOIRE.", 4000); return; }
       /* 06/11 (soir) : circuit de validation propre aux CONSULTATIONS (montant au prix standard) ; DEVIS : seulement s'il a son propre réglage */
-      if (await achCircGate("caf", C, achStdMt(C.lignes), async lab => { store(lab); draw(); })) return;
+      if (await achCafGate(C, async lab => { store(lab); draw(); })) return;
       if (achSeuOwn("dvf")) { const DL0 = achDvf(), v0 = DL0.find(x => x.id === v.id); if (v0 && await achCircGate("dvf", v0, achStdMt(v0.lignes), async lab => { v0.mod = now(); achDvfSave(DL0); achHist(v0.ref, lab, ""); draw(); })) return; }
       if (!(await svConfirm({ title: "CLÔTURER LA CONSULTATION", text: C.ref + " : RETENU " + achFrsNom(C.retenu) + " (" + achF2(achDvfTot(v).ht) + " HT). LES AUTRES DEVIS SONT REJETÉS ; LES BESOINS DES LIGNES DEVIENNENT COUVERTS.", ok: "CLÔTURER", tone: "neutral" }))) return;
       const DL = achDvf(); DL.forEach(x => { if (x.caf === C.id && x.state !== "annule") { x.state = x.id === v.id ? "retenu" : "rejete"; x.mod = now(); achHist(x.ref, x.state === "retenu" ? "RETENU" : "REJETÉ", C.ref); } }); achDvfSave(DL);
@@ -2349,6 +2372,7 @@ function achDetNum(L, G) { G = G || []; const out = [], seen = new Set(); let n 
     let m = 0; L.forEach((y, j) => { if (y.g === l.g) out.push({ l: y, i: j, no: gn + "." + (++m) }); }); });
   return out; }
 function achCafPage(x, B) {
+  const BP = achCafBdgPx();   /* v1134 (L24) : prix des budgets actifs, lus une fois par dessin */
   if (achCafUp(x)) { const L = achCaf(), i = L.findIndex(y => y.id === x.id); if (i >= 0) { L[i] = x; achCafSave(L); } }   /* mêmes identifiants que ceux affichés */
   /* F8 : un devis lié depuis sa fiche (champ CONSULTATION) amène son fournisseur, lié aux détails qu'il chiffre */
   { const miss = achDvf().filter(v => v.caf === x.id && v.state !== "annule" && v.frs && !(x.frs || []).includes(v.frs));
@@ -2369,7 +2393,7 @@ function achCafPage(x, B) {
   /* ---- DÉTAIL CONSULTATION ---- */
   const usedB = new Set((x.lignes || []).filter(l => l.bsn).map(l => l.bsn)), takenD = new Set((x.lignes || []).filter(l => l.bsn).map(l => achKey(l.des, l.u)));
   const det = achDetNum(x.lignes || [], x.grp).map(o => { if (o.title) return { cls: "ins-title nvp-gt svlk-gt-" + o.title.id, gid: o.title.id, cells: [o.no, { h: "<b>" + esc(o.lab) + "</b>", t: o.lab }, "", "", "", "", "", "", "", ""] };
-    const l = o.l, i = o.i, a = achArtOf(l.des, l.u), b = l.bsn ? achBsn().find(y => y.id === l.bsn) : null, pe = achStdPu(l.des, l.u, l.pu), k = "a|" + l.id;
+    const l = o.l, i = o.i, a = achArtOf(l.des, l.u), b = l.bsn ? achBsn().find(y => y.id === l.bsn) : null, es = achCafEst(l, BP), k = "a|" + l.id;
     const BO = achBsnOpen().filter(y => !usedB.has(y.id) || y.id === l.bsn).concat(b && !achBsnOpen().some(y => y.id === b.id) ? [b] : []);
     const AO = achArts().filter(y => !y.del && !y.bloq && !y.arch && (!takenD.has(achKey(y.des, y.u)) || achKey(y.des, y.u) === achKey(l.des, l.u)));
     const nF = ((x.lf || {})[l.id] || []).filter(f => (x.frs || []).includes(f)).length;
@@ -2379,10 +2403,11 @@ function achCafPage(x, B) {
       l.libre ? { h: `<input class="ins-in cafp-l" data-li="${esc(l.id)}" data-c="des" value="${esc(l.des || "")}"${dis}>`, t: l.des || "" } : { h: `<select class="ins-in cafp-des" data-li="${esc(l.id)}"${dis}><option value="">—</option>${AO.map(y => `<option value="${esc(y.id)}"${achKey(y.des, y.u) === achKey(l.des, l.u) ? " selected" : ""}>${esc(y.des + " (" + y.u + ")")}</option>`).join("")}</select>`, t: l.des || "" },
       l.libre ? { h: `<input class="ins-in cafp-l center" data-li="${esc(l.id)}" data-c="u" value="${esc(l.u || "")}"${dis}>`, t: l.u || "" } : l.u || "",
       { h: `<input class="ins-in cafp-l number" data-li="${esc(l.id)}" data-c="q" inputmode="decimal" value="${esc(String(l.q ?? "").replace(".", ","))}"${dis}>`, t: achN(l.q) },
-      a ? pe : { h: `<input class="ins-in cafp-l number" data-li="${esc(l.id)}" data-c="pu" inputmode="decimal" value="${esc(String(l.pu ?? "").replace(".", ","))}" placeholder="À SAISIR"${dis}>`, t: achN(l.pu) },
-      achN(l.q) * pe, b ? achN(l.q) * achN(b.pu) : "", String(nF)] }; });
+      /* v1134 (L24) : prix du budget ou prix standard = bloqué (gris) ; à saisir seulement s'il n'existe nulle part ; source dans la colonne suivante */
+      es.lock ? { h: `<span class="cafp-lock" data-tip="${esc(es.lab)}">${esc(achF2(es.pu))}</span>`, t: es.pu } : { h: `<input class="ins-in cafp-l number" data-li="${esc(l.id)}" data-c="pu" inputmode="decimal" value="${esc(String(l.pu ?? "").replace(".", ","))}" placeholder="À SAISIR"${dis}>`, t: achN(l.pu) },
+      es.lab, achN(l.q) * es.pu, String(nF)] }; });
   ACH_DET_DRAG[achNvhKey("ARTICLES CONSULTÉS")] = { open, rows: det.map(r => r.rd ? { l: r.rd.k.slice(2) } : { g: r.gid }), apply: f => achCafSaveOne(x.id, c => f(c), "DÉTAIL DÉPLACÉ") };
-  const DET = { t: "ARTICLES CONSULTÉS", lines: true, rdh: LK.rdAll("a"), add: open ? "CRÉER UN DÉTAIL ICI…" : "", cols: [["ARTICLE", "center"], ["BESOIN"], ["CODE ARTICLE"], ["DÉSIGNATION"], ["U", "center"], ["QUANTITÉ", "number"], ["PRIX ESTIMÉ", "number"], ["MONTANT ESTIMÉ", "number"], ["MONTANT BUDGÉTÉ (NON ENVOYÉ)", "number"], ["FOURNISSEURS", "center"]],
+  const DET = { t: "ARTICLES CONSULTÉS", lines: true, rdh: LK.rdAll("a"), add: open ? "CRÉER UN DÉTAIL ICI…" : "", cols: [["ARTICLE", "center"], ["BESOIN"], ["CODE ARTICLE"], ["DÉSIGNATION"], ["U", "center"], ["QUANTITÉ", "number"], ["PRIX ESTIMÉ", "number"], ["SOURCE DU PRIX"], ["MONTANT ESTIMÉ", "number"], ["FOURNISSEURS", "center"]],   /* v1134 (L24) : plus de MONTANT BUDGÉTÉ */
     rows: det, addFn: redraw => { achCafSaveOne(x.id, c => { const id = achCafId(); c.lignes.push({ id, des: "", u: "", q: "" }); c.lf[id] = (c.frs || []).slice(); }, "DÉTAIL AJOUTÉ"); redraw(); },
     menu: open ? [{ k: "imp", lab: "IMPORTER (EXCEL, GOOGLE SHEETS, CSV, PDF)" }].concat((x.lignes || []).some(l => l.imp) ? [{ k: "impok", lab: "CONFIRMER LES COCHÉS (VÉRIFIÉS)" }] : []).concat([{ k: "bsn", lab: "AJOUTER LES BESOINS VALIDÉS NON COUVERTS" }, { k: "libre", lab: "AJOUTER UN ARTICLE HORS LISTE" }, { k: "up", lab: "MONTER LES COCHÉS" }, { k: "down", lab: "DESCENDRE LES COCHÉS" }, { k: "grp", lab: "GROUPER LES COCHÉS" }, { k: "ungrp", lab: "SORTIR LES COCHÉS DE LEUR GROUPE" }, { k: "rm", lab: "SUPPRIMER LES COCHÉS" }]) : [],
     act: async (a, ck, redraw) => { const rowsL = ck.map(i => det[i]).filter(r => r && r.rd).map(r => r.rd.k.slice(2));
@@ -2475,7 +2500,7 @@ function achCafPage(x, B) {
       /* v1121 (L20) : VALIDER avant la remise — circuit de validation des consultations s'il s'applique (vert), puis validée, à remettre (orange) */
       if (k === "val") { const L = achCaf(), C = L.find(y => y.id === x.id); if (!C) return true;
         if (!(C.lignes || []).length || !(C.frs || []).length) { svToast("IL FAUT AU MOINS UN ARTICLE ET UN FOURNISSEUR.", 3000); return true; }
-        if (await achCircGate("caf", C, achStdMt(C.lignes), async lab => { C.mod = achNow(); achCafSave(L); achHist(C.ref, lab, ""); redraw(); })) return true;
+        if (await achCafGate(C, async lab => { C.mod = achNow(); achCafSave(L); achHist(C.ref, lab, ""); redraw(); })) return true;
         if (!(await svConfirm({ title: "VALIDER LA CONSULTATION", text: C.ref + " : VALIDÉE, ELLE POURRA ÊTRE REMISE AUX FOURNISSEURS.", ok: "VALIDER", tone: "neutral" }))) return true;
         C.val = achNow(); C.mod = achNow(); achCafSave(L); achHist(C.ref, "VALIDÉE — À REMETTRE", ""); redraw(); return true; }
       if (k === "close") { achCafClose(x.id, redraw); return true; }
@@ -2809,7 +2834,7 @@ function achCafClose(id, done) { const c0 = achCaf().find(y => y.id === id); if 
     if (r.ht > min + 1e-6 && !motif) { svToast("LE RETENU N'EST PAS LE MOINS CHER : MOTIF OBLIGATOIRE.", 4000); return; }
     const used = D.filter(v => r.use.has(v.id)); if (used.some(v => achDvfWhy(v).some(m => /REÇU APRÈS LA DATE LIMITE$|DEVIS EXPIRÉ/.test(m)))) { svToast("UN DEVIS RETENU EST EXPIRÉ OU REÇU APRÈS LA DATE LIMITE : L'ACCEPTER AVEC UN MOTIF (FICHE DU DEVIS).", 5000); return; }
     const C = achCaf().find(y => y.id === id); if (!C) return; achCafUp(C);
-    if (await achCircGate("caf", C, achStdMt(C.lignes), async lab => { const L = achCaf(), i = L.findIndex(y => y.id === id); if (i >= 0) { L[i] = C; C.mod = achNow(); achCafSave(L); achHist(C.ref, lab, ""); } })) { d.remove(); if (done) done(); return; }
+    if (await achCafGate(C, async lab => { const L = achCaf(), i = L.findIndex(y => y.id === id); if (i >= 0) { L[i] = C; C.mod = achNow(); achCafSave(L); achHist(C.ref, lab, ""); } })) { d.remove(); if (done) done(); return; }
     if (!(await svConfirm({ title: "CLÔTURER LA CONSULTATION", text: C.ref + " : RETENU " + achFrsNom(ret) + " (" + achF2(r.ht) + " HT). LES AUTRES DEVIS SONT REJETÉS ; LES BESOINS DES DÉTAILS CHIFFRÉS DEVIENNENT COUVERTS.", ok: "CLÔTURER", tone: "neutral" }))) return;
     const now = achNow(), DL = achDvf(); DL.forEach(v => { if (v.caf === id && v.state !== "annule") { v.state = r.use.has(v.id) ? "retenu" : "rejete"; v.mod = now; achHist(v.ref, v.state === "retenu" ? "RETENU" : "REJETÉ", C.ref); } }); achDvfSave(DL);
     const BL = achBsn(); C.lignes.forEach(l => { if (!l.bsn || !((C.lf || {})[l.id] || []).includes(ret)) return; const p = achCafPrice(C, ret, l, DL.map(v => ({ ...v, state: v.state === "rejete" ? "recu" : v.state }))); if (p.st !== "ok") return; const b = BL.find(y => y.id === l.bsn); if (b) { b.couvert = id; b.mod = now; achHist(b.ref, "COUVERT", C.ref + " — " + achFrsNom(ret)); } }); achBsnSave(BL);
@@ -4088,7 +4113,7 @@ function achMepOpen(cfg, P, rec, redraw, o) {
   const tb = document.querySelector(`#ach table[data-colh="achp_${achNvhKey(Lg0.t)}"]`), vis = tb ? sviColhVis(tb) : null, vf = a => vis ? a.filter((_, i) => vis.includes(i)) : a;
   let Lg = { ...Lg0, cols: vf(Lg0.cols), rows: Lg0.rows.map(r => ({ ...r, cells: vf(r.cells) })) };
   /* F10 (série F) : le prix standard, le PRIX ESTIMÉ et les montants estimés ou budgétés ne sont JAMAIS imprimés pour le fournisseur */
-  { const keep = Lg.cols.map((c, i) => /PRIX ESTIMÉ|PRIX STANDARD|MONTANT ESTIMÉ|BUDGÉTÉ|BUDGET HT/.test(c[0]) ? -1 : i).filter(i => i >= 0); if (keep.length < Lg.cols.length) Lg = { ...Lg, cols: keep.map(i => Lg.cols[i]), rows: Lg.rows.map(r => ({ ...r, cells: keep.map(i => r.cells[i]) })) }; }
+  { const keep = Lg.cols.map((c, i) => /PRIX ESTIMÉ|PRIX STANDARD|MONTANT ESTIMÉ|BUDGÉTÉ|BUDGET HT|SOURCE DU PRIX/.test(c[0]) ? -1 : i).filter(i => i >= 0); if (keep.length < Lg.cols.length) Lg = { ...Lg, cols: keep.map(i => Lg.cols[i]), rows: Lg.rows.map(r => ({ ...r, cells: keep.map(i => r.cells[i]) })) }; }
   if (o.noPrice) { const keep = Lg.cols.map((c, i) => /PU|PRIX|MONTANT|TVA/.test(c[0]) ? -1 : i).filter(i => i >= 0); Lg = { ...Lg, cols: keep.map(i => Lg.cols[i]), rows: Lg.rows.map(r => ({ ...r, cells: keep.map(i => r.cells[i]) })) }; }
   const K = cfg.list.k, pr = achPrm(), lettres = P.ttc && !o.noPrice ? "ARRÊTÉ(E) À LA SOMME DE : " + frMoney(P.ttc) + " TTC." : "";
   const mention = K === "cmf" ? "N° " + (P.ref || P.code) + " À REPORTER SUR LE BON DE LIVRAISON ET LA FACTURE." : K === "caf" ? "MERCI DE RAPPELER LA RÉFÉRENCE " + (P.ref || P.code) + " DANS VOTRE DEVIS." : "";

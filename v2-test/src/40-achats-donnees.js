@@ -82,7 +82,7 @@ const achClG = p => Array.isArray(p.clG) ? p.clG : [["pay"], ["val"]].map(([t], 
 const achClP = p => Array.isArray(p.clP) ? p.clP : [{ id: "p1", t: "liv", txt: "" }, { id: "p2", t: "pen", txt: "" }];
 const achClCopy = L => (L || []).map(x => ({ t: x.t, txt: x.txt || "", v: x.v ?? "", u: x.u ?? achCltU(x.t) }));
 const achPrm0 = p => ({ tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: achEspJour(p), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: achAlrJ(p, "av", p.avj === undefined ? 90 : achN(p.avj)), chqj: achAlrJ(p, "chq", p.chqj === undefined ? 30 : achN(p.chqj)), dorm: p.dorm === undefined ? 12 : achN(p.dorm), directJ: p.directJ === undefined ? 30 : Math.max(1, Math.round(achN(p.directJ)) || 1), nfrs: p.nfrs === undefined ? 3 : Math.max(1, Math.round(achN(p.nfrs)) || 1), ncons: p.ncons === undefined ? 3 : Math.max(1, Math.round(achN(p.ncons)) || 1), avMax: p.avMax === undefined ? 30 : achN(p.avMax), delaiLeg: p.delaiLeg === undefined ? 60 : Math.max(1, achN(p.delaiLeg) || 60), seuilBdg: p.seuilBdg === undefined ? 90 : Math.min(100, Math.max(1, achN(p.seuilBdg) || 90)), exFin: p.exFin === undefined ? 12 : Math.min(12, Math.max(1, Math.round(achN(p.exFin)) || 12)), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), socIce: p.socIce || "", socIf: p.socIf || "", banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })), grp: ACH_ORIG.map(g => ({ ...g, req: g.req.slice() })), alr: achAlr(p), espL: achEspL(p), ment: p.ment && typeof p.ment === "object" ? p.ment : { ice: true, if: true }, seuV: Array.isArray(p.seuV) ? p.seuV : [], seuT: p.seuT && typeof p.seuT === "object" ? p.seuT : {},
-  freqA: p.freqA === undefined ? 3 : achN(p.freqA), freqB: p.freqB === undefined ? 6 : achN(p.freqB), plafT: p.plafU === "%" || p.plafT === undefined ? "" : p.plafT, plafP: p.plafP !== undefined ? p.plafP : p.plafU === "%" && p.plafT !== undefined ? p.plafT : "", plafU: "DH", nrep: p.nrep === undefined ? 3 : Math.max(1, Math.round(achN(p.nrep)) || 1), mrep: p.mrep === undefined ? 10 : achN(p.mrep), refs: achRefs(p), clG: achClG(p), clP: achClP(p) });
+  freqA: p.freqA === undefined ? 3 : achN(p.freqA), freqB: p.freqB === undefined ? 6 : achN(p.freqB), plafT: p.plafU === "%" || p.plafT === undefined ? "" : p.plafT, plafP: p.plafP !== undefined ? p.plafP : p.plafU === "%" && p.plafT !== undefined ? p.plafT : "", plafU: "DH", nrep: p.nrep === undefined ? 3 : Math.max(1, Math.round(achN(p.nrep)) || 1), mrep: p.mrep === undefined ? 10 : achN(p.mrep), cafMan: p.cafMan !== false, refs: achRefs(p), clG: achClG(p), clP: achClP(p) });   /* v1134 (L24) : cafMan = prix saisi à la main → validateur obligatoire (OUI par défaut) */
 const achPrmSave = p => achW(ACH_K.prm, p);
 /* v811 : lectures mémorisées. Une donnée dérivée n'est recalculée que si le texte gardé dans l'appareil a changé :
    rien à remettre à zéro, quel que soit celui qui écrit. Le résultat se lit seulement, il ne se modifie jamais. */
@@ -338,6 +338,20 @@ const ACH_CIRC_T = [["gen", "GÉNÉRAL (PROPOSÉ PAR DÉFAUT)"], ["bsn", "BESOIN
 const achArtOf = (des, u) => achArts().find(a => !a.del && achKey(a.des, a.u) === achKey(des, u)) || null;
 const achStdPu = (des, u, pu) => { const a = achArtOf(des, u); return a && achN(a.pref) > 0 ? achN(a.pref) : achN(pu); };
 const achStdMt = L => (L || []).reduce((t, l) => t + achN(l.q) * achStdPu(l.des, l.u, l.pu), 0);
+/* v1134 (L24, décision d'Ahmed du 11/11) : PRIX ESTIMÉ d'un article de consultation — prix du budget actif qui le porte (le moins cher s'il est
+   dans plusieurs budgets), sinon prix standard de l'article ; dans ces deux cas il est bloqué (gris : les seuils de validation ne se contournent pas) ;
+   saisi à la main seulement s'il n'existe nulle part. Budgets actifs = étapes de l'appareil, ni archivés, ni supprimés, ni versions / scénarios / recalages */
+const achCafBdgPx = () => { const M = new Map(); let L = []; try { L = sviInstGet(); } catch (e) {}
+  (L || []).filter(b => b && !b.parent && !b.rclOf && !b.virtual && !b.arch && !b.del).forEach(b => { let C = []; try { C = achBdgCharges(b.ref); } catch (e) {}
+    C.forEach(c => { if (!(c.p > 0)) return; const o = M.get(c.key); if (!o || c.p < o.p) M.set(c.key, { p: c.p, ref: b.ref }); }); });
+  return M; };
+const achCafEst = (l, BP) => { const b = (BP || achCafBdgPx()).get(achKey(l.des, l.u)); if (b) return { pu: b.p, src: "bdg", lab: "BUDGET " + b.ref, lock: true };
+  const a = achArtOf(l.des, l.u); if (a && achN(a.pref) > 0) return { pu: achN(a.pref), src: "std", lab: "PRIX STANDARD", lock: true };
+  return { pu: achN(l.pu), src: "man", lab: achN(l.pu) > 0 ? "SAISI À LA MAIN" : "À SAISIR", lock: false }; };
+const achCafEstMt = (c, BP) => { BP = BP || achCafBdgPx(); return (c.lignes || []).reduce((t, l) => t + achN(l.q) * achCafEst(l, BP).pu, 0); };
+/* une consultation avec au moins un prix saisi à la main passe par un validateur, quel que soit le seuil (réglage PARAMÉTRAGE › ACHATS › CONSULTATIONS) */
+const achCafManForce = c => { if (achPrm().cafMan === false) return ""; const BP = achCafBdgPx(); return (c.lignes || []).some(l => String(l.des || "").trim() && achCafEst(l, BP).src === "man") ? "PRIX SAISI À LA MAIN" : ""; };
+const achCafGate = (C, persist) => achCircGate("caf", C, achCafEstMt(C), persist, achCafManForce(C));
 const achSeuOwn = k => { const T = achPrm().seuT || {}; return !!k && k !== "gen" && Array.isArray(T[k]); };
 const achSeuL = k => achSeuOwn(k) ? achPrm().seuT[k] : achPrm().seuV;
 /* F4 (série F) : chaque NIVEAU a un seuil de départ et de fin (fin vide = sans fin ; 0 et vide = tout passe par ce niveau) ; les niveaux dont
@@ -350,8 +364,13 @@ const achCircNext = c => { const K = c.circ; if (!K) return []; const done = new
 const achCircDone = c => !!c.circ && achCircNext(c).length === 0;
 /* 06/11 : circuit d'une pièce autre que la commande (facture : BON À PAYER ; paiement : VALIDER) — rend true tant que la pièce ne peut pas être validée :
    1er appel = ENVOYER EN VALIDATION (pièce verrouillée) ; ensuite, fenêtre du circuit : chaque grade attendu ACCEPTE ou RENVOIE avec ses remarques */
-async function achCircGate(k, X, ht, persist) {
-  const S = achPcSeu(k, ht); if (!S || achCircDone(X)) return false;
+/* v1134 (L24) : force = validation obligatoire quel que soit le montant (ex. consultation avec un prix saisi à la main) — premier niveau réglé */
+const achPcSeuMin = k => { const S = achSeuL(k).filter(x => (x.g || []).length).sort((a, b) => achN(a.mt) - achN(b.mt))[0]; return S ? { mt: achN(S.mt), g: S.g.map(String), h: !!S.h, k, force: true } : null; };
+async function achCircGate(k, X, ht, persist, force) {
+  if (achCircDone(X)) return false;
+  const S = achPcSeu(k, ht) || (force ? achPcSeuMin(k) : null);
+  if (!S && force) { svToast(force + " : AUCUN VALIDATEUR RÉGLÉ (PARAMÉTRAGE › ACHATS › CONSULTATIONS › VALIDATION).", 5000); return true; }
+  if (!S) return false;
   if (!X.circ) { if (!(await svConfirm({ title: "ENVOYER EN VALIDATION", text: (X.ref || "") + " : " + achF2(ht) + " HT, AU-DELÀ DE " + achF2(S.mt) + " HT — VALIDATION PAR " + S.g.map(achGradeLab).join(S.h ? " PUIS " : " OU ") + ". LA PIÈCE EST VERROUILLÉE PENDANT LE CIRCUIT.", ok: "ENVOYER", tone: "neutral" }))) return true;
     X.circ = { ...S, ok: [], t: achNow() }; await persist("ENVOYÉ EN VALIDATION"); return true; }
   const nx = achCircNext(X), d = sviWinNew();
@@ -591,7 +610,8 @@ const achCafWhy = (c, D) => { const w = [], today = new Date().toISOString().sli
   if (c.state !== "ouverte") return w;
   if (!(c.lignes || []).length) w.push("AUCUNE LIGNE");
   /* 06/11 (soir) : une ligne hors de la liste des articles doit avoir un prix (montant de validation) */
-  (c.lignes || []).forEach(l => { if (l.des && !achArtOf(l.des, l.u) && !(achN(l.pu) > 0)) w.push(l.des + " : HORS LISTE DES ARTICLES, PRIX ESTIMÉ À SAISIR"); });
+  /* v1134 (L24) : prix à saisir seulement s'il n'existe ni dans un budget actif ni en prix standard */
+  { const BP = achCafBdgPx(); (c.lignes || []).forEach(l => { if (l.des && achCafEst(l, BP).src === "man" && !(achN(l.pu) > 0)) w.push(l.des + " : NI BUDGET NI PRIX STANDARD, PRIX ESTIMÉ À SAISIR"); }); }
   /* 07/11 : lignes importées non encore vérifiées */
   { const ni = (c.lignes || []).filter(l => l.imp).length; if (ni) w.push(ni + " DÉTAIL(S) IMPORTÉ(S) À VÉRIFIER"); }
   if (!(c.frs || []).length) w.push("AUCUN FOURNISSEUR CONSULTÉ");
