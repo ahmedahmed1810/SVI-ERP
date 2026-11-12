@@ -346,6 +346,8 @@ const achCafBdgPx = () => { const M = new Map(); let L = []; try { L = sviInstGe
     C.forEach(c => { if (!(c.p > 0)) return; const o = M.get(c.key); if (!o || c.p < o.p) M.set(c.key, { p: c.p, ref: b.ref, prj: achU(b.project || "") || b.ref }); }); });
   return M; };
 const achCafEst = (l, BP) => { const b = (BP || achCafBdgPx()).get(achKey(l.des, l.u)); if (b) return { pu: b.p, src: "bdg", lab: "BUDGET " + b.prj, ref: b.ref, lock: true };   /* v1136 (L24) : « BUDGET IME » (nom du projet) */
+  /* v1141 (décision d'Ahmed du 12/11) : prix repris d'un besoin validé = prix connu (après le budget, avant le standard) */
+  if (l.bsn) { const bs = achBsn().find(y => y.id === l.bsn); if (bs && bs.state !== "annule" && achN(bs.pu) > 0) return { pu: achN(bs.pu), src: "bsn", lab: "BESOIN " + (bs.ref || ""), lock: true }; }
   const a = achArtOf(l.des, l.u); if (a && achN(a.pref) > 0) return { pu: achN(a.pref), src: "std", lab: "STANDARD", lock: true };
   return { pu: achN(l.pu), src: "man", lab: achN(l.pu) > 0 ? "SAISI À LA MAIN" : "À SAISIR", lock: false }; };
 const achCafEstMt = (c, BP) => { BP = BP || achCafBdgPx(); return (c.lignes || []).reduce((t, l) => t + achN(l.q) * achCafEst(l, BP).pu, 0); };
@@ -354,6 +356,8 @@ const achCafEstMt = (c, BP) => { BP = BP || achCafBdgPx(); return (c.lignes || [
 const achCafManLines = c => { const BP = achCafBdgPx(); return (c.lignes || []).filter(l => String(l.des || "").trim() && achCafEst(l, BP).src === "man").map(l => l.des + " : " + achF2(achN(l.pu)) + " HT"); };
 const achCafManForce = c => { if (achPrm().cafMan === false) return ""; const BP = achCafBdgPx(); return (c.lignes || []).some(l => String(l.des || "").trim() && achCafEst(l, BP).src === "man") ? "PRIX SAISI À LA MAIN" : ""; };
 const achCafGate = (C, persist) => achCircGate("caf", C, achCafEstMt(C), persist, achCafManForce(C));
+/* v1141 (décision d'Ahmed du 12/11) : à la clôture, seul le circuit habituel par seuils (la validation obligatoire du prix saisi à la main ne vaut qu'à VALIDER) */
+const achCafGateClose = (C, persist) => achCircGate("caf", C, achCafEstMt(C), persist);
 const achSeuOwn = k => { const T = achPrm().seuT || {}; return !!k && k !== "gen" && Array.isArray(T[k]); };
 const achSeuL = k => achSeuOwn(k) ? achPrm().seuT[k] : achPrm().seuV;
 /* F4 (série F) : chaque NIVEAU a un seuil de départ et de fin (fin vide = sans fin ; 0 et vide = tout passe par ce niveau) ; les niveaux dont
