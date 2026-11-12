@@ -4045,3 +4045,11 @@ body.svf-moving, body.svf-moving * { cursor: grabbing !important; user-select: n
 /* v1153 : fenêtres au format INF déplaçables par le bandeau */
 #docPop > .doc-card > .doc-head { touch-action: none; cursor: grab; }
 #docPop > .doc-card.svw-move, #docPop > .doc-card.svw-move * { cursor: grabbing !important; user-select: none !important; -webkit-user-select: none !important; }
+/* v1155 (L3) : blocs libres de la page budget — deux blocs côte à côte, largeur au coin ; DÉTAIL toujours sur toute la largeur */
+.bdg-d-page.lay-free { flex-flow: row wrap; column-gap: 14px; align-items: flex-start; align-content: flex-start; }
+.bdg-d-page.lay-free > * { flex: 0 0 100%; }
+.bdg-d-page > .blk-client, .bdg-d-page > .blk-hier, .bdg-d-page > .blk-etp, .bdg-d-page > .blk-suivi { position: relative; }
+.bdg-d-page .lay-wrz { position: absolute; right: 1px; bottom: 1px; width: 20px; height: 20px; cursor: nwse-resize; touch-action: none; z-index: 6;
+  background: linear-gradient(135deg, transparent 50%, #c3cad5 50%, #c3cad5 58%, transparent 58%, transparent 70%, #c3cad5 70%, #c3cad5 78%, transparent 78%); border-bottom-right-radius: 10px; }
+.bdg-d-page .lay-wrz.on, .bdg-d-page .lay-wrz:hover { background: linear-gradient(135deg, transparent 50%, #1d4ed8 50%, #1d4ed8 58%, transparent 58%, transparent 70%, #1d4ed8 70%, #1d4ed8 78%, transparent 78%); }
+.bdg-d-page[class*="max-"] .lay-wrz { display: none !important; }

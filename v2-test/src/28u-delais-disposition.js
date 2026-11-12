@@ -344,6 +344,32 @@ function sviBdgDelaisDisposition(C) {
     LAY_UNITS.filter(u => !saved.includes(u)).forEach(u => { const i = out.indexOf("suivi"); if (u !== "suivi" && i >= 0) out.splice(i, 0, u); else out.push(u); });
     return out;
   };
+  /* v1155 (L3) : blocs libres de la page budget — largeur au coin (pas de 5 %, au moins 30 %), deux blocs côte à côte ;
+     un bloc sur toute la largeur tiré de côté prend la moitié. DÉTAIL reste sur toute la largeur (document unique, partie 3). */
+  const LAY_GAP = 14;
+  const layWOf = (lay, u) => u === "detail" ? 100 : Math.max(30, Math.min(100, +((lay.w || {})[u]) || 100));
+  const layWApply = (pg, lay) => {
+    const free = LAY_UNITS.some(u => layWOf(lay, u) < 100);
+    pg.classList.toggle("lay-free", free);
+    LAY_UNITS.forEach(u => { if (u === "detail") return; const w = layWOf(lay, u);
+      layEls(u).forEach(el => { if (free && w < 100) el.style.flex = "0 0 calc(" + w + "% - " + (LAY_GAP * (1 - w / 100)).toFixed(1) + "px)"; else el.style.removeProperty("flex"); }); });
+  };
+  const layWResize = (event, h) => {
+    event.preventDefault(); event.stopPropagation();
+    const u = h.dataset.wrz, pg = page$(), b = layEls(u)[0]; if (!pg || !b) return;
+    const W = pg.clientWidth - (parseFloat(getComputedStyle(pg).paddingLeft) || 0) - (parseFloat(getComputedStyle(pg).paddingRight) || 0);
+    const x0 = event.clientX, y0 = event.clientY, r0 = b.getBoundingClientRect(), hb = layMeasure(u), MINU = layMinOf(u) || 44;
+    let w = layWOf(layLoad(), u), v = 0, on = false; h.classList.add("on");
+    const move = e => { const dx = e.clientX - x0, dy = e.clientY - y0; if (!on) { if (Math.hypot(dx, dy) < 6) return; on = true; } e.preventDefault();
+      w = Math.max(30, Math.min(100, Math.round(((r0.width + dx) / W * 100) / 5) * 5));
+      const lay = layLoad(); lay.w = { ...(lay.w || {}), [u]: w }; layWApply(pg, lay);
+      if (Math.abs(dy) > 4) { v = Math.max(MINU, Math.round(hb + dy)); if (["hier", "client"].includes(u)) v = Math.max(MINU, laySnap(u, v)); pg.style.setProperty("--h-" + u, v + "px"); } };
+    const up = () => { document.removeEventListener("pointermove", move); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up); h.classList.remove("on");
+      if (!on) return; const lay = layLoad(); lay.w = lay.w || {}; if (w >= 100) delete lay.w[u]; else lay.w[u] = w;
+      if (v) { lay.h = lay.h || {}; lay.h[u] = v; lay.red = lay.red || {}; if (v <= MINU + 2) lay.red[u] = 1; else delete lay.red[u]; }
+      delete lay.def; laySave(lay); histLog("DISPOSITION", "MODIFICATION", "LARGEUR / HAUTEUR DES BLOCS"); layApply(); setTimeout(layMinScroll, 30); try { sviWinEat(); } catch (e) {} };
+    document.addEventListener("pointermove", move, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
+  };
   const layOpenH = {};   /* hauteurs réglées pendant cette ouverture seulement */
   const layApply = () => {
     const pg = page$();
@@ -351,6 +377,7 @@ function sviBdgDelaisDisposition(C) {
     const lay = layLoad();
     /* v774 (point 9) : SUIVI aussi rouvert comme laissé */
     layOrder().forEach((u, i) => layEls(u).forEach(el => { el.style.order = i; }));
+    layWApply(pg, lay);
     LAY_UNITS.forEach(u => {
       /* SUIVI (DOC / TAF / OBS) : toujours 5 lignes à l'ouverture,
          l'agrandissement ne vaut que pour la séance en cours */
@@ -379,7 +406,7 @@ function sviBdgDelaisDisposition(C) {
     /* v557 : hauteur par défaut du détail recalculée si l'écran change (rotation, barre de Safari) */
     if (!shell.__layDetRs) { shell.__layDetRs = true; let tm = 0; window.addEventListener("resize", () => { clearTimeout(tm); tm = setTimeout(() => { if (shell.isConnected && page$() && !(layLoad().h || {}).detail) layApply(); }, 300); }); }
     const custom = (lay.order && layOrder().join() !== LAY_UNITS.join()) ||
-      Object.keys(lay.h || {}).length > 0;
+      Object.keys(lay.h || {}).length > 0 || Object.keys(lay.w || {}).length > 0;
     const rb = $("layResetBtn");
     /* ↻ toujours affiché ; grisé quand les blocs sont déjà à leur place d'origine */
     if (rb) { rb.disabled = !custom; }   /* ↻ : dans le menu ⋯ du haut, grisé quand il n'y a rien à remettre en place */
@@ -423,6 +450,7 @@ function sviBdgDelaisDisposition(C) {
         }
       } else {
         const b = layEls(u)[0];
+        if (b && !b.querySelector(":scope > .lay-wrz")) { const c = document.createElement("div"); c.className = "lay-wrz"; c.dataset.wrz = u; c.title = "Glisser pour changer la largeur et la hauteur"; c.addEventListener("pointerdown", e => layWResize(e, c)); b.appendChild(c); }
         if (b && !b.querySelector(":scope > .blk-rsz")) {
           const r = document.createElement("div");
           r.className = "blk-rsz";
@@ -475,11 +503,12 @@ function sviBdgDelaisDisposition(C) {
   const layDrag = (event, grip) => {
     event.preventDefault();
     const src = grip.dataset.grip;
-    let target = null, after = false, timer = null, lastY = event.clientY;
+    let target = null, after = false, timer = null, lastY = event.clientY, lastX = event.clientX;
+    const X0 = event.clientX;
     layEls(src).forEach(el => el.classList.add("lay-src"));
     const rectOf = u => {
       const rs = layEls(u).map(el => el.getBoundingClientRect());
-      return { top: Math.min(...rs.map(r => r.top)), bottom: Math.max(...rs.map(r => r.bottom)) };
+      return { top: Math.min(...rs.map(r => r.top)), bottom: Math.max(...rs.map(r => r.bottom)), left: Math.min(...rs.map(r => r.left)), right: Math.max(...rs.map(r => r.right)) };
     };
     const clear = () => LAY_UNITS.forEach(u =>
       layEls(u).forEach(el => el.classList.remove("lay-before", "lay-after")));
@@ -489,9 +518,10 @@ function sviBdgDelaisDisposition(C) {
       for (const u of layOrder()) {
         if (u === src) continue;
         const r = rectOf(u);
-        if (y >= r.top && y <= r.bottom) {
+        if (y >= r.top && y <= r.bottom && lastX >= r.left - 8 && lastX <= r.right + 8) {
           target = u;
-          after = y > (r.top + r.bottom) / 2;
+          /* v1155 : deux blocs côte à côte — avant / après selon le côté (gauche / droite) */
+          after = r.right - r.left < (page$().clientWidth * .9) ? lastX > (r.left + r.right) / 2 : y > (r.top + r.bottom) / 2;
           const els = layEls(u);
           (after ? els[els.length - 1] : els[0]).classList.add(after ? "lay-after" : "lay-before");
           break;
@@ -508,7 +538,7 @@ function sviBdgDelaisDisposition(C) {
     }, 30);
     const move = e => {
       e.preventDefault();
-      lastY = e.clientY;
+      lastY = e.clientY; lastX = e.clientX;
       pick(lastY);
     };
     const up = () => {
@@ -518,11 +548,14 @@ function sviBdgDelaisDisposition(C) {
       document.removeEventListener("pointercancel", up);
       clear();
       layEls(src).forEach(el => el.classList.remove("lay-src"));
-      if (!target) return;
-      const order = layOrder().filter(u => u !== src);
-      order.splice(order.indexOf(target) + (after ? 1 : 0), 0, src);
-      const lay = layLoad();
-      lay.order = order;
+      const lay = layLoad(), pgW = (page$() || {}).clientWidth || innerWidth;
+      /* v1155 : un bloc sur toute la largeur tiré de côté (plus de 15 %) prend la moitié */
+      const side = src !== "detail" && layWOf(lay, src) >= 100 && Math.abs(lastX - X0) > pgW * .15;
+      if (side) { lay.w = { ...(lay.w || {}), [src]: 50 }; }
+      if (!target && !side) return;
+      if (target) { const order = layOrder().filter(u => u !== src);
+        order.splice(order.indexOf(target) + (after ? 1 : 0), 0, src);
+        lay.order = order; }
       delete lay.def; laySave(lay);
       histLog("DISPOSITION", "MODIFICATION", "ORDRE / HAUTEUR DES BLOCS");
       layApply();
