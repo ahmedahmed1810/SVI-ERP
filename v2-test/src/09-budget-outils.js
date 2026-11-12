@@ -929,7 +929,8 @@ const popEnhance = (p, kind) => {
       h = Math.max(180, Math.min(window.innerHeight - 16, Math.round(r.height + dy * 2)));
       card.style.width = w + "px";
       card.style.height = h + "px";
-    }, () => psSet("win." + kind, { w, h }));
+      try { sviWinClamp(card); } catch (e) {}   /* v1154 : agrandie près d'un bord, elle reste dans l'écran */
+    }, () => { psSet("win." + kind, { w, h }); try { sviWinEat(); } catch (e) {} try { const T = sviWinClamp(card); if (T && card.dataset.svwk && (T[0] || T[1])) sviWinPosSet("p:" + card.dataset.svwk, { dx: T[0], dy: T[1] }); } catch (e) {} });
   });
   /* champs : poignée sur le coin bas-droit de chaque champ */
   p.querySelectorAll(".doc-in").forEach((el, i) => {

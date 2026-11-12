@@ -2690,7 +2690,8 @@ const popEnhance = (p, kind) => {
       h = Math.max(180, Math.min(window.innerHeight - 16, Math.round(r.height + dy * 2)));
       card.style.width = w + "px";
       card.style.height = h + "px";
-    }, () => psSet("win." + kind, { w, h }));
+      try { sviWinClamp(card); } catch (e) {}   /* v1154 : agrandie près d'un bord, elle reste dans l'écran */
+    }, () => { psSet("win." + kind, { w, h }); try { sviWinEat(); } catch (e) {} try { const T = sviWinClamp(card); if (T && card.dataset.svwk && (T[0] || T[1])) sviWinPosSet("p:" + card.dataset.svwk, { dx: T[0], dy: T[1] }); } catch (e) {} });
   });
   /* champs : poignée sur le coin bas-droit de chaque champ */
   p.querySelectorAll(".doc-in").forEach((el, i) => {
@@ -6165,8 +6166,16 @@ function sviWinGeo(c) { if (!c || !c.matches(".svc-card")) return;
   if (!G) return;
   if (G.w) { c.style.setProperty("width", Math.min(G.w, innerWidth - 16) + "px", "important"); c.style.setProperty("max-width", "none", "important"); }
   if (G.h) { c.style.setProperty("height", Math.min(G.h, innerHeight - 16) + "px", "important"); c.classList.add("svw-h"); }
-  requestAnimationFrame(() => { const R = c.getBoundingClientRect(); const dx = Math.max(-R.left + 8, Math.min(innerWidth - R.right - 8 + R.width - 80, G.dx || 0)), dy = Math.max(-R.top + 8, Math.min(innerHeight - R.top - 48, G.dy || 0)); c.style.translate = dx + "px " + dy + "px"; }); }
+  requestAnimationFrame(() => { c.style.translate = (G.dx || 0) + "px " + (G.dy || 0) + "px"; sviWinClamp(c); }); }
 /* v1150b : absorbe le clic qui suit un geste (double toucher, déplacement), y compris sur le fond #svConf */
+/* v1154 : la fenêtre entière reste dans l'écran, 8 px de marge (glissé, réouverture, changement de taille) */
+const sviTr = c => { const T = String(c.style.translate || "0px 0px").split(" "); return [parseFloat(T[0]) || 0, parseFloat(T[1]) || 0]; };   /* « Xpx 0px » se lit « Xpx » */
+function sviWinClamp(c) { if (!c) return; const T0 = String(c.style.translate || "0px 0px").split(" "), T = [parseFloat(T0[0]) || 0, parseFloat(T0[1]) || 0], R = c.getBoundingClientRect(), M = 8;
+  let dx = 0, dy = 0;
+  if (R.right > innerWidth - M) dx = innerWidth - M - R.right; if (R.left + dx < M) dx = M - R.left;
+  if (R.bottom > innerHeight - M) dy = innerHeight - M - R.bottom; if (R.top + dy < M) dy = M - R.top;
+  if (dx || dy) c.style.translate = Math.round(T[0] + dx) + "px " + Math.round(T[1] + dy) + "px";
+  return [Math.round(T[0] + dx), Math.round(T[1] + dy)]; }
 function sviWinEat() {   /* v1152 : le blocage tombe dès l'appui suivant (un glissé au doigt ne produit pas de clic) */
   const off = () => { window.removeEventListener("click", stop, true); window.removeEventListener("pointerdown", off, true); };
   const stop = ce => { ce.stopPropagation(); ce.stopImmediatePropagation(); ce.preventDefault(); off(); };
@@ -6184,14 +6193,15 @@ function sviWinEat() {   /* v1152 : le blocage tombe dès l'appui suivant (un gl
       else sviWinGeo(c);
       sviWinEat(); return; }
     lastT = Date.now();
-    const x0 = e.clientX, y0 = e.clientY, R0 = c.getBoundingClientRect(), tr = String(c.style.translate || "0px 0px").split(" ").map(v => parseFloat(v) || 0); let on = false;
+    const x0 = e.clientX, y0 = e.clientY, R0 = c.getBoundingClientRect(), tr = sviTr(c); let on = false;
     const mv = ev => { const dx = ev.clientX - x0, dy = ev.clientY - y0; if (!on) { if (Math.hypot(dx, dy) < 8) return; on = true; c.classList.add("svw-move"); } ev.preventDefault();
       if (rz) { c.style.setProperty("width", Math.max(280, Math.min(innerWidth - 16, R0.width + dx)) + "px", "important"); c.style.setProperty("max-width", "none", "important"); c.style.setProperty("height", Math.max(160, Math.min(innerHeight - 16, R0.height + dy)) + "px", "important"); c.classList.add("svw-h"); }
-      else { const nx = Math.max(-R0.left + tr[0] + 8 - R0.width + 80, Math.min(innerWidth - R0.right + tr[0] - 8 + R0.width - 80, tr[0] + dx)), ny = Math.max(-R0.top + tr[1] + 8, Math.min(innerHeight - R0.top + tr[1] - 48, tr[1] + dy)); c.style.translate = nx + "px " + ny + "px"; } };
+      else { const nx = Math.max(-R0.left + tr[0] + 8, Math.min(innerWidth - R0.right + tr[0] - 8, tr[0] + dx)), ny = Math.max(-R0.top + tr[1] + 8, Math.min(innerHeight - R0.bottom + tr[1] - 8, tr[1] + dy)); c.style.translate = nx + "px " + ny + "px"; } };
     const up = ev => { document.removeEventListener("pointermove", mv, true); document.removeEventListener("pointerup", up, true); document.removeEventListener("pointercancel", up, true);
       if (!on) return; c.classList.remove("svw-move");
+      if (ev.type !== "pointercancel") sviWinClamp(c);
       if (ev.type === "pointercancel") { if (pop) c.style.translate = tr[0] + "px " + tr[1] + "px"; else sviWinGeo(c); return; }
-      if (k) { const T = String(c.style.translate || "0px 0px").split(" ").map(v => parseFloat(v) || 0), R = c.getBoundingClientRect(), G = sviWinPosAll()[k] || {};
+      if (k) { const T = sviTr(c), R = c.getBoundingClientRect(), G = sviWinPosAll()[k] || {};
         sviWinPosSet(k, { ...G, dx: Math.round(T[0]), dy: Math.round(T[1]), ...(rz ? { w: Math.round(R.width), h: Math.round(R.height) } : {}) }); }
       sviWinEat(); };
     document.addEventListener("pointermove", mv, true); document.addEventListener("pointerup", up, true); document.addEventListener("pointercancel", up, true);
@@ -6199,7 +6209,7 @@ function sviWinEat() {   /* v1152 : le blocage tombe dès l'appui suivant (un gl
 /* fenêtres au format INF (#docPop) : place gardée par genre de fenêtre (la taille reste gardée par popEnhance) */
 function sviPopGeo(card, kind) { if (!card || !kind) return; card.dataset.svwk = kind; const G = sviWinPosAll()["p:" + kind];
   if (!G) { card.style.removeProperty("translate"); return; }
-  requestAnimationFrame(() => { card.style.translate = "0px 0px"; const R = card.getBoundingClientRect(); const dx = Math.max(-R.left + 8 - R.width + 80, Math.min(innerWidth - R.right - 8 + R.width - 80, G.dx || 0)), dy = Math.max(-R.top + 8, Math.min(innerHeight - R.top - 48, G.dy || 0)); card.style.translate = dx + "px " + dy + "px"; }); }
+  requestAnimationFrame(() => { card.style.translate = (G.dx || 0) + "px " + (G.dy || 0) + "px"; sviWinClamp(card); }); }
 /* ⟪ src/32-demarrage.js ⟫ */
 /* =========================================================
    DEMARRAGE
