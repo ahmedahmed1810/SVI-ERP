@@ -186,11 +186,11 @@ function sviBdgEtapesOnglets(C) {
         if (k === "scn") { const r = $("scnTable") && $("scnTable").querySelector("tr[data-scnadd]");
           if (!r) { svToast(window.__sviRO || "IMPORTER : BUDGET EN LECTURE SEULE.", 3500); return; }
           if (r.classList.contains("off")) { svToast(r.textContent.trim(), 3500); return; }
-          const before = new Set(((INS.ver || {}).L || []).map(x => x.id)); r.click();
+          const before = new Set(((INS.ver || {}).L || []).map(x => x.id)), prevAct = (INS.ver || {}).act; r.click();
           const nw = ((INS.ver || {}).L || []).filter(x => x.kind === "sc" && !before.has(x.id)).pop();
           if (!nw) return;
           if (shell.__scnSwap) shell.__scnSwap(nw.id);
-          setTimeout(() => shell.__impMenu && shell.__impMenu("budget", "NOUVEAU SCÉNARIO — " + nw.nom), 200); return; }
+          setTimeout(() => shell.__impMenu && shell.__impMenu("budget", "NOUVEAU SCÉNARIO — " + nw.nom, () => shell.__scnUndoNew && shell.__scnUndoNew(nw.id, prevAct)), 200); return; }
         if (k === "rcl") { window.__sviImpNext = { k: "rcl", t: Date.now() }; if (shell.__rclNew) shell.__rclNew(); return; }
         return;
       }

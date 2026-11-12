@@ -425,7 +425,7 @@ function sviBdgCopierColler(C) {
       }
       if (["copy", "cut", "paste"].includes(a.dataset.act)) {
         const n = clipCount(a.dataset.blk, a.dataset.act);
-        return `<button type="button" data-i="${i}" class="blk-del blk-clip${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}${a.__hint ? `<small class="del-split">${esc(a.__hint)}</small>` : ""}</span>${svCnt(n)}</button>`;
+        return `<button type="button" data-i="${i}" class="blk-del blk-clip${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}${a.__hint ? `<small class="del-split">${esc(a.__hint)}</small>` : ""}</span>${n < 0 ? "" : svCnt(n)}</button>`;   /* v1145 : -1 = presse-papiers non lisible d'avance, pas de compteur */
       }
       /* exporter / aperçu : grisés si le bloc est vide (l'erreur n'est pas proposée) */
       if ((a.dataset.act === "export" || a.dataset.act === "pdf") && blkEmpty(a.dataset.blk)) {

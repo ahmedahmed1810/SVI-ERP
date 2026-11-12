@@ -438,7 +438,10 @@ function sviBdgVersionsScenarios(C) {
       if (was !== archOf()) { reopen(); return; }
       refreshAll(); svToast(x.nom + " : SCÉNARIO ACTIF.", 2500);
     };
-    shell.__scnSwap = swap;   /* v756 : ouverture depuis la liste = le budget lui-même (scénario retenu) */
+    shell.__scnSwap = swap;
+    /* v1145 : scénario créé pour un IMPORTER annulé — on revient au scénario d'avant et on le retire */
+    shell.__scnUndoNew = (id, prev) => { const V = V$(); if (prev && V.act === id) swap(prev); const x = V.L.find(y => y.id === id); if (!x) return;
+      V.L = V.L.filter(y => y !== x); scnHidSet(scnHid().filter(i => i !== x.id)); save("SCÉNARIO RETIRÉ (IMPORT ANNULÉ)", x.nom); refreshAll(); };   /* v756 : ouverture depuis la liste = le budget lui-même (scénario retenu) */
     const rename = el => {
       const V = V$(), x = V.L.find(y => y.id === el.dataset.nm); if (!x || x.arch) return;
       el.outerHTML = `<input class="cmp-nm scn-nm-in" data-id="${x.id}" value="${esc(x.nom)}">`;

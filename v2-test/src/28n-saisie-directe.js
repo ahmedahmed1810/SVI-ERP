@@ -687,7 +687,7 @@ function sviBdgSaisieDirecte(C) {
     { k: "prim", lab: "ACTIVITÉ PRIMAIRE", rx: /PRIMAIRE/i }, { k: "sec", lab: "ACTIVITÉ SECONDAIRE", rx: /SECONDAIRE/i }, { k: "art", lab: "ART", rx: /^(ART\.?|N°)$/i },
     { k: "des", lab: "DÉSIGNATION", rx: /D[ÉE]SIGNATION|LIBELL|DESCRIPTION|CHARGE|NATURE/i }, { k: "u", lab: "U", rx: /^U\.?$|^UNIT|^UCB$/i },
     { k: "q", lab: "QUANTITÉ", rx: /QT[ÉE]|QUANT/i, num: true }, { k: "pu", lab: "PRIX", rx: /^P\.?\s?U|PRIX|^PCB$/i, num: true }];
-  const nmK = v => U_(String(v ?? "")).replace(/\s+/g, " ").trim();
+  const nmK = v => U_(String(v ?? "")).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();   /* v1145 : sans accents ni espaces en trop */
   const isBudgetSheet = aoa => (aoa || []).slice(0, 15).some(r => (r || []).some(c => ECR.bfNorm(c) === "DESIGNATION CLIENT")) && (aoa || []).slice(0, 15).some(r => (r || []).some(c => /^LOT$/.test(ECR.bfNorm(c))));
   const impChg = async (R, name) => {
     const rows = await sviImpPreview({ cols: IMP_CHG_COLS, key: r => nmK(r.des) + "|" + nmK(r.u) + "|" + nmK(r.tache || (r.lot + "›" + r.sec)) }, { ...R, from: name }); if (!rows) return;
@@ -734,16 +734,18 @@ function sviBdgSaisieDirecte(C) {
   /* v1143 (série L, L26 ; document unique 10.9) : la source se choisit dans la fenêtre IMPORTER commune (sviImport, mode raw) ;
      la lecture et l'aperçu restent ceux du budget (règles d'import, liaisons par les noms, fenêtre « IMPORTER — … » à onglets) ;
      sources : FICHIER (Excel, CSV, texte, JSON ; XML de MS Project à part), EN LIGNE (Google Sheets), PRESSE-PAPIERS, AUTRE BUDGET DE L'APPLICATION */
-  const openImportMenu = async (blk, title) => {
+  const openImportMenu = async (blk, title, onCancel) => {
     const all = blk === "budget", chgMode = blk === "detail" && ECR.active === "chg" && INS_EDIT, heads = () => chgMode ? Promise.resolve(true) : shell.__impHeadAsk ? shell.__impHeadAsk(shell.__impHeadsOf("budget")) : Promise.resolve(true);
     const R = await sviImport({ raw: true, title: "IMPORTER — " + (title || (all ? "BUDGET COMPLET" : blkDisp(blk))),
       fileBtns: [chgMode ? { k: "file", lab: "UN FICHIER (EXCEL, CSV, TEXTE, JSON, PDF, WORD, PHOTO OU SCAN)", accept: ".xlsx,.xls,.csv,.json,.txt,.pdf,.docx,image/*" } : { k: "file", lab: "UN FICHIER (EXCEL, CSV, TEXTE, JSON)", accept: ".xlsx,.xls,.csv,.json,.txt", ask: true }, { k: "msp", lab: "UN FICHIER XML DE MS PROJECT (DÉLAIS)", accept: ".xml" }],
-      before: k => heads(), app: INS ? [{ lab: "UN AUTRE BUDGET DE L'APPLICATION", run: async () => { openImportBudget(blk, null, { all }); return null; } }] : [] });
-    if (!R) return;
+      before: k => heads(), app: INS ? [{ lab: "UN AUTRE BUDGET DE L'APPLICATION", run: async () => { openImportBudget(blk, null, { all }); return { opened: true }; } }] : [] });
+    if (!R) { if (onCancel) onCancel(); return; }   /* v1145 : ANNULER — ex. le scénario créé pour l'import est retiré */
+    if (R.src === "app") return;
     /* v1144 : DÉTAIL CHARGES ouvert — un tableau sans DÉSIGNATION CLIENT ni LOT est un import de CHARGES SEULES (règle de la tâche secondaire) */
     if (chgMode && R.src !== "app" && !(R.src === "file" && R.k === "msp")) { try {
         let src = null, name = "";
-        if (R.src === "file" && /\.json$/i.test(R.file.name)) { impFromFile(blk, all, R.file); return; }
+        if (R.src === "file" && /\.json$/i.test(R.file.name)) { let bj = false; try { const j = JSON.parse(await R.file.text()), d = j && (j.data || j); bj = !!(d && !Array.isArray(d) && (Array.isArray(d.des) || Array.isArray(d.chg))); } catch (e) {}
+          if (bj) { impFromFile(blk, all, R.file); return; } }   /* v1145 : JSON du budget = ancien chemin ; liste simple de charges = import de charges seules */
         if (R.src === "file") { name = R.file.name; src = await sviImpFile(R.file); }
         else if (R.src === "clip") { name = "PRESSE-PAPIERS"; src = { aoa: sviImpAoaText(R.text) }; }
         else { name = "GOOGLE SHEETS"; const id = (R.url.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1], gid = (R.url.match(/[#&?]gid=(\d+)/) || [])[1] || "0"; if (!id) throw new Error("LIEN GOOGLE SHEETS NON RECONNU");

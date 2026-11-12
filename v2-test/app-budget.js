@@ -4003,11 +4003,11 @@ function sviBdgEtapesOnglets(C) {
         if (k === "scn") { const r = $("scnTable") && $("scnTable").querySelector("tr[data-scnadd]");
           if (!r) { svToast(window.__sviRO || "IMPORTER : BUDGET EN LECTURE SEULE.", 3500); return; }
           if (r.classList.contains("off")) { svToast(r.textContent.trim(), 3500); return; }
-          const before = new Set(((INS.ver || {}).L || []).map(x => x.id)); r.click();
+          const before = new Set(((INS.ver || {}).L || []).map(x => x.id)), prevAct = (INS.ver || {}).act; r.click();
           const nw = ((INS.ver || {}).L || []).filter(x => x.kind === "sc" && !before.has(x.id)).pop();
           if (!nw) return;
           if (shell.__scnSwap) shell.__scnSwap(nw.id);
-          setTimeout(() => shell.__impMenu && shell.__impMenu("budget", "NOUVEAU SCÉNARIO — " + nw.nom), 200); return; }
+          setTimeout(() => shell.__impMenu && shell.__impMenu("budget", "NOUVEAU SCÉNARIO — " + nw.nom, () => shell.__scnUndoNew && shell.__scnUndoNew(nw.id, prevAct)), 200); return; }
         if (k === "rcl") { window.__sviImpNext = { k: "rcl", t: Date.now() }; if (shell.__rclNew) shell.__rclNew(); return; }
         return;
       }
@@ -6962,7 +6962,7 @@ function sviBdgSaisieDirecte(C) {
     { k: "prim", lab: "ACTIVITÉ PRIMAIRE", rx: /PRIMAIRE/i }, { k: "sec", lab: "ACTIVITÉ SECONDAIRE", rx: /SECONDAIRE/i }, { k: "art", lab: "ART", rx: /^(ART\.?|N°)$/i },
     { k: "des", lab: "DÉSIGNATION", rx: /D[ÉE]SIGNATION|LIBELL|DESCRIPTION|CHARGE|NATURE/i }, { k: "u", lab: "U", rx: /^U\.?$|^UNIT|^UCB$/i },
     { k: "q", lab: "QUANTITÉ", rx: /QT[ÉE]|QUANT/i, num: true }, { k: "pu", lab: "PRIX", rx: /^P\.?\s?U|PRIX|^PCB$/i, num: true }];
-  const nmK = v => U_(String(v ?? "")).replace(/\s+/g, " ").trim();
+  const nmK = v => U_(String(v ?? "")).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();   /* v1145 : sans accents ni espaces en trop */
   const isBudgetSheet = aoa => (aoa || []).slice(0, 15).some(r => (r || []).some(c => ECR.bfNorm(c) === "DESIGNATION CLIENT")) && (aoa || []).slice(0, 15).some(r => (r || []).some(c => /^LOT$/.test(ECR.bfNorm(c))));
   const impChg = async (R, name) => {
     const rows = await sviImpPreview({ cols: IMP_CHG_COLS, key: r => nmK(r.des) + "|" + nmK(r.u) + "|" + nmK(r.tache || (r.lot + "›" + r.sec)) }, { ...R, from: name }); if (!rows) return;
@@ -7009,16 +7009,18 @@ function sviBdgSaisieDirecte(C) {
   /* v1143 (série L, L26 ; document unique 10.9) : la source se choisit dans la fenêtre IMPORTER commune (sviImport, mode raw) ;
      la lecture et l'aperçu restent ceux du budget (règles d'import, liaisons par les noms, fenêtre « IMPORTER — … » à onglets) ;
      sources : FICHIER (Excel, CSV, texte, JSON ; XML de MS Project à part), EN LIGNE (Google Sheets), PRESSE-PAPIERS, AUTRE BUDGET DE L'APPLICATION */
-  const openImportMenu = async (blk, title) => {
+  const openImportMenu = async (blk, title, onCancel) => {
     const all = blk === "budget", chgMode = blk === "detail" && ECR.active === "chg" && INS_EDIT, heads = () => chgMode ? Promise.resolve(true) : shell.__impHeadAsk ? shell.__impHeadAsk(shell.__impHeadsOf("budget")) : Promise.resolve(true);
     const R = await sviImport({ raw: true, title: "IMPORTER — " + (title || (all ? "BUDGET COMPLET" : blkDisp(blk))),
       fileBtns: [chgMode ? { k: "file", lab: "UN FICHIER (EXCEL, CSV, TEXTE, JSON, PDF, WORD, PHOTO OU SCAN)", accept: ".xlsx,.xls,.csv,.json,.txt,.pdf,.docx,image/*" } : { k: "file", lab: "UN FICHIER (EXCEL, CSV, TEXTE, JSON)", accept: ".xlsx,.xls,.csv,.json,.txt", ask: true }, { k: "msp", lab: "UN FICHIER XML DE MS PROJECT (DÉLAIS)", accept: ".xml" }],
-      before: k => heads(), app: INS ? [{ lab: "UN AUTRE BUDGET DE L'APPLICATION", run: async () => { openImportBudget(blk, null, { all }); return null; } }] : [] });
-    if (!R) return;
+      before: k => heads(), app: INS ? [{ lab: "UN AUTRE BUDGET DE L'APPLICATION", run: async () => { openImportBudget(blk, null, { all }); return { opened: true }; } }] : [] });
+    if (!R) { if (onCancel) onCancel(); return; }   /* v1145 : ANNULER — ex. le scénario créé pour l'import est retiré */
+    if (R.src === "app") return;
     /* v1144 : DÉTAIL CHARGES ouvert — un tableau sans DÉSIGNATION CLIENT ni LOT est un import de CHARGES SEULES (règle de la tâche secondaire) */
     if (chgMode && R.src !== "app" && !(R.src === "file" && R.k === "msp")) { try {
         let src = null, name = "";
-        if (R.src === "file" && /\.json$/i.test(R.file.name)) { impFromFile(blk, all, R.file); return; }
+        if (R.src === "file" && /\.json$/i.test(R.file.name)) { let bj = false; try { const j = JSON.parse(await R.file.text()), d = j && (j.data || j); bj = !!(d && !Array.isArray(d) && (Array.isArray(d.des) || Array.isArray(d.chg))); } catch (e) {}
+          if (bj) { impFromFile(blk, all, R.file); return; } }   /* v1145 : JSON du budget = ancien chemin ; liste simple de charges = import de charges seules */
         if (R.src === "file") { name = R.file.name; src = await sviImpFile(R.file); }
         else if (R.src === "clip") { name = "PRESSE-PAPIERS"; src = { aoa: sviImpAoaText(R.text) }; }
         else { name = "GOOGLE SHEETS"; const id = (R.url.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1], gid = (R.url.match(/[#&?]gid=(\d+)/) || [])[1] || "0"; if (!id) throw new Error("LIEN GOOGLE SHEETS NON RECONNU");
@@ -7519,7 +7521,7 @@ function sviBdgCopierColler(C) {
       }
       if (["copy", "cut", "paste"].includes(a.dataset.act)) {
         const n = clipCount(a.dataset.blk, a.dataset.act);
-        return `<button type="button" data-i="${i}" class="blk-del blk-clip${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}${a.__hint ? `<small class="del-split">${esc(a.__hint)}</small>` : ""}</span>${svCnt(n)}</button>`;
+        return `<button type="button" data-i="${i}" class="blk-del blk-clip${n ? "" : " off"}" ${n ? "" : "disabled"}>${a.innerHTML}<span>${esc(lab)}${a.__hint ? `<small class="del-split">${esc(a.__hint)}</small>` : ""}</span>${n < 0 ? "" : svCnt(n)}</button>`;   /* v1145 : -1 = presse-papiers non lisible d'avance, pas de compteur */
       }
       /* exporter / aperçu : grisés si le bloc est vide (l'erreur n'est pas proposée) */
       if ((a.dataset.act === "export" || a.dataset.act === "pdf") && blkEmpty(a.dataset.blk)) {
@@ -21901,7 +21903,10 @@ function sviBdgVersionsScenarios(C) {
       if (was !== archOf()) { reopen(); return; }
       refreshAll(); svToast(x.nom + " : SCÉNARIO ACTIF.", 2500);
     };
-    shell.__scnSwap = swap;   /* v756 : ouverture depuis la liste = le budget lui-même (scénario retenu) */
+    shell.__scnSwap = swap;
+    /* v1145 : scénario créé pour un IMPORTER annulé — on revient au scénario d'avant et on le retire */
+    shell.__scnUndoNew = (id, prev) => { const V = V$(); if (prev && V.act === id) swap(prev); const x = V.L.find(y => y.id === id); if (!x) return;
+      V.L = V.L.filter(y => y !== x); scnHidSet(scnHid().filter(i => i !== x.id)); save("SCÉNARIO RETIRÉ (IMPORT ANNULÉ)", x.nom); refreshAll(); };   /* v756 : ouverture depuis la liste = le budget lui-même (scénario retenu) */
     const rename = el => {
       const V = V$(), x = V.L.find(y => y.id === el.dataset.nm); if (!x || x.arch) return;
       el.outerHTML = `<input class="cmp-nm scn-nm-in" data-id="${x.id}" value="${esc(x.nom)}">`;
