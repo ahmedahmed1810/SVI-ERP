@@ -6141,7 +6141,7 @@ document.addEventListener("pointerdown", e => {
       else o.x = Math.max(0, Math.min(100 - o.w, Math.round((o0.x + dx / W * 100) / SVI_FREE_SNAP) * SVI_FREE_SNAP)); o.y = Math.max(host.__svfTop || 0, o0.y + dy); }
     sviFreeSet(host.dataset.svf, L); sviFreeLayout(host, b);
     /* le toucher qui suit un glisser n'ouvre rien */
-    const stop = ce => { ce.stopPropagation(); ce.preventDefault(); }; document.addEventListener("click", stop, { capture: true, once: true }); setTimeout(() => document.removeEventListener("click", stop, true), 300); };
+    sviWinEat(); };
   document.addEventListener("pointermove", mv, true); document.addEventListener("pointerup", up, true); document.addEventListener("pointercancel", up, true);
 }, true);
 window.addEventListener("resize", () => document.querySelectorAll(".svf-host.svf-on").forEach(h => sviFreeLayout(h)));
@@ -6165,6 +6165,9 @@ function sviWinGeo(c) { if (!c || !c.matches(".svc-card")) return;
   if (G.w) { c.style.setProperty("width", Math.min(G.w, innerWidth - 16) + "px", "important"); c.style.setProperty("max-width", "none", "important"); }
   if (G.h) { c.style.setProperty("height", Math.min(G.h, innerHeight - 16) + "px", "important"); c.classList.add("svw-h"); }
   requestAnimationFrame(() => { const R = c.getBoundingClientRect(); const dx = Math.max(-R.left + 8, Math.min(innerWidth - R.right - 8 + R.width - 80, G.dx || 0)), dy = Math.max(-R.top + 8, Math.min(innerHeight - R.top - 48, G.dy || 0)); c.style.translate = dx + "px " + dy + "px"; }); }
+/* v1150b : absorbe le clic qui suit un geste (double toucher, déplacement), y compris sur le fond #svConf */
+function sviWinEat() { const stop = ce => { ce.stopPropagation(); ce.stopImmediatePropagation(); ce.preventDefault(); };
+  window.addEventListener("click", stop, { capture: true, once: true }); setTimeout(() => window.removeEventListener("click", stop, true), 350); }
 { const watch = w => { if (w.__svwObs) return; w.__svwObs = new MutationObserver(() => w.querySelectorAll(":scope > .svc-card").forEach(c => { if (!c.__svw) { c.__svw = 1; sviWinGeo(c); } }));
     w.__svwObs.observe(w, { childList: true }); w.querySelectorAll(":scope > .svc-card").forEach(c => { c.__svw = 1; sviWinGeo(c); }); };
   new MutationObserver(M => M.forEach(m => m.addedNodes.forEach(n => { if (n.id === "svConf") watch(n); }))).observe(document.body || document.documentElement, { childList: true });
@@ -6173,7 +6176,7 @@ function sviWinGeo(c) { if (!c || !c.matches(".svc-card")) return;
     const rz = t.closest("#svConf > .svc-card > .svw-rz"), bd = !rz && t.closest("#svConf > .svc-card > .svc-t"); if (!rz && !bd) return;
     if (bd && t.closest("button, input, select, a, .ach-link")) return;
     const c = (rz || bd).parentElement, k = sviWinKey(c);
-    if (bd && Date.now() - lastT < ((window.SVI_G && SVI_G.dbl) || 350)) { lastT = 0; c.classList.remove("svc-full"); if (k) sviWinPosSet(k, null); sviWinGeo(c); return; }   /* double toucher = défaut */
+    if (bd && Date.now() - lastT < ((window.SVI_G && SVI_G.dbl) || 350)) { lastT = 0; c.classList.remove("svc-full"); if (k) sviWinPosSet(k, null); sviWinGeo(c); sviWinEat(); return; }   /* double toucher = défaut */
     lastT = Date.now();
     const x0 = e.clientX, y0 = e.clientY, R0 = c.getBoundingClientRect(), tr = String(c.style.translate || "0px 0px").split(" ").map(v => parseFloat(v) || 0); let on = false;
     const mv = ev => { const dx = ev.clientX - x0, dy = ev.clientY - y0; if (!on) { if (Math.hypot(dx, dy) < 8) return; on = true; c.classList.add("svw-move"); } ev.preventDefault();
@@ -6184,7 +6187,7 @@ function sviWinGeo(c) { if (!c || !c.matches(".svc-card")) return;
       if (ev.type === "pointercancel") { sviWinGeo(c); return; }
       if (k) { const T = String(c.style.translate || "0px 0px").split(" ").map(v => parseFloat(v) || 0), R = c.getBoundingClientRect(), G = sviWinPosAll()[k] || {};
         sviWinPosSet(k, { ...G, dx: Math.round(T[0]), dy: Math.round(T[1]), ...(rz ? { w: Math.round(R.width), h: Math.round(R.height) } : {}) }); }
-      const stop = ce => { ce.stopPropagation(); ce.preventDefault(); }; document.addEventListener("click", stop, { capture: true, once: true }); setTimeout(() => document.removeEventListener("click", stop, true), 300); };
+      sviWinEat(); };
     document.addEventListener("pointermove", mv, true); document.addEventListener("pointerup", up, true); document.addEventListener("pointercancel", up, true);
   }, true); }
 /* ⟪ src/32-demarrage.js ⟫ */
