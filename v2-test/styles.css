@@ -4042,3 +4042,6 @@ body.svf-moving, body.svf-moving * { cursor: grabbing !important; user-select: n
 #svConf > .svc-card.svw-h { max-height: none !important; overflow: auto; }
 #svConf > .svc-card > .svw-rz { position: absolute; right: 2px; bottom: 2px; width: 22px; height: 22px; cursor: nwse-resize; z-index: 60; touch-action: none;
   background: linear-gradient(135deg, transparent 0 55%, #94a3b8 55% 62%, transparent 62% 72%, #94a3b8 72% 79%, transparent 79%); }
+/* v1153 : fenêtres au format INF déplaçables par le bandeau */
+#docPop > .doc-card > .doc-head { touch-action: none; cursor: grab; }
+#docPop > .doc-card.svw-move, #docPop > .doc-card.svw-move * { cursor: grabbing !important; user-select: none !important; -webkit-user-select: none !important; }

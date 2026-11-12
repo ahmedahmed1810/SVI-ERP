@@ -915,6 +915,7 @@ const popEnhance = (p, kind) => {
   /* fenêtre : poignée en bas à droite */
   const cs = sizes["win." + kind];
   if (cs) { card.style.width = cs.w + "px"; card.style.maxWidth = "none"; card.style.height = cs.h + "px"; }
+  if (!card.__svwp) { card.__svwp = 1; try { sviPopGeo(card, kind); } catch (e) {} }   /* v1153 : place gardée, déplacement par le bandeau (09i) */
   const ch = document.createElement("span");
   ch.className = "pop-rsz";
   ch.title = "Glisser pour redimensionner la fenêtre";

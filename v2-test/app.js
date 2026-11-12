@@ -2676,6 +2676,7 @@ const popEnhance = (p, kind) => {
   /* fenêtre : poignée en bas à droite */
   const cs = sizes["win." + kind];
   if (cs) { card.style.width = cs.w + "px"; card.style.maxWidth = "none"; card.style.height = cs.h + "px"; }
+  if (!card.__svwp) { card.__svwp = 1; try { sviPopGeo(card, kind); } catch (e) {} }   /* v1153 : place gardée, déplacement par le bandeau (09i) */
   const ch = document.createElement("span");
   ch.className = "pop-rsz";
   ch.title = "Glisser pour redimensionner la fenêtre";
@@ -6175,10 +6176,13 @@ function sviWinEat() {   /* v1152 : le blocage tombe dès l'appui suivant (un gl
   new MutationObserver(M => M.forEach(m => m.addedNodes.forEach(n => { if (n.id === "svConf") watch(n); }))).observe(document.body || document.documentElement, { childList: true });
   let lastT = 0;
   document.addEventListener("pointerdown", e => { const t = e.target; if (!t.closest || e.button > 0) return;
-    const rz = t.closest("#svConf > .svc-card > .svw-rz"), bd = !rz && t.closest("#svConf > .svc-card > .svc-t"); if (!rz && !bd) return;
+    const rz = t.closest("#svConf > .svc-card > .svw-rz"), bd = !rz && t.closest("#svConf > .svc-card > .svc-t, #docPop > .doc-card > .doc-head"); if (!rz && !bd) return;
     if (bd && t.closest("button, input, select, a, .ach-link")) return;
-    const c = (rz || bd).parentElement, k = sviWinKey(c);
-    if (bd && Date.now() - lastT < ((window.SVI_G && SVI_G.dbl) || 350)) { lastT = 0; e.preventDefault(); c.classList.remove("svc-full"); if (k) sviWinPosSet(k, null); sviWinGeo(c); sviWinEat(); return; }   /* double toucher = défaut */
+    const c = (rz || bd).parentElement, pop = c.matches(".doc-card"), k = pop ? (c.dataset.svwk ? "p:" + c.dataset.svwk : "") : sviWinKey(c);
+    if (bd && Date.now() - lastT < ((window.SVI_G && SVI_G.dbl) || 350)) { lastT = 0; e.preventDefault(); c.classList.remove("svc-full"); if (k) sviWinPosSet(k, null);   /* double toucher = défaut */
+      if (pop) { c.style.removeProperty("translate"); ["width", "height", "max-width"].forEach(q => c.style.removeProperty(q)); if (c.dataset.svwk && typeof psSet === "function") psSet("win." + c.dataset.svwk, null); }
+      else sviWinGeo(c);
+      sviWinEat(); return; }
     lastT = Date.now();
     const x0 = e.clientX, y0 = e.clientY, R0 = c.getBoundingClientRect(), tr = String(c.style.translate || "0px 0px").split(" ").map(v => parseFloat(v) || 0); let on = false;
     const mv = ev => { const dx = ev.clientX - x0, dy = ev.clientY - y0; if (!on) { if (Math.hypot(dx, dy) < 8) return; on = true; c.classList.add("svw-move"); } ev.preventDefault();
@@ -6186,12 +6190,16 @@ function sviWinEat() {   /* v1152 : le blocage tombe dès l'appui suivant (un gl
       else { const nx = Math.max(-R0.left + tr[0] + 8 - R0.width + 80, Math.min(innerWidth - R0.right + tr[0] - 8 + R0.width - 80, tr[0] + dx)), ny = Math.max(-R0.top + tr[1] + 8, Math.min(innerHeight - R0.top + tr[1] - 48, tr[1] + dy)); c.style.translate = nx + "px " + ny + "px"; } };
     const up = ev => { document.removeEventListener("pointermove", mv, true); document.removeEventListener("pointerup", up, true); document.removeEventListener("pointercancel", up, true);
       if (!on) return; c.classList.remove("svw-move");
-      if (ev.type === "pointercancel") { sviWinGeo(c); return; }
+      if (ev.type === "pointercancel") { if (pop) c.style.translate = tr[0] + "px " + tr[1] + "px"; else sviWinGeo(c); return; }
       if (k) { const T = String(c.style.translate || "0px 0px").split(" ").map(v => parseFloat(v) || 0), R = c.getBoundingClientRect(), G = sviWinPosAll()[k] || {};
         sviWinPosSet(k, { ...G, dx: Math.round(T[0]), dy: Math.round(T[1]), ...(rz ? { w: Math.round(R.width), h: Math.round(R.height) } : {}) }); }
       sviWinEat(); };
     document.addEventListener("pointermove", mv, true); document.addEventListener("pointerup", up, true); document.addEventListener("pointercancel", up, true);
   }, true); }
+/* fenêtres au format INF (#docPop) : place gardée par genre de fenêtre (la taille reste gardée par popEnhance) */
+function sviPopGeo(card, kind) { if (!card || !kind) return; card.dataset.svwk = kind; const G = sviWinPosAll()["p:" + kind];
+  if (!G) { card.style.removeProperty("translate"); return; }
+  requestAnimationFrame(() => { card.style.translate = "0px 0px"; const R = card.getBoundingClientRect(); const dx = Math.max(-R.left + 8 - R.width + 80, Math.min(innerWidth - R.right - 8 + R.width - 80, G.dx || 0)), dy = Math.max(-R.top + 8, Math.min(innerHeight - R.top - 48, G.dy || 0)); card.style.translate = dx + "px " + dy + "px"; }); }
 /* ⟪ src/32-demarrage.js ⟫ */
 /* =========================================================
    DEMARRAGE
