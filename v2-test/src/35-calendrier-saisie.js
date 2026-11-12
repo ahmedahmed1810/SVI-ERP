@@ -282,7 +282,7 @@ document.addEventListener("focusin", e => {
       if (mx) { zone = "b"; act = () => mx.click(); } }
     if (!zone) {
       const tt = t.closest(".svc-card .svc-t"), card = tt && tt.closest(".svc-card");
-      if (card && card.querySelector('[class$="-rsz"]')) { zone = "w"; act = () => card.classList.toggle("svc-full"); }
+      if (card && !card.matches("#svConf > .svc-card") && card.querySelector('[class$="-rsz"]:not(.svw-rz)')) {   /* v1150 : fenêtres de #svConf = double toucher géré par 09i (place et taille par défaut seulement) */ zone = "w"; act = () => card.classList.toggle("svc-full"); }
     }
     if (!zone) { last = null; return; }
     const now = Date.now();

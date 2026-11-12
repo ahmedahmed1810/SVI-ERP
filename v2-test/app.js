@@ -6153,7 +6153,10 @@ window.addEventListener("resize", () => document.querySelectorAll(".svf-host.svf
 const SVI_WIN_K = "svi_winpos_v1";
 const sviWinPosAll = () => { try { return JSON.parse(localStorage.getItem(SVI_WIN_K) || "{}") || {}; } catch (e) { return {}; } };
 const sviWinPosSet = (k, v) => { const A = sviWinPosAll(); if (v) A[k] = v; else delete A[k]; try { localStorage.setItem(SVI_WIN_K, JSON.stringify(A)); } catch (e) {} };
-const sviWinKey = c => { const k = [...c.classList].filter(x => x !== "svc-card" && !/^st-|^on$|^svw-/.test(x)).sort().join(" "); return k ? "w:" + k : ""; };
+const sviWinKey = c => { const k = [...c.classList].filter(x => x !== "svc-card" && x !== "svc-full" && !/^st-|^on$|^svw-/.test(x)).sort().join(" "); if (!k) return "";
+  const t = c.querySelector(":scope > .svc-t"), tx = t ? [...t.childNodes].filter(n => n.nodeType === 3 || (n.nodeType === 1 && !n.matches("button, input, select, .svc-x"))).map(n => n.textContent).join(" ") : "";
+  const st = tx.split(/\s[—–-]\s|:/)[0].replace(/[«»"]/g, " ").replace(/\S*\d\S*/g, " ").replace(/\s+/g, " ").trim().toUpperCase();
+  return "w:" + k + (st ? "|" + st : ""); };
 function sviWinGeo(c) { if (!c || !c.matches(".svc-card")) return;
   if (!c.querySelector(":scope > .svw-rz")) { const r = document.createElement("div"); r.className = "svw-rz"; r.title = "Glisser pour changer la taille"; c.appendChild(r); }
   const k = sviWinKey(c), G = k ? sviWinPosAll()[k] : null;
@@ -6170,7 +6173,7 @@ function sviWinGeo(c) { if (!c || !c.matches(".svc-card")) return;
     const rz = t.closest("#svConf > .svc-card > .svw-rz"), bd = !rz && t.closest("#svConf > .svc-card > .svc-t"); if (!rz && !bd) return;
     if (bd && t.closest("button, input, select, a, .ach-link")) return;
     const c = (rz || bd).parentElement, k = sviWinKey(c);
-    if (bd && Date.now() - lastT < ((window.SVI_G && SVI_G.dbl) || 350)) { lastT = 0; if (k) sviWinPosSet(k, null); sviWinGeo(c); return; }   /* double toucher = défaut */
+    if (bd && Date.now() - lastT < ((window.SVI_G && SVI_G.dbl) || 350)) { lastT = 0; c.classList.remove("svc-full"); if (k) sviWinPosSet(k, null); sviWinGeo(c); return; }   /* double toucher = défaut */
     lastT = Date.now();
     const x0 = e.clientX, y0 = e.clientY, R0 = c.getBoundingClientRect(), tr = String(c.style.translate || "0px 0px").split(" ").map(v => parseFloat(v) || 0); let on = false;
     const mv = ev => { const dx = ev.clientX - x0, dy = ev.clientY - y0; if (!on) { if (Math.hypot(dx, dy) < 8) return; on = true; c.classList.add("svw-move"); } ev.preventDefault();
@@ -7823,7 +7826,7 @@ document.addEventListener("focusin", e => {
       if (mx) { zone = "b"; act = () => mx.click(); } }
     if (!zone) {
       const tt = t.closest(".svc-card .svc-t"), card = tt && tt.closest(".svc-card");
-      if (card && card.querySelector('[class$="-rsz"]')) { zone = "w"; act = () => card.classList.toggle("svc-full"); }
+      if (card && !card.matches("#svConf > .svc-card") && card.querySelector('[class$="-rsz"]:not(.svw-rz)')) {   /* v1150 : fenêtres de #svConf = double toucher géré par 09i (place et taille par défaut seulement) */ zone = "w"; act = () => card.classList.toggle("svc-full"); }
     }
     if (!zone) { last = null; return; }
     const now = Date.now();
