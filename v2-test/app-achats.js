@@ -344,13 +344,15 @@ const achStdMt = L => (L || []).reduce((t, l) => t + achN(l.q) * achStdPu(l.des,
    saisi à la main seulement s'il n'existe nulle part. Budgets actifs = étapes de l'appareil, ni archivés, ni supprimés, ni versions / scénarios / recalages */
 const achCafBdgPx = () => { const M = new Map(); let L = []; try { L = sviInstGet(); } catch (e) {}
   (L || []).filter(b => b && !b.parent && !b.rclOf && !b.virtual && !b.arch && !b.del).forEach(b => { let C = []; try { C = achBdgCharges(b.ref); } catch (e) {}
-    C.forEach(c => { if (!(c.p > 0)) return; const o = M.get(c.key); if (!o || c.p < o.p) M.set(c.key, { p: c.p, ref: b.ref }); }); });
+    C.forEach(c => { if (!(c.p > 0)) return; const o = M.get(c.key); if (!o || c.p < o.p) M.set(c.key, { p: c.p, ref: b.ref, prj: achU(b.project || "") || b.ref }); }); });
   return M; };
-const achCafEst = (l, BP) => { const b = (BP || achCafBdgPx()).get(achKey(l.des, l.u)); if (b) return { pu: b.p, src: "bdg", lab: "BUDGET " + b.ref, lock: true };
-  const a = achArtOf(l.des, l.u); if (a && achN(a.pref) > 0) return { pu: achN(a.pref), src: "std", lab: "PRIX STANDARD", lock: true };
+const achCafEst = (l, BP) => { const b = (BP || achCafBdgPx()).get(achKey(l.des, l.u)); if (b) return { pu: b.p, src: "bdg", lab: "BUDGET " + b.prj, ref: b.ref, lock: true };   /* v1136 (L24) : « BUDGET IME » (nom du projet) */
+  const a = achArtOf(l.des, l.u); if (a && achN(a.pref) > 0) return { pu: achN(a.pref), src: "std", lab: "STANDARD", lock: true };
   return { pu: achN(l.pu), src: "man", lab: achN(l.pu) > 0 ? "SAISI À LA MAIN" : "À SAISIR", lock: false }; };
 const achCafEstMt = (c, BP) => { BP = BP || achCafBdgPx(); return (c.lignes || []).reduce((t, l) => t + achN(l.q) * achCafEst(l, BP).pu, 0); };
 /* une consultation avec au moins un prix saisi à la main passe par un validateur, quel que soit le seuil (réglage PARAMÉTRAGE › ACHATS › CONSULTATIONS) */
+/* v1136 (L24) : lignes à prix saisi à la main, signalées au validateur */
+const achCafManLines = c => { const BP = achCafBdgPx(); return (c.lignes || []).filter(l => String(l.des || "").trim() && achCafEst(l, BP).src === "man").map(l => l.des + " : " + achF2(achN(l.pu)) + " HT"); };
 const achCafManForce = c => { if (achPrm().cafMan === false) return ""; const BP = achCafBdgPx(); return (c.lignes || []).some(l => String(l.des || "").trim() && achCafEst(l, BP).src === "man") ? "PRIX SAISI À LA MAIN" : ""; };
 const achCafGate = (C, persist) => achCircGate("caf", C, achCafEstMt(C), persist, achCafManForce(C));
 const achSeuOwn = k => { const T = achPrm().seuT || {}; return !!k && k !== "gen" && Array.isArray(T[k]); };
@@ -376,7 +378,7 @@ async function achCircGate(k, X, ht, persist, force) {
     X.circ = { ...S, ok: [], t: achNow() }; await persist("ENVOYÉ EN VALIDATION"); return true; }
   const nx = achCircNext(X), d = sviWinNew();
   d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: "CIRCUIT DE VALIDATION — " + esc(X.ref || ""),
-    body: `<div class="frs-st">${X.circ.force ? "VALIDATION OBLIGATOIRE (PRIX SAISI À LA MAIN)" : "AU-DELÀ DE " + esc(achF2(X.circ.mt)) + " HT"}${X.circ.h ? " (HIÉRARCHIE RESPECTÉE)" : ""}</div><table class="prm-table frs-sub"><thead><tr><th>GRADE</th><th>ÉTAT</th><th>PAR</th><th>LE</th></tr></thead><tbody>${X.circ.g.map(g => { const o = (X.circ.ok || []).find(y => String(y.g) === g);
+    body: `<div class="frs-st">${X.circ.force ? "VALIDATION OBLIGATOIRE (PRIX SAISI À LA MAIN)" : "AU-DELÀ DE " + esc(achF2(X.circ.mt)) + " HT"}${X.circ.h ? " (HIÉRARCHIE RESPECTÉE)" : ""}</div>${(ML => ML.length ? `<div class="frs-st">PRIX SAISIS À LA MAIN (${ML.length}) :</div>${ML.length > 5 ? `<div>${ML.length} LIGNES — VOIR LA COLONNE SOURCE DU PRIX</div>` : ML.map(m => `<div>- ${esc(m)}</div>`).join("")}` : "")(k === "caf" && typeof achCafManLines === "function" ? achCafManLines(X) : [])}<table class="prm-table frs-sub"><thead><tr><th>GRADE</th><th>ÉTAT</th><th>PAR</th><th>LE</th></tr></thead><tbody>${X.circ.g.map(g => { const o = (X.circ.ok || []).find(y => String(y.g) === g);
       return `<tr><td>${esc(achGradeLab(g))}</td><td>${o ? "ACCEPTÉ" : nx.includes(g) ? "À VALIDER" : "EN ATTENTE"}</td><td>${esc(o ? o.u || "" : "")}</td><td>${esc(o ? svDT(o.t) : "")}</td></tr>`; }).join("")}</tbody></table>`,
     foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${nx.map(g => `<button type="button" class="svc-b" data-cret="${g}">RENVOYER (${esc("GRADE " + g)})</button><button type="button" class="svc-b svc-ok svc-neutral" data-cacc="${g}">ACCEPTER (${esc("GRADE " + g)})</button>`).join("")}` });
   sviWinShow(d);
@@ -948,7 +950,7 @@ function sviAchInit() {
       <div class="ach-pbox"><div class="ach-pt">CONSULTATIONS</div><table class="bdg-d-table prm-table ach-pgen ach-pcaf"><colgroup><col style="width:520px"><col style="width:140px"><col style="width:220px"></colgroup>
         <thead><tr><th>RÉGLAGE</th><th class="center">VALEUR</th><th>UNITÉ</th></tr></thead><tbody><tr><td data-tip="NON BLOQUANT : MOINS DE FOURNISSEURS CONSULTÉS POUR UN ARTICLE = ALERTE SUR LA CONSULTATION">NOMBRE MINIMUM DE FOURNISSEURS CONSULTÉS PAR ARTICLE</td>
           <td class="center"><input class="ins-in ach-pnum number" data-pk="ncons" inputmode="decimal" value="${P.ncons === "" || P.ncons === undefined ? "" : esc(F2(P.ncons))}" autocomplete="off"></td><td>FOURNISSEURS</td></tr>
-          <tr><td data-tip="UNE CONSULTATION AVEC AU MOINS UN PRIX ESTIMÉ SAISI À LA MAIN (NI BUDGET ACTIF NI PRIX STANDARD) PASSE PAR UN VALIDATEUR, QUEL QUE SOIT SON MONTANT">PRIX SAISI À LA MAIN : VALIDATION OBLIGATOIRE (QUEL QUE SOIT LE SEUIL)</td>
+          <tr><td data-tip="UNE CONSULTATION AVEC AU MOINS UN PRIX ESTIMÉ SAISI À LA MAIN (NI BUDGET ACTIF NI PRIX STANDARD) PASSE PAR UN VALIDATEUR, QUEL QUE SOIT SON MONTANT">PRIX SAISI À LA MAIN = VALIDATEUR OBLIGATOIRE</td>
           <td class="center"><input type="checkbox" class="ach-pcafman"${P.cafMan !== false ? " checked" : ""} aria-label="Validation obligatoire"></td><td>${P.cafMan !== false ? "OUI" : "NON"}</td></tr></tbody></table></div>
       ${tb("P", "CONDITIONS PARTICULIÈRES (MENU DES CONSULTATIONS ; REPRISES SUR CHAQUE NOUVELLE COMMANDE, IMPRIMÉES EN ANNEXE)", P.clP)}
       ${(() => { /* v1135 (L25, décision d'Ahmed du 11/11) : VALIDATION — tranches de montant estimé (MIN, MAX) et UN validateur (grade) par tranche ;
@@ -2678,7 +2680,7 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
       /* largeurs tenues (les moteurs de largeur des pages ne s'appliquent pas à cette fenêtre) */
       + `<style>.cai-card .cai-t[data-svcw="${t}"]{width:100%!important;min-width:0!important}.cai-card .cai-t[data-svcw="${t}"] col:nth-child(1){width:30px!important}.cai-card .cai-t[data-svcw="${t}"] col:nth-child(${CO.length + 2}){width:32px!important}</style>`;
         const [cg1, st1] = cg.split("<style>"); return `<div class="cai-ls" data-g="${g}"><style>${st1}<table class="bdg-d-table rec-table cai-t" id="caiT${g}" data-svcw="${t}" style="width:100%">${cg1}<thead><tr><th class="cai-rdh">${LKW.rdAll(g)}</th>${CO.map(c => KIT.cfHead(t, c[0], c[1] + (c[0] === { L: "des", F: "nom", D: "title", K: "lab" }[g] ? " " + svCnt(R.length, R0.length) : ""), c[3])).join("")}${sviListCbTh()}</tr></thead>
-      <tbody>${R.map(r => `${GT[r.__i] ? `<tr class="ins-title cai-gt svlk-gt-${esc(GT[r.__i].title.id)}"><td></td><td colspan="${CO.length + 1}"><b>${esc(GT[r.__i].no + " " + GT[r.__i].lab)}</b></td></tr>` : ""}<tr data-g="${g}" data-i="${r.__i}" class="${r.imp ? "cai-imp " : ""}${g === "L" && r.g ? "svlk-g-" + esc(r.g) + " " : ""}${LKW.rowCls(rdSt(g, kOf(g, r)))}"><td class="center"><button type="button" class="nvp-rd${(st => st ? " rd-" + st : "")(rdSt(g, kOf(g, r)))}" data-rg="${g}" data-rk="${esc(kOf(g, r))}" aria-label="Liaison"></button></td>${CO.map(c => cell(g, c, r, r.__i)).join("")}<td class="center nvl-cbc"><input type="checkbox" class="nvl-cb" aria-label="Cocher"${(S.ck[g] || new Set()).has(r.__i) ? " checked" : ""}></td></tr>`).join("")}
+      <tbody>${R.map(r => `${GT[r.__i] ? `<tr class="ins-title cai-gt svlk-gt-${esc(GT[r.__i].title.id)}"><td></td><td colspan="${CO.length}"><b>${esc(GT[r.__i].no + " " + GT[r.__i].lab)}</b></td><td class="center nvl-cbc"><input type="checkbox" class="nvl-cb cai-gcb" aria-label="Cocher le groupe"></td></tr>` : ""}<tr data-g="${g}" data-i="${r.__i}" class="${r.imp ? "cai-imp " : ""}${g === "L" && r.g ? "svlk-g-" + esc(r.g) + " " : ""}${LKW.rowCls(rdSt(g, kOf(g, r)))}"><td class="center"><button type="button" class="nvp-rd${(st => st ? " rd-" + st : "")(rdSt(g, kOf(g, r)))}" data-rg="${g}" data-rk="${esc(kOf(g, r))}" aria-label="Liaison"></button></td>${CO.map(c => cell(g, c, r, r.__i)).join("")}<td class="center nvl-cbc"><input type="checkbox" class="nvl-cb" aria-label="Cocher"${(S.ck[g] || new Set()).has(r.__i) ? " checked" : ""}></td></tr>`).join("")}
       ${ro || EMPTY[g]() ? "" : `<tr class="rec-new" data-cai-new="${g}"><td colspan="${CO.length + 2}">${NEW[g]}</td></tr>`}</tbody></table></div>`; };
   S.ck = {};
   const draw = () => { S.drawT = Date.now(); if (d.isConnected) ckRead(); const ob = d.querySelector('.cafi-x[data-k="objet"]'); if (ob) C.objet = achU(ob.value);
@@ -2692,8 +2694,12 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
   const fltW = () => { const rows = [...d.querySelectorAll("tr[data-g][data-i]")].map(tr => { const b = tr.querySelector("[data-rg]"); return b ? { tr, g: b.dataset.rg, id: b.dataset.rk, ck: !!tr.querySelector(".nvl-cb:checked") } : null; }).filter(Boolean);
     sviLkDomFilter(LKW, rows, "tr.cai-gt");
     /* v1133 : état de la case d'en-tête de chaque liste = lignes affichées seulement */
+    /* v1136 (L8 A) : titre de groupe coché quand toutes les lignes affichées de son groupe le sont, à moitié sinon */
+    d.querySelectorAll("tr.cai-gt").forEach(tt => { const m = String(tt.className).match(/\bsvlk-gt-(\S+)/), cb = tt.querySelector(".cai-gcb"); if (!m || !cb) return; const I = [...d.querySelectorAll("tr.svlk-g-" + CSS.escape(m[1]) + ":not(.svlk-hid) .nvl-cb")], k = I.filter(c => c.checked).length; cb.checked = k > 0 && k === I.length; cb.indeterminate = k > 0 && k < I.length; });
     d.querySelectorAll(".cai-t").forEach(t => { const all = t.querySelector(".nvl-all"); if (!all) return; const C = [...t.querySelectorAll("tbody tr[data-i]:not(.svlk-hid) .nvl-cb")], n = C.filter(c => c.checked).length; all.checked = n > 0 && n === C.length; all.indeterminate = n > 0 && n < C.length; }); };
-  d.addEventListener("change", e => { if (e.target.matches && e.target.matches(".nvl-cb, .nvl-all")) setTimeout(fltW, 0); });
+  d.addEventListener("change", e => { if (!(e.target.matches && e.target.matches(".nvl-cb, .nvl-all"))) return;
+    if (e.target.matches(".cai-gcb")) { const m = String(e.target.closest("tr").className).match(/\bsvlk-gt-(\S+)/); if (m) d.querySelectorAll("tr.svlk-g-" + CSS.escape(m[1]) + ":not(.svlk-hid) .nvl-cb").forEach(x => { x.checked = e.target.checked; x.closest("tr").classList.toggle("nvl-on", x.checked); }); }   /* v1136 (L8 A) */
+    setTimeout(fltW, 0); });
   const sync = () => { d.querySelectorAll(".cai-x").forEach(i => { const g = i.dataset.g, k = i.dataset.k, o = (g === "L" ? S.L : S.K)[+i.dataset.i]; if (!o) return;
       if (g === "L" && k === "q") o.q = String(i.value).trim() === "" ? "" : achN(i.value); else if (g === "L" && k === "bsn") o.bsn = i.value || ""; else o[k] = k === "v" && i.type === "date" ? i.value : achU(i.value); });
     const ob = d.querySelector('.cafi-x[data-k="objet"]'); if (ob) C.objet = achU(ob.value); };
@@ -4489,10 +4495,15 @@ function achBdglSync(root) {
 /* v1132 (L6 – L8) : TOUT COCHER = les lignes affichées (pas celles cachées par le filtre des blocs liés) ; case d'en-tête à trois états (vide, à moitié, pleine) */
 /* v1133 : lignes de données seulement (ni titre de groupe, ni ligne cachée) */
 const ACH_NVP_ROWCB = "tbody tr[data-ri]:not(.svlk-hid):not(.nvp-gt) .nvp-cb";
-const achNvpAllSt = t => { const all = t && t.querySelector(".nvp-all"); if (!all) return; const C = [...t.querySelectorAll(ACH_NVP_ROWCB)], n = C.filter(c => c.checked).length;
+/* v1136 (L8, choix A d'Ahmed) : titres de groupe compris — un titre (svlk-gt-<g>) est coché quand toutes les lignes affichées de son groupe le sont, à moitié sinon */
+const achNvpAllSt = t => { if (!t) return; t.querySelectorAll("tbody tr.nvp-gt").forEach(tt => { const m = String(tt.className).match(/\bsvlk-gt-(\S+)/), cb = tt.querySelector(".nvp-cb"); if (!m || !cb) return;
+    const I = [...t.querySelectorAll("tbody tr.svlk-g-" + CSS.escape(m[1]) + ":not(.svlk-hid) .nvp-cb")], k = I.filter(c => c.checked).length; cb.checked = k > 0 && k === I.length; cb.indeterminate = k > 0 && k < I.length; });
+  const all = t.querySelector(".nvp-all"); if (!all) return; const C = [...t.querySelectorAll(ACH_NVP_ROWCB)], n = C.filter(c => c.checked).length;
   all.checked = n > 0 && n === C.length; all.indeterminate = n > 0 && n < C.length; };
 document.addEventListener("change", e => { const a = e.target.closest && e.target.closest(".nvp-all"); if (a) { const t = a.closest("table"); t.querySelectorAll(ACH_NVP_ROWCB).forEach(c => { c.checked = a.checked; }); achNvpAllSt(t); return; }
-  const c = e.target.closest && e.target.closest(".nvp-cb"); if (c) achNvpAllSt(c.closest("table")); });
+  const c = e.target.closest && e.target.closest(".nvp-cb"); if (!c) return; const t = c.closest("table"), m = String(c.closest("tr").className).match(/\bsvlk-gt-(\S+)/);
+  if (m) t.querySelectorAll("tbody tr.svlk-g-" + CSS.escape(m[1]) + ":not(.svlk-hid) .nvp-cb").forEach(x => { x.checked = c.checked; });   /* v1136 (L8 A) : cocher un titre = tout son groupe */
+  achNvpAllSt(t); });
 /* ⟪ src/48-achats-import-novapp.js ⟫ */
 /* =========================================================
    v767 : (ancien) IMPORT DES ACHATS DE NOVAPP (ACHATS › PARAMÈTRES › IMPORTER LES DONNÉES DE NOVAPP)

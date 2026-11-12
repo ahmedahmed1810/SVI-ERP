@@ -775,7 +775,12 @@ function achBdglSync(root) {
 /* v1132 (L6 – L8) : TOUT COCHER = les lignes affichées (pas celles cachées par le filtre des blocs liés) ; case d'en-tête à trois états (vide, à moitié, pleine) */
 /* v1133 : lignes de données seulement (ni titre de groupe, ni ligne cachée) */
 const ACH_NVP_ROWCB = "tbody tr[data-ri]:not(.svlk-hid):not(.nvp-gt) .nvp-cb";
-const achNvpAllSt = t => { const all = t && t.querySelector(".nvp-all"); if (!all) return; const C = [...t.querySelectorAll(ACH_NVP_ROWCB)], n = C.filter(c => c.checked).length;
+/* v1136 (L8, choix A d'Ahmed) : titres de groupe compris — un titre (svlk-gt-<g>) est coché quand toutes les lignes affichées de son groupe le sont, à moitié sinon */
+const achNvpAllSt = t => { if (!t) return; t.querySelectorAll("tbody tr.nvp-gt").forEach(tt => { const m = String(tt.className).match(/\bsvlk-gt-(\S+)/), cb = tt.querySelector(".nvp-cb"); if (!m || !cb) return;
+    const I = [...t.querySelectorAll("tbody tr.svlk-g-" + CSS.escape(m[1]) + ":not(.svlk-hid) .nvp-cb")], k = I.filter(c => c.checked).length; cb.checked = k > 0 && k === I.length; cb.indeterminate = k > 0 && k < I.length; });
+  const all = t.querySelector(".nvp-all"); if (!all) return; const C = [...t.querySelectorAll(ACH_NVP_ROWCB)], n = C.filter(c => c.checked).length;
   all.checked = n > 0 && n === C.length; all.indeterminate = n > 0 && n < C.length; };
 document.addEventListener("change", e => { const a = e.target.closest && e.target.closest(".nvp-all"); if (a) { const t = a.closest("table"); t.querySelectorAll(ACH_NVP_ROWCB).forEach(c => { c.checked = a.checked; }); achNvpAllSt(t); return; }
-  const c = e.target.closest && e.target.closest(".nvp-cb"); if (c) achNvpAllSt(c.closest("table")); });
+  const c = e.target.closest && e.target.closest(".nvp-cb"); if (!c) return; const t = c.closest("table"), m = String(c.closest("tr").className).match(/\bsvlk-gt-(\S+)/);
+  if (m) t.querySelectorAll("tbody tr.svlk-g-" + CSS.escape(m[1]) + ":not(.svlk-hid) .nvp-cb").forEach(x => { x.checked = c.checked; });   /* v1136 (L8 A) : cocher un titre = tout son groupe */
+  achNvpAllSt(t); });

@@ -343,13 +343,15 @@ const achStdMt = L => (L || []).reduce((t, l) => t + achN(l.q) * achStdPu(l.des,
    saisi à la main seulement s'il n'existe nulle part. Budgets actifs = étapes de l'appareil, ni archivés, ni supprimés, ni versions / scénarios / recalages */
 const achCafBdgPx = () => { const M = new Map(); let L = []; try { L = sviInstGet(); } catch (e) {}
   (L || []).filter(b => b && !b.parent && !b.rclOf && !b.virtual && !b.arch && !b.del).forEach(b => { let C = []; try { C = achBdgCharges(b.ref); } catch (e) {}
-    C.forEach(c => { if (!(c.p > 0)) return; const o = M.get(c.key); if (!o || c.p < o.p) M.set(c.key, { p: c.p, ref: b.ref }); }); });
+    C.forEach(c => { if (!(c.p > 0)) return; const o = M.get(c.key); if (!o || c.p < o.p) M.set(c.key, { p: c.p, ref: b.ref, prj: achU(b.project || "") || b.ref }); }); });
   return M; };
-const achCafEst = (l, BP) => { const b = (BP || achCafBdgPx()).get(achKey(l.des, l.u)); if (b) return { pu: b.p, src: "bdg", lab: "BUDGET " + b.ref, lock: true };
-  const a = achArtOf(l.des, l.u); if (a && achN(a.pref) > 0) return { pu: achN(a.pref), src: "std", lab: "PRIX STANDARD", lock: true };
+const achCafEst = (l, BP) => { const b = (BP || achCafBdgPx()).get(achKey(l.des, l.u)); if (b) return { pu: b.p, src: "bdg", lab: "BUDGET " + b.prj, ref: b.ref, lock: true };   /* v1136 (L24) : « BUDGET IME » (nom du projet) */
+  const a = achArtOf(l.des, l.u); if (a && achN(a.pref) > 0) return { pu: achN(a.pref), src: "std", lab: "STANDARD", lock: true };
   return { pu: achN(l.pu), src: "man", lab: achN(l.pu) > 0 ? "SAISI À LA MAIN" : "À SAISIR", lock: false }; };
 const achCafEstMt = (c, BP) => { BP = BP || achCafBdgPx(); return (c.lignes || []).reduce((t, l) => t + achN(l.q) * achCafEst(l, BP).pu, 0); };
 /* une consultation avec au moins un prix saisi à la main passe par un validateur, quel que soit le seuil (réglage PARAMÉTRAGE › ACHATS › CONSULTATIONS) */
+/* v1136 (L24) : lignes à prix saisi à la main, signalées au validateur */
+const achCafManLines = c => { const BP = achCafBdgPx(); return (c.lignes || []).filter(l => String(l.des || "").trim() && achCafEst(l, BP).src === "man").map(l => l.des + " : " + achF2(achN(l.pu)) + " HT"); };
 const achCafManForce = c => { if (achPrm().cafMan === false) return ""; const BP = achCafBdgPx(); return (c.lignes || []).some(l => String(l.des || "").trim() && achCafEst(l, BP).src === "man") ? "PRIX SAISI À LA MAIN" : ""; };
 const achCafGate = (C, persist) => achCircGate("caf", C, achCafEstMt(C), persist, achCafManForce(C));
 const achSeuOwn = k => { const T = achPrm().seuT || {}; return !!k && k !== "gen" && Array.isArray(T[k]); };
@@ -375,7 +377,7 @@ async function achCircGate(k, X, ht, persist, force) {
     X.circ = { ...S, ok: [], t: achNow() }; await persist("ENVOYÉ EN VALIDATION"); return true; }
   const nx = achCircNext(X), d = sviWinNew();
   d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: "CIRCUIT DE VALIDATION — " + esc(X.ref || ""),
-    body: `<div class="frs-st">${X.circ.force ? "VALIDATION OBLIGATOIRE (PRIX SAISI À LA MAIN)" : "AU-DELÀ DE " + esc(achF2(X.circ.mt)) + " HT"}${X.circ.h ? " (HIÉRARCHIE RESPECTÉE)" : ""}</div><table class="prm-table frs-sub"><thead><tr><th>GRADE</th><th>ÉTAT</th><th>PAR</th><th>LE</th></tr></thead><tbody>${X.circ.g.map(g => { const o = (X.circ.ok || []).find(y => String(y.g) === g);
+    body: `<div class="frs-st">${X.circ.force ? "VALIDATION OBLIGATOIRE (PRIX SAISI À LA MAIN)" : "AU-DELÀ DE " + esc(achF2(X.circ.mt)) + " HT"}${X.circ.h ? " (HIÉRARCHIE RESPECTÉE)" : ""}</div>${(ML => ML.length ? `<div class="frs-st">PRIX SAISIS À LA MAIN (${ML.length}) :</div>${ML.length > 5 ? `<div>${ML.length} LIGNES — VOIR LA COLONNE SOURCE DU PRIX</div>` : ML.map(m => `<div>- ${esc(m)}</div>`).join("")}` : "")(k === "caf" && typeof achCafManLines === "function" ? achCafManLines(X) : [])}<table class="prm-table frs-sub"><thead><tr><th>GRADE</th><th>ÉTAT</th><th>PAR</th><th>LE</th></tr></thead><tbody>${X.circ.g.map(g => { const o = (X.circ.ok || []).find(y => String(y.g) === g);
       return `<tr><td>${esc(achGradeLab(g))}</td><td>${o ? "ACCEPTÉ" : nx.includes(g) ? "À VALIDER" : "EN ATTENTE"}</td><td>${esc(o ? o.u || "" : "")}</td><td>${esc(o ? svDT(o.t) : "")}</td></tr>`; }).join("")}</tbody></table>`,
     foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${nx.map(g => `<button type="button" class="svc-b" data-cret="${g}">RENVOYER (${esc("GRADE " + g)})</button><button type="button" class="svc-b svc-ok svc-neutral" data-cacc="${g}">ACCEPTER (${esc("GRADE " + g)})</button>`).join("")}` });
   sviWinShow(d);

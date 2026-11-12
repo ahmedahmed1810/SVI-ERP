@@ -139,7 +139,7 @@ function sviAchInit() {
       <div class="ach-pbox"><div class="ach-pt">CONSULTATIONS</div><table class="bdg-d-table prm-table ach-pgen ach-pcaf"><colgroup><col style="width:520px"><col style="width:140px"><col style="width:220px"></colgroup>
         <thead><tr><th>RÉGLAGE</th><th class="center">VALEUR</th><th>UNITÉ</th></tr></thead><tbody><tr><td data-tip="NON BLOQUANT : MOINS DE FOURNISSEURS CONSULTÉS POUR UN ARTICLE = ALERTE SUR LA CONSULTATION">NOMBRE MINIMUM DE FOURNISSEURS CONSULTÉS PAR ARTICLE</td>
           <td class="center"><input class="ins-in ach-pnum number" data-pk="ncons" inputmode="decimal" value="${P.ncons === "" || P.ncons === undefined ? "" : esc(F2(P.ncons))}" autocomplete="off"></td><td>FOURNISSEURS</td></tr>
-          <tr><td data-tip="UNE CONSULTATION AVEC AU MOINS UN PRIX ESTIMÉ SAISI À LA MAIN (NI BUDGET ACTIF NI PRIX STANDARD) PASSE PAR UN VALIDATEUR, QUEL QUE SOIT SON MONTANT">PRIX SAISI À LA MAIN : VALIDATION OBLIGATOIRE (QUEL QUE SOIT LE SEUIL)</td>
+          <tr><td data-tip="UNE CONSULTATION AVEC AU MOINS UN PRIX ESTIMÉ SAISI À LA MAIN (NI BUDGET ACTIF NI PRIX STANDARD) PASSE PAR UN VALIDATEUR, QUEL QUE SOIT SON MONTANT">PRIX SAISI À LA MAIN = VALIDATEUR OBLIGATOIRE</td>
           <td class="center"><input type="checkbox" class="ach-pcafman"${P.cafMan !== false ? " checked" : ""} aria-label="Validation obligatoire"></td><td>${P.cafMan !== false ? "OUI" : "NON"}</td></tr></tbody></table></div>
       ${tb("P", "CONDITIONS PARTICULIÈRES (MENU DES CONSULTATIONS ; REPRISES SUR CHAQUE NOUVELLE COMMANDE, IMPRIMÉES EN ANNEXE)", P.clP)}
       ${(() => { /* v1135 (L25, décision d'Ahmed du 11/11) : VALIDATION — tranches de montant estimé (MIN, MAX) et UN validateur (grade) par tranche ;
