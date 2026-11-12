@@ -241,9 +241,10 @@ def main():
             "9,MUR IMPORT CSV,M2,RDC,MACONNERIE CSV,MACONNERIE CSV,CHG,,CIMENT CSV,T,,,,,2,100\n")
         pg.evaluate("""() => { window.__kp758 = JSON.stringify(INS_X.INS); }""".replace("INS_X", ins))
         pg.evaluate("() => { const sh = [...document.querySelectorAll('*')].find(e => e.__ins); sh.__impMenu('budget'); }"); pg.wait_for_timeout(200)
-        srcs = pg.evaluate("() => [...document.querySelectorAll('.blk-card [data-src]')].map(b => b.dataset.src).join(',')")
+        # v1143 (L26) : la source se choisit dans la fenêtre IMPORTER commune (f0 fichier, f1 MS Project, gs, clip, a0 autre budget)
+        srcs = pg.evaluate("() => [...document.querySelectorAll('#svConf .simp-card [data-s]')].map(b => b.dataset.s).join(',')")
         with pg.expect_file_chooser() as fc:
-            pg.evaluate("() => document.querySelector('.blk-card [data-src=\"msp\"]').click()")
+            pg.evaluate("() => document.querySelector('#svConf [data-s=\"f1\"]').click()")
         fc.value.set_files(xmlp); pg.wait_for_timeout(700)
         m758 = pg.evaluate("""() => { const c = document.querySelector('.imp-card'); if (!c) return 'pas de fenêtre'; const same = JSON.stringify(INS_X.INS) === window.__kp758;
             return [(document.getElementById('impSrc') || {}).textContent || '', [...c.querySelectorAll('.imp-tabs [data-tab], .imp-tabs button')].map(b => b.textContent.replace(/\\s+/g, ' ').trim()).join('|'), same]; }""".replace("INS_X", ins))
@@ -252,7 +253,7 @@ def main():
         a758 = pg.evaluate("""() => { const I = INS_X.INS, S = (I.sec || []).filter(x => /MSP$/.test(x.v)), keys = Object.keys(I.dlp || {}).filter(k => S.some(s => k.endsWith('|' + s.id)));
             const pred = Object.values(I.dpred || {}).flat().length; return [S.length, keys.length, pred > 0]; }""".replace("INS_X", ins))
         pg.evaluate("() => { const sh = [...document.querySelectorAll('*')].find(e => e.__ins); sh.__impMenu('budget'); }"); pg.wait_for_timeout(200)
-        pg.evaluate("() => document.querySelector('.blk-card [data-src=\"file\"]').click()"); pg.wait_for_timeout(300)
+        pg.evaluate("() => document.querySelector('#svConf [data-s=\"f0\"]').click()"); pg.wait_for_timeout(300)
         with pg.expect_file_chooser() as fc:
             pg.evaluate("() => document.querySelector('#svConf [data-go]').click()")
         fc.value.set_files(csvp); pg.wait_for_timeout(700)
@@ -263,7 +264,7 @@ def main():
               r.push([...document.querySelectorAll('#blkMenu button span')].some(x => /^IMPORTER/.test(x.textContent.trim()))); document.getElementById('blkMenu')?.remove(); }
             const X = INS_X, I = X.INS; Object.keys(I).forEach(k => { delete I[k]; }); Object.assign(I, JSON.parse(window.__kp758)); X.insSave(); X.refreshAll(); return r; }""".replace("INS_X", ins))
         check("v758 : import unique — sources (fichier, Google Sheets, MS Project, autre budget) ; MS Project XML lu à blanc puis même fenêtre (budget ouvert inchangé) ; tâches, dates et liaison importées ; CSV au format du budget ; IMPORTER dans SCÉNARIOS, pas dans VERSIONS",
-              srcs == "file,gsheet,msp,bdg" and isinstance(m758, list) and "MS PROJECT" in m758[0] and m758[2] is True and a758 == [2, 2, True] and isinstance(c758, list) and "FICHIER" in c758[0] and c758[1] and e758 == [True, False], [srcs, m758, a758, c758, e758])
+              srcs == "f0,f1,gs,clip,a0" and isinstance(m758, list) and "MS PROJECT" in m758[0] and m758[2] is True and a758 == [2, 2, True] and isinstance(c758, list) and "FICHIER" in c758[0] and c758[1] and e758 == [True, False], [srcs, m758, a758, c758, e758])
         # v728 (bloc 9.2) : chute = barres achetées − longueur utile (méthode A), répartie au prorata des QCB du titre ; exemple du 30/10/2026
         t728 = pg.evaluate("""() => { const I = { chg: [{ id: 'a', des: 'ACIER HA12', u: 'KG', q: 60 }, { id: 'b', des: 'ACIER HA12', u: 'KG', q: 40 }],
             prd: [{ id: 'p1', d1: 4.5, nbr: 10 }, { id: 'p2', d1: 2.8, nbr: 6 }, { id: 'p3', d1: 1.2, nbr: 8 }],
@@ -2724,7 +2725,7 @@ def main():
         check("v714 : onglet APPROVISIONNEMENT PRÉVISIONNEL (réglages par charge, À RÉGLER, tableau)", a714 and a714[0] and a714[1] and a714[2], a714)
         # v713 (point 5) : avant un import Excel — fenêtre des en-têtes attendus (★ exigées, COPIER LES EN-TÊTES), ANNULER / CONTINUER
         pg.evaluate("() => document.querySelector('.blk-btn[data-blk=\"client\"][data-act=\"import\"]')?.click()"); pg.wait_for_timeout(300)
-        pg.evaluate("() => document.querySelector('[data-src=\"file\"]')?.click()"); pg.wait_for_timeout(400)
+        pg.evaluate("() => document.querySelector('#svConf [data-s=\"f0\"]')?.click()"); pg.wait_for_timeout(400)
         i713 = pg.evaluate("() => { const d = document.getElementById('svConf'); return d ? [/EN-TÊTES DE COLONNE SUIVANTS/.test(d.innerText), d.querySelectorAll('.imph-req').length > 0, d.querySelectorAll('[data-cp]').length, !!d.querySelector('[data-go]')] : null; }")
         pg.evaluate("() => document.querySelector('#svConf [data-x]')?.click()"); pg.wait_for_timeout(200)
         check("v713 / v758 : avant l'import Excel, fenêtre des en-têtes attendus — format du budget : BUDGET, DÉLAIS, QUALITÉ (★, COPIER LES EN-TÊTES, CONTINUER)", i713 == [True, True, 3, True], i713)

@@ -119,10 +119,15 @@ const sviImpAsk = (title, lab) => new Promise(ok => { const d = sviWinNew(); d.i
   const go = () => { const v = String(d.querySelector(".simp-url").value || "").trim(); d.remove(); ok(v); };
   d.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.matches(".simp-url")) { e.preventDefault(); go(); } });
   d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); ok(""); } else if (e.target.closest("[data-ok]")) go(); }); });
+/* zone de collage (PRESSE-PAPIERS) : contenu gardé tel quel (tabulations) */
+const sviImpClip = () => new Promise(ok => { const w = sviWinNew(); w.innerHTML = sviWinCard({ cls: "frs-card simp-card", close: "data-x", title: "COLLER UNE COLONNE OU UN TABLEAU",
+    body: `<div class="frs-g"><label class="frs-f frs-w"><span>CONTENU COPIÉ (EXCEL, GOOGLE SHEETS, TEXTE)</span><textarea class="ins-in simp-ta" rows="10" data-raw style="text-transform:none"></textarea></label></div>`, foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>SUIVANT</button>` });
+  sviWinShow(w); setTimeout(() => w.querySelector(".simp-ta")?.focus(), 50);
+  w.addEventListener("click", ev => { if (ev.target === w || ev.target.closest("[data-x]")) { w.remove(); ok(""); } else if (ev.target.closest("[data-ok]")) { const v = w.querySelector(".simp-ta").value; w.remove(); ok(v); } }); });
 function sviImport(o) { return new Promise(done => { const d = sviWinNew(), docs = o.docs || [], app = o.app || [];
   const fam = (t, h) => h ? `<div class="frs-st">${t}</div><div class="cmpm-list">${h}</div>` : "";
   d.innerHTML = sviWinCard({ cls: "cmpm-pick simp-card", close: "data-x", title: esc(o.title || "IMPORTER"), body:
-    fam("FICHIER", (o.file !== false ? `<button type="button" class="svc-b" data-s="file">UN FICHIER (EXCEL, CSV, TEXTE, JSON, PDF, WORD, PHOTO OU SCAN)</button>` : "") + docs.map((x, i) => `<button type="button" class="svc-b" data-s="d${i}">${esc(x.lab)}</button>`).join(""))
+    fam("FICHIER", (o.fileBtns ? o.fileBtns.map((x, i) => `<button type="button" class="svc-b" data-s="f${i}">${esc(x.lab)}</button>`).join("") : o.file !== false ? `<button type="button" class="svc-b" data-s="file">UN FICHIER (EXCEL, CSV, TEXTE, JSON, PDF, WORD, PHOTO OU SCAN)</button>` : "") + docs.map((x, i) => `<button type="button" class="svc-b" data-s="d${i}">${esc(x.lab)}</button>`).join(""))
     + fam("EN LIGNE", o.online !== false ? `<button type="button" class="svc-b" data-s="gs">UN LIEN GOOGLE SHEETS</button>` : "")
     + fam("PRESSE-PAPIERS", o.clip !== false ? `<button type="button" class="svc-b" data-s="clip">COLLER UNE COLONNE OU UN TABLEAU</button>` : "")
     + fam("DEPUIS L'APPLICATION", app.map((x, i) => `<button type="button" class="svc-b" data-s="a${i}">${esc(x.lab)}</button>`).join("")),
@@ -133,6 +138,15 @@ function sviImport(o) { return new Promise(done => { const d = sviWinNew(), docs
   const end = () => { const m = document.getElementById("sviImpMsg"); if (m) m.remove(); };
   d.addEventListener("click", async e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); done(null); return; }
     const b = e.target.closest("[data-s]"); if (!b) return; const s = b.dataset.s; d.remove();
+    /* v1143 (L26) : mode « raw » — l'interface lit elle-même la source (budget : ses règles d'import et sa fenêtre d'aperçu) ;
+       o.fileBtns = [{ lab, accept, ask }] ; o.before(genre) = fenêtre préalable (ex. en-têtes attendus), false = abandon */
+    if (o.raw) { try {
+        if (s[0] === "f" && s !== "file") { const B = o.fileBtns[+s.slice(1)]; if (B.ask && o.before && !(await o.before("file"))) { done(null); return; }
+          const f = await new Promise(ok => { const i = document.createElement("input"); i.type = "file"; i.accept = B.accept || ""; i.onchange = () => ok(i.files[0] || null); i.click(); }); done(f ? { src: "file", k: B.k, file: f } : null); return; }
+        if (s === "gs") { if (o.before && !(await o.before("gs"))) { done(null); return; } const url = await sviImpAsk("IMPORTER UN LIEN GOOGLE SHEETS", "LIEN DE LA FEUILLE (PARTAGÉE EN LECTURE)"); done(url ? { src: "gs", url } : null); return; }
+        if (s === "clip") { if (o.before && !(await o.before("clip"))) { done(null); return; } const t = await sviImpClip(); done(t.trim() ? { src: "clip", text: t } : null); return; }
+        if (s[0] === "a") { const a = app[+s.slice(1)], r = a && await a.run(); done(r ? { src: "app", r } : null); return; }
+      } catch (err) { fail(err); } return; }
     try { let R = null, file = null, extra = null;
       if (s === "file" || s[0] === "d") { const f = s === "file" ? await new Promise(ok => { const i = document.createElement("input"); i.type = "file"; i.accept = ".xlsx,.xls,.csv,.txt,.json,.pdf,.docx,image/*"; i.onchange = () => ok(i.files[0] || null); i.click(); }) : await docs[+s.slice(1)].get();
         if (!f) { done(null); return; } if (s === "file") file = f; R = { ...(await sviImpFile(f, msg)), from: f.name || (docs[+s.slice(1)] || {}).lab || "FICHIER" }; }
@@ -140,10 +154,7 @@ function sviImport(o) { return new Promise(done => { const d = sviWinNew(), docs
         const id = (url.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1], gid = (url.match(/[#&?]gid=(\d+)/) || [])[1] || "0"; if (!id) throw new Error("LIEN GOOGLE SHEETS NON RECONNU");
         const r = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`); if (!r.ok) throw new Error("ACCÈS REFUSÉ (FEUILLE NON PARTAGÉE EN LECTURE ?)");
         const X = await loadXLSX(), wb = X.read(await r.text(), { type: "string", raw: true }); R = { aoa: X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: false }).map(x => x.map(v => String(v ?? "").trim())), from: "GOOGLE SHEETS" }; }
-      else if (s === "clip") { const t = await new Promise(ok => { const w = sviWinNew(); w.innerHTML = sviWinCard({ cls: "frs-card simp-card", close: "data-x", title: "COLLER UNE COLONNE OU UN TABLEAU",
-          body: `<div class="frs-g"><label class="frs-f frs-w"><span>CONTENU COPIÉ (EXCEL, GOOGLE SHEETS, TEXTE)</span><textarea class="ins-in simp-ta" rows="10" data-raw style="text-transform:none"></textarea></label></div>`, foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>SUIVANT</button>` });
-          sviWinShow(w); setTimeout(() => w.querySelector(".simp-ta")?.focus(), 50);
-          w.addEventListener("click", ev => { if (ev.target === w || ev.target.closest("[data-x]")) { w.remove(); ok(""); } else if (ev.target.closest("[data-ok]")) { const v = w.querySelector(".simp-ta").value; w.remove(); ok(v); } }); });
+      else if (s === "clip") { const t = await sviImpClip();
         if (!t.trim()) { done(null); return; } R = { aoa: sviImpAoaText(t), from: "PRESSE-PAPIERS" }; }
       else { const a = app[+s.slice(1)], r = a && await a.run(); if (!r) { done(null); return; } R = { rows: r.rows || [], from: r.from || a.lab }; extra = r.extra || null; }
       end(); if (!R || (!R.aoa && !(R.rows || []).length)) { sviImpErr("AUCUNE LIGNE RECONNUE DANS « " + ((R && R.from) || "L'IMPORT") + " »"); done(null); return; }

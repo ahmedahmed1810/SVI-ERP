@@ -640,12 +640,8 @@ function sviBdgSaisieDirecte(C) {
     if (!n) { svImportFail({ source: lab, tries: [{ err: "AUCUNE LIGNE RECONNUE" }], hint: "LA PREMIÈRE LIGNE DOIT PORTER LES EN-TÊTES ATTENDUS (DÉSIGNATION CLIENT, LOT, ACTIVITÉ SECONDAIRE…), OU CHOISIR UN FICHIER XML DE MS PROJECT." }); return; }
     openImportBudget(blk, null, { extra: { ref: "SRC|" + Date.now().toString(36), lab: lab, data }, all });
   };
-  const impReadFile = (blk, all, msp) => {
-    const inp = document.createElement("input");
-    inp.type = "file";
-    inp.accept = msp ? ".xml" : ".xlsx,.xls,.csv,.json,.txt,.xml";
-    inp.onchange = async () => {
-      const f = inp.files[0]; if (!f) return;
+  /* v1143 (L26) : lecture d'un fichier choisi dans la fenêtre IMPORTER commune */
+  const impFromFile = async (blk, all, f) => { if (!f) return;
       try {
         if (/\.xml$/i.test(f.name)) { const aoa = mspAoa(await f.text()); impOpenWith(blk, impDataOfSheets([aoa], f.name), "MS PROJECT — " + U_(f.name), all); return; }
         if (/\.json$/i.test(f.name)) {
@@ -663,11 +659,9 @@ function sviBdgSaisieDirecte(C) {
         if (!use.length) use = [wb.SheetNames[0]];
         impOpenWith(blk, impDataOfSheets(use.map(J), f.name), "FICHIER — " + U_(f.name) + (use.length === 1 && wb.SheetNames.length > 1 ? " › " + use[0] : ""), all);
       } catch (err) { svImportFail({ source: f.name, tries: [{ err }], hint: "VÉRIFIER QUE LE FICHIER EST UN EXCEL (.XLSX), UN CSV, UN JSON OU UN XML DE MS PROJECT, NON PROTÉGÉ PAR MOT DE PASSE." }); }
-    };
-    inp.click();
   };
-  const impReadSheet = async (blk, all) => {
-    const url = await askSheetLink(); if (!url) return;
+  const impReadSheet = async (blk, all, url0) => {
+    const url = url0 || await askSheetLink(); if (!url) return;
     const id = (url.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1], gid = (url.match(/[#&?]gid=(\d+)/) || [])[1] || "0";
     if (!id) { svImportFail({ source: url, tries: [{ err: "LIEN GOOGLE SHEETS NON RECONNU" }], hint: "COPIER LE LIEN COMPLET DE LA FEUILLE (IL CONTIENT /spreadsheets/d/…)." }); return; }
     let first = "";
@@ -683,28 +677,18 @@ function sviBdgSaisieDirecte(C) {
     } catch (e) { svImportFail({ source: "GOOGLE SHEETS — " + url, tries: [{ via: "PAR LE SCRIPT", err: first }, { via: "PAR LE LIEN PUBLIC", err: e }], hint: "VÉRIFIER LE LIEN, QUE VOTRE COMPTE GOOGLE A ACCÈS À LA FEUILLE, OU LA PARTAGER « TOUTE PERSONNE DISPOSANT DU LIEN »." }); }
   };
   /* entrée unique : blk = client / hier / detail (le bloc), ou "budget" (tout le budget : IMPORTER UN BUDGET, onglets AVENANTS / SCÉNARIOS / RECALAGES) */
-  const openImportMenu = (blk, title) => {
-    const all = blk === "budget";
-    const p = popup(`
-      <div class="blk-card">
-        <button type="button" class="blk-x" data-close>✕</button>
-        <div class="blk-title">IMPORTER — ${esc(title || (all ? "BUDGET COMPLET" : blkDisp(blk)))}</div>
-        <button type="button" class="blk-choice" data-src="file">FICHIER (EXCEL, CSV, JSON)</button>
-        <button type="button" class="blk-choice" data-src="gsheet">GOOGLE SHEETS (LIEN)</button>
-        <button type="button" class="blk-choice" data-src="msp">MS PROJECT (FICHIER XML)</button>
-        ${INS ? `<button type="button" class="blk-choice" data-src="bdg">AUTRE BUDGET DE L'APPLICATION</button>` : ""}
-      </div>`);
-    p.addEventListener("click", async e => {
-      const b = e.target.closest("[data-src]");
-      if (!b) return;
-      p.remove();
-      const s = b.dataset.src;
-      if (s === "bdg") { openImportBudget(blk, null, { all }); return; }
-      /* v713 (point 5) : en-têtes attendus avant un import Excel / Google Sheets */
-      if ((s === "file" || s === "gsheet") && shell.__impHeadAsk && !(await shell.__impHeadAsk(shell.__impHeadsOf("budget")))) return;
-      if (s === "gsheet") impReadSheet(blk, all);
-      else impReadFile(blk, all, s === "msp");
-    });
+  /* v1143 (série L, L26 ; document unique 10.9) : la source se choisit dans la fenêtre IMPORTER commune (sviImport, mode raw) ;
+     la lecture et l'aperçu restent ceux du budget (règles d'import, liaisons par les noms, fenêtre « IMPORTER — … » à onglets) ;
+     sources : FICHIER (Excel, CSV, texte, JSON ; XML de MS Project à part), EN LIGNE (Google Sheets), PRESSE-PAPIERS, AUTRE BUDGET DE L'APPLICATION */
+  const openImportMenu = async (blk, title) => {
+    const all = blk === "budget", heads = () => shell.__impHeadAsk ? shell.__impHeadAsk(shell.__impHeadsOf("budget")) : Promise.resolve(true);
+    const R = await sviImport({ raw: true, title: "IMPORTER — " + (title || (all ? "BUDGET COMPLET" : blkDisp(blk))),
+      fileBtns: [{ k: "file", lab: "UN FICHIER (EXCEL, CSV, TEXTE, JSON)", accept: ".xlsx,.xls,.csv,.json,.txt", ask: true }, { k: "msp", lab: "UN FICHIER XML DE MS PROJECT (DÉLAIS)", accept: ".xml" }],
+      before: k => heads(), app: INS ? [{ lab: "UN AUTRE BUDGET DE L'APPLICATION", run: async () => { openImportBudget(blk, null, { all }); return null; } }] : [] });
+    if (!R) return;
+    if (R.src === "file") { impFromFile(blk, all, R.file); return; }
+    if (R.src === "gs") { impReadSheet(blk, all, R.url); return; }
+    if (R.src === "clip") { const aoa = sviImpAoaText(R.text); impOpenWith(blk, impDataOfSheets([aoa], "PRESSE-PAPIERS"), "PRESSE-PAPIERS", all); }
   };
   shell.__impMenu = openImportMenu;
 
