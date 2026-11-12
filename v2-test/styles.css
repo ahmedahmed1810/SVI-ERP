@@ -4053,3 +4053,8 @@ body.svf-moving, body.svf-moving * { cursor: grabbing !important; user-select: n
   background: linear-gradient(135deg, transparent 50%, #c3cad5 50%, #c3cad5 58%, transparent 58%, transparent 70%, #c3cad5 70%, #c3cad5 78%, transparent 78%); border-bottom-right-radius: 10px; }
 .bdg-d-page .lay-wrz.on, .bdg-d-page .lay-wrz:hover { background: linear-gradient(135deg, transparent 50%, #1d4ed8 50%, #1d4ed8 58%, transparent 58%, transparent 70%, #1d4ed8 70%, #1d4ed8 78%, transparent 78%); }
 .bdg-d-page[class*="max-"] .lay-wrz { display: none !important; }
+/* v1156 : mode nuit — la barre du bas des blocs n'est plus blanche */
+html.svi-nuit .bdg-d-page .blk-rsz { background: #161C24 !important; border-top-color: #2A3340 !important; }
+html.svi-nuit .bdg-d-page .blk-rsz::after { background: #4B5563; }
+html.svi-nuit .bdg-d-page .blk-rsz.on::after, html.svi-nuit .bdg-d-page .blk-rsz:hover::after { background: #60A5FA; }
+html.svi-nuit #bdgDetailRsz { border-color: #2A3340 !important; }

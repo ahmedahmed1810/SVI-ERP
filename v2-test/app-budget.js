@@ -11393,7 +11393,9 @@ function sviBdgDelaisDisposition(C) {
   /* v1155 (L3) : blocs libres de la page budget — largeur au coin (pas de 5 %, au moins 30 %), deux blocs côte à côte ;
      un bloc sur toute la largeur tiré de côté prend la moitié. DÉTAIL reste sur toute la largeur (document unique, partie 3). */
   const LAY_GAP = 14;
-  const layWOf = (lay, u) => u === "detail" ? 100 : Math.max(30, Math.min(100, +((lay.w || {})[u]) || 100));
+  const LAY_WMIN = { hier: 45 };   /* v1156 : TÂCHES (trois colonnes) jamais sous 45 % */
+  const layWMin = u => LAY_WMIN[u] || 30;
+  const layWOf = (lay, u) => u === "detail" ? 100 : Math.max(layWMin(u), Math.min(100, +((lay.w || {})[u]) || 100));
   const layWApply = (pg, lay) => {
     const free = LAY_UNITS.some(u => layWOf(lay, u) < 100);
     pg.classList.toggle("lay-free", free);
@@ -11407,11 +11409,12 @@ function sviBdgDelaisDisposition(C) {
     const x0 = event.clientX, y0 = event.clientY, r0 = b.getBoundingClientRect(), hb = layMeasure(u), MINU = layMinOf(u) || 44;
     let w = layWOf(layLoad(), u), v = 0, on = false; h.classList.add("on");
     const move = e => { const dx = e.clientX - x0, dy = e.clientY - y0; if (!on) { if (Math.hypot(dx, dy) < 6) return; on = true; } e.preventDefault();
-      w = Math.max(30, Math.min(100, Math.round(((r0.width + dx) / W * 100) / 5) * 5));
+      w = Math.max(layWMin(u), Math.min(100, Math.round(((r0.width + dx + LAY_GAP) / (W + LAY_GAP) * 100) / 5) * 5));   /* v1156 : écart compris (pas de 5 % régulier) */
       const lay = layLoad(); lay.w = { ...(lay.w || {}), [u]: w }; layWApply(pg, lay);
       if (Math.abs(dy) > 4) { v = Math.max(MINU, Math.round(hb + dy)); if (["hier", "client"].includes(u)) v = Math.max(MINU, laySnap(u, v)); pg.style.setProperty("--h-" + u, v + "px"); } };
-    const up = () => { document.removeEventListener("pointermove", move); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up); h.classList.remove("on");
-      if (!on) return; const lay = layLoad(); lay.w = lay.w || {}; if (w >= 100) delete lay.w[u]; else lay.w[u] = w;
+    const up = ev => { document.removeEventListener("pointermove", move); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up); h.classList.remove("on");
+      if (!on) return; if (ev && ev.type === "pointercancel") { layApply(); return; }   /* v1156 : geste interrompu = annulé */
+      const lay = layLoad(); lay.w = lay.w || {}; if (w >= 100) delete lay.w[u]; else lay.w[u] = w;
       if (v) { lay.h = lay.h || {}; lay.h[u] = v; lay.red = lay.red || {}; if (v <= MINU + 2) lay.red[u] = 1; else delete lay.red[u]; }
       delete lay.def; laySave(lay); histLog("DISPOSITION", "MODIFICATION", "LARGEUR / HAUTEUR DES BLOCS"); layApply(); setTimeout(layMinScroll, 30); try { sviWinEat(); } catch (e) {} };
     document.addEventListener("pointermove", move, { passive: false }); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
@@ -11587,13 +11590,14 @@ function sviBdgDelaisDisposition(C) {
       lastY = e.clientY; lastX = e.clientX;
       pick(lastY);
     };
-    const up = () => {
+    const up = ev => {
       clearInterval(timer);
       document.removeEventListener("pointermove", move);
       document.removeEventListener("pointerup", up);
       document.removeEventListener("pointercancel", up);
       clear();
       layEls(src).forEach(el => el.classList.remove("lay-src"));
+      if (ev && ev.type === "pointercancel") return;   /* v1156 : geste interrompu = annulé (ni largeur ni ordre) */
       const lay = layLoad(), pgW = (page$() || {}).clientWidth || innerWidth;
       /* v1155 : un bloc sur toute la largeur tiré de côté (plus de 15 %) prend la moitié */
       const side = src !== "detail" && layWOf(lay, src) >= 100 && Math.abs(lastX - X0) > pgW * .15;
