@@ -445,6 +445,13 @@ function sviBdgCopierColler(C) {
       return `<button type="button" data-i="${i}">${a.innerHTML}<span>${esc(lab)}${a.__hint ? `<small class="del-split">${esc(a.__hint)}</small>` : ""}</span></button>`;
     }).join("");
     if (m.__hint) m.insertAdjacentHTML("afterbegin", `<div class="blk-hint">${esc(m.__hint)}</div>`);
+    /* v1144 (L26) : charges importées liées par le nom (en rouge) — CONFIRMER LES CHARGES COCHÉES (vérifiées par l'utilisateur) */
+    if (INS_EDIT && ECR.active === "chg" && acts.some(a => a.dataset.blk === "detail") && (INS.chg || []).some(r => r.vrf)) {
+      const nv = INS.chg.filter(r => r.vrf && r.on === true).length;
+      m.insertAdjacentHTML("afterbegin", `<button type="button" data-vrfok class="blk-clip${nv ? "" : " off"}"${nv ? "" : " disabled"}><span>✓ CONFIRMER LES CHARGES COCHÉES (VÉRIFIÉES)</span>${svCnt(nv)}</button><div class="blk-sep"></div>`);
+      m.addEventListener("click", e => { if (!e.target.closest("[data-vrfok]")) return; e.stopPropagation(); m.remove();
+        const L = INS.chg.filter(r => r.vrf && r.on === true); L.forEach(r => { delete r.vrf; }); histLog("IMPORT", "CHARGES CONFIRMÉES", L.length + " CHARGE(S) VÉRIFIÉE(S)"); insSave(); refreshAll(); });
+    }
     /* FORMAT 97 : DÉTAIL DÉLAIS ouvert (PLANNING) — commandes du planning et affichage JOUR / SEMAINE / MOIS en tête du menu */
     const DX = shell.__insDly;
     if (DX && ECR.active === "dly" && acts.some(a => a.dataset.blk === "detail") && shell.querySelector("#dlyGantt")) {

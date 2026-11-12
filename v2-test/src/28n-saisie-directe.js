@@ -5,6 +5,7 @@
 function sviBdgSaisieDirecte(C) {
   const { INS, INS_EDIT, actUnitSync, bfApply, bfModel, bfRuleA, bfRuleAAsk, blkDisp, budget, cfApply, cfHead, cfOpenMenu, dlyImportAoa, fullRef, insSave, insShown, lines, openImportBudget, qltImportAoa, ref, refreshAll, sheetKind, shell, showImport, tabs, tbody } = C;
   const histLog = (...a) => C.histLog()(...a);
+  const ECR = C.ECR, insId = () => C.insIdF();   /* v1144 */
   const updPill = (...a) => C.updPill()(...a);
   const nextDocRef = (...a) => C.nextDocRef()(...a);
   const docsLoad = (...a) => C.docsLoad()(...a);
@@ -677,15 +678,81 @@ function sviBdgSaisieDirecte(C) {
     } catch (e) { svImportFail({ source: "GOOGLE SHEETS — " + url, tries: [{ via: "PAR LE SCRIPT", err: first }, { via: "PAR LE LIEN PUBLIC", err: e }], hint: "VÉRIFIER LE LIEN, QUE VOTRE COMPTE GOOGLE A ACCÈS À LA FEUILLE, OU LA PARTAGER « TOUTE PERSONNE DISPOSANT DU LIEN »." }); }
   };
   /* entrée unique : blk = client / hier / detail (le bloc), ou "budget" (tout le budget : IMPORTER UN BUDGET, onglets AVENANTS / SCÉNARIOS / RECALAGES) */
+  /* v1144 (série L, L26 ; cahier, règle validée le 12/11/2026) : IMPORT DE CHARGES SEULES dans le DÉTAIL CHARGES (fichier sans DÉSIGNATION CLIENT) —
+     liaison par la TÂCHE SECONDAIRE (lot › activité secondaire), retrouvée par son nom (majuscules et espaces ignorés, pas de code) ;
+     désignation client et activité primaire prises du fichier si elles correspondent, sinon celles de la tâche (primaire différente = alerte) ;
+     activité secondaire sans lot : un seul lot = liée, plusieurs = lot à choisir (B), sans choix = SANS LIAISON (A) ; tâche absente ou inconnue = SANS LIAISON ;
+     toute charge liée par le nom arrive « à vérifier » (vrf, en rouge) jusqu'à CONFIRMER ; rien n'est enregistré avant OK */
+  const IMP_CHG_COLS = [{ k: "dc", lab: "DÉSIGNATION CLIENT", rx: /D[ÉE]SIGNATION CLIENT/i }, { k: "tache", lab: "TÂCHE (LOT › ACTIVITÉ)", rx: /^T[ÂA]CHE/i }, { k: "lot", lab: "LOT", rx: /^LOT\b/i },
+    { k: "prim", lab: "ACTIVITÉ PRIMAIRE", rx: /PRIMAIRE/i }, { k: "sec", lab: "ACTIVITÉ SECONDAIRE", rx: /SECONDAIRE/i }, { k: "art", lab: "ART", rx: /^(ART\.?|N°)$/i },
+    { k: "des", lab: "DÉSIGNATION", rx: /D[ÉE]SIGNATION|LIBELL|DESCRIPTION|CHARGE|NATURE/i }, { k: "u", lab: "U", rx: /^U\.?$|^UNIT|^UCB$/i },
+    { k: "q", lab: "QUANTITÉ", rx: /QT[ÉE]|QUANT/i, num: true }, { k: "pu", lab: "PRIX", rx: /^P\.?\s?U|PRIX|^PCB$/i, num: true }];
+  const nmK = v => U_(String(v ?? "")).replace(/\s+/g, " ").trim();
+  const isBudgetSheet = aoa => (aoa || []).slice(0, 15).some(r => (r || []).some(c => ECR.bfNorm(c) === "DESIGNATION CLIENT")) && (aoa || []).slice(0, 15).some(r => (r || []).some(c => /^LOT$/.test(ECR.bfNorm(c))));
+  const impChg = async (R, name) => {
+    const rows = await sviImpPreview({ cols: IMP_CHG_COLS, key: r => nmK(r.des) + "|" + nmK(r.u) + "|" + nmK(r.tache || (r.lot + "›" + r.sec)) }, { ...R, from: name }); if (!rows) return;
+    const L = (INS.links || []), byId = (k, id) => (INS[k] || []).find(x => x.id === id) || {};
+    const nmOf = (k, id) => nmK(k === "des" ? byId("des", id).des : byId(k, id).v);
+    /* tâches du budget : « lot|sec » → liaisons */
+    const T = new Map(); L.forEach(l => { if (!l.lot || !l.sec) return; const k = l.lot + "|" + l.sec; (T.get(k) || T.set(k, []).get(k)).push(l); });
+    const res = rows.filter(r => !r.title && String(r.des || "").trim()).map(r => { let lot = nmK(r.lot), sec = nmK(r.sec);
+      if (r.tache) { const [a, b] = String(r.tache).split(/›|>|\//).map(nmK); if (b) { lot = lot || a; sec = sec || b; } else sec = sec || a; }
+      const o = { r, st: "none", cand: [] }; if (!sec) return o;
+      const K = [...T.keys()].filter(k => nmOf("sec", k.split("|")[1]) === sec && (!lot || nmOf("lot", k.split("|")[0]) === lot));
+      if (K.length === 1) { o.st = "ok"; o.k = K[0]; } else if (K.length > 1 && !lot) { o.st = "amb"; o.cand = K; }
+      return o; });
+    /* B : lot à choisir pour les activités secondaires présentes dans plusieurs lots (sans choix = SANS LIAISON) */
+    const AMB = res.filter(o => o.st === "amb");
+    if (AMB.length) { const pick = await new Promise(ok => { const d = sviWinNew(), lots = [...new Set(AMB.flatMap(o => o.cand.map(k => k.split("|")[0])))];
+        const opts = o => `<option value="">— SANS LIAISON</option>` + o.cand.map(k => `<option value="${esc(k)}">${esc(byId("lot", k.split("|")[0]).v || "")}</option>`).join("");
+        d.innerHTML = sviWinCard({ cls: "frs-card simp-card", close: "data-x", title: "LOT À CHOISIR — " + AMB.length + " CHARGE(S)",
+          body: `<div class="frs-st">CES ACTIVITÉS SECONDAIRES EXISTENT DANS PLUSIEURS LOTS : CHOISIR LE LOT (SANS CHOIX, LA CHARGE ARRIVE SANS LIAISON)</div>
+            <div class="frs-g"><label class="frs-f frs-w"><span>POUR TOUTES LES LIGNES</span><select class="ins-in simp-lotall"><option value="">—</option>${lots.map(l => `<option value="${esc(l)}">${esc(byId("lot", l).v || "")}</option>`).join("")}</select></label></div>
+            <div class="svc-scroll simp-prev"><table class="prm-table"><thead><tr><th>DÉSIGNATION</th><th>ACTIVITÉ SECONDAIRE</th><th>LOT</th></tr></thead><tbody>${AMB.map((o, i) => `<tr><td>${esc(o.r.des)}</td><td>${esc(nmOf("sec", o.cand[0].split("|")[1]))}</td><td><select class="ins-in simp-lot" data-i="${i}">${opts(o)}</select></td></tr>`).join("")}</tbody></table></div>`,
+          foot: `<button type="button" class="svc-b" data-x>ANNULER</button><button type="button" class="svc-b svc-ok svc-neutral" data-ok>SUIVANT</button>` });
+        sviWinShow(d);
+        d.addEventListener("change", e => { if (!e.target.matches(".simp-lotall")) return; const l = e.target.value; d.querySelectorAll(".simp-lot").forEach(s2 => { const o = AMB[+s2.dataset.i], k = o.cand.find(x => x.split("|")[0] === l); s2.value = l ? (k || s2.value) : ""; }); });
+        d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); ok(null); } else if (e.target.closest("[data-ok]")) { const v = [...d.querySelectorAll(".simp-lot")].map(s2 => s2.value); d.remove(); ok(v); } }); });
+      if (!pick) return; AMB.forEach((o, i) => { if (pick[i]) { o.st = "ok"; o.k = pick[i]; } }); }
+    /* écriture : charge créée ; liée = ajoutée à la liaison de sa tâche (désignation client du fichier si elle y est), à vérifier */
+    const alerts = []; let nL = 0, nS = 0;
+    res.forEach(o => { const r = o.r, id = insId(), row = { id, art: r.art || "", des: U_(r.des), u: U_(r.u || ""), q: r.q === "" ? "" : r.q, p: r.pu === "" ? "" : r.pu };
+      if (o.st !== "ok") { INS.chg.push(row); nS++; return; }
+      const LL = T.get(o.k), dc = nmK(r.dc), l = (dc && LL.find(x => nmOf("des", x.des) === dc)) || LL[0];
+      if (r.prim && nmK(r.prim) !== nmOf("prim", l.prim)) alerts.push(r.des + " : ACTIVITÉ PRIMAIRE « " + U_(r.prim) + " » DU FICHIER ≠ « " + (byId("prim", l.prim).v || "") + " » (GARDÉE)");
+      if (dc && nmOf("des", l.des) !== dc) alerts.push(r.des + " : DÉSIGNATION CLIENT « " + U_(r.dc) + " » ABSENTE DE LA TÂCHE (DÉSIGNATION DE LA TÂCHE GARDÉE)");
+      row.vrf = true; INS.chg.push(row); (l.chg = l.chg || []).push({ id, q: "" }); nL++; });
+    histLog("IMPORT", "CHARGES — " + name, (nL + nS) + " CHARGE(S) : " + nL + " LIÉE(S) À VÉRIFIER, " + nS + " SANS LIAISON");
+    insSave(); refreshAll();
+    const d = sviWinNew(); d.innerHTML = sviWinCard({ cls: "frs-card simp-card", close: "data-x", title: "CHARGES IMPORTÉES — " + esc(name),
+      body: `<div class="frs-st">${nL} CHARGE(S) LIÉE(S) PAR LE NOM : EN ROUGE, À VÉRIFIER (COCHER › ⋯ › CONFIRMER LES CHARGES COCHÉES)</div><div class="frs-st">${nS} CHARGE(S) SANS LIAISON (ONGLET LIGNES NON LIÉES, À LIER AVEC ✓ LIER)</div>`
+        + (alerts.length ? `<div class="frs-st">ALERTES (${alerts.length})</div>` + (alerts.length > 5 ? `<div>${alerts.length} ALERTES — VOIR L'HISTORIQUE</div>` : alerts.map(a => `<div>- ${esc(a)}</div>`).join("")) : ""),
+      foot: `<button type="button" class="svc-b svc-ok svc-neutral" data-x>OK</button>` });
+    if (alerts.length) histLog("IMPORT", "ALERTES — " + name, alerts.join(" ; "));
+    sviWinShow(d); d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) d.remove(); }); };
+  shell.__impChg = impChg;
   /* v1143 (série L, L26 ; document unique 10.9) : la source se choisit dans la fenêtre IMPORTER commune (sviImport, mode raw) ;
      la lecture et l'aperçu restent ceux du budget (règles d'import, liaisons par les noms, fenêtre « IMPORTER — … » à onglets) ;
      sources : FICHIER (Excel, CSV, texte, JSON ; XML de MS Project à part), EN LIGNE (Google Sheets), PRESSE-PAPIERS, AUTRE BUDGET DE L'APPLICATION */
   const openImportMenu = async (blk, title) => {
-    const all = blk === "budget", heads = () => shell.__impHeadAsk ? shell.__impHeadAsk(shell.__impHeadsOf("budget")) : Promise.resolve(true);
+    const all = blk === "budget", chgMode = blk === "detail" && ECR.active === "chg" && INS_EDIT, heads = () => chgMode ? Promise.resolve(true) : shell.__impHeadAsk ? shell.__impHeadAsk(shell.__impHeadsOf("budget")) : Promise.resolve(true);
     const R = await sviImport({ raw: true, title: "IMPORTER — " + (title || (all ? "BUDGET COMPLET" : blkDisp(blk))),
-      fileBtns: [{ k: "file", lab: "UN FICHIER (EXCEL, CSV, TEXTE, JSON)", accept: ".xlsx,.xls,.csv,.json,.txt", ask: true }, { k: "msp", lab: "UN FICHIER XML DE MS PROJECT (DÉLAIS)", accept: ".xml" }],
+      fileBtns: [chgMode ? { k: "file", lab: "UN FICHIER (EXCEL, CSV, TEXTE, JSON, PDF, WORD, PHOTO OU SCAN)", accept: ".xlsx,.xls,.csv,.json,.txt,.pdf,.docx,image/*" } : { k: "file", lab: "UN FICHIER (EXCEL, CSV, TEXTE, JSON)", accept: ".xlsx,.xls,.csv,.json,.txt", ask: true }, { k: "msp", lab: "UN FICHIER XML DE MS PROJECT (DÉLAIS)", accept: ".xml" }],
       before: k => heads(), app: INS ? [{ lab: "UN AUTRE BUDGET DE L'APPLICATION", run: async () => { openImportBudget(blk, null, { all }); return null; } }] : [] });
     if (!R) return;
+    /* v1144 : DÉTAIL CHARGES ouvert — un tableau sans DÉSIGNATION CLIENT ni LOT est un import de CHARGES SEULES (règle de la tâche secondaire) */
+    if (chgMode && R.src !== "app" && !(R.src === "file" && R.k === "msp")) { try {
+        let src = null, name = "";
+        if (R.src === "file" && /\.json$/i.test(R.file.name)) { impFromFile(blk, all, R.file); return; }
+        if (R.src === "file") { name = R.file.name; src = await sviImpFile(R.file); }
+        else if (R.src === "clip") { name = "PRESSE-PAPIERS"; src = { aoa: sviImpAoaText(R.text) }; }
+        else { name = "GOOGLE SHEETS"; const id = (R.url.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1], gid = (R.url.match(/[#&?]gid=(\d+)/) || [])[1] || "0"; if (!id) throw new Error("LIEN GOOGLE SHEETS NON RECONNU");
+          const r = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`); if (!r.ok) throw new Error("ACCÈS REFUSÉ (FEUILLE NON PARTAGÉE EN LECTURE ?)");
+          const X = await loadXLSX(), wb = X.read(await r.text(), { type: "string", raw: true }); src = { aoa: X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: false }).map(x => x.map(v => String(v ?? "").trim())) }; }
+        if (!(src.aoa && isBudgetSheet(src.aoa))) { await impChg(src, U_(name)); return; }
+        if (R.src === "file" && /\.(pdf|docx)$|^image\//i.test(R.file.name + " " + R.file.type) === false) { impFromFile(blk, all, R.file); return; }
+        impOpenWith(blk, impDataOfSheets([src.aoa], name), U_(name), all); return;
+      } catch (err) { sviImpErr(String(err && err.message || err)); return; } }
     if (R.src === "file") { impFromFile(blk, all, R.file); return; }
     if (R.src === "gs") { impReadSheet(blk, all, R.url); return; }
     if (R.src === "clip") { const aoa = sviImpAoaText(R.text); impOpenWith(blk, impDataOfSheets([aoa], "PRESSE-PAPIERS"), "PRESSE-PAPIERS", all); }

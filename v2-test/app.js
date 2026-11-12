@@ -5936,10 +5936,12 @@ function sviImpText(txt) { const out = [], NUM = "(?:\\d{1,3}(?:[\\s\\u00a0\\u20
   return out; }
 /* tableau : ligne d'en-tête et colonnes reconnues (sinon devinées : la plus longue en texte = désignation, puis unité courte, quantité, prix) */
 function sviImpGuess(A, cols) { let h = -1, C = {};
-  for (let i = 0; i < Math.min(A.length, 15) && h < 0; i++) { const c = {}; A[i].forEach((v, j) => cols.forEach(cc => { if (c[cc.k] === undefined && cc.rx && cc.rx.test(v) && !(cc.k === "des" && /PRIX/i.test(v))) c[cc.k] = j; }));
+  /* v1144 : une colonne du fichier ne va qu'à une destination (la première reconnue, dans l'ordre des colonnes) */
+  const hit = (v, c) => { const cc = cols.find(x => c[x.k] === undefined && x.rx && x.rx.test(String(v || "").trim()) && !(x.k === "des" && /PRIX/i.test(v))); return cc ? cc.k : null; };
+  for (let i = 0; i < Math.min(A.length, 15) && h < 0; i++) { const c = {}; A[i].forEach((v, j) => { const k = hit(v, c); if (k) c[k] = j; });
     if (c.des !== undefined && (c.q !== undefined || cols.length < 3)) { h = i; C = c; } }
   /* v1139 : en-tête reconnu même sans colonne QUANTITÉ (ex. une colonne collée qui commence par « DÉSIGNATION ») */
-  if (h < 0 && A.length) { const c = {}; A[0].forEach((v, j) => cols.forEach(cc => { if (c[cc.k] === undefined && cc.rx && cc.rx.test(v) && !(cc.k === "des" && /PRIX/i.test(v))) c[cc.k] = j; }));
+  if (h < 0 && A.length) { const c = {}; A[0].forEach((v, j) => { const k = hit(v, c); if (k) c[k] = j; });
     if (c.des !== undefined && A[0].every(v => isNaN(sviImpNum(v)))) { h = 0; C = c; } }
   if (h < 0 && A.length) { const n = Math.max(...A.map(r => r.length)), avg = j => A.reduce((s, r) => s + (isNaN(sviImpNum(r[j])) ? (r[j] || "").length : 0), 0) / A.length;
     let d = 0; for (let j = 1; j < n; j++) if (avg(j) > avg(d)) d = j; C.des = d;
@@ -5949,7 +5951,9 @@ function sviImpGuess(A, cols) { let h = -1, C = {};
 function sviImpFromAoa(A, h, C) { const out = []; A.slice(h + 1).forEach(r => { const des = String(r[C.des] ?? "").replace(/\s+/g, " ").trim(), q = C.q !== undefined ? sviImpNum(r[C.q]) : NaN;
     if (!des || /^TOTAL|^SOUS[- ]TOTAL/i.test(des)) return;
     if (C.q !== undefined && (isNaN(q) || q <= 0)) { if (!(C.u !== undefined && r[C.u])) out.push({ title: des }); return; }
-    out.push({ des, u: C.u !== undefined ? String(r[C.u] ?? "").trim() : "", q: isNaN(q) ? "" : q, pu: C.pu !== undefined && !isNaN(sviImpNum(r[C.pu])) ? sviImpNum(r[C.pu]) : "" }); });
+    const o = { des, u: C.u !== undefined ? String(r[C.u] ?? "").trim() : "", q: isNaN(q) ? "" : q, pu: C.pu !== undefined && !isNaN(sviImpNum(r[C.pu])) ? sviImpNum(r[C.pu]) : "" };
+    Object.keys(C).forEach(k => { if (!(k in o)) o[k] = String(r[C[k]] ?? "").replace(/\s+/g, " ").trim(); });   /* v1144 : autres colonnes (lot, tâche…) gardées telles quelles */
+    out.push(o); });
   return out; }
 const sviImpAoaText = t => { const L = String(t || "").replace(/\r/g, "").split("\n").filter(l => l.trim()); const sep = L.some(l => l.includes("\t")) ? "\t" : L.some(l => l.includes(";")) ? ";" : null;
   return L.map(l => sep ? l.split(sep).map(v => v.trim()) : [l.trim()]); };

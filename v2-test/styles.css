@@ -4020,3 +4020,5 @@ html.svi-nuit body .nvp-blk td .cafp-lock { color: #9ca3af; }
 .simp-card tr.simp-red td { color: #b91c1c !important; -webkit-text-fill-color: #b91c1c !important; }
 .simp-card .simp-list { max-height: 48vh; overflow: auto; }
 #sviImpMsg { position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%); z-index: 10095; background: #172033; color: #fff; padding: 14px 20px; border-radius: 10px; font-weight: 800; font-size: 13px; }
+/* v1144 (L26) : charge importée liée par le nom, à vérifier (CONFIRMER LES CHARGES COCHÉES) */
+html body .ins-table tr.ins-vrf > td:not(#svi-z1):not(#svi-z2), html body .ins-table tr.ins-vrf > td :is(input, textarea, .ins-dv) { color: #b91c1c !important; -webkit-text-fill-color: #b91c1c !important; }
