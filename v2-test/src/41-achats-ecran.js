@@ -487,7 +487,7 @@ function sviAchInit() {
   });
   /* case « CRÉER … ICI » : Entrée ou Tab crée la ligne (avant la navigation commune, qui n'a pas de case suivante dans cette ligne) */
   window.addEventListener("keydown", e => {
-    const i = e.target && e.target.closest && e.target.closest("#ach input.ach-newin, #ach input.ach-pnew, #ach input.ach-bnew, #ach input.ach-gnew");
+    const i = e.target && e.target.closest && e.target.closest("#ach input.ach-newin, #ach input.ach-pnew, #ach input.ach-bnew, #ach input.ach-gnew, input.ach-seunew");   /* v1138 : tranche / niveau de seuil créé aussi à l'Entrée */
     if (!i || (e.key !== "Enter" && e.key !== "Tab") || !String(i.value || "").trim()) return;
     e.preventDefault(); e.stopPropagation();
     /* la mise en majuscules pendant la frappe empêche le navigateur d'envoyer « change » : il est envoyé ici */

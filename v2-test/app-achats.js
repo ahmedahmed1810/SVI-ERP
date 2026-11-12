@@ -1298,7 +1298,7 @@ function sviAchInit() {
   });
   /* case « CRÉER … ICI » : Entrée ou Tab crée la ligne (avant la navigation commune, qui n'a pas de case suivante dans cette ligne) */
   window.addEventListener("keydown", e => {
-    const i = e.target && e.target.closest && e.target.closest("#ach input.ach-newin, #ach input.ach-pnew, #ach input.ach-bnew, #ach input.ach-gnew");
+    const i = e.target && e.target.closest && e.target.closest("#ach input.ach-newin, #ach input.ach-pnew, #ach input.ach-bnew, #ach input.ach-gnew, input.ach-seunew");   /* v1138 : tranche / niveau de seuil créé aussi à l'Entrée */
     if (!i || (e.key !== "Enter" && e.key !== "Tab") || !String(i.value || "").trim()) return;
     e.preventDefault(); e.stopPropagation();
     /* la mise en majuscules pendant la frappe empêche le navigateur d'envoyer « change » : il est envoyé ici */
@@ -2417,7 +2417,7 @@ function achCafPage(x, B) {
     return { rd: { k, st: rdSt(k) }, ck: ckC(k), cls: (l.imp ? "cafp-imp " : "") + (l.g && (x.grp || []).some(g => g.id === l.g) ? "svlk-g-" + l.g + " " : "") + lkC(k), go: a ? [[2, "art", a.id]] : [], cells: [o.no,
       { h: `<select class="ins-in cafp-bsn" data-li="${esc(l.id)}"${dis}><option value="">—</option>${BO.map(y => `<option value="${esc(y.id)}"${y.id === l.bsn ? " selected" : ""}>${esc(y.ref + " · " + (achArtOf(y.des, y.u) ? achRefSvi(achArtOf(y.des, y.u), achArts(), "ARA") : "HORS LISTE") + " · " + y.des + " · " + y.u + " · " + achF2(y.q))}</option>`).join("")}</select>`, t: b ? b.ref : "" },
       a ? achRefSvi(a, achArts(), "ARA") : "HORS LISTE",
-      l.libre ? { h: `<input class="ins-in cafp-l" data-li="${esc(l.id)}" data-c="des" value="${esc(l.des || "")}"${dis}>`, t: l.des || "" } : { h: `<select class="ins-in cafp-des" data-li="${esc(l.id)}"${dis}><option value="">—</option>${AO.map(y => `<option value="${esc(y.id)}"${achKey(y.des, y.u) === achKey(l.des, l.u) ? " selected" : ""}>${esc(y.des + " (" + y.u + ")")}</option>`).join("")}</select>`, t: l.des || "" },
+      l.libre ? { h: `<input class="ins-in cafp-l" data-li="${esc(l.id)}" data-c="des" value="${esc(l.des || "")}"${dis}>`, t: l.des || "" } : { h: `<select class="ins-in cafp-des" data-li="${esc(l.id)}"${dis}><option value=""${a ? "" : " selected"}>${a || !l.des ? "—" : esc(l.des + (l.u ? " (" + l.u + ")" : ""))}</option>${AO.map(y => `<option value="${esc(y.id)}"${achKey(y.des, y.u) === achKey(l.des, l.u) ? " selected" : ""}>${esc(y.des + " (" + y.u + ")")}</option>`).join("")}</select>`, t: l.des || "" },
       l.libre ? { h: `<input class="ins-in cafp-l center" data-li="${esc(l.id)}" data-c="u" value="${esc(l.u || "")}"${dis}>`, t: l.u || "" } : l.u || "",
       { h: `<input class="ins-in cafp-l number" data-li="${esc(l.id)}" data-c="q" inputmode="decimal" value="${esc(String(l.q ?? "").replace(".", ","))}"${dis}>`, t: achN(l.q) },
       /* v1134 (L24) : prix du budget ou prix standard = bloqué (gris) ; à saisir seulement s'il n'existe nulle part ; source dans la colonne suivante */
