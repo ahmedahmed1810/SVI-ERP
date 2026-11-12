@@ -106,7 +106,9 @@ function sviAchInit() {
   view.__prmMount = (host, s) => { prmSub = s; if (body.parentNode !== host) { host.innerHTML = ""; host.appendChild(body); } tab = "prm"; draw(); };
   /* 06/11 : type de pièce dont on règle les seuils (GÉNÉRAL = proposé par défaut aux types sans réglage propre) */
   let seuK = "gen";
-  const seuEdit = P => { if (seuK === "gen") return P.seuV; P.seuT = P.seuT || {}; if (!Array.isArray(P.seuT[seuK])) P.seuT[seuK] = JSON.parse(JSON.stringify(P.seuV)); return P.seuT[seuK]; };
+  /* v1135 (L25) : k = type réglé (par défaut l'onglet choisi ; « caf » pour l'emplacement VALIDATION de PARAMÉTRAGE › ACHATS › CONSULTATIONS) */
+  const seuEdit = (P, k = seuK) => { if (k === "gen") return P.seuV; P.seuT = P.seuT || {}; if (!Array.isArray(P.seuT[k])) P.seuT[k] = JSON.parse(JSON.stringify(P.seuV)); return P.seuT[k]; };
+  const seuKOf = t => (t && t.closest && t.closest("[data-seuk]") || {}).dataset?.seuk || seuK;
   const prmHTML = () => {
     const P = achPrm(), T = prmTab();
     const catRows = cfApply("ach_cat", [["cat1", "CATÉGORIE (FAMILLE D'ARTICLES)", x => x, ""]], P.cat);
@@ -139,7 +141,19 @@ function sviAchInit() {
           <td class="center"><input class="ins-in ach-pnum number" data-pk="ncons" inputmode="decimal" value="${P.ncons === "" || P.ncons === undefined ? "" : esc(F2(P.ncons))}" autocomplete="off"></td><td>FOURNISSEURS</td></tr>
           <tr><td data-tip="UNE CONSULTATION AVEC AU MOINS UN PRIX ESTIMÉ SAISI À LA MAIN (NI BUDGET ACTIF NI PRIX STANDARD) PASSE PAR UN VALIDATEUR, QUEL QUE SOIT SON MONTANT">PRIX SAISI À LA MAIN : VALIDATION OBLIGATOIRE (QUEL QUE SOIT LE SEUIL)</td>
           <td class="center"><input type="checkbox" class="ach-pcafman"${P.cafMan !== false ? " checked" : ""} aria-label="Validation obligatoire"></td><td>${P.cafMan !== false ? "OUI" : "NON"}</td></tr></tbody></table></div>
-      ${tb("P", "CONDITIONS PARTICULIÈRES (MENU DES CONSULTATIONS ; REPRISES SUR CHAQUE NOUVELLE COMMANDE, IMPRIMÉES EN ANNEXE)", P.clP)}</div>`;
+      ${tb("P", "CONDITIONS PARTICULIÈRES (MENU DES CONSULTATIONS ; REPRISES SUR CHAQUE NOUVELLE COMMANDE, IMPRIMÉES EN ANNEXE)", P.clP)}
+      ${(() => { /* v1135 (L25, décision d'Ahmed du 11/11) : VALIDATION — tranches de montant estimé (MIN, MAX) et UN validateur (grade) par tranche ;
+           mêmes seuils que SEUILS DE VALIDATION › CONSULTATIONS ; validation conjointe à deux personnes : plus tard */
+        const GR = sviPgL("grades"), own = achSeuOwn("caf");
+        return `<div class="ach-pbox" data-seuk="caf"><div class="ach-pt">VALIDATION ${svCnt(achSeuL("caf").length)}</div>
+        <div class="ach-seuinfo">${own ? "TRANCHES PROPRES AUX CONSULTATIONS (MONTANT ESTIMÉ HT). " : "SEUIL GÉNÉRAL PROPOSÉ PAR DÉFAUT : LE MODIFIER ICI LE RÈGLE POUR LES CONSULTATIONS SEULEMENT. "}UN PRIX SAISI À LA MAIN PASSE PAR LE VALIDATEUR DE LA PREMIÈRE TRANCHE SI LE RÉGLAGE CI-DESSUS EST SUR OUI.</div>
+        <table class="bdg-d-table prm-table ach-pseu ach-pcafv"><colgroup><col style="width:170px"><col style="width:170px"><col style="width:300px"><col style="width:44px"></colgroup>
+        <thead><tr><th class="center">MIN (DH HT)</th><th class="center" data-tip="VIDE = SANS MAXIMUM">MAX (DH HT)</th><th>VALIDATEUR (GRADE)</th><th class="center"><input type="checkbox" class="ach-pall" aria-label="Tout cocher"></th></tr></thead>
+        <tbody>${achSeuL("caf").map(x => `<tr data-sid="${esc(x.id)}"><td class="center"><input class="ins-in ach-seu number" data-f="mt" inputmode="decimal" value="${esc(F2(x.mt))}"></td><td class="center"><input class="ins-in ach-seu number" data-f="fin" inputmode="decimal" value="${x.fin === "" || x.fin === undefined ? "" : esc(F2(x.fin))}" placeholder="SANS MAXIMUM"></td>
+          <td><select class="ins-in ach-seu" data-f="g1"><option value="">—</option>${GR.map(g => `<option value="${esc(String(g.n))}"${String((x.g || [])[0] ?? "") === String(g.n) ? " selected" : ""}>${esc(g.lab || "GRADE " + g.n)}</option>`).join("")}</select>${(x.g || []).length > 1 ? ` <i class="ach-seuinfo">(+${(x.g || []).length - 1} AUTRE(S) GRADE(S) — CHOISIR UN SEUL VALIDATEUR)</i>` : ""}</td>
+          <td class="center"><input type="checkbox" class="ach-pcb" data-xseu="${esc(x.id)}"></td></tr>`).join("")}
+          <tr class="ach-new"><td colspan="3"><input class="ins-in ach-seunew number" inputmode="decimal" placeholder="CRÉER UNE TRANCHE ICI… (MONTANT MIN)" autocomplete="off"></td><td></td></tr></tbody></table>
+        <div class="prm-foot"><button type="button" class="prm-del ach-pdel" data-pdel="seu" disabled>SUPPRIMER LES LIGNES COCHÉES <span class="svi-cnt">0</span></button></div></div>`; })()}</div>`;
     if (T === "cat") return `<div class="ach-prm">${tabs}
       <div class="ach-pbox"><div class="ach-pt">CATÉGORIES ${svCnt ? svCnt(catRows.length, P.cat.length) : ""}</div>
         <div class="ach-scroll"><table id="achCatT" class="bdg-d-table prm-table ach-table" data-ach="cat" style="width:${cw("cat", "cat1") + 44}px"><colgroup><col data-w="ach_cat.cat1" style="width:${cw("cat", "cat1")}px"><col style="width:44px"></colgroup>
@@ -280,7 +294,7 @@ function sviAchInit() {
       if (!ck.length || !(await svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES", html: `<ul class="svc-list">${labs.map(l => `<li>${esc(l)}</li>`).join("")}</ul>`, ok: "SUPPRIMER" }))) return;
       const P = achPrm(), xc = new Set(ck.map(c => c.dataset.xcat).filter(Boolean)), xb = new Set(ck.map(c => c.dataset.xbq).filter(Boolean));
       const xe = new Set(ck.map(c => c.dataset.xesp).filter(Boolean)), xs = new Set(ck.map(c => c.dataset.xseu).filter(Boolean));
-      P.cat = P.cat.filter(c => !xc.has(c)); P.grp = P.grp.filter(g => !xg.has(g.id)); P.espL = P.espL.filter(x => !xe.has(x.id)); if (xs.size) { const SL = seuEdit(P); SL.splice(0, SL.length, ...SL.filter(x => !xs.has(x.id))); }
+      P.cat = P.cat.filter(c => !xc.has(c)); P.grp = P.grp.filter(g => !xg.has(g.id)); P.espL = P.espL.filter(x => !xe.has(x.id)); if (xs.size) { const SL = seuEdit(P, seuKOf(ck.find(c => c.dataset.xseu))); SL.splice(0, SL.length, ...SL.filter(x => !xs.has(x.id))); }
       const xl = new Set(ck.map(c => c.dataset.xcl).filter(Boolean)); P.clG = P.clG.filter(x => !xl.has("G|" + x.id)); P.clP = P.clP.filter(x => !xl.has("P|" + x.id)); achPrmSave(P); draw(); return; }
     /* v810 : champs obligatoires d'un groupe de fournisseurs */
     const gq = e.target.closest(".ach-greq");
@@ -348,10 +362,11 @@ function sviAchInit() {
       if (f === "per") x.per = t.value; else { const v = achN(t.value); if (v < 0 || (f === "n" && !(v >= 1))) { svToast("VALEUR NON VALIDE.", 3000, t); draw(); return; } x[f] = v; } achPrmSave(P); draw(); return; }
     if (t.classList.contains("ach-ment")) { const P = achPrm(); P.ment = { ...P.ment, [t.dataset.f]: t.checked }; achPrmSave(P); return; }
     if (t.classList.contains("ach-seu") || t.classList.contains("ach-seunew")) { const P = achPrm(), gr = sviPgL("grades").map(g => String(g.n));
-      const SL = seuEdit(P);
+      const SL = seuEdit(P, seuKOf(t));
       if (t.classList.contains("ach-seunew")) { const v = achN(t.value); if (!(v >= 0) || String(t.value).trim() === "") return; SL.push({ id: "s" + Date.now().toString(36), mt: v, fin: "", g: [], h: true }); SL.sort((a, b) => a.mt - b.mt); achPrmSave(P); draw(); return; }
       const x = SL.find(y => y.id === t.closest("tr").dataset.sid); if (!x) return; const f = t.dataset.f;
-      if (f === "h") x.h = t.checked; else if (f === "mt") { const v = achN(t.value); if (!(v >= 0) || String(t.value).trim() === "") { svToast("MONTANT NON VALIDE.", 3000, t); draw(); return; } x.mt = v; }
+      if (f === "g1") x.g = t.value ? [t.value] : [];   /* v1135 (L25) : un seul validateur par tranche */
+      else if (f === "h") x.h = t.checked; else if (f === "mt") { const v = achN(t.value); if (!(v >= 0) || String(t.value).trim() === "") { svToast("MONTANT NON VALIDE.", 3000, t); draw(); return; } x.mt = v; }
       else if (f === "fin") { const s0 = String(t.value).trim(), v = achN(s0); if (s0 && !(v > achN(x.mt))) { svToast("LA FIN DOIT ÊTRE AU-DESSUS DU DÉPART (VIDE = SANS FIN).", 3500, t); draw(); return; } x.fin = s0 ? v : ""; }
       else { const L = String(t.value).split(/[,;\s]+/).filter(Boolean), bad = L.filter(g => !gr.includes(g)); if (bad.length) { svToast("GRADE INCONNU : " + bad.join(", ") + " (PARAMÉTRAGE GÉNÉRAL › GRADES).", 3500, t); draw(); return; } x.g = [...new Set(L)].sort((a, b) => b - a); }
       SL.sort((a, b) => a.mt - b.mt); achPrmSave(P); draw(); return; }

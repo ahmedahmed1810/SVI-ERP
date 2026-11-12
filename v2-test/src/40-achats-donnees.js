@@ -371,11 +371,11 @@ async function achCircGate(k, X, ht, persist, force) {
   const S = achPcSeu(k, ht) || (force ? achPcSeuMin(k) : null);
   if (!S && force) { svToast(force + " : AUCUN VALIDATEUR RÉGLÉ (PARAMÉTRAGE › ACHATS › CONSULTATIONS › VALIDATION).", 5000); return true; }
   if (!S) return false;
-  if (!X.circ) { if (!(await svConfirm({ title: "ENVOYER EN VALIDATION", text: (X.ref || "") + " : " + achF2(ht) + " HT, AU-DELÀ DE " + achF2(S.mt) + " HT — VALIDATION PAR " + S.g.map(achGradeLab).join(S.h ? " PUIS " : " OU ") + ". LA PIÈCE EST VERROUILLÉE PENDANT LE CIRCUIT.", ok: "ENVOYER", tone: "neutral" }))) return true;
+  if (!X.circ) { if (!(await svConfirm({ title: "ENVOYER EN VALIDATION", text: (X.ref || "") + " : " + achF2(ht) + " HT" + (S.force && !achPcSeu(k, ht) ? " — " + force + " : VALIDATION OBLIGATOIRE" : ", AU-DELÀ DE " + achF2(S.mt) + " HT") + " — VALIDATION PAR " + S.g.map(achGradeLab).join(S.h ? " PUIS " : " OU ") + ". LA PIÈCE EST VERROUILLÉE PENDANT LE CIRCUIT.", ok: "ENVOYER", tone: "neutral" }))) return true;
     X.circ = { ...S, ok: [], t: achNow() }; await persist("ENVOYÉ EN VALIDATION"); return true; }
   const nx = achCircNext(X), d = sviWinNew();
   d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: "CIRCUIT DE VALIDATION — " + esc(X.ref || ""),
-    body: `<div class="frs-st">AU-DELÀ DE ${esc(achF2(X.circ.mt))} HT${X.circ.h ? " (HIÉRARCHIE RESPECTÉE)" : ""}</div><table class="prm-table frs-sub"><thead><tr><th>GRADE</th><th>ÉTAT</th><th>PAR</th><th>LE</th></tr></thead><tbody>${X.circ.g.map(g => { const o = (X.circ.ok || []).find(y => String(y.g) === g);
+    body: `<div class="frs-st">${X.circ.force ? "VALIDATION OBLIGATOIRE (PRIX SAISI À LA MAIN)" : "AU-DELÀ DE " + esc(achF2(X.circ.mt)) + " HT"}${X.circ.h ? " (HIÉRARCHIE RESPECTÉE)" : ""}</div><table class="prm-table frs-sub"><thead><tr><th>GRADE</th><th>ÉTAT</th><th>PAR</th><th>LE</th></tr></thead><tbody>${X.circ.g.map(g => { const o = (X.circ.ok || []).find(y => String(y.g) === g);
       return `<tr><td>${esc(achGradeLab(g))}</td><td>${o ? "ACCEPTÉ" : nx.includes(g) ? "À VALIDER" : "EN ATTENTE"}</td><td>${esc(o ? o.u || "" : "")}</td><td>${esc(o ? svDT(o.t) : "")}</td></tr>`; }).join("")}</tbody></table>`,
     foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${nx.map(g => `<button type="button" class="svc-b" data-cret="${g}">RENVOYER (${esc("GRADE " + g)})</button><button type="button" class="svc-b svc-ok svc-neutral" data-cacc="${g}">ACCEPTER (${esc("GRADE " + g)})</button>`).join("")}` });
   sviWinShow(d);
