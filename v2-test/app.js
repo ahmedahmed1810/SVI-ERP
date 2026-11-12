@@ -5963,7 +5963,8 @@ async function sviImpFile(f, msg) { const nm = String(f.name || "").toLowerCase(
   if (/\.docx\b|wordprocessingml/.test(nm)) { msg && msg("LECTURE DU FICHIER WORD…"); const r = await sviDocxRead(f); return r.aoa ? { aoa: r.aoa, imp: true } : { rows: sviImpText(r.text) }; }
   if (/image\/|\.(png|jpe?g|heic|webp|gif|bmp)\b/.test(nm)) { msg && msg("LECTURE DE L'IMAGE…"); return { rows: sviImpText(await sviOcr(f, msg)) }; }
   if (/\.json\b|application\/json/.test(nm)) { const J = JSON.parse(await f.text()), L = Array.isArray(J) ? J : (J.rows || J.lignes || []);
-    return { rows: L.filter(x => x && (x.des || x.title)).map(x => x.title ? { title: x.title } : { des: x.des, u: x.u || "", q: x.q ?? "", pu: x.pu ?? x.p ?? "" }) }; }
+    /* v1146 : autres champs gardés (tâche, lot, activités, désignation client, art…) — l'interface prend ceux qu'elle connaît */
+    return { rows: L.filter(x => x && (x.des || x.title)).map(x => x.title ? { title: x.title } : { ...Object.fromEntries(Object.entries(x).filter(([k, v]) => v !== null && typeof v !== "object").map(([k, v]) => [k, typeof v === "number" ? v : String(v).trim()])), des: x.des, u: x.u || "", q: x.q ?? "", pu: x.pu ?? x.p ?? "" }) }; }
   if (/\.txt\b|text\/plain/.test(nm)) return { aoa: sviImpAoaText(await f.text()) };
   const X = await loadXLSX(), wb = /\.csv\b|text\//.test(nm) ? X.read(await f.text(), { type: "string", raw: true }) : X.read(await f.arrayBuffer(), { type: "array" });
   return { aoa: X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: false }).map(r => r.map(v => String(v ?? "").trim())) }; }
