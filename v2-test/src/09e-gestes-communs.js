@@ -788,6 +788,7 @@ document.addEventListener("contextmenu", e => { if (e.target.closest && e.target
       for (const c of t.querySelectorAll(":scope > colgroup > col")) { const k = keyOf(t, c) || (t.dataset.svcw && c.dataset.k ? t.dataset.svcw + "." + c.dataset.k : ""); if (k && CW[k] && Math.abs(CW[k] - (A[k] || (/\._cb$/.test(k) ? 28 : 0))) > 1) return true; }
       { const S0 = (typeof coLoad === "function" ? coLoad() : {})[t.querySelector("thead .cf-btn[data-cf]")?.dataset.cf || t.dataset.svcw]; if (Array.isArray(S0) && S0.length) return true; }   /* ordre des colonnes changé */
       let id = null; try { const I = sviColhInfo(t); id = I && I.id; } catch (e) {} if (id && [S[id], S[id + "_i"], S[id + "_v"]].some(x => Array.isArray(x) && JSON.stringify(x) !== JSON.stringify(SVI_COLH_DEF[id] || []))) return true; }
+    if (typeof sviFreeHas === "function" && (sviFreeHas(host) || (host.matches(".svf-host") && sviFreeGet(host.dataset.svf)))) return true;   /* v1147 (L3) : blocs déplacés ou réglés */
     if (host.matches(".bdg-d-page") || host.querySelector(".bdg-d-page")) { let L = {}; try { L = layLoad(); } catch (e) {} if (!L.def && Object.keys(L).length) return true; }
     return false; };
   window.sviLayDirty = layDirty;

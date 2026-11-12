@@ -4228,6 +4228,8 @@ function achNvMod(ctx, cfg) {
     if (!pid) return LST.html();
     if (!rec || rec.__c !== P.code) { rec = achRecBlock(P.code); rec.__c = P.code; }
     requestAnimationFrame(achNvhFloor);   /* 08/11 : une hauteur gardée trop petite remonte au minimum (une ligne de données visible) */
+    /* v1147 (L3) : blocs libres de la fiche — disposition propre au type de pièce */
+    requestAnimationFrame(() => requestAnimationFrame(() => { const pg = document.querySelector("#ach .nvp"); if (pg && typeof sviFreeMount === "function") sviFreeMount(pg, "nvp:" + (cfg.list && cfg.list.k || "x"), ".nvp-blk[data-nvb]", b => b.dataset.nvb); }));
     return achNvPageHTML(P, rec, ctx);
   };
   /* 11/11 (compte rendu v1089 – v1092, 2.10 / 3.6) : le nom du tiers est TOUJOURS un lien (souligné, couleur de son état) — seul, dans le titre ou à sa suite */
@@ -4252,7 +4254,7 @@ function achNvMod(ctx, cfg) {
       if (k === "more") { const M = P.menu.concat([{ k: "__apr", lab: "APERÇU" }]).concat(cfg.list.k === "cmf" || cfg.list.k === "rcp" ? [{ k: "__aprsp", lab: "BON SANS PRIX (CHAUFFEUR, MAGASIN)" }] : []), top = M.filter(m => m.k === "val" || m.k === "fige" || m.k === "defige"), bot = M.filter(m => m.k === "del" || m.k === "rest").map(m => ({ ...m, del: m.k === "del" })), mid = M.filter(m => !top.includes(m) && !["del", "rest"].includes(m.k));
         sviHdrMenu(b, [top, mid, [{ k: "__fmt", lab: "MODIFIER LE FORMAT" }, { k: "__lay", lab: "DISPOSITION PAR DÉFAUT" }], [...bot, { k: "__close", lab: "FERMER" }]], async a => { if (a === "__close") { if (!viaList && achPathBack()) return; viaList = false; pid = null; ctx.draw(); return; }
           if (a === "__fmt") { sviFmtCurWin(); return; }   /* v927 (remarque 12) */
-          if (a === "__lay") { if (!(await sviLayAsk())) return; const pg = b.closest(".nvp") || document.querySelector("#ach .nvp"); sviLayReset(pg);
+          if (a === "__lay") { if (!(await sviLayAsk())) return; const pg = b.closest(".nvp") || document.querySelector("#ach .nvp"); sviLayReset(pg); if (typeof sviFreeClear === "function") sviFreeClear("nvp:" + (cfg.list && cfg.list.k || "x"));   /* v1147 (L3) */
             try { localStorage.removeItem(ACH_NVH_K); } catch (e) {} if (pg) { pg.querySelectorAll(".nvp-max").forEach(x => x.classList.remove("nvp-max")); pg.removeAttribute("style"); } ctx.draw(); return; } if (a === "__apr") { achMepOpen(cfg, P, rec, () => ctx.draw()); return; } if (a === "__aprsp") { achMepOpen(cfg, P, rec, () => ctx.draw(), { noPrice: true }); return; } await P.act(a, () => ctx.draw(), id => open(id)); }); return true; }
     }
     /* v776 : AGRANDIR / RÉDUIRE un bloc de la page ; ⋯ du bloc (EXPORTER, APERÇU ; SUIVI : CRÉER) */
