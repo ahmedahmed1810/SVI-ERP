@@ -4078,3 +4078,4 @@ html.svi-nuit .bdg-d-page :is(.rec-tab, .bdg-d-tab) .ico { color: #7FB2FF !impor
 html.svi-nuit :is(.bdg-inst-instance, .bdg-inst-fige) :is(.rec-tab, .bdg-d-tab) .ico { color: var(--inst, #F87171) !important; }
 /* v1162 : bouton de liaison commun — gris « un toucher dit pourquoi » */
 .svlk-go.svlk-off { background: #e5e7eb !important; color: #9ca3af !important; cursor: help; }
+html.svi-nuit .svlk-go.svlk-off, html.svi-nuit .lk-go.lk-off, html.svi-nuit .svlk-go:disabled { background: #2A3340 !important; color: #94A3B8 !important; -webkit-text-fill-color: #94A3B8 !important; }

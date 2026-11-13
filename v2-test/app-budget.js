@@ -19710,7 +19710,9 @@ function sviBdgDoublons(C) {
       else if (ok) btn = sviLkBtn({ k: "add", lab, cls: "lk-go" });
       else btn = sviLkBtn({ k: "off", lab, why: pl.full ? "CHOISIR AU MOINS UN PRODUIT À LIER." : "CHOISIR LA CHAÎNE ENTIÈRE : DÉSIGNATION › LOT › ACTIVITÉ PRIMAIRE › ACTIVITÉ SECONDAIRE, PUIS LES PRODUITS.", cls: "lk-go lk-off" });
     } else if (pl.mode === "mix") btn = sviLkBtn({ k: "add", lab: "✓ VALIDER LA LIAISON", cls: "lk-go lk-mix" });
-    else btn = sviLkBtn({ k: "off", lab: "✓ VALIDER LA LIAISON", why: "RIEN À VALIDER NI À DÉLIER ENTRE LES LIGNES CHOISIES.", cls: "lk-go lk-off" });
+    else { const L4 = ["des", "lot", "prim", "sec"].filter(k => ECR.LK[k]).length;   /* v1163 : la raison suit ce qui manque */
+      const why = L4 === 4 ? "CHOISIR AU MOINS UN PRODUIT À LIER." : L4 ? "CHOISIR LA CHAÎNE ENTIÈRE : DÉSIGNATION › LOT › ACTIVITÉ PRIMAIRE › ACTIVITÉ SECONDAIRE, PUIS LES PRODUITS." : "RIEN À VALIDER NI À DÉLIER ENTRE LES LIGNES CHOISIES.";
+      btn = sviLkBtn({ k: "off", lab: "✓ VALIDER LA LIAISON", why, cls: "lk-go lk-off" }); }
     /* v739 : activité secondaire choisie = pastille RECETTES n (bibliothèque de prix) ; rien ne s'applique sans le choix de l'utilisateur */
     let lib = ""; try { const s = ECR.LK.sec && (INS.sec || []).find(x => x.id === ECR.LK.sec), n = s ? sviLibGet().filter(R => U_(R.act) === U_(s.v)).length : 0; if (n) lib = `<button type="button" class="lk-lib" title="Recettes de la bibliothèque de prix">RECETTES <span class="svi-cnt">${n}</span></button>`; } catch (e) {}
     el.innerHTML = `${ECR.LK.des ? '<button type="button" class="lk-info" title="Voir la liaison" aria-label="Voir la liaison">i</button>' : ""}${lib}${btn}`;
