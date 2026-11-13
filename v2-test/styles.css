@@ -4066,3 +4066,6 @@ html.svi-nuit .bdg-d-page :is(.rec-tab, .bdg-d-tab), html.svi-nuit .bdg-d-page :
 html.svi-nuit .bdg-d-page .blk-suivi .rec-tab .ico { color: #7FB2FF !important; }
 html.svi-nuit :is(.bdg-inst-instance, .bdg-inst-fige) .blk-suivi .rec-tab .ico { color: var(--inst, #F87171) !important; }
 html.svi-nuit .bdg-d-page .blk-suivi .rec-tab.active { color: #7FB2FF !important; }
+/* v1159 : mode nuit — icônes des onglets de RÉVISIONS et de DÉTAIL en teinte claire (budget validé) ; en instance / figé, couleur de l'état */
+html.svi-nuit .bdg-d-page :is(.rec-tab, .bdg-d-tab) .ico { color: #7FB2FF !important; }
+html.svi-nuit :is(.bdg-inst-instance, .bdg-inst-fige) :is(.rec-tab, .bdg-d-tab) .ico { color: var(--inst, #F87171) !important; }

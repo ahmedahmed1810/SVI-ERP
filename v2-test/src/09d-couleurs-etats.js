@@ -16,6 +16,9 @@ function sviColors() {
 }
 function sviColorsApply() {
   const C = sviColors(), r = document.documentElement;
+  /* v1159 : en mode nuit, un VALIDÉ trop foncé pour le fond sombre (le bleu nuit du jour) s'affiche en bleu clair */
+  try { const nuit = r.classList.contains("svi-nuit") || (typeof sviPal === "function" && sviPal().mode === "nuit"), h = String(C.valide || "");
+    if (nuit && /^#[0-9a-f]{6}$/i.test(h)) { const l = [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16) / 255).reduce((a, v, i) => a + v * [.2126, .7152, .0722][i], 0); if (l < .25) C.valide = "#7FB2FF"; } } catch (e) {}
   Object.keys(C).forEach(k => r.style.setProperty("--st-" + k, C[k]));
   /* 05/11 (document unique 2.10) : copie de la palette que rien ne remplace (ni le format d'une interface) — couleurs des noms liés */
   Object.keys(C).forEach(k => r.style.setProperty("--stg-" + k, C[k]));
@@ -229,7 +232,7 @@ const SVI_FMT_NUITW = { winbg: { bg: "#111827" }, winlab: { c: "#cbd5e1", fs: 11
 const SVI_JOUR = { el: { top: { bg: "#0B2545", c: "#FFFFFF" }, blk: { bg: "#13447A", c: "#FFFFFF" }, tabs: { bg: "#FFFFFF" }, tab: { bg: "#FFFFFF", c: "#5B6778" }, taba: { bg: "#E3ECF7", c: "#13447A" }, tabm: { bg: "#EEF3F9", c: "#13447A" }, tabsub: { bg: "#FFFFFF", c: "#5B6778" }, th: { bg: "#E3ECF7", c: "#13447A" }, ttl: { bg: "#EEF3F9", c: "#0B2545" }, row: { bg: "#FFFFFF", c: "#1E293B" }, new: { bg: "#FFFFFF", c: "#94A3B8", i: 1 }, grid: { c: "#DCE3EC" }, tot: { bg: "#13447A", c: "#FFFFFF" }, win: { bg: "#0B2545", c: "#FFFFFF" } }, scr: "#EEF3F9", blk: {}, to: null, by: {} };
 const SVI_NUIT = { el: { top: { bg: "#081A33", c: "#FFFFFF" }, blk: { bg: "#1B4F8F", c: "#FFFFFF" }, tabs: { bg: "#161C24" }, tab: { bg: "#161C24", c: "#94A3B8" }, taba: { bg: "#15243A", c: "#7FB2FF" }, tabm: { bg: "#0B111A", c: "#7FB2FF" }, tabsub: { bg: "#161C24", c: "#94A3B8" }, th: { bg: "#15243A", c: "#7FB2FF" }, ttl: { bg: "#0B111A", c: "#E5E9F0" }, row: { bg: "#161C24", c: "#E5E9F0" }, new: { bg: "#161C24", c: "#5B6778", i: 1 }, grid: { c: "#2A3441" }, tot: { bg: "#1B4F8F", c: "#FFFFFF" }, win: { bg: "#081A33", c: "#FFFFFF" }, winbg: { bg: "#111827" }, winlab: { c: "#cbd5e1" }, winin: { bg: "#1f2937", c: "#f8fafc" } }, scr: "#0B111A", blk: {}, to: null, by: {} };
 try { if (!localStorage.getItem("svi_fmt_j1")) { const P0 = JSON.parse(localStorage.getItem("svi_pal_v1") || "null"); if (P0 && (P0.def || P0.defBy)) { delete P0.def; delete P0.defBy; localStorage.setItem("svi_pal_v1", JSON.stringify(P0)); } localStorage.setItem("svi_fmt_j1", "1"); } } catch (e) {}   /* J1 : anciennes couleurs par défaut oubliées */
-const sviPalApply = () => { try { document.documentElement.classList.toggle("svi-nuit", sviPal().mode === "nuit"); sviFmtApply(); } catch (e) {} };
+const sviPalApply = () => { try { document.documentElement.classList.toggle("svi-nuit", sviPal().mode === "nuit"); sviColorsApply(); sviFmtApply(); } catch (e) {} };
 try { sviPalApply(); } catch (e) {}
 /* C10, D4 (document unique 1.9) : choix PALETTE en haut, dans le bandeau du titre de RÉGLAGES COMMUNS et de MODIFIER LE FORMAT */
 /* D4, D6 (série D, document unique 1.9) : PALETTE — JOUR, NUIT ou AUTOMATIQUE (DÉBUT et FIN DE LA NUIT, heure du FUSEAU HORAIRE de la société) ;
