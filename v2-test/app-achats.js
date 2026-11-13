@@ -1670,6 +1670,8 @@ function achFrsFiche(id, sec, done) {
     const inp = tr.querySelector('input[data-c="txt"]'), cur = inp ? achU(inp.value) : x.txt; if (!cur || cur === achCltDef(x.t)) { if (inp) inp.value = achCltDef(s.value); } x.t = s.value; x.txt = inp ? achU(inp.value) : x.txt;
     pull(); x.u = achCltU(x.t); const k = achCltFld(x.t); if (k) x.v = String(F[k] ?? ""); syncMark(); draw(); });
   /* B21 : changer la banque d'un RIB recharge ses agences */
+  /* v1167 : VILLE de l'IDENTITÉ ↔ ville de l'adresse principale, à l'écran tout de suite */
+  d.addEventListener("change", e => { const t = e.target; if (ro || !t.closest || !t.closest('.frs-x[data-k="ville"], table[data-sub="adrs"] .frs-s[data-c="ville"], .frs-ap')) return; pull(); draw(); });
   d.addEventListener("change", e => { const s = e.target.closest && e.target.closest('table[data-sub="ribs"] select[data-c="bqId"]'); if (!s) return; pull(); const r = F.ribs[+s.closest("tr[data-i]").dataset.i]; if (r) { r.bqId = s.value; r.ag = ""; } draw(); });
   /* B41 : LANGUE — « AJOUTER… » en bas de la liste ; la langue ajoutée l'est partout (PARAMÉTRAGE GÉNÉRAL) */
   d.addEventListener("change", async e => { const s = e.target.closest && e.target.closest('select[data-k="lang"]'); if (!s || s.value !== "__add") return; e.stopImmediatePropagation();
