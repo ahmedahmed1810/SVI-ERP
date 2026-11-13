@@ -63,9 +63,9 @@ function sviLk(key, o) {
     rowCls: st => st === "choisi" ? "lk-sel" : st === "exact" ? "lk-hit" : st === "lie" ? "lk-link" : "",
     /* bouton LIER / DÉLIER (en haut à droite) */
     bar: () => { const P = pending(); if (!P.n) return "";
-      if (P.add.length) return `<button type="button" class="svlk-go" data-svlk="lier">✓ LIER ${svCnt(P.add.length)}</button>`;
-      if (P.del.length) return `<button type="button" class="svlk-go svlk-del" data-svlk="delier">✕ DÉLIER ${svCnt(P.del.length)}</button>`;
-      return `<button type="button" class="svlk-go" disabled title="RIEN À LIER NI À DÉLIER ENTRE LES LIGNES CHOISIES">LIER</button>`; },
+      if (P.add.length) return sviLkBtn({ k: "add", n: P.add.length });
+      if (P.del.length) return sviLkBtn({ k: "del", n: P.del.length });
+      return sviLkBtn({ k: "off", lab: "LIER", why: "RIEN À LIER NI À DÉLIER ENTRE LES LIGNES CHOISIES." }); },
     /* LIER ou DÉLIER ; write(liste [{ m, a, b }], on) fait l'écriture ; les choix sont libérés ensuite */
     apply: async (mode, write, confirmFn) => { const P = pending(), L = mode === "delier" ? P.del : P.add; if (!L.length) return false;
       if (mode === "delier") { const G = {}; chosen().forEach(([g]) => { G[g] = (G[g] || 0) + 1; });
@@ -88,3 +88,16 @@ function sviLkDomFilter(LK, rows, titleSel) { const CK = {}; rows.forEach(r => {
     const m = String(tt.className).match(/\bsvlk-gt-(\S+)/); if (!m) return; const It = [...tb.querySelectorAll("tr.svlk-g-" + CSS.escape(m[1]))];
     tt.classList.toggle("svlk-hid", !!It.length && It.every(x => x.classList.contains("svlk-hid"))); })); }
   return hid; }
+
+/* v1162 (budget sur le moteur commun, étape 1) : BOUTON DE LIAISON COMMUN (budget et consultation) — en haut à droite :
+   k "add" = vert (✓ LIER, ou le libellé donné : ✓ VALIDER LA LIAISON / LES MODIFICATIONS pour le budget), compteur en pastille ;
+   k "del" = rouge ✕ DÉLIER + pastille ; k "off" = gris, un toucher dit pourquoi (data-why) ; k "none" = gris, inactif.
+   o.cls : classes en plus (le budget garde lk-go…), o.attr : attributs en plus */
+function sviLkBtn(o) { const c = (o.cls ? " " + o.cls : ""), a = o.attr ? " " + o.attr : "", n = o.n ? " " + svCnt(o.n) : "";
+  if (o.k === "del") return `<button type="button" class="svlk-go svlk-del${c}" data-svlk="delier"${a}>✕ DÉLIER${n}</button>`;
+  if (o.k === "off") return `<button type="button" class="svlk-go svlk-off${c}" data-why="${esc(o.why || "")}"${a}>${o.lab || "✓ LIER"}</button>`;
+  if (o.k === "none") return `<button type="button" class="svlk-go${c}" disabled${a}>${o.lab || "✓ LIER"}</button>`;
+  return `<button type="button" class="svlk-go${c}" data-svlk="lier"${a}>${o.lab || "✓ LIER"}${n}</button>`; }
+/* bouton gris : un toucher dit pourquoi, rien d'autre ne se fait */
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".svlk-go.svlk-off"); if (!b) return;
+  e.stopPropagation(); e.preventDefault(); svToast(b.dataset.why || "RIEN À FAIRE.", 4000, b); }, true);

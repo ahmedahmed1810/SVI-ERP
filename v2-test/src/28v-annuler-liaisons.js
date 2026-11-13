@@ -575,7 +575,7 @@ function sviBdgAnnulerLiaisons(C) {
       };
       const body2 = () => tbl("prd", "DÉTAIL PRODUITS") + addRow("prd") + tbl("chg", "DÉTAIL CHARGES") + addRow("chg") + dlyBlk()
         + `<div class="doc-lab" style="margin-top:12px">DÉTAIL QUALITÉ</div><div><button type="button" class="doc-btn lki-qlt">OUVRIR DÉTAIL QUALITÉ</button></div>`;
-      const goBtn = () => { const b = $("insChain") && $("insChain").querySelector(".lk-go"); return b ? b.outerHTML.replace('class="lk-go', 'class="lk-go lki-gob') : ""; };
+      const goBtn = () => { const b = $("insChain") && $("insChain").querySelector(".lk-go"); return b ? b.outerHTML.replace('class="', 'class="lki-gob ') : ""; };
       const p = sviPopNew();
       p.innerHTML = `<div class="doc-card" role="dialog" aria-modal="true" style="max-width:760px">
           <div class="doc-head"><span class="doc-title">LIAISON EN COURS</span><button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button></div>

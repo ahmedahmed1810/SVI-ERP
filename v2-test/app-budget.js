@@ -12349,7 +12349,7 @@ function sviBdgAnnulerLiaisons(C) {
       };
       const body2 = () => tbl("prd", "DÉTAIL PRODUITS") + addRow("prd") + tbl("chg", "DÉTAIL CHARGES") + addRow("chg") + dlyBlk()
         + `<div class="doc-lab" style="margin-top:12px">DÉTAIL QUALITÉ</div><div><button type="button" class="doc-btn lki-qlt">OUVRIR DÉTAIL QUALITÉ</button></div>`;
-      const goBtn = () => { const b = $("insChain") && $("insChain").querySelector(".lk-go"); return b ? b.outerHTML.replace('class="lk-go', 'class="lk-go lki-gob') : ""; };
+      const goBtn = () => { const b = $("insChain") && $("insChain").querySelector(".lk-go"); return b ? b.outerHTML.replace('class="', 'class="lki-gob ') : ""; };
       const p = sviPopNew();
       p.innerHTML = `<div class="doc-card" role="dialog" aria-modal="true" style="max-width:760px">
           <div class="doc-head"><span class="doc-title">LIAISON EN COURS</span><button type="button" class="doc-x" data-cancel aria-label="Fermer">✕</button></div>
@@ -19694,20 +19694,23 @@ function sviBdgDoublons(C) {
     /* la place est toujours réservée : rien ne bouge quand le bandeau apparaît */
     const any = INS_EDIT && (ECR.LK.des || ECR.LK.lot || ECR.LK.prim || ECR.LK.sec || Object.keys(ECR.LK.prd).length || Object.keys(ECR.LK.chg).length || Object.values(ECR.LK.all || {}).some(Boolean));
     el.classList.toggle("off", !any);
-    if (!any) { el.innerHTML = '<button type="button" class="lk-go" disabled>✓ VALIDER LA LIAISON</button>'; return; }
+    if (!any) { el.innerHTML = sviLkBtn({ k: "none", lab: "✓ VALIDER LA LIAISON", cls: "lk-go" }); return; }
     const pl = lkPlan();
     const nPrd = Object.keys(ECR.LK.prd).length;
     let btn;
-    if (pl.mode === "del") btn = `<button type="button" class="lk-go lk-del-go">✕ DÉLIER (${pl.n})</button>`;
+    /* v1162 : bouton commun (sviLkBtn) — mêmes couleurs, pastille et toucher sur le gris que la consultation ; libellés du budget gardés */
+    const lab = pl.same || (!pl.full && lkDlyDirty()) ? "✓ VALIDER LES MODIFICATIONS" : "✓ VALIDER LA LIAISON";
+    if (pl.mode === "del") btn = sviLkBtn({ k: "del", n: pl.n, cls: "lk-go lk-del-go" });
     else if (pl.mode === "add") {
       const ok = lkDlyDirty() || (pl.same || nPrd > 0);
       /* v474 : validation qui serait refusée (produit déjà dans la tâche, règle A / D…) → bouton grisé d'avance ; un toucher dit pourquoi */
       let why = "";
       if (ok && pl.full && (nPrd > 0 || Object.keys(ECR.LK.chg).length)) { try { why = lkCheck() || ""; } catch (e) { why = ""; } }
-      if (why) btn = `<button type="button" class="lk-go lk-off" data-why="${esc(why)}">${pl.same || (!pl.full && lkDlyDirty()) ? "✓ VALIDER LES MODIFICATIONS" : "✓ VALIDER LA LIAISON"}</button>`;
-      else btn = `<button type="button" class="lk-go" ${ok ? "" : "disabled"}>${pl.same || (!pl.full && lkDlyDirty()) ? "✓ VALIDER LES MODIFICATIONS" : "✓ VALIDER LA LIAISON"}</button>`;
-    } else if (pl.mode === "mix") btn = `<button type="button" class="lk-go lk-mix">✓ VALIDER LA LIAISON</button>`;
-    else btn = `<button type="button" class="lk-go" disabled>✓ VALIDER LA LIAISON</button>`;
+      if (why) btn = sviLkBtn({ k: "off", lab, why, cls: "lk-go lk-off" });
+      else if (ok) btn = sviLkBtn({ k: "add", lab, cls: "lk-go" });
+      else btn = sviLkBtn({ k: "off", lab, why: pl.full ? "CHOISIR AU MOINS UN PRODUIT À LIER." : "CHOISIR LA CHAÎNE ENTIÈRE : DÉSIGNATION › LOT › ACTIVITÉ PRIMAIRE › ACTIVITÉ SECONDAIRE, PUIS LES PRODUITS.", cls: "lk-go lk-off" });
+    } else if (pl.mode === "mix") btn = sviLkBtn({ k: "add", lab: "✓ VALIDER LA LIAISON", cls: "lk-go lk-mix" });
+    else btn = sviLkBtn({ k: "off", lab: "✓ VALIDER LA LIAISON", why: "RIEN À VALIDER NI À DÉLIER ENTRE LES LIGNES CHOISIES.", cls: "lk-go lk-off" });
     /* v739 : activité secondaire choisie = pastille RECETTES n (bibliothèque de prix) ; rien ne s'applique sans le choix de l'utilisateur */
     let lib = ""; try { const s = ECR.LK.sec && (INS.sec || []).find(x => x.id === ECR.LK.sec), n = s ? sviLibGet().filter(R => U_(R.act) === U_(s.v)).length : 0; if (n) lib = `<button type="button" class="lk-lib" title="Recettes de la bibliothèque de prix">RECETTES <span class="svi-cnt">${n}</span></button>`; } catch (e) {}
     el.innerHTML = `${ECR.LK.des ? '<button type="button" class="lk-info" title="Voir la liaison" aria-label="Voir la liaison">i</button>' : ""}${lib}${btn}`;
