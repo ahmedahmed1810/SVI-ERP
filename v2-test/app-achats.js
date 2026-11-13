@@ -786,7 +786,6 @@ const achFafWhy = (f, F, P) => { const w = [], today = new Date().toISOString().
   if (f.state === "annule") return w;
   const fr = achFrs().find(x => x.id === f.frs);
   if (!f.frs) w.push("FOURNISSEUR MANQUANT");
-  if (fr && achFrsGrpId(fr) === "loc" && !achDig(fr.ice)) w.push("ICE DU FOURNISSEUR MANQUANT (EXIGÉ À LA FACTURE)");   /* v1165 (C1.6) */
   if (!f.num) w.push("N° DE FACTURE MANQUANT");
   else if ((F || achFaf()).some(x => x.id !== f.id && x.state !== "annule" && x.frs === f.frs && achU(x.num) === achU(f.num))) w.push("N° DE FACTURE EN DOUBLE CHEZ CE FOURNISSEUR");
   if (!f.copie) w.push("COPIE DE LA FACTURE MANQUANTE");
@@ -1521,7 +1520,10 @@ function achFrsFiche(id, sec, done) {
   const TABS = [["id", "IDENTITÉ", ["id", "adr", "cte"]], ["leg", "FISCAL ET LÉGAL", ["fisc", "qual", "secu", "docf"]], ["bq", "BANQUE ET PAIEMENT", ["rib", "cpt", "enc", "cau"]],
     ["ach", "CONDITIONS D'ACHAT", ["cond", "com", "imp", "ferm", "sav", "tar", "fam", "cgf", "cla"]], ["rsq", "RISQUE ET MOYENS", ["rsq", "moy", "refs"]], ["sim", "FOURNISSEURS SIMILAIRES", ["sim"]], ["stat", "STATISTIQUES", ["stat"]]];
   let tab = (TABS.find(t => t[2].includes(sec)) || TABS[0])[0];
+  let villeShown = null;
   const draw = () => { syncMark();
+    /* v1166 : la VILLE de l'IDENTITÉ est celle de l'adresse principale (changer l'une change l'autre) */
+    { const A = F.adrs.find(a => a.p); if (A && achU(A.ville || "")) F.ville = achU(A.ville); villeShown = F.ville ?? ""; }
     const why = achFrsWhy(F, achFrs()), note = achFrsNote(F);
     d.innerHTML = sviWinCard({ st: achPcSt("frs", f0), cls: "frs-card", close: "data-x", title: esc(F.nom || "") + " : " + esc(achFrsRef(F)),
       body: `${why.length ? `<div class="frs-why">⚠ ${why.map(esc).join(" · ")}${F.ribChg && !ro ? ` <button type="button" class="ach-b" data-ribok>RIB VÉRIFIÉ</button>` : ""}</div>` : ""}
@@ -1634,6 +1636,7 @@ function achFrsFiche(id, sec, done) {
       tr.querySelectorAll(".frs-s").forEach(i => { const c = i.dataset.c; if (c === "bqId") return; /* B21 : la banque n'est gardée que choisie (sinon déduite du RIB) */ r[c] = c === "rib" ? achDig(i.value) : c === "email" ? String(i.value || "").trim().toLowerCase() : c === "mt" || c === "pu" ? achN(i.value) : c === "exp" || c === "ech" || c === "valid" || c === "debut" || c === "fin" || c === "type" || c === "role" || c === "t" || c === "bqId" || c === "ag" ? i.value : achU(i.value); }); }); });
     const rp = d.querySelector(".frs-rp:checked"); F.ribs.forEach((r, i) => { r.p = !!rp && +rp.dataset.i === i; });
     { const ap = d.querySelector(".frs-ap:checked"); if (d.querySelector(".frs-ap")) F.adrs.forEach((r, i) => { r.p = !!ap && +ap.dataset.i === i; }); }
+    { const A = F.adrs.find(a => a.p); if (villeShown !== null && String(F.ville ?? "") !== String(villeShown)) { if (A) A.ville = F.ville; else if (achU(F.ville || "")) F.adrs.push({ type: (sviPgL("adrtypes")[0] || {}).lab || "SIÈGE", adr: "", ville: F.ville, p: true }); villeShown = F.ville ?? ""; } }
     /* 05/11 : synchronisation article lié ↔ champ de la fiche (celui qu'on vient de changer l'emporte) */
     F.cla.forEach((x, i) => { const k = achCltFld(x.t); if (!k) return; const cv = String(x.v ?? ""), fv = String(F[k] ?? "");
       if (cv !== (syncC[i] ?? cv)) F[k] = cv === "" ? "" : ACH_CLT_NUM.includes(k) ? achN(cv) : cv; else if (fv !== (syncF[k] ?? fv)) x.v = fv; });

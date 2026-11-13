@@ -785,7 +785,6 @@ const achFafWhy = (f, F, P) => { const w = [], today = new Date().toISOString().
   if (f.state === "annule") return w;
   const fr = achFrs().find(x => x.id === f.frs);
   if (!f.frs) w.push("FOURNISSEUR MANQUANT");
-  if (fr && achFrsGrpId(fr) === "loc" && !achDig(fr.ice)) w.push("ICE DU FOURNISSEUR MANQUANT (EXIGÉ À LA FACTURE)");   /* v1165 (C1.6) */
   if (!f.num) w.push("N° DE FACTURE MANQUANT");
   else if ((F || achFaf()).some(x => x.id !== f.id && x.state !== "annule" && x.frs === f.frs && achU(x.num) === achU(f.num))) w.push("N° DE FACTURE EN DOUBLE CHEZ CE FOURNISSEUR");
   if (!f.copie) w.push("COPIE DE LA FACTURE MANQUANTE");
