@@ -120,7 +120,7 @@ const achArtWhy = a => {
   if (!achU(a.des)) w.push("DÉSIGNATION MANQUANTE");
   if (!achU(a.u)) w.push("UNITÉ MANQUANTE");
   if (achN(a.pmax) > 0 && achN(a.pref) > achN(a.pmax)) w.push("PRIX DE RÉFÉRENCE AU-DESSUS DU PLAFOND");
-  if (achIsDivers(a) && !(achN(a.pmax) > 0)) w.push("ARTICLE DIVERS : PLAFOND OBLIGATOIRE");
+  if (achIsDivers(a)) w.push("ARTICLE « DIVERS » : À REMPLACER PAR UN ARTICLE PRÉCIS (C2.4)");   /* v1169 : plus d'article divers */
   return w;
 };
 const achArtNew = (L, o) => {
@@ -4323,34 +4323,61 @@ function achArtFiche(id, done) {
   const inp = (k, lab, o = {}) => `<label class="frs-f${o.w ? " frs-w" : ""}"><span>${lab}${o.req ? " <b>*</b>" : ""}</span><input class="ins-in art-x${o.num ? " number" : ""}" data-k="${k}" value="${esc(o.num ? (achN(A[k]) || k === "tva" ? achF2(A[k]) : "") : A[k] ?? "")}"${o.num ? ' inputmode="decimal"' : ""}${o.list ? ` list="artL-${k}"` : ""}${dis} autocomplete="off">${o.list ? `<datalist id="artL-${k}">${o.list.map(x => `<option value="${esc(x)}">`).join("")}</datalist>` : ""}</label>`;
   const units = (() => { try { return (typeof sviUnits === "function" ? sviUnits() : []).map(u => u.a || u).filter(Boolean); } catch (e) { return []; } })();
   d.innerHTML = sviWinCard({ st: a0 ? achPcSt("art", a0) : "instance", cls: "frs-card", close: "data-x", title: a0 ? esc(a0.des + " (" + a0.u + ") : " + achRefSvi(a0, achArts(), "ARA")) : "NOUVEL ARTICLE",
-    body: `<div class="frs-scroll art-scroll" data-at="inf">${a0 ? `<div class="rec-tabs frs-tabs"><button type="button" class="rec-tab active on" data-atab="inf">INFORMATIONS</button><button type="button" class="rec-tab" data-atab="frs">FOURNISSEURS</button></div>` : ""}<div class="frs-g">${inp("des", "DÉSIGNATION", { req: 1, w: 1 })}${inp("u", "UNITÉ", { req: 1, list: units })}${inp("cat", "CATÉGORIE", { req: 1, list: P.cat })}
+    body: `<div class="frs-scroll art-scroll" data-at="inf">${a0 ? `<div class="rec-tabs frs-tabs"><button type="button" class="rec-tab active on" data-atab="inf">INFORMATIONS</button><button type="button" class="rec-tab" data-atab="frs">FOURNISSEURS</button></div>` : ""}<div class="frs-g">${inp("des", "DÉSIGNATION", { req: 1, w: 1 })}${inp("u", "UNITÉ", { req: 1, list: units })}${inp("cat", "FAMILLE", { req: 1, list: P.cat })}${inp("sfam", "SOUS-FAMILLE", { list: sviPgL("sfam").filter(x => !A.cat || achU(x.fam) === achU(A.cat)).map(x => x.lab) })}
+      ${inp("nat", "TYPE (NATURE)", { list: sviPgL("atypes").map(x => x.lab) })}${inp("cons", "DURÉE DE CONSERVATION (JOURS)", { num: 1 })}${inp("fab", "FABRICANTS (POUR INFORMATION)", { w: 1 })}
+      ${inp("poids", "POIDS UNITAIRE (KG)", { num: 1 })}${inp("vol", "VOLUME UNITAIRE (M³)", { num: 1 })}${inp("cb", "CODE-BARRES")}
       ${inp("pref", "PRIX DE RÉFÉRENCE HT", { num: 1 })}${inp("pmax", "PLAFOND HT", { num: 1 })}${inp("partMax", "PART MAXIMUM D'UN FOURNISSEUR (%)", { num: 1 })}${inp("tva", "TVA %", { num: 1 })}
       ${inp("cpt", "CODE COMPTABLE")}${inp("cptI", "INTITULÉ COMPTABLE")}
+      <div class="frs-f frs-w frs-logo art-photo"><span>PHOTO</span><div>${A.photo ? `<img src="${esc(A.photo)}" alt="">` : ""}${ro ? "" : `<input type="file" accept="image/*" class="art-photo-in">${A.photo ? ` <button type="button" class="ach-b" data-photorm>RETIRER LA PHOTO</button>` : ""}`}</div></div>
+      <div class="frs-f frs-w"><span>FICHE TECHNIQUE</span><div>${A.ft ? `<button type="button" class="ach-b" data-ftsee>VOIR LA FICHE TECHNIQUE</button> ` : ""}${ro ? "" : `<input type="file" class="art-ft-in" accept="image/*,application/pdf">`}</div></div>
       ${a0 ? (() => { const R = achRep(achKey(a0.des, a0.u)), FR = achFrsRO(), nm = g => { const L = FR.filter(f => achFrsRoot(f.id) === g); return L.map(f => f.nom).join(" + ") || g; };
         return `<div class="frs-f frs-w art-frs"><span>FOURNISSEURS (12 DERNIERS MOIS) ${svCnt(R.n)}${R.n < R.need ? ` <b class="art-bang" title="MOINS DE ${R.need} FOURNISSEURS">!</b>` : ""} — PART CIBLE ${Math.round(R.cible)} % ± ${R.marge}</span>
           <table class="prm-table frs-sub art-frst"><thead><tr><th>FOURNISSEUR</th><th class="number">ACHETÉ (HT)</th><th class="number">PART</th></tr></thead><tbody>${R.rows.map(r => `<tr${R.n > 1 && Math.abs(r.pct - R.cible) > R.marge ? ' class="nv-alert"' : ""}><td>${esc(nm(r.g))}</td><td class="number">${esc(achF2(r.mt))}</td><td class="number">${Math.round(r.pct)} %</td></tr>`).join("") || `<tr><td colspan="3" class="empty">AUCUN ACHAT SUR 12 MOIS</td></tr>`}</tbody></table></div>`; })() : ""}
-      <div class="frs-cs"><label class="frs-c"><input type="checkbox" class="art-c" data-k="stk"${A.stk ? " checked" : ""}${ro ? " disabled" : ""}> STOCKÉ</label><label class="frs-c"><input type="checkbox" class="art-c" data-k="actif"${A.actif !== false ? " checked" : ""}${ro ? " disabled" : ""}> ACTIF</label></div></div></div>`,
+      <div class="frs-cs"><label class="frs-c"><input type="checkbox" class="art-c" data-k="stk"${A.stk ? " checked" : ""}${ro ? " disabled" : ""}> STOCKABLE</label><label class="frs-c"><input type="checkbox" class="art-c" data-k="per"${A.per ? " checked" : ""}${ro ? " disabled" : ""}> PÉRISSABLE</label><label class="frs-c"><input type="checkbox" class="art-c" data-k="actif"${A.actif !== false ? " checked" : ""}${ro ? " disabled" : ""}> ACTIF</label></div></div></div>`,
     foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${ro ? "" : `<button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER</button>`}` });
   sviWinShow(d);
   d.addEventListener("click", e => {
     if (e.target === d || e.target.closest("[data-x]")) { d.remove(); if (done) done(null); return; }
     const at = e.target.closest("[data-atab]"); if (at) { d.querySelector(".art-scroll").dataset.at = at.dataset.atab; d.querySelectorAll("[data-atab]").forEach(b => b.classList.toggle("active", b === at) || b.classList.toggle("on", b === at)); d.querySelectorAll("[data-atab]").forEach(b => b.classList.toggle("on", b === at)); return; }
     if (!e.target.closest("[data-save]")) return;
-    d.querySelectorAll(".art-x").forEach(i => { const k = i.dataset.k; A[k] = ["tva", "pref", "pmax", "partMax"].includes(k) ? achN(i.value) : achU(i.value); });
+    d.querySelectorAll(".art-x").forEach(i => { const k = i.dataset.k; A[k] = ["tva", "pref", "pmax", "partMax", "cons", "poids", "vol"].includes(k) ? achN(i.value) : k === "fab" ? achU(i.value) : achU(i.value); });
     d.querySelectorAll(".art-c").forEach(i => { A[i.dataset.k] = i.checked; });
     const L = achArts();
     if (!A.des || !A.u) { svToast("DÉSIGNATION ET UNITÉ OBLIGATOIRES.", 3000); return; }
-    if (!A.cat) { svToast("CATÉGORIE OBLIGATOIRE.", 3000); return; }
+    if (/^DIVERS\b/.test(A.des)) { svToast("PAS D'ARTICLE « DIVERS » : DONNER UNE DÉSIGNATION PRÉCISE.", 4000); return; }
+    if (!A.cat) { svToast("FAMILLE OBLIGATOIRE.", 3000); return; }
     if (!P.cat.includes(A.cat)) { svToast("CATÉGORIE INCONNUE : LA CRÉER D'ABORD DANS ACHATS › PARAMÈTRES.", 3500); return; }
     if (A.tva < 0 || A.tva > 100) { svToast("TVA NON VALIDE (0 À 100).", 3000); return; }
+    /* v1169 (C2.1, C2.4, C2.8) : nature, sous-famille, pas d'article « divers » */
+    if (A.sfam && !sviPgL("sfam").some(x => achU(x.lab) === A.sfam && achU(x.fam) === A.cat)) { svToast("SOUS-FAMILLE INCONNUE POUR LA FAMILLE " + A.cat + " : LA CRÉER D'ABORD DANS PARAMÉTRAGE › ARTICLES › SOUS-FAMILLES.", 4500); return; }
+    if (A.nat && !sviPgL("atypes").some(x => achU(x.lab) === A.nat)) { svToast("TYPE INCONNU : CHOISIR DANS LA LISTE (PARAMÉTRAGE › ARTICLES › TYPES D'ARTICLE).", 4000); return; }
+    if (A.per && !(A.cons > 0)) { svToast("ARTICLE PÉRISSABLE : DURÉE DE CONSERVATION OBLIGATOIRE (JOURS).", 3500); return; }
+    if (!A.per) A.cons = 0;
+    if (A.poids < 0 || A.vol < 0 || A.cons < 0) { svToast("POIDS, VOLUME ET DURÉE : NOMBRES POSITIFS.", 3000); return; }
+    if (A.cb) { const x = L.find(y => y.id !== (a0 ? a0.id : "") && !y.del && achU(y.cb || "") === A.cb); if (x) { svToast("CODE-BARRES DÉJÀ DONNÉ À " + x.code + " — " + x.des + ".", 4000); return; } }
     if (A.pmax > 0 && A.pref > A.pmax) { svToast("PRIX DE RÉFÉRENCE AU-DESSUS DU PLAFOND.", 3000); return; }
     const dup = achArtDup(L, A.des, A.u, a0 ? a0.id : ""); if (dup) { svToast("DOUBLON : " + dup.code + " — " + dup.des + " (" + dup.u + ") EXISTE DÉJÀ.", 4000); return; }
     const nr = achArtNear(L, A.des, A.u, a0 ? a0.id : ""); if (nr) svToast("PRESQUE IDENTIQUE À " + nr.code + " — " + nr.des + " : À FUSIONNER SI C'EST LE MÊME ARTICLE.", 4500);
     let a;
-    if (a0) { a = L.find(x => x.id === a0.id); const LAB = { des: "DÉSIGNATION", u: "UNITÉ", cat: "CATÉGORIE", stk: "STOCKÉ", tva: "TVA", pref: "PRIX RÉF.", pmax: "PLAFOND", actif: "ACTIF", cpt: "CODE COMPTABLE", cptI: "INTITULÉ COMPTABLE" };
+    if (a0) { a = L.find(x => x.id === a0.id); const LAB = { des: "DÉSIGNATION", u: "UNITÉ", cat: "FAMILLE", stk: "STOCKÉ", tva: "TVA", pref: "PRIX RÉF.", pmax: "PLAFOND", actif: "ACTIF", cpt: "CODE COMPTABLE", cptI: "INTITULÉ COMPTABLE", sfam: "SOUS-FAMILLE", nat: "TYPE", per: "PÉRISSABLE", cons: "DURÉE DE CONSERVATION", fab: "FABRICANTS", poids: "POIDS", vol: "VOLUME", cb: "CODE-BARRES", photo: "PHOTO", ft: "FICHE TECHNIQUE" };
       const ch = Object.keys(LAB).filter(k => JSON.stringify(a[k] ?? "") !== JSON.stringify(A[k] ?? "")); Object.assign(a, A, { mod: achNow() }); if (ch.length) achHist(a.code, "MODIFICATION", ch.map(k => LAB[k]).join(", ")); }
-    else { a = achArtNew(L, A); a.st = "instance"; a.cpt = A.cpt; a.cptI = A.cptI; achHist(a.code, "CRÉATION", a.des + " (" + a.u + ")"); }
+    else { a = achArtNew(L, A); a.st = "instance"; a.cpt = A.cpt; a.cptI = A.cptI; ["sfam", "nat", "per", "cons", "fab", "poids", "vol", "cb", "photo", "ft"].forEach(k => { if (A[k] !== undefined) a[k] = A[k]; }); achHist(a.code, "CRÉATION", a.des + " (" + a.u + ")"); }
+    if (ftBlob) { const k = "ach:art-ft:" + a.id; sviFiles.put(k, ftBlob).catch(() => {}); a.ft = k; ftBlob = null; }
     achArtsSave(L); d.remove(); if (done) done(a.id);
+  });
+  /* v1169 (C2.2) : photo (réduite) et fiche technique (fichier gardé sur l'appareil, comme la copie d'une facture) */
+  let ftBlob = null;
+  d.addEventListener("change", e => {
+    const fi = e.target.closest(".art-photo-in"); if (fi && fi.files && fi.files[0]) { const rd = new FileReader();
+      rd.onload = () => { const im = new Image(); im.onload = () => { const k = Math.min(1, 480 / Math.max(im.width, im.height)), c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(im.width * k)); c.height = Math.max(1, Math.round(im.height * k)); c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+        A.photo = c.toDataURL("image/jpeg", .8); const box = d.querySelector(".art-photo > div"); if (box) { let img = box.querySelector("img"); if (!img) { img = document.createElement("img"); box.prepend(img); } img.src = A.photo; } }; im.src = rd.result; };
+      rd.readAsDataURL(fi.files[0]); return; }
+    const ft = e.target.closest(".art-ft-in"); if (ft && ft.files && ft.files[0]) { ftBlob = ft.files[0]; A.ft = A.ft || "ach:art-ft:" + (a0 ? a0.id : "new"); }
+  });
+  d.addEventListener("click", async e => {
+    if (e.target.closest("[data-photorm]")) { A.photo = ""; const img = d.querySelector(".art-photo img"); if (img) img.remove(); e.target.closest("[data-photorm]").remove(); return; }
+    if (e.target.closest("[data-ftsee]")) { try { const b = await sviFiles.get(A.ft); if (!b) { svToast("FICHE TECHNIQUE INTROUVABLE SUR CET APPAREIL.", 3000); return; } const u = URL.createObjectURL(b); window.open(u, "_blank"); setTimeout(() => URL.revokeObjectURL(u), 60000); } catch (er) { svToast("FICHE TECHNIQUE ILLISIBLE.", 3000); } }
   });
 }
 /* UNITÉ DE CONVERSION (menu ⋯ de l'article) : 1 unité de l'article = RATIO unité cible */

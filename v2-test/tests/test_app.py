@@ -2765,7 +2765,8 @@ def main():
             if (keepP === null) localStorage.removeItem('svi_ach_prm_v1'); else localStorage.setItem('svi_ach_prm_v1', keepP);
             return out; }""")
         check("v749 : ACHATS — articles : doublon refusé, presque identique signalé, numéro jamais réutilisé, DIVERS sans plafond, prix au-dessus du plafond, reprise des charges des budgets, banque d'un RIB, fusion",
-              a749[:7] == ["ART-0001", "CIMENT CPJ 45", "T", 20, True, "ART-0001", "ART-0003"] and a749[7] == ["ARTICLE DIVERS : PLAFOND OBLIGATOIRE"] and a749[8] == ["PRIX DE RÉFÉRENCE AU-DESSUS DU PLAFOND"]
+              # v1169 (C2.4) : plus d'article divers (signalé à remplacer)
+              a749[:7] == ["ART-0001", "CIMENT CPJ 45", "T", 20, True, "ART-0001", "ART-0003"] and a749[7] == ["ARTICLE « DIVERS » : À REMPLACER PAR UN ARTICLE PRÉCIS (C2.4)"] and a749[8] == ["PRIX DE RÉFÉRENCE AU-DESSUS DU PLAFOND"]
               and a749[9] and a749[10] == ["M3", "BUDGETS", 200] and a749[11:14] == ["BP", "AWB", None] and a749[14] == 1 and a749[15] == 14 and a749[16] != "", a749)
         # v759 : scénarios — toucher le nom = CONSULTER (lecture seule, l'actif ne change pas) ; COMPARAISON : FERMER LA COMPARAISON, indicateurs
         # proposés d'office (MONTANT HT, MONTANT TTC, ÉCART TTC AVEC LE SCÉNARIO ACTIF, NOMBRE DE CHARGES) ; fusion de la base scénario par scénario

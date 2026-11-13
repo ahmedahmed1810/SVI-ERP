@@ -119,7 +119,7 @@ const achArtWhy = a => {
   if (!achU(a.des)) w.push("DÉSIGNATION MANQUANTE");
   if (!achU(a.u)) w.push("UNITÉ MANQUANTE");
   if (achN(a.pmax) > 0 && achN(a.pref) > achN(a.pmax)) w.push("PRIX DE RÉFÉRENCE AU-DESSUS DU PLAFOND");
-  if (achIsDivers(a) && !(achN(a.pmax) > 0)) w.push("ARTICLE DIVERS : PLAFOND OBLIGATOIRE");
+  if (achIsDivers(a)) w.push("ARTICLE « DIVERS » : À REMPLACER PAR UN ARTICLE PRÉCIS (C2.4)");   /* v1169 : plus d'article divers */
   return w;
 };
 const achArtNew = (L, o) => {
