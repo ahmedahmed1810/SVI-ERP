@@ -17,6 +17,7 @@ function sviColors() {
 function sviColorsApply() {
   const C = sviColors(), r = document.documentElement;
   /* v1159 : en mode nuit, un VALIDÉ trop foncé pour le fond sombre (le bleu nuit du jour) s'affiche en bleu clair */
+  r.style.setProperty("--st-valide-fond", C.valide);   /* v1160 : fond des bandeaux VALIDÉ = couleur réglée (titre blanc lisible, même la nuit) */
   try { const nuit = r.classList.contains("svi-nuit") || (typeof sviPal === "function" && sviPal().mode === "nuit"), h = String(C.valide || "");
     if (nuit && /^#[0-9a-f]{6}$/i.test(h)) { const l = [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16) / 255).reduce((a, v, i) => a + v * [.2126, .7152, .0722][i], 0); if (l < .25) C.valide = "#7FB2FF"; } } catch (e) {}
   Object.keys(C).forEach(k => r.style.setProperty("--st-" + k, C[k]));
