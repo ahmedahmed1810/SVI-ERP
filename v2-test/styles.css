@@ -4079,3 +4079,5 @@ html.svi-nuit :is(.bdg-inst-instance, .bdg-inst-fige) :is(.rec-tab, .bdg-d-tab) 
 /* v1162 : bouton de liaison commun — gris « un toucher dit pourquoi » */
 .svlk-go.svlk-off { background: #e5e7eb !important; color: #9ca3af !important; cursor: help; }
 html.svi-nuit .svlk-go.svlk-off, html.svi-nuit .lk-go.lk-off, html.svi-nuit .svlk-go:disabled { background: #2A3340 !important; color: #94A3B8 !important; -webkit-text-fill-color: #94A3B8 !important; }
+/* v1170 : mode nuit — libellés des cases des fiches (STOCKABLE, PÉRISSABLE, ACTIF…) lisibles */
+html.svi-nuit :is(.frs-card, .pg-soc-card) .frs-c { color: #CBD5E1 !important; -webkit-text-fill-color: #CBD5E1 !important; }

@@ -591,7 +591,7 @@ function achArtFiche(id, done) {
     if (!A.des || !A.u) { svToast("DÉSIGNATION ET UNITÉ OBLIGATOIRES.", 3000); return; }
     if (/^DIVERS\b/.test(A.des)) { svToast("PAS D'ARTICLE « DIVERS » : DONNER UNE DÉSIGNATION PRÉCISE.", 4000); return; }
     if (!A.cat) { svToast("FAMILLE OBLIGATOIRE.", 3000); return; }
-    if (!P.cat.includes(A.cat)) { svToast("CATÉGORIE INCONNUE : LA CRÉER D'ABORD DANS ACHATS › PARAMÈTRES.", 3500); return; }
+    if (!P.cat.includes(A.cat)) { svToast("FAMILLE INCONNUE : LA CRÉER D'ABORD DANS PARAMÉTRAGE › ARTICLES › CATÉGORIES.", 3500); return; }
     if (A.tva < 0 || A.tva > 100) { svToast("TVA NON VALIDE (0 À 100).", 3000); return; }
     /* v1169 (C2.1, C2.4, C2.8) : nature, sous-famille, pas d'article « divers » */
     if (A.sfam && !sviPgL("sfam").some(x => achU(x.lab) === A.sfam && achU(x.fam) === A.cat)) { svToast("SOUS-FAMILLE INCONNUE POUR LA FAMILLE " + A.cat + " : LA CRÉER D'ABORD DANS PARAMÉTRAGE › ARTICLES › SOUS-FAMILLES.", 4500); return; }
@@ -616,7 +616,8 @@ function achArtFiche(id, done) {
     const fi = e.target.closest(".art-photo-in"); if (fi && fi.files && fi.files[0]) { const rd = new FileReader();
       rd.onload = () => { const im = new Image(); im.onload = () => { const k = Math.min(1, 480 / Math.max(im.width, im.height)), c = document.createElement("canvas");
         c.width = Math.max(1, Math.round(im.width * k)); c.height = Math.max(1, Math.round(im.height * k)); c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
-        A.photo = c.toDataURL("image/jpeg", .8); const box = d.querySelector(".art-photo > div"); if (box) { let img = box.querySelector("img"); if (!img) { img = document.createElement("img"); box.prepend(img); } img.src = A.photo; } }; im.src = rd.result; };
+        A.photo = c.toDataURL("image/jpeg", .8); const box = d.querySelector(".art-photo > div"); if (box) { let img = box.querySelector("img"); if (!img) { img = document.createElement("img"); box.prepend(img); } img.src = A.photo;
+          if (!box.querySelector("[data-photorm]")) { const b = document.createElement("button"); b.type = "button"; b.className = "ach-b"; b.dataset.photorm = "1"; b.textContent = "RETIRER LA PHOTO"; box.append(" ", b); } } }; im.src = rd.result; };
       rd.readAsDataURL(fi.files[0]); return; }
     const ft = e.target.closest(".art-ft-in"); if (ft && ft.files && ft.files[0]) { ftBlob = ft.files[0]; A.ft = A.ft || "ach:art-ft:" + (a0 ? a0.id : "new"); }
   });
