@@ -4061,3 +4061,8 @@ html.svi-nuit #bdgDetailRsz { border-color: #2A3340 !important; }
 /* v1157 : mode nuit — fond de la rangée d'onglets de RÉVISIONS et de SUIVI (hors palette) foncé, contour des blocs foncé ; les onglets suivent la palette */
 html.svi-nuit .bdg-d-page .blk-tabrow { background: #161C24 !important; border-color: #2A3340 !important; }
 html.svi-nuit .bdg-d-page > :is(.blk-client, .blk-hier, .blk-etp, .blk-suivi, .bdg-d-block), html.svi-nuit #bdgTabBody, html.svi-nuit #bdgTabs { border-color: #2A3340 !important; }
+/* v1158 : mode nuit — cadre foncé des onglets (actif compris) dans RÉVISIONS, SUIVI et DÉTAIL ; icônes et onglet actif de SUIVI en teinte claire */
+html.svi-nuit .bdg-d-page :is(.rec-tab, .bdg-d-tab), html.svi-nuit .bdg-d-page :is(.rec-tab, .bdg-d-tab).active { border-color: #2A3340 !important; }
+html.svi-nuit .bdg-d-page .blk-suivi .rec-tab .ico { color: #7FB2FF !important; }
+html.svi-nuit :is(.bdg-inst-instance, .bdg-inst-fige) .blk-suivi .rec-tab .ico { color: var(--inst, #F87171) !important; }
+html.svi-nuit .bdg-d-page .blk-suivi .rec-tab.active { color: #7FB2FF !important; }
