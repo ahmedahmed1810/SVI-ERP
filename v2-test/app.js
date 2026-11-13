@@ -3434,7 +3434,11 @@ function sviColors() {
 function sviColorsApply() {
   const C = sviColors(), r = document.documentElement;
   /* v1159 : en mode nuit, un VALIDÉ trop foncé pour le fond sombre (le bleu nuit du jour) s'affiche en bleu clair */
-  r.style.setProperty("--st-valide-fond", C.valide);   /* v1160 : fond des bandeaux VALIDÉ = couleur réglée (titre blanc lisible, même la nuit) */
+  r.style.setProperty("--st-valide-fond", C.valide);
+  /* v1161 : titre des bandeaux colorés par un état — blanc sur une couleur foncée, foncé sur une couleur claire */
+  Object.keys(C).forEach(k => { const h = String(C[k] || ""); if (!/^#[0-9a-f]{6}$/i.test(h)) return;
+    const L = [1, 3, 5].map(i => { const c = parseInt(h.substr(i, 2), 16) / 255; return c <= .03928 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4); }).reduce((a, v, i) => a + v * [.2126, .7152, .0722][i], 0);
+    r.style.setProperty("--stt-" + k, (1.05 / (L + .05)) >= 3 ? "#FFFFFF" : "#111827"); });   /* v1160 : fond des bandeaux VALIDÉ = couleur réglée (titre blanc lisible, même la nuit) */
   try { const nuit = r.classList.contains("svi-nuit") || (typeof sviPal === "function" && sviPal().mode === "nuit"), h = String(C.valide || "");
     if (nuit && /^#[0-9a-f]{6}$/i.test(h)) { const l = [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16) / 255).reduce((a, v, i) => a + v * [.2126, .7152, .0722][i], 0); if (l < .25) C.valide = "#7FB2FF"; } } catch (e) {}
   Object.keys(C).forEach(k => r.style.setProperty("--st-" + k, C[k]));

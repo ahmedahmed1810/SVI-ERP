@@ -3972,8 +3972,15 @@ html body #svConf .svc-card[data-st="remis"] > .svc-t:not(#svi-st1):not(#svi-st2
 html body #svConf .svc-card[data-st="partiel"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3) { background: var(--st-partiel, #1d4ed8) !important; }
 html body #svConf .svc-card[data-st="valide"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3) { background: var(--st-valide-fond, var(--st-valide, #111827)) !important; }
 html body #svConf .svc-card[data-st="annule"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3), html body #svConf .svc-card[data-st="bloque"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3), html body #svConf .svc-card[data-st="expire"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3), html body #svConf .svc-card[data-st="archive"] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3) { background: var(--st-annule, #6b7280) !important; }
-html body #svConf .svc-card[data-st] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3), html body #svConf .svc-card[data-st] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3) * { color: #fff !important; -webkit-text-fill-color: #fff !important; }
-html body #svConf .svc-card[data-st] > .svc-close:not(#svi-st1):not(#svi-st2):not(#svi-st3) { color: #fff !important; -webkit-text-fill-color: #fff !important; z-index: 2; }   /* v1122 : ✕ blanc sur le bandeau coloré */
+html body #svConf .svc-card[data-st] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3), html body #svConf .svc-card[data-st] > .svc-t:not(#svi-st1):not(#svi-st2):not(#svi-st3) * { color: var(--svc-tc, #fff) !important; -webkit-text-fill-color: var(--svc-tc, #fff) !important; }
+/* v1161 : couleur du titre selon la couleur de fond (contraste) */
+#svConf .svc-card[data-st="instance"] { --svc-tc: var(--stt-instance, #fff); }
+#svConf .svc-card:is([data-st="fige"], [data-st="encours"]) { --svc-tc: var(--stt-fige, #fff); }
+#svConf .svc-card[data-st="remis"] { --svc-tc: var(--stt-remis, #fff); }
+#svConf .svc-card[data-st="partiel"] { --svc-tc: var(--stt-partiel, #fff); }
+#svConf .svc-card[data-st="valide"] { --svc-tc: var(--stt-valide, #fff); }
+#svConf .svc-card:is([data-st="annule"], [data-st="bloque"], [data-st="expire"], [data-st="archive"]) { --svc-tc: var(--stt-annule, #fff); }
+html body #svConf .svc-card[data-st] > .svc-close:not(#svi-st1):not(#svi-st2):not(#svi-st3) { color: var(--svc-tc, #fff) !important; -webkit-text-fill-color: var(--svc-tc, #fff) !important; z-index: 2; }   /* v1122 : ✕ blanc sur le bandeau coloré */
 /* v1126 (série L, L6 – L8) : liaisons de la consultation au format du budget (document unique 2.5) — moteur commun sviLk (09g) */
 .nvp-rd { position: relative; width: 16px; height: 16px; border: 2px solid var(--inst, #b91c1c); border-radius: 50%; box-sizing: border-box; background: #fff; }
 .nvp-rd::before { content: ""; position: absolute; inset: -7px -11px; }
