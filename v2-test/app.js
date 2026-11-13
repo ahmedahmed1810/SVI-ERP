@@ -7365,7 +7365,8 @@ const SVI_PG_DEF = {
   lieux: [{ id: "p1", p: "", lab: "MAROC" }],
   banques: [["ATTIJARIWAFA BANK", "AWB", "007"], ["BANQUE POPULAIRE", "BP", "101-199"], ["BANK OF AFRICA", "BOA", "011"], ["BMCI", "BMCI", "013"], ["CIH BANK", "CIH", "230"],
     ["CREDIT AGRICOLE DU MAROC", "CAM", "225"], ["CREDIT DU MAROC", "CDM", "021"], ["SOCIETE GENERALE MAROC", "SGMB", "022"], ["AL BARID BANK", "ABB", "350"]].map(([lab, abr, code], i) => ({ id: "B" + (i + 1), p: "", lab, abr, code })),
-  langues: ["FRANÇAIS", "ARABE", "ANGLAIS", "ESPAGNOL"]
+  langues: ["FRANÇAIS", "ARABE", "ANGLAIS", "ESPAGNOL"],
+  adrtypes: ["SIÈGE", "FACTURATION", "LIVRAISON", "DÉPÔT", "CHANTIER"].map((lab, i) => ({ id: "a" + (i + 1), lab }))   /* v1165 (C1.3) */
 };
 function sviPg() { let o = {}; try { o = JSON.parse(localStorage.getItem(SVI_PG_K) || "{}") || {}; } catch (e) {} return o; }
 function sviPgSave(o) { try { localStorage.setItem(SVI_PG_K, JSON.stringify(o)); } catch (e) {} }
@@ -7471,7 +7472,8 @@ const SVI_PG_TABS = [
   { k: "cat", g: "art", ach: "cat", lab: "CATÉGORIES", sub: "FAMILLES D'ARTICLES" },
   { k: "aregl", g: "ach", ach: "regl", lab: "RÈGLES INTERNES", sub: "" }, { k: "aalr", g: "ach", ach: "alr", lab: "ALERTES DE RETARD", sub: "" },
   { k: "ament", g: "ach", ach: "ment", lab: "MENTIONS IMPRIMÉES", sub: "" }, { k: "acla", g: "ach", ach: "cla", lab: "CLAUSES", sub: "" }, { k: "acaf", g: "ach", ach: "caf", lab: "CONSULTATIONS", sub: "CONDITIONS PARTICULIÈRES, MINIMUM DE FOURNISSEURS CONSULTÉS" },   /* v1121 (L16, L17) */
-  { k: "ftypes", g: "ach", lab: "TYPES DE FOURNISSEURS", sub: "MÉTIER DU FOURNISSEUR, CHOISI SUR SA FICHE" }
+  { k: "ftypes", g: "ach", lab: "TYPES DE FOURNISSEURS", sub: "MÉTIER DU FOURNISSEUR, CHOISI SUR SA FICHE" },
+  { k: "adrtypes", g: "ach", lab: "TYPES D'ADRESSE", sub: "TYPES DES ADRESSES D'UN TIERS (LE PREMIER EST PROPOSÉ PAR DÉFAUT)" }
 ].map(T => ({ g: "gen", ...T }));
 const SVI_PG_ORD = "svi_pgord_v1";
 const sviPgTabs = () => { let o = []; try { o = JSON.parse(localStorage.getItem(SVI_PG_ORD) || "[]") || []; } catch (e) {} const ks = SVI_PG_TABS.map(t => t.k);
@@ -7532,6 +7534,7 @@ function sviPgDraw2(k, pane) {
     sviPgTable(pane, pane.__pgc); return; }
   if (k === "grades") { pane.__pgc = { k: "grades", uniq: "n", newLab: "CRÉER UN GRADE ICI… (N°)", cols: [["n", "GRADE", 120, "num"], ["lab", "INTITULÉ", 460, ""]] }; sviPgTable(pane, pane.__pgc); return; }
   if (k === "ftypes") { pane.__pgc = { k: "ftypes", uniq: "lab", newLab: "CRÉER UN TYPE ICI…", cols: [["lab", "TYPE", 260, ""], ["pre", "PRÉFIXE DE RÉFÉRENCE", 170, ""], ["docs", "DOCUMENTS EXIGÉS (SÉPARÉS PAR ;)", 420, ""]] }; sviPgTable(pane, pane.__pgc); return; }
+  if (k === "adrtypes") { pane.__pgc = { k: "adrtypes", uniq: "lab", newLab: "CRÉER UN TYPE D'ADRESSE ICI…", cols: [["lab", "TYPE D'ADRESSE", 360, ""]] }; sviPgTable(pane, pane.__pgc); return; }
   if (k === "gprod" || k === "gexp") { pane.__pgc = { k, uniq: "lab", newLab: "CRÉER UN GROUPE ICI…", cols: [["lab", "GROUPE", 360, ""]] }; sviPgTable(pane, pane.__pgc); return; }
   if (k === "dev") { pane.__pgc = { k: "devises", uniq: "code", one: "def", newLab: "CRÉER UNE DEVISE ICI… (CODE)", cols: [["code", "CODE", 120, ""], ["lab", "DEVISE", 320, ""], ["def", "PAR DÉFAUT", 120, "check"]] }; sviPgTable(pane, pane.__pgc); return; }
   if (k === "lieux") { pane.__pgc = { k: "lieux", ncol: 0, heads: [["PAYS › RÉGION › VILLE", 360]], levels: [{ newLab: "CRÉER UN PAYS ICI…", cols: [["lab", "PAYS"]] }, { newLab: "CRÉER UNE RÉGION ICI…", cols: [["lab", "RÉGION"]] }, { newLab: "CRÉER UNE VILLE ICI…", cols: [["lab", "VILLE"]] }] };

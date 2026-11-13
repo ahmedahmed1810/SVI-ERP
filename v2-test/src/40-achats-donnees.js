@@ -422,7 +422,8 @@ const achFrsRecv = (f, k) => ((f && f.cte) || []).filter(c => c.email && (c.rec 
 const ACH_GRP_OLD = { str: "SOUS-TRAITANT", fin: "ORGANISME FINANCIER" };
 /* 05/11 : PLUS DE GROUPES — LOCAL ou ÉTRANGER vient du PAYS de la fiche (vide ou MAROC = local ; une ancienne fiche ÉTRANGER sans pays le reste) ;
    préfixe FRS / FRE (ou celui du type) ; un ancien OCCASIONNEL garde sa dispense d'ICE et de RIB et son préfixe OCC */
-const ACH_ORIG = [{ id: "loc", nom: "LOCAL", pre: "FRS", req: ["ice", "rib"] }, { id: "etr", nom: "ÉTRANGER", pre: "FRE", req: ["pays", "rib"] }, { id: "occ", nom: "OCCASIONNEL", pre: "OCC", req: [] }];
+/* v1165 (C1.6) : fiche minimale — plus de pièce exigée par le groupe (ICE exigé à la facture, RIB au paiement par virement) */
+const ACH_ORIG = [{ id: "loc", nom: "LOCAL", pre: "FRS", req: [] }, { id: "etr", nom: "ÉTRANGER", pre: "FRE", req: [] }, { id: "occ", nom: "OCCASIONNEL", pre: "OCC", req: [] }];
 const achPaysLocal = p => { p = achU(p || ""); return !p || p === "MAROC" || p === "MA"; };
 const achFrsGrpId = f => { if (!f) return "loc"; const g = typeof f.grp === "string" ? f.grp : f.occ ? "occ" : ""; if (g === "occ") return "occ"; if (!achU(f.pays || "")) return g === "etr" ? "etr" : "loc"; return achPaysLocal(f.pays) ? "loc" : "etr"; };
 const achFrsTypeLab = f => (f && f.type) || (f && ACH_GRP_OLD[f.grp]) || (f && f.orgFin && typeof f.grp !== "string" ? ACH_GRP_OLD.fin : "") || "";
@@ -456,6 +457,7 @@ const achFrsTypeMissing = f => achFrsTypeDocs(f).filter(n => { const c = ACH_GRP
 const achFrsWhy = (f, L) => {
   const w = [], today = new Date().toISOString().slice(0, 10), soon = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10);
   if (!achU(f.nom)) w.push("NOM MANQUANT");
+  if (!f.del && !(f.cte || []).some(c => String(c.tel || "").trim())) w.push("TÉLÉPHONE MANQUANT (CONTACTS)");   /* v1165 (C1.6) : fiche minimale = nom + téléphone */
   { const m = achFrsMissing(f); if (m.length) w.push(achFrsGrp(f).nom + " : " + m.join(", ") + " MANQUANT" + (m.length > 1 ? "S" : "")); }
   { const m = achFrsTypeMissing(f); if (m.length) w.push("TYPE " + achFrsTypeLab(f) + " : " + m.join(", ") + " MANQUANT" + (m.length > 1 ? "S" : "")); }
   if (achDig(f.ice) && !achIceOk(f.ice)) w.push(achIceMsg());
@@ -783,6 +785,7 @@ const achFafWhy = (f, F, P) => { const w = [], today = new Date().toISOString().
   if (f.state === "annule") return w;
   const fr = achFrs().find(x => x.id === f.frs);
   if (!f.frs) w.push("FOURNISSEUR MANQUANT");
+  if (fr && achFrsGrpId(fr) === "loc" && !achDig(fr.ice)) w.push("ICE DU FOURNISSEUR MANQUANT (EXIGÉ À LA FACTURE)");   /* v1165 (C1.6) */
   if (!f.num) w.push("N° DE FACTURE MANQUANT");
   else if ((F || achFaf()).some(x => x.id !== f.id && x.state !== "annule" && x.frs === f.frs && achU(x.num) === achU(f.num))) w.push("N° DE FACTURE EN DOUBLE CHEZ CE FOURNISSEUR");
   if (!f.copie) w.push("COPIE DE LA FACTURE MANQUANTE");
