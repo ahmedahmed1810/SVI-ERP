@@ -591,7 +591,7 @@ function achArtFiche(id, done) {
     if (!A.des || !A.u) { svToast("DÉSIGNATION ET UNITÉ OBLIGATOIRES.", 3000); return; }
     if (/^DIVERS\b/.test(A.des)) { svToast("PAS D'ARTICLE « DIVERS » : DONNER UNE DÉSIGNATION PRÉCISE.", 4000); return; }
     if (!A.cat) { svToast("FAMILLE OBLIGATOIRE.", 3000); return; }
-    if (!P.cat.includes(A.cat)) { svToast("FAMILLE INCONNUE : LA CRÉER D'ABORD DANS PARAMÉTRAGE › ARTICLES › CATÉGORIES.", 3500); return; }
+    if (!P.cat.includes(A.cat)) { svToast("FAMILLE INCONNUE : LA CRÉER D'ABORD DANS PARAMÉTRAGE › ARTICLES › FAMILLES.", 3500); return; }
     if (A.tva < 0 || A.tva > 100) { svToast("TVA NON VALIDE (0 À 100).", 3000); return; }
     /* v1169 (C2.1, C2.4, C2.8) : nature, sous-famille, pas d'article « divers » */
     if (A.sfam && !sviPgL("sfam").some(x => achU(x.lab) === A.sfam && achU(x.fam) === A.cat)) { svToast("SOUS-FAMILLE INCONNUE POUR LA FAMILLE " + A.cat + " : LA CRÉER D'ABORD DANS PARAMÉTRAGE › ARTICLES › SOUS-FAMILLES.", 4500); return; }
@@ -618,11 +618,12 @@ function achArtFiche(id, done) {
         c.width = Math.max(1, Math.round(im.width * k)); c.height = Math.max(1, Math.round(im.height * k)); c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
         A.photo = c.toDataURL("image/jpeg", .8); const box = d.querySelector(".art-photo > div"); if (box) { let img = box.querySelector("img"); if (!img) { img = document.createElement("img"); box.prepend(img); } img.src = A.photo;
           if (!box.querySelector("[data-photorm]")) { const b = document.createElement("button"); b.type = "button"; b.className = "ach-b"; b.dataset.photorm = "1"; b.textContent = "RETIRER LA PHOTO"; box.append(" ", b); } } }; im.src = rd.result; };
-      rd.readAsDataURL(fi.files[0]); return; }
-    const ft = e.target.closest(".art-ft-in"); if (ft && ft.files && ft.files[0]) { ftBlob = ft.files[0]; A.ft = A.ft || "ach:art-ft:" + (a0 ? a0.id : "new"); }
+      rd.readAsDataURL(fi.files[0]); fi.value = ""; return; }
+    const ft = e.target.closest(".art-ft-in"); if (ft && ft.files && ft.files[0]) { ftBlob = ft.files[0]; A.ft = A.ft || "ach:art-ft:" + (a0 ? a0.id : "new");
+      let n = ft.parentElement.querySelector(".art-ft-nm"); if (!n) { n = document.createElement("span"); n.className = "art-ft-nm ach-0"; ft.after(n); } n.textContent = " CHOISIE : " + achU(ftBlob.name || "") + " (ENREGISTRER POUR LA GARDER)"; ft.value = ""; }
   });
   d.addEventListener("click", async e => {
-    if (e.target.closest("[data-photorm]")) { A.photo = ""; const img = d.querySelector(".art-photo img"); if (img) img.remove(); e.target.closest("[data-photorm]").remove(); return; }
+    if (e.target.closest("[data-photorm]")) { A.photo = ""; const img = d.querySelector(".art-photo img"); if (img) img.remove(); e.target.closest("[data-photorm]").remove(); const pi = d.querySelector(".art-photo-in"); if (pi) pi.value = ""; return; }
     if (e.target.closest("[data-ftsee]")) { try { const b = await sviFiles.get(A.ft); if (!b) { svToast("FICHE TECHNIQUE INTROUVABLE SUR CET APPAREIL.", 3000); return; } const u = URL.createObjectURL(b); window.open(u, "_blank"); setTimeout(() => URL.revokeObjectURL(u), 60000); } catch (er) { svToast("FICHE TECHNIQUE ILLISIBLE.", 3000); } }
   });
 }

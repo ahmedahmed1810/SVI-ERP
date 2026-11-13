@@ -155,7 +155,7 @@ function sviAchInit() {
           <tr class="ach-new"><td colspan="3"><input class="ins-in ach-seunew number" inputmode="decimal" placeholder="CRÉER UNE TRANCHE ICI… (MONTANT MIN)" autocomplete="off"></td><td></td></tr></tbody></table>
         <div class="prm-foot"><button type="button" class="prm-del ach-pdel" data-pdel="seu" disabled>SUPPRIMER LES LIGNES COCHÉES <span class="svi-cnt">0</span></button></div></div>`; })()}</div>`;
     if (T === "cat") return `<div class="ach-prm">${tabs}
-      <div class="ach-pbox"><div class="ach-pt">CATÉGORIES ${svCnt ? svCnt(catRows.length, P.cat.length) : ""}</div>
+      <div class="ach-pbox"><div class="ach-pt">FAMILLES ${svCnt ? svCnt(catRows.length, P.cat.length) : ""}</div>
         <div class="ach-scroll"><table id="achCatT" class="bdg-d-table prm-table ach-table" data-ach="cat" style="width:${cw("cat", "cat1") + 44}px"><colgroup><col data-w="ach_cat.cat1" style="width:${cw("cat", "cat1")}px"><col style="width:44px"></colgroup>
           <thead><tr>${cfHead("ach_cat", "cat1", "CATÉGORIE (FAMILLE D'ARTICLES)")}<th class="center"><input type="checkbox" class="ach-pall" aria-label="Tout cocher"></th></tr></thead>
           <tbody>${catRows.map(c => `<tr data-cat="${esc(c)}"><td><input class="ins-in ach-pin" data-p="cat" value="${esc(c)}" autocomplete="off"></td><td class="center"><input type="checkbox" class="ach-pcb" data-xcat="${esc(c)}" aria-label="Cocher"></td></tr>`).join("")}

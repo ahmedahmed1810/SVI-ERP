@@ -118,8 +118,8 @@ const SVI_PG_TABS = [
   { k: "gexp", g: "art", lab: "GROUPES D'EXPLOITATION", sub: "GROUPES DES ARTICLES (MODULE EXPLOITATION PLUS TARD)" },
   { k: "dev", lab: "DEVISES", sub: "LE DIRHAM PAR DÉFAUT ; LES AUTRES POUR L'IMPORT" },
   { k: "ref", ach: "ref", lab: "RÉFÉRENCES", sub: "FORMAT DES RÉFÉRENCES DES PIÈCES" },
-  { k: "cat", g: "art", ach: "cat", lab: "CATÉGORIES", sub: "FAMILLES D'ARTICLES" },
-  { k: "sfam", g: "art", lab: "SOUS-FAMILLES", sub: "SOUS-FAMILLES D'ARTICLES, RANGÉES PAR FAMILLE (CATÉGORIE)" },
+  { k: "cat", g: "art", ach: "cat", lab: "FAMILLES", sub: "FAMILLES D'ARTICLES (ANCIENNES CATÉGORIES)" },
+  { k: "sfam", g: "art", lab: "SOUS-FAMILLES", sub: "SOUS-FAMILLES D'ARTICLES, RANGÉES PAR FAMILLE" },
   { k: "atypes", g: "art", lab: "TYPES D'ARTICLE", sub: "NATURE DE L'ARTICLE : PRODUIT, SERVICE, LOCATION, TRANSPORT…" },
   { k: "aregl", g: "ach", ach: "regl", lab: "RÈGLES INTERNES", sub: "" }, { k: "aalr", g: "ach", ach: "alr", lab: "ALERTES DE RETARD", sub: "" },
   { k: "ament", g: "ach", ach: "ment", lab: "MENTIONS IMPRIMÉES", sub: "" }, { k: "acla", g: "ach", ach: "cla", lab: "CLAUSES", sub: "" }, { k: "acaf", g: "ach", ach: "caf", lab: "CONSULTATIONS", sub: "CONDITIONS PARTICULIÈRES, MINIMUM DE FOURNISSEURS CONSULTÉS" },   /* v1121 (L16, L17) */
