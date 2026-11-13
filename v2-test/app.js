@@ -7367,7 +7367,8 @@ const SVI_PG_DEF = {
     ["CREDIT AGRICOLE DU MAROC", "CAM", "225"], ["CREDIT DU MAROC", "CDM", "021"], ["SOCIETE GENERALE MAROC", "SGMB", "022"], ["AL BARID BANK", "ABB", "350"]].map(([lab, abr, code], i) => ({ id: "B" + (i + 1), p: "", lab, abr, code })),
   langues: ["FRANÇAIS", "ARABE", "ANGLAIS", "ESPAGNOL"],
   atypes: ["PRODUIT", "SERVICE", "LOCATION", "TRANSPORT"].map((lab, i) => ({ id: "n" + (i + 1), lab })),   /* v1169 (C2.1) : types (nature) des articles */
-  sfam: [],   /* v1169 (C2.1) : sous-familles { fam, lab } */
+  sfam: [],
+  ucv: [],   /* v1172 (C2.7) : conversions d'unités { a, r, b } : 1 a = r b, valables dans les deux sens */   /* v1169 (C2.1) : sous-familles { fam, lab } */
   adrtypes: ["SIÈGE", "FACTURATION", "LIVRAISON", "DÉPÔT", "CHANTIER"].map((lab, i) => ({ id: "a" + (i + 1), lab }))   /* v1165 (C1.3) */
 };
 function sviPg() { let o = {}; try { o = JSON.parse(localStorage.getItem(SVI_PG_K) || "{}") || {}; } catch (e) {} return o; }
@@ -7473,6 +7474,7 @@ const SVI_PG_TABS = [
   { k: "ref", ach: "ref", lab: "RÉFÉRENCES", sub: "FORMAT DES RÉFÉRENCES DES PIÈCES" },
   { k: "cat", g: "art", ach: "cat", lab: "FAMILLES", sub: "FAMILLES D'ARTICLES (ANCIENNES CATÉGORIES)" },
   { k: "sfam", g: "art", lab: "SOUS-FAMILLES", sub: "SOUS-FAMILLES D'ARTICLES, RANGÉES PAR FAMILLE" },
+  { k: "ucv", g: "art", lab: "CONVERSIONS", sub: "1 UNITÉ = RATIO UNITÉ CIBLE ; VALABLE DANS LES DEUX SENS (UNE CONVERSION PROPRE À UN ARTICLE PASSE AVANT)" },
   { k: "atypes", g: "art", lab: "TYPES D'ARTICLE", sub: "NATURE DE L'ARTICLE : PRODUIT, SERVICE, LOCATION, TRANSPORT…" },
   { k: "aregl", g: "ach", ach: "regl", lab: "RÈGLES INTERNES", sub: "" }, { k: "aalr", g: "ach", ach: "alr", lab: "ALERTES DE RETARD", sub: "" },
   { k: "ament", g: "ach", ach: "ment", lab: "MENTIONS IMPRIMÉES", sub: "" }, { k: "acla", g: "ach", ach: "cla", lab: "CLAUSES", sub: "" }, { k: "acaf", g: "ach", ach: "caf", lab: "CONSULTATIONS", sub: "CONDITIONS PARTICULIÈRES, MINIMUM DE FOURNISSEURS CONSULTÉS" },   /* v1121 (L16, L17) */
@@ -7538,6 +7540,9 @@ function sviPgDraw2(k, pane) {
     sviPgTable(pane, pane.__pgc); return; }
   if (k === "grades") { pane.__pgc = { k: "grades", uniq: "n", newLab: "CRÉER UN GRADE ICI… (N°)", cols: [["n", "GRADE", 120, "num"], ["lab", "INTITULÉ", 460, ""]] }; sviPgTable(pane, pane.__pgc); return; }
   if (k === "ftypes") { pane.__pgc = { k: "ftypes", uniq: "lab", newLab: "CRÉER UN TYPE ICI…", cols: [["lab", "TYPE", 260, ""], ["pre", "PRÉFIXE DE RÉFÉRENCE", 170, ""], ["docs", "DOCUMENTS EXIGÉS (SÉPARÉS PAR ;)", 420, ""]] }; sviPgTable(pane, pane.__pgc); return; }
+  if (k === "ucv") { const U = () => (typeof sviUnits === "function" ? sviUnits() : []).map(u => u.a || u).filter(Boolean).map(u => [u, u]);
+    pane.__pgc = { k: "ucv", uniq: "", newLab: "CRÉER UNE CONVERSION ICI… (UNITÉ)", cols: [["a", "1 UNITÉ", 160, ""], ["r", "= RATIO", 140, "num"], ["b", "UNITÉ CIBLE", 160, "sel", U], ["_s", "SENS INVERSE", 260, "ro", x => x.a && x.b && achN0(x.r) > 0 ? "1 " + x.b + " = " + String(Math.round(1 / achN0(x.r) * 1e6) / 1e6).replace(".", ",") + " " + x.a : ""]] };
+    sviPgTable(pane, pane.__pgc); return; }
   if (k === "atypes") { pane.__pgc = { k: "atypes", uniq: "lab", newLab: "CRÉER UN TYPE ICI…", cols: [["lab", "TYPE D'ARTICLE", 360, ""]] }; sviPgTable(pane, pane.__pgc); return; }
   if (k === "sfam") { pane.__pgc = { k: "sfam", uniq: "lab", newLab: "CRÉER UNE SOUS-FAMILLE ICI…", cols: [["lab", "SOUS-FAMILLE", 300, ""], ["fam", "FAMILLE (OBLIGATOIRE)", 260, "sel", () => (typeof achPrm === "function" ? achPrm().cat : []).map(c => [c, c])], ["_st", "ÉTAT", 220, "ro", x => x.fam ? "" : "⚠ FAMILLE À CHOISIR (NON PROPOSÉE)"]] }; sviPgTable(pane, pane.__pgc); return; }
   if (k === "adrtypes") { pane.__pgc = { k: "adrtypes", uniq: "lab", newLab: "CRÉER UN TYPE D'ADRESSE ICI…", cols: [["lab", "TYPE D'ADRESSE", 360, ""]] }; sviPgTable(pane, pane.__pgc); return; }
@@ -7609,6 +7614,16 @@ function sviCarnetWin(x) { const used = new Map(sviCarnetUsed(x).map(p => [Strin
 function sviLogoApply() { try { const u = sviSocImg("logo"), r = document.documentElement; r.classList.toggle("svi-logo", !!u);
   if (u) r.style.setProperty("--svi-logo", "url(\"" + u + "\")"); else r.style.removeProperty("--svi-logo"); } catch (e) {} }
 try { sviLogoApply(); } catch (e) {}
+
+/* v1172 (C2.7) : conversion d'une quantité q de l'unité u1 vers u2 — article d'abord (cv : [{ u, r }] : 1 unité de l'article = r u), puis PARAMÉTRAGE › ARTICLES › CONVERSIONS
+   (1 a = r b), dans les deux sens ; null si aucune conversion connue */
+const achN0 = v => { const n = parseFloat(String(v ?? "").replace(/\s/g, "").replace(",", ".")); return isFinite(n) ? n : 0; };
+function sviUnitConv(q, u1, u2, cv, uArt) { const U = x => sviPgU(x); u1 = U(u1); u2 = U(u2); if (!u1 || !u2) return null; if (u1 === u2) return q;
+  for (const c of (cv || [])) { const r = achN0(c.r); if (!(r > 0) || !c.u) continue; const ua = U(uArt || ""); if (ua && U(c.u) === u2 && ua === u1) return q * r; if (ua && U(c.u) === u1 && ua === u2) return q / r;
+    if (!ua && (U(c.u) === u1 || U(c.u) === u2)) return U(c.u) === u2 ? q * r : q / r; }
+  const L = sviPgL("ucv").filter(x => U(x.a) && U(x.b) && achN0(x.r) > 0);
+  for (const x of L) { if (U(x.a) === u1 && U(x.b) === u2) return q * achN0(x.r); if (U(x.a) === u2 && U(x.b) === u1) return q / achN0(x.r); }
+  return null; }
 /* ⟪ src/35-calendrier-saisie.js ⟫ */
 /* =========================================================
    CALENDRIER DE L'APPLICATION (FORMAT 76) : toutes les dates se choisissent dans un calendrier ;

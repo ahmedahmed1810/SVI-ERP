@@ -928,7 +928,7 @@ function sviAchInit() {
   const seuKOf = t => (t && t.closest && t.closest("[data-seuk]") || {}).dataset?.seuk || seuK;
   const prmHTML = () => {
     const P = achPrm(), T = prmTab();
-    const catRows = cfApply("ach_cat", [["cat1", "CATÉGORIE (FAMILLE D'ARTICLES)", x => x, ""]], P.cat);
+    const catRows = cfApply("ach_cat", [["cat1", "FAMILLE", x => x, ""]], P.cat);
     const tabs = "";
     /* B27 : RÉFÉRENCES — modèle et remise à zéro du compteur par type de pièce */
     if (T === "ref") return `<div class="ach-prm">${tabs}
@@ -974,7 +974,7 @@ function sviAchInit() {
     if (T === "cat") return `<div class="ach-prm">${tabs}
       <div class="ach-pbox"><div class="ach-pt">FAMILLES ${svCnt ? svCnt(catRows.length, P.cat.length) : ""}</div>
         <div class="ach-scroll"><table id="achCatT" class="bdg-d-table prm-table ach-table" data-ach="cat" style="width:${cw("cat", "cat1") + 44}px"><colgroup><col data-w="ach_cat.cat1" style="width:${cw("cat", "cat1")}px"><col style="width:44px"></colgroup>
-          <thead><tr>${cfHead("ach_cat", "cat1", "CATÉGORIE (FAMILLE D'ARTICLES)")}<th class="center"><input type="checkbox" class="ach-pall" aria-label="Tout cocher"></th></tr></thead>
+          <thead><tr>${cfHead("ach_cat", "cat1", "FAMILLE")}<th class="center"><input type="checkbox" class="ach-pall" aria-label="Tout cocher"></th></tr></thead>
           <tbody>${catRows.map(c => `<tr data-cat="${esc(c)}"><td><input class="ins-in ach-pin" data-p="cat" value="${esc(c)}" autocomplete="off"></td><td class="center"><input type="checkbox" class="ach-pcb" data-xcat="${esc(c)}" aria-label="Cocher"></td></tr>`).join("")}
           <tr class="ach-new"><td><input class="ins-in ach-pnew" data-p="cat" placeholder="CRÉER UNE CATÉGORIE ICI…" autocomplete="off"></td><td></td></tr></tbody></table></div>
         <div class="prm-foot"><button type="button" class="prm-del ach-pdel" data-pdel="cat" disabled>SUPPRIMER LES LIGNES COCHÉES <span class="svi-cnt">0</span></button></div></div>
@@ -4323,12 +4323,13 @@ function achArtFiche(id, done) {
   const inp = (k, lab, o = {}) => `<label class="frs-f${o.w ? " frs-w" : ""}"><span>${lab}${o.req ? " <b>*</b>" : ""}</span><input class="ins-in art-x${o.num ? " number" : ""}" data-k="${k}" value="${esc(o.num ? (achN(A[k]) || k === "tva" ? achF2(A[k]) : "") : A[k] ?? "")}"${o.num ? ' inputmode="decimal"' : ""}${o.list ? ` list="artL-${k}"` : ""}${dis} autocomplete="off">${o.list ? `<datalist id="artL-${k}">${o.list.map(x => `<option value="${esc(x)}">`).join("")}</datalist>` : ""}</label>`;
   const units = (() => { try { return (typeof sviUnits === "function" ? sviUnits() : []).map(u => u.a || u).filter(Boolean); } catch (e) { return []; } })();
   d.innerHTML = sviWinCard({ st: a0 ? achPcSt("art", a0) : "instance", cls: "frs-card", close: "data-x", title: a0 ? esc(a0.des + " (" + a0.u + ") : " + achRefSvi(a0, achArts(), "ARA")) : "NOUVEL ARTICLE",
-    body: `<div class="frs-scroll art-scroll" data-at="inf">${a0 ? `<div class="rec-tabs frs-tabs"><button type="button" class="rec-tab active on" data-atab="inf">INFORMATIONS</button><button type="button" class="rec-tab" data-atab="frs">FOURNISSEURS</button></div>` : ""}<div class="frs-g">${inp("des", "DÉSIGNATION", { req: 1, w: 1 })}${inp("u", "UNITÉ", { req: 1, list: units })}${inp("cat", "FAMILLE", { req: 1, list: P.cat })}${inp("sfam", "SOUS-FAMILLE", { list: sviPgL("sfam").filter(x => !A.cat || achU(x.fam) === achU(A.cat)).map(x => x.lab) })}
+    body: `<div class="frs-scroll art-scroll" data-at="inf">${a0 ? `<div class="rec-tabs frs-tabs"><button type="button" class="rec-tab active on" data-atab="inf">INFORMATIONS</button><button type="button" class="rec-tab" data-atab="frs">FOURNISSEURS</button></div>` : ""}<div class="frs-g">${inp("des", "DÉSIGNATION", { req: 1, w: 1 })}${inp("u", "UNITÉ", { req: 1, list: units })}${inp("ua", "UNITÉ D'ACHAT PAR DÉFAUT", { list: units })}${inp("cat", "FAMILLE", { req: 1, list: P.cat })}${inp("sfam", "SOUS-FAMILLE", { list: sviPgL("sfam").filter(x => !A.cat || achU(x.fam) === achU(A.cat)).map(x => x.lab) })}
       ${inp("nat", "TYPE (NATURE)", { list: sviPgL("atypes").map(x => x.lab) })}${inp("cons", "DURÉE DE CONSERVATION (JOURS)", { num: 1 })}${inp("fab", "FABRICANTS (POUR INFORMATION)", { w: 1 })}
       ${inp("poids", "POIDS UNITAIRE (KG)", { num: 1 })}${inp("vol", "VOLUME UNITAIRE (M³)", { num: 1 })}${inp("cb", "CODE-BARRES")}
       ${inp("pref", "PRIX DE RÉFÉRENCE HT", { num: 1 })}${inp("pmax", "PLAFOND HT", { num: 1 })}${inp("partMax", "PART MAXIMUM D'UN FOURNISSEUR (%)", { num: 1 })}${inp("tva", "TVA %", { num: 1 })}
       ${inp("cpt", "CODE COMPTABLE")}${inp("cptI", "INTITULÉ COMPTABLE")}
       <div class="frs-f frs-w frs-logo art-photo"><span>PHOTO</span><div>${A.photo ? `<img src="${esc(A.photo)}" alt="">` : ""}${ro ? "" : `<input type="file" accept="image/*" class="art-photo-in">${A.photo ? ` <button type="button" class="ach-b" data-photorm>RETIRER LA PHOTO</button>` : ""}`}</div></div>
+      <div class="frs-f frs-w art-eqv"><span>ARTICLES ÉQUIVALENTS (PAR ORDRE DE PRÉFÉRENCE)</span><div class="art-eqv-box"></div></div>
       <div class="frs-f frs-w"><span>FICHE TECHNIQUE</span><div>${A.ft ? `<button type="button" class="ach-b" data-ftsee>VOIR LA FICHE TECHNIQUE</button> ` : ""}${ro ? "" : `<input type="file" class="art-ft-in" accept="image/*,application/pdf">`}</div></div>
       ${a0 ? (() => { const R = achRep(achKey(a0.des, a0.u)), FR = achFrsRO(), nm = g => { const L = FR.filter(f => achFrsRoot(f.id) === g); return L.map(f => f.nom).join(" + ") || g; };
         return `<div class="frs-f frs-w art-frs"><span>FOURNISSEURS (12 DERNIERS MOIS) ${svCnt(R.n)}${R.n < R.need ? ` <b class="art-bang" title="MOINS DE ${R.need} FOURNISSEURS">!</b>` : ""} — PART CIBLE ${Math.round(R.cible)} % ± ${R.marge}</span>
@@ -4336,6 +4337,17 @@ function achArtFiche(id, done) {
       <div class="frs-cs"><label class="frs-c"><input type="checkbox" class="art-c" data-k="stk"${A.stk ? " checked" : ""}${ro ? " disabled" : ""}> STOCKABLE</label><label class="frs-c"><input type="checkbox" class="art-c" data-k="per"${A.per ? " checked" : ""}${ro ? " disabled" : ""}> PÉRISSABLE</label><label class="frs-c"><input type="checkbox" class="art-c" data-k="actif"${A.actif !== false ? " checked" : ""}${ro ? " disabled" : ""}> ACTIF</label></div></div></div>`,
     foot: `<button type="button" class="svc-b" data-x>ANNULER</button>${ro ? "" : `<button type="button" class="svc-b svc-ok svc-neutral" data-save>ENREGISTRER</button>`}` });
   sviWinShow(d);
+  /* v1172 (C2.6) : articles équivalents classés par ordre de préférence (▲ ▼ pour l'ordre ; « — » retire) */
+  A.eqv = Array.isArray(A.eqv) ? A.eqv.slice() : [];
+  const eqvDraw = () => { const box = d.querySelector(".art-eqv-box"); if (!box) return; const AL = achLive(achArts()).filter(x => x.id !== (a0 && a0.id));
+    const opt = v => `<option value="">—</option>${AL.map(x => `<option value="${esc(x.id)}"${x.id === v ? " selected" : ""}>${esc(x.des + " (" + x.u + ")")}</option>`).join("")}`;
+    box.innerHTML = `<table class="prm-table frs-sub art-eqvt"><thead><tr><th class="center">RANG</th><th>ARTICLE</th><th class="center">ORDRE</th></tr></thead><tbody>${A.eqv.map((id, i) => `<tr data-i="${i}"><td class="center">${i + 1}</td><td><select class="ins-in art-eqs" data-i="${i}"${ro ? " disabled" : ""}>${opt(id)}</select></td><td class="center">${ro ? "" : `<button type="button" class="ach-b" data-equp="${i}"${i ? "" : " disabled"}>▲</button> <button type="button" class="ach-b" data-eqdn="${i}"${i < A.eqv.length - 1 ? "" : " disabled"}>▼</button>`}</td></tr>`).join("")}
+      ${ro ? "" : `<tr class="rec-new"><td></td><td><select class="ins-in art-eqs" data-i="new">${opt("")}</select></td><td></td></tr>`}</tbody></table>`; };
+  eqvDraw();
+  d.addEventListener("change", e => { const s2 = e.target.closest(".art-eqs"); if (!s2) return; const v = s2.value, i = s2.dataset.i;
+    if (i === "new") { if (v && !A.eqv.includes(v)) A.eqv.push(v); } else if (!v) A.eqv.splice(+i, 1); else if (!A.eqv.includes(v)) A.eqv[+i] = v; eqvDraw(); });
+  d.addEventListener("click", e => { const u = e.target.closest("[data-equp], [data-eqdn]"); if (!u) return; const i = +(u.dataset.equp ?? u.dataset.eqdn), j = u.dataset.equp !== undefined ? i - 1 : i + 1;
+    if (j < 0 || j >= A.eqv.length) return; [A.eqv[i], A.eqv[j]] = [A.eqv[j], A.eqv[i]]; eqvDraw(); });
   d.addEventListener("click", e => {
     if (e.target === d || e.target.closest("[data-x]")) { d.remove(); if (done) done(null); return; }
     const at = e.target.closest("[data-atab]"); if (at) { d.querySelector(".art-scroll").dataset.at = at.dataset.atab; d.querySelectorAll("[data-atab]").forEach(b => b.classList.toggle("active", b === at) || b.classList.toggle("on", b === at)); d.querySelectorAll("[data-atab]").forEach(b => b.classList.toggle("on", b === at)); return; }
@@ -4351,6 +4363,9 @@ function achArtFiche(id, done) {
     /* v1169 (C2.1, C2.4, C2.8) : nature, sous-famille, pas d'article « divers » */
     if (A.sfam && !sviPgL("sfam").some(x => achU(x.lab) === A.sfam && achU(x.fam) === A.cat)) { svToast("SOUS-FAMILLE INCONNUE POUR LA FAMILLE " + A.cat + " : LA CRÉER D'ABORD DANS PARAMÉTRAGE › ARTICLES › SOUS-FAMILLES.", 4500); return; }
     if (A.nat && !sviPgL("atypes").some(x => achU(x.lab) === A.nat)) { svToast("TYPE INCONNU : CHOISIR DANS LA LISTE (PARAMÉTRAGE › ARTICLES › TYPES D'ARTICLE).", 4000); return; }
+    /* v1172 (C2.7) : unité d'achat ≠ unité de l'article → une conversion doit exister (article ou PARAMÉTRAGE › ARTICLES › CONVERSIONS, dans les deux sens) */
+    if (A.ua && A.ua !== A.u && sviUnitConv(1, A.ua, A.u, A.cv || (a0 && a0.cv), A.u) === null) { svToast("CONVERSION MANQUANTE ENTRE " + A.ua + " ET " + A.u + " : L'AJOUTER DANS PARAMÉTRAGE › ARTICLES › CONVERSIONS (OU ⋯ › UNITÉ DE CONVERSION DE L'ARTICLE).", 5000); return; }
+    if (A.ua === A.u) A.ua = "";
     if (A.per && !(A.cons > 0)) { svToast("ARTICLE PÉRISSABLE : DURÉE DE CONSERVATION OBLIGATOIRE (JOURS).", 3500); return; }
     if (!A.per) A.cons = 0;
     if (A.poids < 0 || A.vol < 0 || A.cons < 0) { svToast("POIDS, VOLUME ET DURÉE : NOMBRES POSITIFS.", 3000); return; }
@@ -4359,9 +4374,9 @@ function achArtFiche(id, done) {
     const dup = achArtDup(L, A.des, A.u, a0 ? a0.id : ""); if (dup) { svToast("DOUBLON : " + dup.code + " — " + dup.des + " (" + dup.u + ") EXISTE DÉJÀ.", 4000); return; }
     const nr = achArtNear(L, A.des, A.u, a0 ? a0.id : ""); if (nr) svToast("PRESQUE IDENTIQUE À " + nr.code + " — " + nr.des + " : À FUSIONNER SI C'EST LE MÊME ARTICLE.", 4500);
     let a;
-    if (a0) { a = L.find(x => x.id === a0.id); const LAB = { des: "DÉSIGNATION", u: "UNITÉ", cat: "FAMILLE", stk: "STOCKÉ", tva: "TVA", pref: "PRIX RÉF.", pmax: "PLAFOND", actif: "ACTIF", cpt: "CODE COMPTABLE", cptI: "INTITULÉ COMPTABLE", sfam: "SOUS-FAMILLE", nat: "TYPE", per: "PÉRISSABLE", cons: "DURÉE DE CONSERVATION", fab: "FABRICANTS", poids: "POIDS", vol: "VOLUME", cb: "CODE-BARRES", photo: "PHOTO", ft: "FICHE TECHNIQUE" };
+    if (a0) { a = L.find(x => x.id === a0.id); const LAB = { des: "DÉSIGNATION", u: "UNITÉ", cat: "FAMILLE", stk: "STOCKÉ", tva: "TVA", pref: "PRIX RÉF.", pmax: "PLAFOND", actif: "ACTIF", cpt: "CODE COMPTABLE", cptI: "INTITULÉ COMPTABLE", sfam: "SOUS-FAMILLE", nat: "TYPE", per: "PÉRISSABLE", cons: "DURÉE DE CONSERVATION", fab: "FABRICANTS", poids: "POIDS", vol: "VOLUME", cb: "CODE-BARRES", photo: "PHOTO", ft: "FICHE TECHNIQUE", ua: "UNITÉ D'ACHAT", eqv: "ÉQUIVALENTS" };
       const ch = Object.keys(LAB).filter(k => JSON.stringify(a[k] ?? "") !== JSON.stringify(A[k] ?? "")); Object.assign(a, A, { mod: achNow() }); if (ch.length) achHist(a.code, "MODIFICATION", ch.map(k => LAB[k]).join(", ")); }
-    else { a = achArtNew(L, A); a.st = "instance"; a.cpt = A.cpt; a.cptI = A.cptI; ["sfam", "nat", "per", "cons", "fab", "poids", "vol", "cb", "photo", "ft"].forEach(k => { if (A[k] !== undefined) a[k] = A[k]; }); achHist(a.code, "CRÉATION", a.des + " (" + a.u + ")"); }
+    else { a = achArtNew(L, A); a.st = "instance"; a.cpt = A.cpt; a.cptI = A.cptI; ["sfam", "nat", "per", "cons", "fab", "poids", "vol", "cb", "photo", "ft", "ua", "eqv"].forEach(k => { if (A[k] !== undefined) a[k] = A[k]; }); achHist(a.code, "CRÉATION", a.des + " (" + a.u + ")"); }
     if (ftBlob) { const k = "ach:art-ft:" + a.id; sviFiles.put(k, ftBlob).catch(() => {}); a.ft = k; ftBlob = null; }
     achArtsSave(L); d.remove(); if (done) done(a.id);
   });
