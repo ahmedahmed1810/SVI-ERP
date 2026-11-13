@@ -309,7 +309,15 @@ function achFrsFiche(id, sec, done) {
     pull(); x.u = achCltU(x.t); const k = achCltFld(x.t); if (k) x.v = String(F[k] ?? ""); syncMark(); draw(); });
   /* B21 : changer la banque d'un RIB recharge ses agences */
   /* v1167 : VILLE de l'IDENTITÉ ↔ ville de l'adresse principale, à l'écran tout de suite */
-  d.addEventListener("change", e => { const t = e.target; if (ro || !t.closest || !t.closest('.frs-x[data-k="ville"], table[data-sub="adrs"] .frs-s[data-c="ville"], .frs-ap')) return; pull(); draw(); });
+  /* v1168 : sans redessiner la fenêtre (le toucher suivant n'est pas perdu) — seuls les champs liés changent ; une adresse créée redessine après le toucher en cours */
+  d.addEventListener("change", e => { const t = e.target; if (ro || !t.closest || !t.closest('.frs-x[data-k="ville"], table[data-sub="adrs"] .frs-s[data-c="ville"], .frs-ap')) return;
+    const n0 = F.adrs.length; pull();
+    if (F.adrs.length !== n0) { let done = false; const go = () => { if (done) return; done = true; if (d.isConnected) draw(); };
+      window.addEventListener("pointerup", () => setTimeout(go, 0), { once: true, capture: true }); setTimeout(go, 700); return; }
+    const A = F.adrs.find(a => a.p), iA = F.adrs.indexOf(A);
+    if (A && achU(A.ville || "")) F.ville = achU(A.ville);
+    const vi = d.querySelector('.frs-x[data-k="ville"]'); if (vi && vi !== t) vi.value = F.ville || ""; villeShown = F.ville ?? "";
+    if (A) { const ai = d.querySelector('table[data-sub="adrs"] tr[data-i="' + iA + '"] .frs-s[data-c="ville"]'); if (ai && ai !== t) ai.value = A.ville || ""; } });
   d.addEventListener("change", e => { const s = e.target.closest && e.target.closest('table[data-sub="ribs"] select[data-c="bqId"]'); if (!s) return; pull(); const r = F.ribs[+s.closest("tr[data-i]").dataset.i]; if (r) { r.bqId = s.value; r.ag = ""; } draw(); });
   /* B41 : LANGUE — « AJOUTER… » en bas de la liste ; la langue ajoutée l'est partout (PARAMÉTRAGE GÉNÉRAL) */
   d.addEventListener("change", async e => { const s = e.target.closest && e.target.closest('select[data-k="lang"]'); if (!s || s.value !== "__add") return; e.stopImmediatePropagation();
