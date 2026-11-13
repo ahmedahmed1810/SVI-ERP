@@ -16,6 +16,20 @@
    avec confirmation ; aucune paire possible entre les choix = grisé.
    ========================================================= */
 const SVI_LK = {};
+/* v1164 (budget sur le moteur commun, étape 2) : RÈGLES COMMUNES DES ÉTATS, écrites une seule fois.
+   Une liaison = un enregistrement { groupe: id ou [ids] } (paire de la consultation : deux groupes ; chaîne du budget : DÉSIGNATION, LOT,
+   ACTIVITÉS, PRODUITS, CHARGES). ch = [[groupe, id], …] lignes choisies.
+   sviLkUsed(T) : lignes liées à quelque chose (bleu clair) ; sviLkHitSets(T, ch, joint) : lignes liées EXACTEMENT à ce qui est choisi —
+   joint (budget) : une même liaison contient tout ce qui est choisi ; sinon (paires) : liée à chaque ligne choisie d'un groupe qu'elle peut lier. */
+const sviLkIn = (v, id) => Array.isArray(v) ? v.includes(id) : v === id;
+const sviLkVals = v => v === undefined || v === null ? [] : Array.isArray(v) ? v : [v];
+function sviLkUsed(T) { const S = {}; (T || []).forEach(t => Object.keys(t).forEach(g => sviLkVals(t[g]).forEach(id => (S[g] = S[g] || new Set()).add(id)))); return S; }
+function sviLkHitSets(T, ch, joint) { if (!ch || !ch.length) return null; T = T || [];
+  if (joint) return sviLkUsed(T.filter(t => ch.every(([g, id]) => sviLkIn(t[g], id))));
+  /* paires : pour chaque ligne choisie, ce qui lui est lié ; une ligne est « exacte » si elle est dans l'ensemble de chaque choix d'un autre groupe */
+  return ch.map(([g, id]) => ({ g, S: sviLkUsed(T.filter(t => sviLkIn(t[g], id))) })); }
+const sviLkHitOf = (H, g, id, pairable) => { if (!H) return false; if (!Array.isArray(H)) return !!(H[g] && H[g].has(id));
+  const O = H.filter(h => h.g !== g && (!pairable || pairable(h.g))); return O.length > 0 && O.every(h => !!(h.S[g] && h.S[g].has(id))); };
 function sviLk(key, o) {
   const E = SVI_LK[key] = SVI_LK[key] || { sel: {}, all: {} }; E.o = o; E.all = E.all || {};
   const S = g => (E.sel[g] = E.sel[g] || new Set());
@@ -27,6 +41,8 @@ function sviLk(key, o) {
     if (l === g) return (M(m)[id] || []).some(y => ok(r, y));
     if (r === g) return Object.entries(M(m)).some(([a, L]) => (L || []).includes(id) && ok(l, a));
     return false; });
+  const tuples = () => Object.entries(o.pairs).flatMap(([gp, m]) => { const [l, r] = gp.split("-");
+    return Object.entries(M(m)).flatMap(([a, L]) => ok(l, a) ? (L || []).filter(b => ok(r, b)).map(b => ({ [l]: a, [r]: b })) : []); });
   const prune = () => Object.keys(E.sel).forEach(g => [...E.sel[g]].forEach(id => { if (!ok(g, id)) E.sel[g].delete(id); }));
   const chosen = () => { prune(); return Object.keys(E.sel).flatMap(g => [...E.sel[g]].map(id => [g, id])); };
   const pending = () => { const C = chosen(), hubOn = !!o.hub && C.some(([g]) => g === o.hub), P = [];
@@ -49,8 +65,7 @@ function sviLk(key, o) {
     rename: (g, a, b) => { const s = S(g); if (s.has(a)) { s.delete(a); s.add(b); } },
     chosen, pending,
     state: (g, id) => { if (S(g).has(id)) return "choisi";
-      const O = chosen().filter(([g2]) => g2 !== g && pairOf(g, g2));
-      if (O.length && O.every(([g2, id2]) => has(g, id, g2, id2))) return "exact";
+      if (sviLkHitOf(sviLkHitSets(tuples(), chosen(), false), g, id, g2 => !!pairOf(g, g2))) return "exact";
       return any(g, id) ? "lie" : ""; },
     /* v1130 (L6 – L8, 2e livraison) : FILTRE PAR LES CASES COCHÉES — check = { groupe: Set(ids cochés) } ; une ligne d'un groupe reste visible
        si, pour chaque autre groupe qui a des cases cochées et qu'elle peut lier, elle est liée à au moins une ligne cochée : directement, ou par

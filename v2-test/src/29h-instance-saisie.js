@@ -643,17 +643,16 @@ function sviBdgInstanceSaisie(C) {
   /* lignes liées EXACTEMENT à ce qui est choisi (désignation, lot, activités, produits, charges) :
      elles remontent et passent en bleu foncé, dans tous les blocs, quel que soit l'élément choisi
      (le rond à point reste réservé aux lignes liées à la désignation choisie) */
+  /* v1164 : les liaisons du budget lues comme des enregistrements du moteur commun */
+  const lkTuples = () => (INS.links || []).map(l => ({ des: l.des, lot: l.lot, prim: l.prim, sec: l.sec, prd: (l.prd || []).map(x => x.id), chg: (l.chg || []).map(x => x.id) }));
   const lkHits = () => {
     const ch = ["des", "lot", "prim", "sec"].filter(k => ECR.LK[k]);
     const cp = Object.keys(ECR.LK.prd || {}), cc = Object.keys(ECR.LK.chg || {});
     if (!ch.length && !cp.length && !cc.length) return null;
+    /* v1164 : règle commune (moteur de liaisons) — une même liaison contient tout ce qui est choisi */
+    const H = sviLkHitSets(lkTuples(), [...ch.map(k => [k, ECR.LK[k]]), ...cp.map(id => ["prd", id]), ...cc.map(id => ["chg", id])], true);
     const S = { des: new Set(), lot: new Set(), prim: new Set(), sec: new Set(), prd: new Set(), chg: new Set() };
-    (INS.links || []).filter(l => ch.every(k => l[k] === ECR.LK[k])
-      && cp.every(id => (l.prd || []).some(x => x.id === id)) && cc.every(id => (l.chg || []).some(x => x.id === id)))
-      .forEach(l => {
-        ["des", "lot", "prim", "sec"].forEach(k => S[k].add(l[k]));
-        (l.prd || []).forEach(x => S.prd.add(x.id)); (l.chg || []).forEach(x => S.chg.add(x.id));
-      });
+    Object.keys(S).forEach(k => { if (H[k]) S[k] = H[k]; });
     return S;
   };
   let LKH = null;

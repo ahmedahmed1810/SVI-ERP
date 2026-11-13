@@ -1291,12 +1291,10 @@ function sviBdgQualite(C) {
 
   /* lignes utilisées par au moins une liaison validée */
   const insUsed = () => {
+    /* v1164 : règle commune (moteur de liaisons) — lignes liées à quelque chose */
+    const L0 = sviLkUsed((INS.links || []).map(l => ({ des: l.des, lot: l.lot, prim: l.prim, sec: l.sec, prd: (l.prd || []).map(x => x.id), chg: (l.chg || []).map(x => x.id) })));
     const u = { des: new Set(), lot: new Set(), prim: new Set(), sec: new Set(), chg: new Set(), prd: new Set() };
-    (INS.links || []).forEach(l => {
-      u.des.add(l.des); u.lot.add(l.lot); u.prim.add(l.prim); u.sec.add(l.sec);
-      (l.prd || []).forEach(x => u.prd.add(x.id));
-      (l.chg || []).forEach(x => u.chg.add(x.id));
-    });
+    Object.keys(u).forEach(k => { if (L0[k]) u[k] = L0[k]; });
     /* un titre est « utilisé » si une de ses lignes l'est */
     insNorm();
     const stack = [];
