@@ -4058,3 +4058,6 @@ html.svi-nuit .bdg-d-page .blk-rsz { background: #161C24 !important; border-top-
 html.svi-nuit .bdg-d-page .blk-rsz::after { background: #4B5563; }
 html.svi-nuit .bdg-d-page .blk-rsz.on::after, html.svi-nuit .bdg-d-page .blk-rsz:hover::after { background: #60A5FA; }
 html.svi-nuit #bdgDetailRsz { border-color: #2A3340 !important; }
+/* v1157 : mode nuit — fond de la rangée d'onglets de RÉVISIONS et de SUIVI (hors palette) foncé, contour des blocs foncé ; les onglets suivent la palette */
+html.svi-nuit .bdg-d-page .blk-tabrow { background: #161C24 !important; border-color: #2A3340 !important; }
+html.svi-nuit .bdg-d-page > :is(.blk-client, .blk-hier, .blk-etp, .blk-suivi, .bdg-d-block), html.svi-nuit #bdgTabBody, html.svi-nuit #bdgTabs { border-color: #2A3340 !important; }
