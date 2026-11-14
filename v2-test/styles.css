@@ -4086,3 +4086,8 @@ html.svi-nuit #ach .ach-b:disabled, html.svi-nuit .frs-card .ach-b:disabled { op
 /* v1175 : blocs en tableau de la fiche article sur toute la largeur */
 .frs-card .frs-g > .art-pstd, .frs-card .frs-g > .art-eqv { grid-column: 1 / -1; }
 .frs-card .art-pstdt, .frs-card .art-eqvt { width: 100%; max-width: 760px; }
+/* v1176 : case de PARAMÉTRAGE à compléter — cadre rouge (jour et nuit) */
+input.prm-in.ins-bad { box-shadow: inset 0 0 0 2px #dc2626 !important; }
+input.prm-in.ins-bad::placeholder { color: #dc2626; opacity: 1; }
+html.svi-nuit input.prm-in.ins-bad { box-shadow: inset 0 0 0 2px #f87171 !important; }
+html.svi-nuit input.prm-in.ins-bad::placeholder { color: #f87171; }

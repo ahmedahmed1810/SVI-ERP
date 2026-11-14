@@ -299,7 +299,7 @@ function sviParamTabs() {
     pane.innerHTML = `<table class="prm-table" data-svcw="prm_unit" style="${CG.style}">${CG.cg}
       <thead><tr>${UCOLS.map(c => UKIT.cfHead("prm_unit", c[0], c[1], c[3])).join("")}<th class="center"><input type="checkbox" class="prm-all" title="Tout cocher"></th></tr></thead>
       <tbody>${R.map(x => x.__i).map(i => [L[i], i]).map(([x, i]) => `<tr data-i="${i}"><td><input class="prm-in" data-f="n" value="${esc(x.n)}" autocomplete="off"></td>
-        <td class="center"><input class="prm-in center${String(x.a || "").trim() ? "" : " ins-bad"}" data-f="a" value="${esc(x.a)}"${String(x.a || "").trim() ? "" : ' placeholder="⚠ ABRÉVIATION À DONNER"'} autocomplete="off"></td>
+        <td class="center"><input class="prm-in center${String(x.a || "").trim() ? "" : " ins-bad"}" data-f="a" value="${esc(x.a)}"${String(x.a || "").trim() ? "" : ' placeholder="⚠ À DONNER" title="ABRÉVIATION À DONNER"'} autocomplete="off"></td>
         <td class="center"><input type="checkbox" class="prm-cb"></td></tr>`).join("")}
         <tr class="prm-new"><td><input class="prm-in" data-f="n" placeholder="CRÉER UNE UNITÉ ICI…" autocomplete="off"></td><td class="center"><input class="prm-in center" data-f="a" autocomplete="off"></td><td></td></tr></tbody></table>
       <div class="prm-foot"><button type="button" class="prm-del" disabled>SUPPRIMER LES LIGNES COCHÉES <span class="svi-cnt">0</span></button></div>`;

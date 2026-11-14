@@ -593,7 +593,7 @@ function achArtFiche(id, done) {
   /* v1175 (C2.9) : prix standard propres à un projet ou à une zone */
   A.pstd = Array.isArray(A.pstd) ? A.pstd.map(x => ({ ...x })) : [];
   const pstdDraw = () => { const box = d.querySelector(".art-pstd-box"); if (!box) return; let PJ = []; try { PJ = achPrj().filter(p => !p.del); } catch (e) {}
-    const O = [...PJ.map(p => ["prj:" + achU(p.code || p.intitule), "PROJET " + achU(p.code || "") + (p.intitule ? " — " + achU(p.intitule) : "")]), ...sviPgL("zones").filter(z => z.lab).map(z => ["zone:" + achU(z.lab), "ZONE " + achU(z.lab)])];
+    const O = [...PJ.map(p => ["prj:" + achU(p.code || p.intitule), "PROJET " + (p.code ? achU(p.code) + (p.intitule ? " — " + achU(p.intitule) : "") : achU(p.intitule || ""))]), ...sviPgL("zones").filter(z => z.lab).map(z => ["zone:" + achU(z.lab), "ZONE " + achU(z.lab)])];
     const opt = v => `<option value="">—</option>${O.concat(v && !O.some(o => o[0] === v) ? [[v, v]] : []).map(o => `<option value="${esc(o[0])}"${o[0] === v ? " selected" : ""}>${esc(o[1])}</option>`).join("")}`;
     box.innerHTML = `<table class="prm-table frs-sub art-pstdt"><thead><tr><th>PROJET OU ZONE</th><th class="number">PRIX STANDARD HT</th></tr></thead><tbody>${A.pstd.map((x, i) => `<tr data-i="${i}"><td><select class="ins-in art-psk" data-i="${i}"${ro ? " disabled" : ""}>${opt(x.k)}</select></td><td><input class="ins-in number art-psp" data-i="${i}" inputmode="decimal" value="${esc(x.px ? achF2(x.px) : "")}"${ro ? " readonly" : ""} autocomplete="off"></td></tr>`).join("")}
       ${ro ? "" : `<tr class="rec-new"><td><select class="ins-in art-psk" data-i="new">${opt("")}</select></td><td></td></tr>`}</tbody></table>`; };

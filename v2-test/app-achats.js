@@ -346,6 +346,9 @@ const achArtStd = (a, prj) => { if (!a) return { px: 0, src: "" }; const L = Arr
   if (k) { const x = L.find(y => y.k === "prj:" + k && achN(y.px) > 0); if (x) return { px: achN(x.px), src: "PROJET " + k };
     const z = achZoneOf(k), y = z && L.find(w => w.k === "zone:" + z && achN(w.px) > 0); if (y) return { px: achN(y.px), src: "ZONE " + z }; }
   return { px: achN(a.pref), src: achN(a.pref) > 0 ? "STANDARD" : "" }; };
+/* v1176 : projet d'une ligne de devis — son besoin, sinon le besoin de la même ligne dans sa consultation */
+const achDvfPrj = (v, l) => { let bid = l && l.bsn; if (!bid && v && v.caf) { const c = achCaf().find(x => x.id === v.caf), cl = c && (c.lignes || []).find(y => y.bsn && achKey(y.des, y.u) === achKey(l.des, l.u)); bid = cl && cl.bsn; }
+  const b = bid ? achBsn().find(y => y.id === bid) : null; return b ? achPrjOfBdg(b.bdg) : ""; };
 const achStdPu = (des, u, pu, prj) => { const a = achArtOf(des, u), s = achArtStd(a, prj); return s.px > 0 ? s.px : achN(pu); };
 /* v1175 (C2.10) : écart d'un prix au standard (seuil : PARAMÉTRAGE › ACHATS › RÈGLES INTERNES) ; nettement plus bas = proposer de revoir le standard */
 const achStdGap = (des, u, pu, prj) => { const a = achArtOf(des, u), s = achArtStd(a, prj), p = achN(pu); if (!(s.px > 0) || !(p > 0)) return "";
@@ -616,7 +619,7 @@ const achDvfTot = v => { let ht = 0, ttc = 0, brut = 0; (v.lignes || []).forEach
 const achDvfWhy = v => { const w = achRepWhy(v.state === "recu" ? v.lignes : [], v.frs), today = new Date().toISOString().slice(0, 10);
   if (v.state === "rejete" || v.state === "annule") return w;
   if (!(v.lignes || []).some(l => achN(l.pu) > 0)) w.push("PRIX MANQUANTS");
-  (v.lignes || []).forEach(l => { const g = achStdGap(l.des, l.u, l.pu); if (g) w.push("ÉCART AU STANDARD — " + g); });   /* v1175 (C2.10) */
+  (v.lignes || []).forEach(l => { const g = achStdGap(l.des, l.u, l.pu, achDvfPrj(v, l)); if (g) w.push("ÉCART AU STANDARD — " + g); });   /* v1175 (C2.10) ; v1176 : projet du besoin (par la consultation) */
   if (!v.refFrs) w.push("N° DU DEVIS FOURNISSEUR MANQUANT");
   if (v.validite && v.validite < today && v.state !== "retenu") w.push("DEVIS EXPIRÉ (VALIDITÉ " + v.validite.split("-").reverse().join("/") + ")");
   /* v814 : expiration proche (C5.60), reçu après la date limite (C5.44), total écrit ≠ calcul (C5.46), lignes non chiffrées (C5.43),
@@ -4363,7 +4366,7 @@ function achArtFiche(id, done) {
   /* v1175 (C2.9) : prix standard propres à un projet ou à une zone */
   A.pstd = Array.isArray(A.pstd) ? A.pstd.map(x => ({ ...x })) : [];
   const pstdDraw = () => { const box = d.querySelector(".art-pstd-box"); if (!box) return; let PJ = []; try { PJ = achPrj().filter(p => !p.del); } catch (e) {}
-    const O = [...PJ.map(p => ["prj:" + achU(p.code || p.intitule), "PROJET " + achU(p.code || "") + (p.intitule ? " — " + achU(p.intitule) : "")]), ...sviPgL("zones").filter(z => z.lab).map(z => ["zone:" + achU(z.lab), "ZONE " + achU(z.lab)])];
+    const O = [...PJ.map(p => ["prj:" + achU(p.code || p.intitule), "PROJET " + (p.code ? achU(p.code) + (p.intitule ? " — " + achU(p.intitule) : "") : achU(p.intitule || ""))]), ...sviPgL("zones").filter(z => z.lab).map(z => ["zone:" + achU(z.lab), "ZONE " + achU(z.lab)])];
     const opt = v => `<option value="">—</option>${O.concat(v && !O.some(o => o[0] === v) ? [[v, v]] : []).map(o => `<option value="${esc(o[0])}"${o[0] === v ? " selected" : ""}>${esc(o[1])}</option>`).join("")}`;
     box.innerHTML = `<table class="prm-table frs-sub art-pstdt"><thead><tr><th>PROJET OU ZONE</th><th class="number">PRIX STANDARD HT</th></tr></thead><tbody>${A.pstd.map((x, i) => `<tr data-i="${i}"><td><select class="ins-in art-psk" data-i="${i}"${ro ? " disabled" : ""}>${opt(x.k)}</select></td><td><input class="ins-in number art-psp" data-i="${i}" inputmode="decimal" value="${esc(x.px ? achF2(x.px) : "")}"${ro ? " readonly" : ""} autocomplete="off"></td></tr>`).join("")}
       ${ro ? "" : `<tr class="rec-new"><td><select class="ins-in art-psk" data-i="new">${opt("")}</select></td><td></td></tr>`}</tbody></table>`; };
