@@ -3264,7 +3264,8 @@ def main():
             document.querySelector('#navMenu .nav-btn[data-view="bdg"]').click(); await w(300); return r; }""")
         check("v764 : ARTICLES au format du budget — listes EN INSTANCE / VALIDÉS, dates, création par fenêtre (en instance, corbeille), page : bloc DOC / TAF / OBS, ⋯ VALIDER et UNITÉ DE CONVERSION, devis liés, ‹ ›",
               a764 == ["ARTICLES 2", 2, 2, 1, "instance", "ARTICLES 3", 3, True, True, "ART-0003", True, 3, 1, True,
-                       "MODIFIER LE FORMAT|APERÇU|SUPPRIMER CET ARTICLE|VALIDER|UNITÉ DE CONVERSION|BUDGETS (0)|BLOQUER|DISPOSITION PAR DÉFAUT|FERMER", '[{"u":"SAC","r":20}]', "instance", True, "valide", True, "ARTICLES 3", True, True, True], a764)   # 06/11 : une seule liste
+                       # v1183 (C2.16) : ⋯ DEMANDER L'ARCHIVAGE
+                       "MODIFIER LE FORMAT|APERÇU|SUPPRIMER CET ARTICLE|VALIDER|UNITÉ DE CONVERSION|BUDGETS (0)|BLOQUER|DEMANDER L'ARCHIVAGE|DISPOSITION PAR DÉFAUT|FERMER", '[{"u":"SAC","r":20}]', "instance", True, "valide", True, "ARTICLES 3", True, True, True], a764)   # 06/11 : une seule liste
         # v765 : toutes les listes des achats au format du budget — pas d'onglets, titre EN INSTANCE / VALIDÉS + bascule, dates, corbeille = ANNULER
         l765 = pg.evaluate("""async () => { const w = ms => new Promise(z => setTimeout(z, ms)), K = ['svi_ach_caf_v1', 'svi_ach_caf_mode_v1', 'svi_ach_caf_etat2_v1'], keep = K.map(k => localStorage.getItem(k)); K.forEach(k => localStorage.removeItem(k));
             achCafSave([{ id: 'c1', ref: 'CAF 1', state: 'ouverte', cree: '2026-10-30T10:00:00Z', lignes: [], frs: [] }, { id: 'c2', ref: 'CAF 2', state: 'close', cree: '2026-10-20T10:00:00Z', valide: '2026-10-25T10:00:00Z', lignes: [], frs: [] }]);

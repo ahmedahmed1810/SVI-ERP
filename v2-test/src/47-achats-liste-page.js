@@ -616,7 +616,7 @@ function achArtFiche(id, done) {
   sviWinShow(d);
   /* v1172 (C2.6) : articles équivalents classés par ordre de préférence (▲ ▼ pour l'ordre ; « — » retire) */
   A.eqv = Array.isArray(A.eqv) ? A.eqv.slice() : [];
-  const eqvDraw = () => { const box = d.querySelector(".art-eqv-box"); if (!box) return; const AL = achLive(achArts()).filter(x => x.id !== (a0 && a0.id));
+  const eqvDraw = () => { const box = d.querySelector(".art-eqv-box"); if (!box) return; const AL = achLive(achArts()).filter(x => x.id !== (a0 && a0.id) && (!x.arch || A.eqv.includes(x.id)));
     const opt = v => `<option value="">—</option>${AL.map(x => `<option value="${esc(x.id)}"${x.id === v ? " selected" : ""}>${esc(x.des + " (" + x.u + ")")}</option>`).join("")}`;
     box.innerHTML = `<table class="prm-table frs-sub art-eqvt"><thead><tr><th class="center">RANG</th><th>ARTICLE</th><th class="center">ORDRE</th></tr></thead><tbody>${A.eqv.map((id, i) => `<tr data-i="${i}"><td class="center">${i + 1}</td><td><select class="ins-in art-eqs" data-i="${i}"${ro ? " disabled" : ""}>${opt(id)}</select></td><td class="center">${ro ? "" : `<button type="button" class="ach-b" data-equp="${i}"${i ? "" : " disabled"}>▲</button> <button type="button" class="ach-b" data-eqdn="${i}"${i < A.eqv.length - 1 ? "" : " disabled"}>▼</button>`}</td></tr>`).join("")}
       ${ro ? "" : `<tr class="rec-new"><td></td><td><select class="ins-in art-eqs" data-i="new">${opt("")}</select></td><td></td></tr>`}</tbody></table>`; };
@@ -757,7 +757,7 @@ function achRefSvi(x, L, pfx) {
 }
 function achArtNvMod(ctx) {
   const same = (l, a) => achKey(l.des, l.u) === achKey(a.des, a.u);
-  const artWhy = a => achArtWhy(a).concat(a.cat ? [] : ["CATÉGORIE MANQUANTE"]).concat(a.bloq ? ["BLOQUÉ : " + (a.bloq.why || "")] : []);
+  const artWhy = a => achArtWhy(a).concat(a.cat ? [] : ["FAMILLE MANQUANTE"]).concat(a.archReq && !a.arch ? ["ARCHIVAGE DEMANDÉ PAR " + (a.archReq.u || "—") + " : À VALIDER PAR UNE AUTRE PERSONNE"] : []).concat(a.bloq ? ["BLOQUÉ : " + (a.bloq.why || "")] : []);
   return achNvMod(ctx, {
     list: { k: "art", t: "ach_art2", id: "achArtT", name: "ARTICLES", one: "ARTICLE", stKeys: ["instance", "valide", "bloque", "archive", "annule", "alerte"], edit: ACH_ED.art, all: achArts, save: achArtsSave, code: a => achRefSvi(a, achArts(), "ARA"), nom: a => a.des, why: artWhy,
       newRow: "CRÉER UN ARTICLE ICI…", add: done => achArtFiche(null, done),
@@ -773,6 +773,9 @@ function achArtNvMod(ctx) {
         info: done => achArtFiche(id, () => done()),
         menu: [...achNvCycle(a), { k: "cv", lab: "UNITÉ DE CONVERSION" + ((a.cv || []).length ? " (" + a.cv.length + ")" : "") }, { k: "bdg", lab: "BUDGETS (" + achArtBudgets(a).length + ")" },
           a.del ? null : a.bloq ? { k: "debl", lab: "DÉBLOQUER" } : { k: "bloq", lab: "BLOQUER" },
+          /* v1183 (C2.16) : archivage APRÈS VALIDATION — une personne demande (motif), une autre valide ; l'article archivé sort des listes de choix, son historique reste */
+          a.del ? null : a.arch ? { k: "desarch", lab: "DÉSARCHIVER" } : a.archReq ? { k: "archok", lab: "VALIDER L'ARCHIVAGE" } : { k: "archreq", lab: "DEMANDER L'ARCHIVAGE" },
+          !a.del && !a.arch && a.archReq ? { k: "archno", lab: "REFUSER L'ARCHIVAGE" } : null,
           a.del ? { k: "rest", lab: "RESTAURER" } : { k: "del", lab: "SUPPRIMER CET ARTICLE" }].filter(Boolean),
         act: async (k, redraw) => { const L = achArts(), x = L.find(y => y.id === id); if (!x) return;
           if (k === "bloq") { const m = await achAsk("BLOQUER " + x.des, "MOTIF DU BLOCAGE"); if (!m) return; x.bloq = { u: sviUser(), t: achNow(), why: m }; x.mod = achNow(); achArtsSave(L); achHist(x.code, "BLOQUÉ", m); redraw(); return; }
@@ -781,6 +784,12 @@ function achArtNvMod(ctx) {
           if (k === "defige") { achNvDefiger(L, x, x.code, x.des, achArtsSave); redraw(); return; }
           if (k === "val") { if (await achNvValider(L, x, x.code, x.des, artWhy(x), achArtsSave)) redraw(); return; }
           if (k === "cv") { achArtCv(id, redraw); return; }
+          if (k === "archreq") { const m = await achAsk("DEMANDER L'ARCHIVAGE DE " + x.des, "MOTIF (UNE AUTRE PERSONNE VALIDERA)"); if (!m) return; x.archReq = { u: sviUser(), t: achNow(), why: m }; x.mod = achNow(); achArtsSave(L); achHist(x.code, "ARCHIVAGE DEMANDÉ", m); redraw(); return; }
+          if (k === "archok") { const R = x.archReq || {}; if (R.u && R.u === sviUser()) { svToast("ARCHIVAGE DEMANDÉ PAR VOUS : UNE AUTRE PERSONNE DOIT LE VALIDER.", 4000); return; }
+            if (!(await svConfirm({ title: "VALIDER L'ARCHIVAGE", text: x.des + " (" + x.u + ") SORTIRA DES LISTES DE CHOIX ; SON HISTORIQUE RESTE. DEMANDÉ PAR " + (R.u || "—") + " : " + (R.why || ""), ok: "ARCHIVER", tone: "neutral" }))) return;
+            x.arch = achNow(); x.archBy = sviUser(); delete x.archReq; x.mod = x.arch; achArtsSave(L); achHist(x.code, "ARCHIVÉ (VALIDÉ)", R.why || ""); redraw(); return; }
+          if (k === "archno") { const m = await achAsk("REFUSER L'ARCHIVAGE DE " + x.des, "MOTIF DU REFUS"); if (!m) return; delete x.archReq; x.mod = achNow(); achArtsSave(L); achHist(x.code, "ARCHIVAGE REFUSÉ", m); redraw(); return; }
+          if (k === "desarch") { const m = await achAsk("DÉSARCHIVER " + x.des, "MOTIF"); if (!m) return; delete x.arch; delete x.archBy; x.mod = achNow(); achArtsSave(L); achHist(x.code, "DÉSARCHIVÉ", m); redraw(); return; }
           if (k === "bdg") { achBdgWin(x); return; }
           if (k === "del") { if (!(await svConfirm({ title: "SUPPRIMER CET ARTICLE", text: x.code + " — " + x.des + " (RESTAURABLE DEPUIS LA CORBEILLE).", ok: "SUPPRIMER" }))) return; x.del = achNow(); achArtsSave(L); achHist(x.code, "CORBEILLE", x.des); redraw(); return; }
           if (k === "rest") { if (achArtDup(L, x.des, x.u, x.id)) { svToast("RESTAURATION IMPOSSIBLE : UN ARTICLE IDENTIQUE EXISTE.", 3500); return; } x.del = ""; achArtsSave(L); achHist(x.code, "RESTAURATION", x.des); redraw(); } },
