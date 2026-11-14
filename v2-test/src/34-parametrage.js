@@ -324,6 +324,7 @@ function sviParamTabs() {
     if (dup) { svToast("DOUBLON : " + v + " EXISTE DÉJÀ.", 3500, inp); inp.value = i >= 0 ? L[i][f] : ""; setTimeout(() => inp.focus(), 0); return; }
     if (i >= 0) {
       L[i][f] = v;
+      if (f === "a" && v) { inp.classList.remove("ins-bad"); inp.removeAttribute("placeholder"); inp.removeAttribute("title"); }   /* v1177 : abréviation donnée = plus signalée */
       /* intitulé et abréviation effacés : la ligne est supprimée (FORMAT 90) */
       if (!clean(L[i].n) && !clean(L[i].a)) { L.splice(i, 1); sviUnitsSave(L); draw(); return; }
       sviUnitsSave(L); return;

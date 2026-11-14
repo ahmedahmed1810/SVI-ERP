@@ -343,7 +343,8 @@ const achPrjOfBdg = ref => { if (!ref) return ""; try { const b = sviInstGet().f
 const achPrjRec = prj => { const k = achU(prj || ""); if (!k) return null; try { return achPrj().find(p => !p.del && (achU(p.code) === k || achU(p.intitule) === k)) || null; } catch (e) { return null; } };
 const achZoneOf = prj => { const P = achPrjRec(prj), v = P ? achU(P.ville || "") : ""; if (!v) return ""; const Z = sviPgL("zones").find(z => String(z.villes || "").split(/[;,]/).map(achU).includes(v)); return Z ? achU(Z.lab) : ""; };
 const achArtStd = (a, prj) => { if (!a) return { px: 0, src: "" }; const L = Array.isArray(a.pstd) ? a.pstd : [], k = achU(prj || "");
-  if (k) { const x = L.find(y => y.k === "prj:" + k && achN(y.px) > 0); if (x) return { px: achN(x.px), src: "PROJET " + k };
+  if (k) { const R = achPrjRec(k), keys = [...new Set(["prj:" + k].concat(R ? ["prj:" + achU(R.code || R.intitule), "prj:" + achU(R.intitule || ""), "prj:" + achU(R.code || "")] : []))].filter(z => z !== "prj:");   /* v1177 : code ou intitulé */
+    const x = L.find(y => keys.includes(y.k) && achN(y.px) > 0); if (x) return { px: achN(x.px), src: "PROJET " + (R ? achU(R.code || R.intitule) : k) };
     const z = achZoneOf(k), y = z && L.find(w => w.k === "zone:" + z && achN(w.px) > 0); if (y) return { px: achN(y.px), src: "ZONE " + z }; }
   return { px: achN(a.pref), src: achN(a.pref) > 0 ? "STANDARD" : "" }; };
 /* v1176 : projet d'une ligne de devis — son besoin, sinon le besoin de la même ligne dans sa consultation */
