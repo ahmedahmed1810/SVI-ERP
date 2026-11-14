@@ -4112,3 +4112,6 @@ html.svi-nuit .frs-card .art-compt tr.art-comptot td { background: #15243A !impo
 /* v1187 (C2.5) : charge = article composé (bouton C à gauche du conditionnement) */
 .chg-cmp { position: absolute; right: 23px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; border-radius: 4px; border: 1px solid #1d4ed8; background: #e8efff; color: #1d4ed8; font-size: 10px; font-weight: 800; line-height: 14px; padding: 0; cursor: pointer; }
 html.svi-nuit .chg-cmp { background: #15243A; color: #7FB2FF; border-color: #7FB2FF; }
+/* v1188 : lettre du bouton C toujours bleue, quelle que soit la couleur de la ligne */
+html body td .chg-cmp:not(#svi-z1):not(#svi-z2):not(#svi-z3) { color: #1D4ED8 !important; -webkit-text-fill-color: #1D4ED8 !important; }
+html.svi-nuit body td .chg-cmp:not(#svi-z1):not(#svi-z2):not(#svi-z3) { color: #7FB2FF !important; -webkit-text-fill-color: #7FB2FF !important; }
