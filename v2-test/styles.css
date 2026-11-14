@@ -4100,3 +4100,6 @@ html.svi-nuit .art-pxcard .art-pxg { color: #CBD5E1; }
 /* v1179 : deux icônes (courbe + aperçu) côte à côte, entières */
 td.nv-apc:has(.nv-pxh) { white-space: nowrap; padding-left: 2px !important; padding-right: 2px !important; }
 td.nv-apc .nv-pxh + .nv-ap { margin-left: 4px; }
+/* v1181 : mode nuit — boutons actifs des fiches (▲ ▼…) foncés à flèche claire ; les grisés restent plus pâles */
+html.svi-nuit .frs-card .ach-b:not(:disabled):is([data-equp], [data-eqdn], [data-frup], [data-frdn]) { background: #243042 !important; color: #E5E9F0 !important; -webkit-text-fill-color: #E5E9F0 !important; border-color: #4B5D75 !important; }
+html.svi-nuit .frs-card .ach-b:disabled:is([data-equp], [data-eqdn], [data-frup], [data-frdn]) { background: transparent !important; color: #475569 !important; -webkit-text-fill-color: #475569 !important; border-color: #2A3340 !important; }
