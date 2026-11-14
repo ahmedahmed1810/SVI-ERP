@@ -60,6 +60,7 @@ function sviPgTable(pane, c) {
     const i = e.target.closest(".pg-in"); if (!i) return; const tr = i.closest("tr"), L2 = sviPgL(C.k), f = i.dataset.f, col = C.cols.find(x => x[0] === f);
     const v = i.type === "checkbox" ? i.checked : col[3] === "date" ? i.value : sviPgU(i.value);
     if (col[3] === "num" && v !== "" && !/^\d+$/.test(v)) { svToast(col[1] + " : CHIFFRES SEULEMENT.", 2500, i); sviPgTable(pane, C); return; }
+    if (col[3] === "dec" && v === "" && !tr.classList.contains("pg-new") && String((L2[+tr.dataset.i] || {})[f] ?? "") !== "") { svToast(col[1] + " : NOMBRE OBLIGATOIRE (EX. 2,4) — VALEUR D'AVANT GARDÉE.", 3000, i); sviPgTable(pane, C); return; }   /* v1174 */
     if (col[3] === "dec" && v !== "" && !/^\d+([.,]\d+)?$/.test(v)) { svToast(col[1] + " : NOMBRE (EX. 2,4 OU 0,5).", 2500, i); sviPgTable(pane, C); return; }
     if (C.uniq && f === C.uniq && v && L2.some((x, j) => sviPgU(x[f]) === v && String(j) !== tr.dataset.i)) { svToast(col[1] + " DÉJÀ PRIS.", 2500, i); sviPgTable(pane, C); return; }
     if (tr.classList.contains("pg-new")) { if (!v) return; const x = { id: sviPgId() }; C.cols.forEach(cc => { x[cc[0]] = cc[3] === "check" ? false : ""; }); x[f] = v; L2.push(x); }

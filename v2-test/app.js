@@ -7154,12 +7154,17 @@ function sviParamTabs() {
     const row = { n: "", a: "" };
     row[f] = v;
     tr.querySelectorAll(".prm-in").forEach(x => { row[x.dataset.f] = clean(x.value); });
+    /* v1174 : unité créée sans abréviation = l'intitulé lui-même (modifiable), s'il n'est pas déjà pris */
+    if (!row.a && row.n && !L.some(x => clean(x.a) === row.n)) row.a = row.n;
     L.push(row);
     sviUnitsSave(L);
     draw();
     const nt = pane.querySelector(`tr[data-i="${L.length - 1}"] .prm-in[data-f="${f === "n" ? "a" : "n"}"]`);
     if (nt) nt.focus();
   });
+  /* v1174 : une valeur d'un seul caractère mise en majuscules à la frappe : enregistrée en quittant la case (comme les autres tableaux) */
+  pane.addEventListener("focusout", e => { const i = e.target.closest && e.target.closest("input.prm-in"); if (!i || !i.isConnected) return;
+    if (String(i.value) !== String(i.defaultValue)) i.dispatchEvent(new Event("change", { bubbles: true })); });
   pane.addEventListener("click", async e => {
     const cf = e.target.closest(".cf-btn"); if (cf) { e.preventDefault(); e.stopPropagation(); UKIT.cfOpenMenu(cf); return; }
     if (!e.target.closest(".prm-del") || e.target.closest(".prm-del").disabled) return;
@@ -7413,6 +7418,7 @@ function sviPgTable(pane, c) {
     const i = e.target.closest(".pg-in"); if (!i) return; const tr = i.closest("tr"), L2 = sviPgL(C.k), f = i.dataset.f, col = C.cols.find(x => x[0] === f);
     const v = i.type === "checkbox" ? i.checked : col[3] === "date" ? i.value : sviPgU(i.value);
     if (col[3] === "num" && v !== "" && !/^\d+$/.test(v)) { svToast(col[1] + " : CHIFFRES SEULEMENT.", 2500, i); sviPgTable(pane, C); return; }
+    if (col[3] === "dec" && v === "" && !tr.classList.contains("pg-new") && String((L2[+tr.dataset.i] || {})[f] ?? "") !== "") { svToast(col[1] + " : NOMBRE OBLIGATOIRE (EX. 2,4) — VALEUR D'AVANT GARDÉE.", 3000, i); sviPgTable(pane, C); return; }   /* v1174 */
     if (col[3] === "dec" && v !== "" && !/^\d+([.,]\d+)?$/.test(v)) { svToast(col[1] + " : NOMBRE (EX. 2,4 OU 0,5).", 2500, i); sviPgTable(pane, C); return; }
     if (C.uniq && f === C.uniq && v && L2.some((x, j) => sviPgU(x[f]) === v && String(j) !== tr.dataset.i)) { svToast(col[1] + " DÉJÀ PRIS.", 2500, i); sviPgTable(pane, C); return; }
     if (tr.classList.contains("pg-new")) { if (!v) return; const x = { id: sviPgId() }; C.cols.forEach(cc => { x[cc[0]] = cc[3] === "check" ? false : ""; }); x[f] = v; L2.push(x); }

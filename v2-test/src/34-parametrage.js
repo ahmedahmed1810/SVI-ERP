@@ -332,12 +332,17 @@ function sviParamTabs() {
     const row = { n: "", a: "" };
     row[f] = v;
     tr.querySelectorAll(".prm-in").forEach(x => { row[x.dataset.f] = clean(x.value); });
+    /* v1174 : unité créée sans abréviation = l'intitulé lui-même (modifiable), s'il n'est pas déjà pris */
+    if (!row.a && row.n && !L.some(x => clean(x.a) === row.n)) row.a = row.n;
     L.push(row);
     sviUnitsSave(L);
     draw();
     const nt = pane.querySelector(`tr[data-i="${L.length - 1}"] .prm-in[data-f="${f === "n" ? "a" : "n"}"]`);
     if (nt) nt.focus();
   });
+  /* v1174 : une valeur d'un seul caractère mise en majuscules à la frappe : enregistrée en quittant la case (comme les autres tableaux) */
+  pane.addEventListener("focusout", e => { const i = e.target.closest && e.target.closest("input.prm-in"); if (!i || !i.isConnected) return;
+    if (String(i.value) !== String(i.defaultValue)) i.dispatchEvent(new Event("change", { bubbles: true })); });
   pane.addEventListener("click", async e => {
     const cf = e.target.closest(".cf-btn"); if (cf) { e.preventDefault(); e.stopPropagation(); UKIT.cfOpenMenu(cf); return; }
     if (!e.target.closest(".prm-del") || e.target.closest(".prm-del").disabled) return;
