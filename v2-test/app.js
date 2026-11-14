@@ -6828,7 +6828,7 @@ const SVI_HD_ALT = { "ACTIVITÉ SECONDAIRE": ["ACT. SECONDAIRE", "ACT SCD"], "AC
    ========================================================= */
 const SVI_UNITS_KEY = "svi_units_v1";
 const SVI_UNITS_DEF = [["UNITÉ", "U"], ["FORFAIT", "F"], ["MÈTRE", "M"], ["MÈTRE LINÉAIRE", "ML"], ["MÈTRE CARRÉ", "M2"],
-  ["MÈTRE CUBE", "M3"], ["TONNE", "T"], ["KILOGRAMME", "KG"], ["LITRE", "L"], ["ENSEMBLE", "ENS"]].map(([n, a]) => ({ n, a }));
+  ["MÈTRE CUBE", "M3"], ["TONNE", "T"], ["KILOGRAMME", "KG"], ["LITRE", "L"], ["ENSEMBLE", "ENS"], ["SAC", "SAC"]].map(([n, a]) => ({ n, a }));
 function sviUnits() {
   try { const v = JSON.parse(localStorage.getItem(SVI_UNITS_KEY) || "null"); if (Array.isArray(v)) return v; } catch (e) {}
   return SVI_UNITS_DEF.map(x => ({ ...x }));
@@ -7400,7 +7400,7 @@ function sviPgTable(pane, c) {
     if (t === "ro") return `<td class="center">${x ? esc(opts(x)) : ""}</td>`;   /* 05/11 : colonne calculée */
     if (t === "check") return `<td class="center"><input type="checkbox" class="pg-in" data-f="${k}"${v ? " checked" : ""}${x ? "" : " disabled"}></td>`;
     if (t === "sel") return `<td><select class="pg-in" data-f="${k}"><option value=""></option>${(opts() || []).map(o => `<option value="${esc(o[0])}"${String(v) === String(o[0]) ? " selected" : ""}>${esc(o[1])}</option>`).join("")}</select></td>`;
-    return `<td${t === "num" || t === "date" ? ' class="center"' : ""}><input class="prm-in pg-in${t === "num" ? " center" : ""}" data-f="${k}"${t === "date" ? ' type="date"' : ""} value="${esc(v ?? "")}"${!x && i === 0 ? ` placeholder="${esc(c.newLab)}"` : ""} autocomplete="off"></td>`; };
+    return `<td${t === "num" || t === "dec" || t === "date" ? ' class="center"' : ""}><input class="prm-in pg-in${t === "num" || t === "dec" ? " center" : ""}"${t === "dec" ? ' inputmode="decimal"' : ""} data-f="${k}"${t === "date" ? ' type="date"' : ""} value="${esc(v ?? "")}"${!x && i === 0 ? ` placeholder="${esc(c.newLab)}"` : ""} autocomplete="off"></td>`; };
   pane.innerHTML = `<table class="prm-table pg-t" data-pgk="${c.k}"><colgroup>${c.cols.map(f => `<col style="width:${f[2]}px">`).join("")}<col style="width:44px"></colgroup>
     <thead><tr>${c.cols.map(f => `<th class="${f[3] === "num" || f[3] === "check" || f[3] === "date" ? "center" : ""}">${esc(f[1])}</th>`).join("")}<th class="center"><input type="checkbox" class="pg-all" aria-label="Tout cocher"></th></tr></thead>
     <tbody>${L.map((x, i) => `<tr data-i="${i}">${c.cols.map(f => cell(x, f, 1)).join("")}<td class="center"><input type="checkbox" class="pg-cb"></td></tr>`).join("")}
@@ -7413,10 +7413,14 @@ function sviPgTable(pane, c) {
     const i = e.target.closest(".pg-in"); if (!i) return; const tr = i.closest("tr"), L2 = sviPgL(C.k), f = i.dataset.f, col = C.cols.find(x => x[0] === f);
     const v = i.type === "checkbox" ? i.checked : col[3] === "date" ? i.value : sviPgU(i.value);
     if (col[3] === "num" && v !== "" && !/^\d+$/.test(v)) { svToast(col[1] + " : CHIFFRES SEULEMENT.", 2500, i); sviPgTable(pane, C); return; }
+    if (col[3] === "dec" && v !== "" && !/^\d+([.,]\d+)?$/.test(v)) { svToast(col[1] + " : NOMBRE (EX. 2,4 OU 0,5).", 2500, i); sviPgTable(pane, C); return; }
     if (C.uniq && f === C.uniq && v && L2.some((x, j) => sviPgU(x[f]) === v && String(j) !== tr.dataset.i)) { svToast(col[1] + " DÉJÀ PRIS.", 2500, i); sviPgTable(pane, C); return; }
     if (tr.classList.contains("pg-new")) { if (!v) return; const x = { id: sviPgId() }; C.cols.forEach(cc => { x[cc[0]] = cc[3] === "check" ? false : ""; }); x[f] = v; L2.push(x); }
     else { const x = L2[+tr.dataset.i]; if (!x) return; if (col[3] === "radio1" || C.one === f) L2.forEach(y => { y[f] = false; }); x[f] = v; }
     sviPgLSave(C.k, L2); if (C.after) C.after(); sviPgTable(pane, C); });
+  /* v1173 : une valeur d'un seul caractère (T, U, F…) mise en majuscules à la frappe ne déclenche pas « change » : enregistrée en quittant la case */
+  pane.addEventListener("focusout", e => { const i = e.target.closest && e.target.closest("input.pg-in"); if (!i || i.type === "checkbox" || !i.isConnected) return;
+    if (String(i.value) !== String(i.defaultValue)) i.dispatchEvent(new Event("change", { bubbles: true })); });
   pane.addEventListener("click", e => { const b = e.target.closest(".pg-del"); if (!b || b.disabled) return; const C = pane.__pgc, t = pane.querySelector("table.pg-t");
     const del = new Set([...t.querySelectorAll(".pg-cb:checked")].map(x => +x.closest("tr").dataset.i));
     svConfirm({ title: "SUPPRIMER LES LIGNES COCHÉES", text: del.size + " LIGNE(S) SUPPRIMÉE(S).", ok: "SUPPRIMER" }).then(go => { if (!go) return; sviPgLSave(C.k, sviPgL(C.k).filter((x, i) => !del.has(i))); if (C.after) C.after(); sviPgTable(pane, C); }); });
@@ -7541,7 +7545,7 @@ function sviPgDraw2(k, pane) {
   if (k === "grades") { pane.__pgc = { k: "grades", uniq: "n", newLab: "CRÉER UN GRADE ICI… (N°)", cols: [["n", "GRADE", 120, "num"], ["lab", "INTITULÉ", 460, ""]] }; sviPgTable(pane, pane.__pgc); return; }
   if (k === "ftypes") { pane.__pgc = { k: "ftypes", uniq: "lab", newLab: "CRÉER UN TYPE ICI…", cols: [["lab", "TYPE", 260, ""], ["pre", "PRÉFIXE DE RÉFÉRENCE", 170, ""], ["docs", "DOCUMENTS EXIGÉS (SÉPARÉS PAR ;)", 420, ""]] }; sviPgTable(pane, pane.__pgc); return; }
   if (k === "ucv") { const U = () => (typeof sviUnits === "function" ? sviUnits() : []).map(u => u.a || u).filter(Boolean).map(u => [u, u]);
-    pane.__pgc = { k: "ucv", uniq: "", newLab: "CRÉER UNE CONVERSION ICI… (UNITÉ)", cols: [["a", "1 UNITÉ", 160, ""], ["r", "= RATIO", 140, "num"], ["b", "UNITÉ CIBLE", 160, "sel", U], ["_s", "SENS INVERSE", 260, "ro", x => x.a && x.b && achN0(x.r) > 0 ? "1 " + x.b + " = " + String(Math.round(1 / achN0(x.r) * 1e6) / 1e6).replace(".", ",") + " " + x.a : ""]] };
+    pane.__pgc = { k: "ucv", uniq: "", newLab: "CRÉER UNE CONVERSION ICI… (UNITÉ)", cols: [["a", "1 UNITÉ", 160, ""], ["r", "= RATIO", 140, "dec"], ["b", "UNITÉ CIBLE", 160, "sel", U], ["_s", "SENS INVERSE", 260, "ro", x => x.a && x.b && achN0(x.r) > 0 ? "1 " + x.b + " = " + String(Math.round(1 / achN0(x.r) * 1e6) / 1e6).replace(".", ",") + " " + x.a : ""]] };
     sviPgTable(pane, pane.__pgc); return; }
   if (k === "atypes") { pane.__pgc = { k: "atypes", uniq: "lab", newLab: "CRÉER UN TYPE ICI…", cols: [["lab", "TYPE D'ARTICLE", 360, ""]] }; sviPgTable(pane, pane.__pgc); return; }
   if (k === "sfam") { pane.__pgc = { k: "sfam", uniq: "lab", newLab: "CRÉER UNE SOUS-FAMILLE ICI…", cols: [["lab", "SOUS-FAMILLE", 300, ""], ["fam", "FAMILLE (OBLIGATOIRE)", 260, "sel", () => (typeof achPrm === "function" ? achPrm().cat : []).map(c => [c, c])], ["_st", "ÉTAT", 220, "ro", x => x.fam ? "" : "⚠ FAMILLE À CHOISIR (NON PROPOSÉE)"]] }; sviPgTable(pane, pane.__pgc); return; }

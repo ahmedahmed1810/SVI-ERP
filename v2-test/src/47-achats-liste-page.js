@@ -620,7 +620,8 @@ function achArtFiche(id, done) {
     const nr = achArtNear(L, A.des, A.u, a0 ? a0.id : ""); if (nr) svToast("PRESQUE IDENTIQUE À " + nr.code + " — " + nr.des + " : À FUSIONNER SI C'EST LE MÊME ARTICLE.", 4500);
     let a;
     if (a0) { a = L.find(x => x.id === a0.id); const LAB = { des: "DÉSIGNATION", u: "UNITÉ", cat: "FAMILLE", stk: "STOCKÉ", tva: "TVA", pref: "PRIX RÉF.", pmax: "PLAFOND", actif: "ACTIF", cpt: "CODE COMPTABLE", cptI: "INTITULÉ COMPTABLE", sfam: "SOUS-FAMILLE", nat: "TYPE", per: "PÉRISSABLE", cons: "DURÉE DE CONSERVATION", fab: "FABRICANTS", poids: "POIDS", vol: "VOLUME", cb: "CODE-BARRES", photo: "PHOTO", ft: "FICHE TECHNIQUE", ua: "UNITÉ D'ACHAT", eqv: "ÉQUIVALENTS" };
-      const ch = Object.keys(LAB).filter(k => JSON.stringify(a[k] ?? "") !== JSON.stringify(A[k] ?? "")); Object.assign(a, A, { mod: achNow() }); if (ch.length) achHist(a.code, "MODIFICATION", ch.map(k => LAB[k]).join(", ")); }
+      const nz = v => v === undefined || v === null || v === false || v === 0 || v === "" || (Array.isArray(v) && !v.length) ? "" : v;   /* v1173 : champ absent = vide */
+      const ch = Object.keys(LAB).filter(k => JSON.stringify(nz(a[k])) !== JSON.stringify(nz(A[k]))); Object.assign(a, A, { mod: achNow() }); if (ch.length) achHist(a.code, "MODIFICATION", ch.map(k => LAB[k]).join(", ")); }
     else { a = achArtNew(L, A); a.st = "instance"; a.cpt = A.cpt; a.cptI = A.cptI; ["sfam", "nat", "per", "cons", "fab", "poids", "vol", "cb", "photo", "ft", "ua", "eqv"].forEach(k => { if (A[k] !== undefined) a[k] = A[k]; }); achHist(a.code, "CRÉATION", a.des + " (" + a.u + ")"); }
     if (ftBlob) { const k = "ach:art-ft:" + a.id; sviFiles.put(k, ftBlob).catch(() => {}); a.ft = k; ftBlob = null; }
     achArtsSave(L); d.remove(); if (done) done(a.id);

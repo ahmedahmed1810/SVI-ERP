@@ -4081,3 +4081,5 @@ html.svi-nuit :is(.bdg-inst-instance, .bdg-inst-fige) :is(.rec-tab, .bdg-d-tab) 
 html.svi-nuit .svlk-go.svlk-off, html.svi-nuit .lk-go.lk-off, html.svi-nuit .svlk-go:disabled { background: #2A3340 !important; color: #94A3B8 !important; -webkit-text-fill-color: #94A3B8 !important; }
 /* v1170 : mode nuit — libellés des cases des fiches (STOCKABLE, PÉRISSABLE, ACTIF…) lisibles */
 html.svi-nuit :is(.frs-card, .pg-soc-card) .frs-c { color: #CBD5E1 !important; -webkit-text-fill-color: #CBD5E1 !important; }
+/* v1173 : mode nuit — boutons grisés des fiches (▲ ▼…) visibles */
+html.svi-nuit #ach .ach-b:disabled, html.svi-nuit .frs-card .ach-b:disabled { opacity: 1 !important; color: #64748B !important; -webkit-text-fill-color: #64748B !important; border-color: #334155 !important; background: #1B222C !important; }
