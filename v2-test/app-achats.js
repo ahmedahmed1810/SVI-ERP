@@ -2693,7 +2693,7 @@ function achCafInfo(id, done) { const L0 = achCaf(), c0 = id ? L0.find(x => x.id
   const ro = !!c0 && c0.state !== "ouverte", d = sviWinNew(), dis = ro ? " disabled" : "";
   const C = JSON.parse(JSON.stringify(c0 || { objet: "", lignes: [], frs: [] })); if (!c0) { C.lignes = []; C.frs = []; } achCafUp(C);
   const code0 = c0 ? (c0.ref || c0.code) : "";
-  const BSN = achBsnOpen(), BS = new Map(achBsn().map(b => [b.id, b])), ARTS = achArts().filter(a => !a.del), FRS = achFrs().filter(f => !f.del);
+  const BSN = achBsnOpen(), BS = new Map(achBsn().map(b => [b.id, b])), ARTS = achArts().filter(a => !a.del && !a.bloq && !a.arch), FRS = achFrs().filter(f => !f.del);
   const docs0 = code0 ? (achJ("svi_docs_v1:ACH-" + code0, []) || []).map((d0, i) => ({ ...d0, __id: d0.ref || "d" + i })) : [];
   const S = { L: C.lignes.map(l => ({ ...l })), F: C.frs.map(f => ({ k: f, id: f, nom: achFrsNom(f) })), D: docs0.filter(x => !(C.dhide || []).includes(x.__id)).map(x => ({ ...x, k: x.__id })), Dh: [],
     K: (C.cond || []).map(x => ({ ...x })), lk: {}, sel: null };
