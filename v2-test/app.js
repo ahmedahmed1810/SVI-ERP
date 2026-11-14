@@ -5456,7 +5456,7 @@ function sviGridTop(g) {
 }
 /* champs des fenêtres des achats (#svConf) agrandissables par leur coin (même poignée que les fenêtres INF ; taille gardée par champ) */
 function sviFldRszUp(i) {
-  if (!i || i.__rsz || i.closest(".fld-wrap") || i.closest("table") || ["checkbox", "radio", "file", "color", "hidden"].includes(i.type)) return; i.__rsz = true;
+  if (!i || i.__rsz || i.matches(".no-fw") || i.closest(".fld-wrap") || i.closest("table") || ["checkbox", "radio", "file", "color", "hidden"].includes(i.type)) return; i.__rsz = true;
   const lab = i.closest("label"), k = "fld.svc." + (i.dataset.k || i.dataset.f || i.id || ((lab && lab.querySelector("span")) || {}).textContent || "x").replace(/\s+/g, " ").trim();
   const wrap = document.createElement("span"); wrap.className = "fld-wrap svc-fw"; i.replaceWith(wrap); wrap.appendChild(i);
   const S = (() => { try { return psLoad()[k]; } catch (e) { return null; } })(); if (S && S.w) { wrap.style.width = S.w + "px"; wrap.classList.add("sized"); } if (S && S.h) i.style.height = S.h + "px";
@@ -5502,6 +5502,7 @@ function sviFldFam(el) {
 }
 function sviFamUp(root) {
   root.querySelectorAll("input, select, textarea").forEach(el => {
+    if (el.matches(".no-fw")) return;   /* v1182 : famille donnée par la fiche (ex. texte long en lecture seule) */
     if (el.closest("table, .mkp-f, #svMaskPop, .fmw-pal") || ["checkbox", "radio", "file", "color", "hidden", "range"].includes(String(el.type || "").toLowerCase())) return;
     if (!el.closest(".frs-f, .doc-cell, .svc-card label, #docPop label")) return;
     const box = el.closest(".fld-wrap") || (el.tagName === "SELECT" && el.__svBtn) || el;
