@@ -921,3 +921,48 @@ document.addEventListener("change", e => { const a = e.target.closest && e.targe
   const c = e.target.closest && e.target.closest(".nvp-cb"); if (!c) return; const t = c.closest("table"), m = String(c.closest("tr").className).match(/\bsvlk-gt-(\S+)/);
   if (m) t.querySelectorAll("tbody tr.svlk-g-" + CSS.escape(m[1]) + ":not(.svlk-hid) .nvp-cb").forEach(x => { x.checked = c.checked; });   /* v1136 (L8 A) : cocher un titre = tout son groupe */
   achNvpAllSt(t); });
+/* =========================================================
+   v1189 (C3.2) : EXPORT ET IMPORT EN MASSE (EXCEL) — ARTICLES et FOURNISSEURS, menu ⋯ de la liste.
+   EXPORTER : toutes les fiches (hors corbeille), une ligne par fiche, colonnes fixes (réimportables).
+   IMPORTER : fenêtre IMPORTER commune ; les lignes reconnues (article : DÉSIGNATION + UNITÉ ; fournisseur : ICE, sinon NOM) mettent à jour la fiche,
+   les autres sont des CRÉATIONS PROPOSÉES (EN INSTANCE, à valider) ; un récapitulatif est confirmé avant tout enregistrement.
+   ========================================================= */
+const ACH_XL = {
+  art: { name: "ARTICLES", cols: [["code", "CODE"], ["des", "DÉSIGNATION"], ["u", "UNITÉ"], ["cat", "FAMILLE"], ["sfam", "SOUS-FAMILLE"], ["nat", "TYPE"], ["stk", "STOCKABLE", "b"], ["per", "PÉRISSABLE", "b"], ["cons", "DURÉE DE CONSERVATION (JOURS)", "n"],
+      ["pref", "PRIX DE RÉFÉRENCE HT", "n"], ["pmax", "PLAFOND HT", "n"], ["tva", "TVA %", "n"], ["ua", "UNITÉ D'ACHAT"], ["qmin", "QUANTITÉ MINIMALE", "n"], ["poids", "POIDS (KG)", "n"], ["vol", "VOLUME (M3)", "n"], ["cb", "CODE-BARRES"], ["fab", "FABRICANTS"], ["cpt", "CODE COMPTABLE"], ["cptI", "INTITULÉ COMPTABLE"]] },
+  frs: { name: "FOURNISSEURS", cols: [["code", "CODE"], ["nom", "NOM"], ["denom", "DÉNOMINATION SOCIALE"], ["forme", "FORME JURIDIQUE"], ["type", "TYPE"], ["pays", "PAYS"], ["ville", "VILLE"], ["adresse", "ADRESSE"],
+      ["ice", "ICE"], ["ifisc", "IF"], ["rc", "RC"], ["villeRc", "VILLE DU RC"], ["patente", "PATENTE"], ["cnss", "CNSS"], ["tel", "TÉLÉPHONE", "c"], ["email", "E-MAIL", "c"], ["rib", "RIB PRINCIPAL", "r"], ["cond", "CONDITIONS DE PAIEMENT"], ["delai", "DÉLAI DE LIVRAISON (JOURS)", "n"]] } };
+const achXlVal = (k, x, c) => { const t = c[2]; if (k === "art" && c[0] === "code") return achRefSvi(x, achArts(), "ARA"); if (k === "frs" && c[0] === "code") return achFrsRef ? achFrsRef(x) : x.code;
+  if (t === "b") return x[c[0]] ? "OUI" : "NON"; if (t === "c") { const ct = (x.cte || []).find(y => y[c[0]]); return ct ? ct[c[0]] : ""; } if (t === "r") { const r = achFrsRibP(x); return r ? r.rib : ""; }
+  if (t === "n") return achN(x[c[0]]) || ""; return x[c[0]] ?? ""; };
+async function achXlExport(k) { const D = ACH_XL[k], L = (k === "art" ? achArts() : achFrs()).filter(x => !x.del);
+  try { const X = await loadXLSX(), aoa = [D.cols.map(c => c[1])].concat(L.map(x => D.cols.map(c => achXlVal(k, x, c)))), ws = X.utils.aoa_to_sheet(aoa), wb = X.utils.book_new();
+    ws["!cols"] = D.cols.map(c => ({ wch: Math.max(10, Math.min(40, c[1].length + 4)) })); X.utils.book_append_sheet(wb, ws, D.name);
+    const out = X.write(wb, { bookType: "xlsx", type: "array" }), b = new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), u = URL.createObjectURL(b), a = document.createElement("a");
+    a.href = u; a.download = D.name + " " + new Date().toISOString().slice(0, 10) + ".xlsx"; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(u); a.remove(); }, 1500);
+    svToast(L.length + " " + D.name + " EXPORTÉS.", 2500); } catch (e) { sviImpErr ? sviImpErr(e) : svToast("EXPORT IMPOSSIBLE : " + (e.message || e), 4000); } }
+async function achXlImport(k) { const D = ACH_XL[k], rx = s => new RegExp("^" + s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s*\(.*\)$/, "") + "\\b", "i");
+  const R = await sviImport({ title: "IMPORTER DANS LES " + D.name, cols: D.cols.filter(c => c[0] !== "code").map(c => ({ k: c[0], lab: c[1], rx: rx(c[1]), num: c[2] === "n" })), file: true, online: true, clip: true,
+    key: r => k === "art" ? achKey(r.des, r.u) : (achDig(r.ice) || achU(r.nom)) });
+  if (!R || !(R.rows || []).length) return;
+  const rows = R.rows.filter(r => !r.title), L = k === "art" ? achArts() : achFrs(), up = [], cr = [], bad = [];
+  rows.forEach((r, i) => { const v = c => r[c] === undefined || r[c] === null ? "" : String(r[c]).trim();
+    if (k === "art") { const des = achU(v("des")), u = achU(v("u")); if (!des || !u) { bad.push("LIGNE " + (i + 1) + " : DÉSIGNATION ET UNITÉ OBLIGATOIRES"); return; } if (/^DIVERS\b/.test(des)) { bad.push("LIGNE " + (i + 1) + " : PAS D'ARTICLE « DIVERS »"); return; }
+      const x = L.find(y => !y.del && achKey(y.des, y.u) === achKey(des, u)); (x ? up : cr).push({ r, x }); }
+    else { const nom = achU(v("nom")); if (!nom) { bad.push("LIGNE " + (i + 1) + " : NOM OBLIGATOIRE"); return; } const ice = achDig(v("ice")); if (ice && !achIceOk(ice)) { bad.push("LIGNE " + (i + 1) + " : " + achIceMsg()); return; }
+      const x = L.find(y => !y.del && ((ice && achDig(y.ice) === ice) || (!ice && achU(y.nom) === nom))); (x ? up : cr).push({ r, x }); } });
+  if (!(await svConfirm({ title: "IMPORTER DANS LES " + D.name, html: `<div class="svc-sub">${up.length} FICHE(S) MISE(S) À JOUR</div><div class="svc-sub">${cr.length} CRÉATION(S) PROPOSÉE(S) (EN INSTANCE, À VALIDER)</div>${bad.length ? `<div class="svc-sub svc-warn">${bad.length} LIGNE(S) REFUSÉE(S) :</div><ul class="svc-list">${bad.slice(0, 8).map(b => `<li>${esc(b)}</li>`).join("")}${bad.length > 8 ? `<li>… ET ${bad.length - 8} AUTRE(S)</li>` : ""}</ul>` : ""}`, ok: "IMPORTER", tone: "neutral" }))) return;
+  const set = (x, r) => D.cols.forEach(c => { if (c[0] === "code" || r[c[0]] === undefined || String(r[c[0]]).trim() === "") return; const val = String(r[c[0]]).trim();
+    if (c[2] === "b") x[c[0]] = /^(OUI|O|1|X|VRAI|TRUE|YES)$/i.test(val); else if (c[2] === "n") x[c[0]] = achN(val);
+    else if (c[2] === "c") { x.cte = Array.isArray(x.cte) ? x.cte : []; let ct = x.cte[0]; if (!ct) { ct = { nom: "", fonction: "", role: "", tel: "", email: "", rec: [] }; x.cte.push(ct); } ct[c[0]] = c[0] === "email" ? val.toLowerCase() : val; }
+    else if (c[2] === "r") { x.ribs = Array.isArray(x.ribs) ? x.ribs : []; const d = achDig(val); if (d && !x.ribs.some(y => achDig(y.rib) === d)) { x.ribs.forEach(y => { y.p = false; }); x.ribs.push({ rib: d, p: true }); if (x.code) x.ribChg = achNow(); } }
+    else x[c[0]] = achU(val); });
+  up.forEach(({ r, x }) => { set(x, r); x.mod = achNow(); achHist(x.code, "IMPORT EXCEL", "MISE À JOUR"); });
+  cr.forEach(({ r }) => { if (k === "art") { const a = achArtNew(L, { des: achU(r.des), u: achU(r.u), cat: achU(r.cat || "") }); a.st = "instance"; set(a, r); achHist(a.code, "CRÉATION (IMPORT EXCEL)", a.des + " (" + a.u + ")"); }
+    else { const f = achFrsNew(L, { nom: achU(r.nom) }); set(f, r); achHist(f.code, "CRÉATION (IMPORT EXCEL)", f.nom); } });
+  if (k === "art") achArtsSave(L); else achFrsSave(L);
+  svToast(up.length + " MISE(S) À JOUR, " + cr.length + " CRÉATION(S) EN INSTANCE.", 3500);
+  try { const v = document.getElementById("ach"); if (v && v.__achTab) v.__achTab(k); } catch (e) {} }
+window.SVI_LIST_EXTRA = (window.SVI_LIST_EXTRA || []).concat([
+  { when: t => /^ARTICLES\b/.test(t), items: [{ k: "xlart_e", lab: "EXPORTER LES ARTICLES (EXCEL)" }, { k: "xlart_i", lab: "IMPORTER DES ARTICLES (EXCEL…)" }], act: a => a === "xlart_e" ? achXlExport("art") : achXlImport("art") },
+  { when: t => /^FOURNISSEURS\b/.test(t), items: [{ k: "xlfrs_e", lab: "EXPORTER LES FOURNISSEURS (EXCEL)" }, { k: "xlfrs_i", lab: "IMPORTER DES FOURNISSEURS (EXCEL…)" }], act: a => a === "xlfrs_e" ? achXlExport("frs") : achXlImport("frs") }]);
