@@ -1,0 +1,2 @@
+    /* v881 : DESSIN DU GANTT sorti du grand bloc → 29b-gantt-dessin.js (sviBdgGanttDessin) */
+    const { dlyGanttDraw, dlyCfgPaint, dlyRngEdge } = sviBdgGanttDessin({ DLYG_REF, DLY_SC, ECR, INS, body, dlyDwGet, dlyLinks, dlyLotColor, dlyPredFin, dlyRhApply, dlyScale, dlygMine, insCal, lotLab, qqArret, shell, dlyHRange: () => dlyHRange, dlyHistData: () => dlyHistData, dlyInc: () => dlyInc, dlyNoLab: () => dlyNoLab, dlyIncHTML: () => dlyIncHTML, dlyLimHTML: () => dlyLimHTML, dlyGraphHTML: () => dlyGraphHTML, dlyPickPaint: () => dlyPickPaint });

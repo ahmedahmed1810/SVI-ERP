@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1,viewport-fit=cover"
+  >
+
+  <title>SVI ERP — TEST</title>
+
+  <!-- VERSION DE TEST : données locales séparées de la version validée -->
+  <script>
+    (function () {
+      var P = "svitest:", S = Storage.prototype;
+      var g = S.getItem, st = S.setItem, r = S.removeItem;
+      S.getItem = function (k) { return g.call(this, P + k); };
+      S.setItem = function (k, v) { return st.call(this, P + k, v); };
+      S.removeItem = function (k) { return r.call(this, P + k); };
+      var o = indexedDB.open.bind(indexedDB);
+      indexedDB.open = function (n, v) { return o("svitest_" + n, v); };
+      window.SVI_TEST = true;
+    })();
+  </script>
+
+  <link
+    rel="stylesheet"
+    href="styles.css?v=1190"
+  >
+</head>
+
+<body>
+  <div style="position:fixed;left:50%;top:6px;transform:translateX(-50%);z-index:20000;background:#dc2626;color:#fff;
+    font:800 11px Arial,sans-serif;padding:3px 10px;border-radius:10px;pointer-events:none;letter-spacing:.5px" id="sviTestTag">VERSION TEST</div>
+
+  <!-- =====================================================
+       ENTETE PRINCIPALE
+       ===================================================== -->
+
+  <header class="topbar">
+
+    <div>
+      <div class="brand">
+        SVI ERP
+      </div>
+
+      <div
+        class="subtitle"
+        id="pageSubtitle"
+      >
+        VERSION 2 — CHARGES STANDARDS
+      </div>
+    </div>
+
+    <nav class="main-nav">
+
+      <button
+        class="nav-btn active"
+        data-view="chs"
+      >
+        PARAMÉTRAGE
+      </button>
+
+
+      <button
+        class="nav-btn"
+        data-view="bdg"
+      >
+        BDG
+      </button>
+
+      <button
+        class="nav-btn"
+        data-view="ach"
+      >
+        ACHATS
+      </button>
+
+    </nav>
+
+  </header>
+
+
+  <main>
+
+    <!-- ===================================================
+         PARAMÉTRAGE (ancien écran CHS, retiré en v742 ; l'identifiant « chs » est gardé pour le menu)
+         =================================================== -->
+
+    <!-- v927 (remarque 13 du 04/11/2026) : ÉCRAN D'ACCUEIL — ouvert après la connexion ; ⋯ = RÉGLAGES COMMUNS (tout le programme) -->
+    <section id="home" class="view active-view">
+      <div class="section-head home-head">
+        <button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button>
+        <div><h1>SVI ERP — ACCUEIL</h1><p id="homeUser"></p></div>
+        <button type="button" class="inst-act home-close hdr-off" id="homeClose" title="Fermer" aria-label="Fermer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <button type="button" class="inst-act bdg-more-btn home-more" id="homeMore" title="Réglages communs" aria-label="Réglages communs">⋯</button>
+      </div>
+      <div class="home-body" id="homeBody"></div>
+    </section>
+
+    <section
+      id="chs"
+      class="view"
+    >
+
+      <div class="section-head">
+
+      <button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button>
+
+        
+        <div>
+          <h1>
+            PARAMÉTRAGE
+          </h1>
+
+          <p></p>
+        </div>
+
+      </div>
+
+
+    </section>
+
+
+
+
+    <!-- ===================================================
+         ACHATS (v749, étape 1 : articles et paramètres ; src/40-achats-donnees.js, 41-achats-ecran.js)
+         =================================================== -->
+    <section id="ach" class="view">
+      <div class="section-head">
+        <button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button>
+        <div>
+          <h1>ACHATS</h1>
+          <p></p>
+        </div>
+      </div>
+      <div class="prm-tabs ach-tabs"><button type="button" class="prm-tab" data-ach="bsn">BESOINS</button><button type="button" class="prm-tab" data-ach="caf">CONSULTATIONS</button><button type="button" class="prm-tab" data-ach="dvf">DEVIS</button><button type="button" class="prm-tab" data-ach="cmf">COMMANDES</button><button type="button" class="prm-tab" data-ach="rcp">RÉCEPTIONS</button><button type="button" class="prm-tab" data-ach="faf">FACTURES</button><button type="button" class="prm-tab" data-ach="paf">PAIEMENTS</button><button type="button" class="prm-tab on" data-ach="art">ARTICLES</button><button type="button" class="prm-tab" data-ach="frs">FOURNISSEURS</button></div>
+      <div class="ach-body"></div>
+    </section>
+
+    <!-- ===================================================
+         BDG — LISTE DES BUDGETS
+         =================================================== -->
+        <section id="bdg" class="view">
+      <div class="novapp-list-shell">
+        <div class="novapp-list-titlebar">
+          <button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button>
+          <h1>BUDGETS VALIDÉS <span id="bdgListCount"></span></h1>
+          <span class="bdg-d-badge nvl-h" role="button" title="Historique">H</span>
+          <span class="svi-listbar"></span>
+        </div>
+        <div class="novapp-budget-table-wrap">
+          <table id="budgetListTable" class="novapp-budget-table">
+            <thead></thead>
+            <tbody>
+              <tr><td colspan="7" class="empty">CHARGEMENT DES BUDGETS...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+
+  <!-- =====================================================
+       MODALE GLOBALE
+       ===================================================== -->
+
+<div id="navMenu" class="popup hidden">
+  <!-- 10/11 (Ahmed) : ACCUEIL, ACHATS (BESOINS en tête, TABLEAU DE BORD après ARTICLES), VENTES (BUDGETS, PROJETS, CLIENTS), PARAMÉTRAGE — libellés au pluriel -->
+  <button class="nav-btn active" data-view="home"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>ACCUEIL</button>
+  <button type="button" class="nav-grp" data-grp="ach" aria-expanded="false"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2.5l2.2 11h10.6L20.5 8H7"/><circle cx="9.5" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/></svg><span>ACHATS</span><i>›</i></button>
+  <div class="nav-sub" data-grp="ach" hidden>
+    <button class="nav-btn" data-view="ach" data-ach="bsn"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h10M9 12h10M9 19h6"/><path d="M4 4.5v2M3 5.5h2M4 11.5v2M3 12.5h2M4 18.5v2M3 19.5h2"/></svg><span>BESOINS</span></button>
+    <button class="nav-btn" data-view="ach" data-ach="caf"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M10 9.2a2 2 0 1 1 2.8 1.8c-.6.3-.8.7-.8 1.3M12 14.3v.1"/></svg><span>CONSULTATIONS</span></button>
+    <button class="nav-btn" data-view="ach" data-ach="dvf"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M14.5 11.5c-.4-.6-1.1-1-1.9-1-1.2 0-2.1.9-2.1 2.5s.9 2.5 2.1 2.5c.8 0 1.5-.4 1.9-1M9.5 12.3h3.5M9.5 13.8h3.5"/></svg><span>DEVIS</span></button>
+    <button class="nav-btn" data-view="ach" data-ach="cmf"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9.5 4V3h5v1M9 12.5l2 2 4-4"/></svg><span>COMMANDES</span></button>
+    <button class="nav-btn" data-view="ach" data-ach="rcp"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/></svg><span>RÉCEPTIONS</span></button>
+    <button class="nav-btn" data-view="ach" data-ach="faf"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4L6 21z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><span>FACTURES</span></button>
+    <button class="nav-btn" data-view="ach" data-ach="paf"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h4"/></svg><span>PAIEMENTS</span></button>
+    <button class="nav-btn" data-view="ach" data-ach="frs"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V10l6 3V9l6 3V5h6v16z"/><path d="M7 17h2M12 17h2M17 17h2"/></svg><span>FOURNISSEURS</span></button>
+    <button class="nav-btn" data-view="ach" data-ach="art"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg><span>ARTICLES</span></button>
+    <button type="button" class="nav-off" data-why="TABLEAU DE BORD — ACHATS : À VENIR."><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg><span>TABLEAU DE BORD</span></button>
+    <button type="button" class="nav-off" data-why="ACC : À VENIR."><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg><span>ACC</span></button>
+  </div>
+  <button type="button" class="nav-grp" data-grp="vte" aria-expanded="false"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5M4 19h16"/><path d="M7 15l4-4 3 3 5-6"/></svg><span>VENTES</span><i>›</i></button>
+  <div class="nav-sub" data-grp="vte" hidden>
+    <button class="nav-btn" data-view="bdg"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg><span>BUDGETS</span></button>
+    <button class="nav-btn" data-view="ach" data-ach="prj"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V10l7-5 7 5v11"/><path d="M10 21v-6h4v6"/></svg><span>PROJETS</span></button>
+    <button class="nav-btn" data-view="ach" data-ach="cli"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.8c1.7.8 2.8 2.5 3 5.2"/></svg><span>CLIENTS</span></button>
+  </div>
+  <button class="nav-btn" data-view="chs"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></svg><span>PARAMÉTRAGE</span></button>
+  <div class="nav-sep"></div>
+  <button type="button" class="nav-src" id="navSrcBtn"><svg class="nav-ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.5"/><path d="M5 5.5v13c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-13M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></svg><span>DONNÉES SOURCE</span></button>
+</div>
+
+  
+  <!-- =====================================================
+       JAVASCRIPT
+       ===================================================== -->
+
+  <!-- v753 : un fichier par module (assemblés par outils/assembler.py) — socle commun d'abord -->
+  <script src="app.js?v=1190"></script>
+  <script src="app-budget.js?v=1190"></script>
+
+</body>
+
+</html>

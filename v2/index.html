@@ -11,9 +11,54 @@
 
   <title>SVI ERP — V2</title>
 
+  <!-- v748 : premier lancement de la version validée sur cet appareil — reprise unique des données de la version test -->
+  <script>
+    (function () {
+      var F = "svi_from_test_v1", P = "svitest:";
+      try { if (localStorage.getItem(F)) return; } catch (e) { return; }
+      var has = false;
+      try { for (var i = 0; i < localStorage.length; i++) { if (String(localStorage.key(i)).indexOf(P) === 0) { has = true; break; } } } catch (e) {}
+      if (!has) { try { localStorage.setItem(F, "rien"); } catch (e) {} return; }
+      window.__sviMig = true;
+      try {
+        var K = []; for (var j = 0; j < localStorage.length; j++) { var k = String(localStorage.key(j)); if (k.indexOf(P) === 0) K.push(k); }
+        K.forEach(function (k) { localStorage.setItem(k.slice(P.length), localStorage.getItem(k)); });
+      } catch (e) {}
+      var copy = function (name, store) { return new Promise(function (ok) {
+        var a = indexedDB.open("svitest_" + name, 1);
+        a.onupgradeneeded = function () { a.transaction.abort(); };   /* pas de base de test : rien à copier */
+        a.onerror = function () { ok(); };
+        a.onsuccess = function () {
+          var src = a.result; if (!src.objectStoreNames.contains(store)) { src.close(); ok(); return; }
+          var t = src.transaction(store, "readonly").objectStore(store), ks = t.getAllKeys(), vs = t.getAll();
+          vs.onerror = function () { src.close(); ok(); };
+          vs.onsuccess = function () {
+            src.close();
+            var b = indexedDB.open(name, 1);
+            b.onupgradeneeded = function () { if (!b.result.objectStoreNames.contains(store)) b.result.createObjectStore(store); };
+            b.onerror = function () { ok(); };
+            b.onsuccess = function () {
+              var dst = b.result; if (!dst.objectStoreNames.contains(store)) { dst.close(); ok(); return; }
+              var w = dst.transaction(store, "readwrite"), o = w.objectStore(store);
+              ks.result.forEach(function (key, n) { o.put(vs.result[n], key); });
+              w.oncomplete = w.onerror = w.onabort = function () { dst.close(); ok(); };
+            };
+          };
+        };
+      }); };
+      var end = function () { try { localStorage.setItem(F, new Date().toISOString()); } catch (e) {} location.reload(); };
+      document.addEventListener("DOMContentLoaded", function () {
+        var m = document.createElement("div");
+        m.style.cssText = "position:fixed;inset:0;z-index:30000;background:#fff;display:flex;align-items:center;justify-content:center;font:800 14px Arial,sans-serif;color:#1f2937";
+        m.textContent = "MISE À JOUR DE LA VERSION VALIDÉE : REPRISE DES DONNÉES DE CET APPAREIL…"; document.body.appendChild(m);
+      });
+      Promise.all([copy("svi_store", "kv"), copy("svi_files", "f")]).then(end, end);
+    })();
+  </script>
+
   <link
     rel="stylesheet"
-    href="styles.css?v=20"
+    href="styles.css?v=748"
   >
 </head>
 
@@ -44,15 +89,9 @@
         class="nav-btn active"
         data-view="chs"
       >
-        CHS
+        PARAMÉTRAGE
       </button>
 
-      <button
-        class="nav-btn"
-        data-view="bds"
-      >
-        BDS
-      </button>
 
       <button
         class="nav-btn"
@@ -69,7 +108,7 @@
   <main>
 
     <!-- ===================================================
-         CHS
+         PARAMÉTRAGE (ancien écran CHS, retiré en v742 ; l'identifiant « chs » est gardé pour le menu)
          =================================================== -->
 
     <section
@@ -79,77 +118,19 @@
 
       <div class="section-head">
 
+      <button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button>
+
+        
         <div>
           <h1>
-            CHS — CHARGES STANDARDS
+            PARAMÉTRAGE
           </h1>
 
-          <p>
-            BIBLIOTHÈQUE DES CHARGES STANDARDS
-          </p>
+          <p></p>
         </div>
 
-        <button
-          class="primary"
-          id="addChsBtn"
-        >
-          + AJOUTER
-        </button>
-
       </div>
 
-
-      <div class="toolbar">
-
-        <input
-          id="chsSearch"
-          type="search"
-          placeholder="RECHERCHER ARTICLE, DÉSIGNATION, UNITÉ..."
-        >
-
-        <div
-          class="count"
-          id="chsCount"
-        ></div>
-
-      </div>
-
-
-      <div class="table-wrap">
-
-        <table id="chsTable">
-
-          <thead>
-            <tr>
-              <th>
-                ARTICLE ▾
-              </th>
-
-              <th>
-                DÉSIGNATION ▾
-              </th>
-
-              <th>
-                UNITÉ ▾
-              </th>
-
-              <th class="number">
-                PCS ▾
-              </th>
-            </tr>
-          </thead>
-
-          <tbody></tbody>
-
-        </table>
-
-      </div>
-
-
-      <p class="hint">
-        APPUI LONG SUR UNE LIGNE :
-        INFORMATION · MODIFIER · DUPLIQUER · SUPPRIMER
-      </p>
 
     </section>
 
@@ -164,6 +145,7 @@
     >
 
       <div class="section-head">
+      <button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button>
 
         <div>
 
@@ -172,8 +154,8 @@
           </h1>
 
           <p>
-            PROJET → LOT → TÂCHE PRIMAIRE →
-            TÂCHE SECONDAIRE → BORDEREAU DES PRIX
+            PROJET → LOT → ACTIVITÉ PRIMAIRE →
+            ACTIVITÉ SECONDAIRE → BORDEREAU DES PRIX
           </p>
 
         </div>
@@ -256,7 +238,7 @@
           <div class="panel-head">
 
             <strong>
-              3. TÂCHE PRIMAIRE
+              3. ACTIVITÉ PRIMAIRE
             </strong>
 
             <button
@@ -289,7 +271,7 @@
           <div class="panel-head">
 
             <strong>
-              4. TÂCHE SECONDAIRE
+              4. ACTIVITÉ SECONDAIRE
             </strong>
 
             <button
@@ -437,403 +419,27 @@
 
 
     <!-- ===================================================
-         BDG — BUDGET
+         BDG — LISTE DES BUDGETS
          =================================================== -->
-
-    <section
-      id="bdg"
-      class="view"
-    >
-
-      <div class="section-head">
-
-        <div>
-
-          <h1>
-            BDG — BUDGET
-          </h1>
-
-          <p>
-            PRODUITS · CHARGES · MARGE · RENDEMENT
-          </p>
-
+        <section id="bdg" class="view">
+      <div class="novapp-list-shell">
+        <div class="novapp-list-titlebar">
+          <button class="novapp-menu open-menu" type="button" aria-label="Menu">☰</button>
+          <h1>BUDGETS VALIDÉS <span id="bdgListCount"></span></h1>
+          <div class="novapp-list-actions">
+            <button type="button" aria-label="Historique">⌛</button>
+            <button type="button" aria-label="Liste">≡</button>
+          </div>
         </div>
-
-      </div>
-
-
-      <!-- ===============================================
-           SELECTEURS BDG
-           =============================================== -->
-
-      <div class="bdg-selectors">
-
-        <label>
-
-          <span>
-            PROJET
-          </span>
-
-          <select id="project">
-            <option value="">
-              CHARGEMENT...
-            </option>
-          </select>
-
-        </label>
-
-
-        <label>
-
-          <span>
-            LOT
-          </span>
-
-          <select id="lot">
-            <option value="">
-              SÉLECTIONNER
-            </option>
-          </select>
-
-        </label>
-
-
-        <label>
-
-          <span>
-            ACTIVITÉ PRIMAIRE
-          </span>
-
-          <select id="primary">
-            <option value="">
-              SÉLECTIONNER
-            </option>
-          </select>
-
-        </label>
-
-
-        <label>
-
-          <span>
-            ACTIVITÉ SECONDAIRE
-          </span>
-
-          <select id="secondary">
-            <option value="">
-              SÉLECTIONNER
-            </option>
-          </select>
-
-        </label>
-
-
-        <label class="bdg-designation">
-
-          <span>
-            DÉSIGNATION BRD
-          </span>
-
-          <input
-            id="brdDesignation"
-            type="text"
-            readonly
-            value=""
-          >
-
-        </label>
-
-      </div>
-
-
-      <!-- ===============================================
-           PRODUITS + CHARGES
-           =============================================== -->
-
-      <div class="bdg-workgrid">
-
-
-        <!-- PRODUITS -->
-
-        <article class="bdg-panel">
-
-          <div class="bdg-panel-head">
-
-            <div>
-
-              <strong>
-                DÉTAIL PRODUIT
-              </strong>
-
-              <div
-                class="context"
-                id="productContext"
-              >
-                PRODUITS DE LA TÂCHE SÉLECTIONNÉE
-              </div>
-
-            </div>
-
-          </div>
-
-
-          <div
-            class="table-wrap"
-            id="productPanel"
-          >
-
-            <table id="productTable">
-
-              <thead>
-
-                <tr>
-
-                  <th>
-                    N°
-                  </th>
-
-                  <th>
-                    DÉSIGNATION
-                  </th>
-
-                  <th>
-                    UPB
-                  </th>
-
-                  <th>
-                    NBR
-                  </th>
-
-                  <th>
-                    DIM 1
-                  </th>
-
-                  <th>
-                    DIM 2
-                  </th>
-
-                  <th>
-                    DIM 3
-                  </th>
-
-                  <th class="number">
-                    QPB PRT
-                  </th>
-
-                  <th class="number">
-                    PPB
-                  </th>
-
-                  <th class="number">
-                    MPB
-                  </th>
-
-                </tr>
-
-              </thead>
-
-              <tbody>
-
-                <tr>
-
-                  <td
-                    colspan="10"
-                    class="empty"
-                  >
-                    SÉLECTIONNEZ UNE TÂCHE
-                  </td>
-
-                </tr>
-
-              </tbody>
-
-              <tfoot></tfoot>
-
-            </table>
-
-          </div>
-
-        </article>
-
-
-        <!-- CHARGES -->
-
-        <article class="bdg-panel">
-
-          <div class="bdg-panel-head">
-
-            <div>
-
-              <strong>
-                DÉTAIL CHARGES
-              </strong>
-
-              <div
-                class="context"
-                id="chargeContext"
-              >
-                CHARGES DE LA TÂCHE SÉLECTIONNÉE
-              </div>
-
-            </div>
-
-          </div>
-
-
-          <div
-            class="table-wrap"
-            id="chargePanel"
-          >
-
-            <table id="chargeTable">
-
-              <thead>
-
-                <tr>
-
-                  <th>
-                    N°
-                  </th>
-
-                  <th>
-                    ARTICLE
-                  </th>
-
-                  <th>
-                    DÉSIGNATION
-                  </th>
-
-                  <th>
-                    UCB
-                  </th>
-
-                  <th class="number">
-                    QCB
-                  </th>
-
-                  <th class="number">
-                    PCS
-                  </th>
-
-                  <th class="number">
-                    MCB
-                  </th>
-
-                </tr>
-
-              </thead>
-
-              <tbody>
-
-                <tr>
-
-                  <td
-                    colspan="7"
-                    class="empty"
-                  >
-                    SÉLECTIONNEZ UNE TÂCHE
-                  </td>
-
-                </tr>
-
-              </tbody>
-
-              <tfoot></tfoot>
-
-            </table>
-
-          </div>
-
-        </article>
-
-      </div>
-
-
-      <!-- ===============================================
-           ANALYSE
-           =============================================== -->
-
-      <article class="bdg-analysis">
-
-        <div class="bdg-tabs">
-
-          <button
-            class="tab active"
-            data-tab="designation"
-          >
-            MARGE PAR DÉSIGNATION
-          </button>
-
-          <button
-            class="tab"
-            data-tab="primaryMargin"
-          >
-            MARGE PAR ACTIVITÉ PRIMAIRE
-          </button>
-
-          <button
-            class="tab"
-            data-tab="yield"
-          >
-            RENDEMENT SELON BUDGET
-          </button>
-
-        </div>
-
-
-        <div id="analysisCompact">
-
-          <table>
-
-            <thead>
-
-              <tr>
-
-                <th>
-                  DÉSIGNATION
-                </th>
-
-                <th class="number">
-                  PRODUITS
-                </th>
-
-                <th class="number">
-                  CHARGES
-                </th>
-
-                <th class="number">
-                  MARGE
-                </th>
-
-                <th class="number">
-                  TAUX
-                </th>
-
-              </tr>
-
-            </thead>
-
+        <div class="novapp-budget-table-wrap">
+          <table id="budgetListTable" class="novapp-budget-table">
+            <thead></thead>
             <tbody>
-
-              <tr>
-
-                <td
-                  colspan="5"
-                  class="empty"
-                >
-                  SÉLECTIONNEZ UNE TÂCHE
-                </td>
-
-              </tr>
-
+              <tr><td colspan="7" class="empty">CHARGEMENT DES BUDGETS...</td></tr>
             </tbody>
-
           </table>
-
         </div>
-
-      </article>
-
+      </div>
     </section>
 
   </main>
@@ -843,6 +449,14 @@
        MODALE GLOBALE
        ===================================================== -->
 
+<div id="navMenu" class="popup hidden">
+  <button class="nav-btn active" data-view="chs">PARAMÉTRAGE</button>
+  <button class="nav-btn" data-view="bdg">BDG</button>
+  <div class="nav-sep"></div>
+  <button type="button" class="nav-src" id="navSrcBtn">DONNÉES SOURCE</button>
+</div>
+
+  
   <div
     id="modal"
     class="modal hidden"
@@ -910,7 +524,7 @@
        JAVASCRIPT
        ===================================================== -->
 
-  <script src="app.js?v=40"></script>
+  <script>if (!window.__sviMig) document.write('<script src="app.js?v=748"><\/script>');</script>
 
 </body>
 

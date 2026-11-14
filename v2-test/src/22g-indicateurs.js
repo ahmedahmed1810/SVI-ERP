@@ -1,0 +1,2 @@
+    /* v843 : les INDICATEURS sorti du grand bloc → 28l-indicateurs.js (sviBdgIndicateurs) */
+    const { indData, ratData, indLoad, indText, indSaveL, indWin, indEls, indCalc, indPlusMenu, indDesignWin, indBar, indNum, indTableCtl, IND_STORE, indLive } = sviBdgIndicateurs({ INS, cfApply, cfHead, cfOpenMenu, insId, openExportMenu, openImportBudget, ratItems, ratNum, shell, verInd, histLog: () => histLog, printGeneric: () => printGeneric });

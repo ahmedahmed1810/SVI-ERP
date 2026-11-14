@@ -1,0 +1,2 @@
+    /* v886 : DOUBLONS ET CLASSEMENT sorti du grand bloc → 29g-doublons-classement.js (sviBdgDoublons) */
+    const { insUnlHTML, dupCount, lkPending, DUP_LAB, insRenderChain, lkDlyDirty, lkPlan, insSortAll, dupExisting, dupKeyOf } = sviBdgDoublons({ ECR, INS, INS_EDIT, INS_REAL, cfApply, cfHead, insCalc, insId, insNorm, insSave, lkOn, prdChainKey, ref, shell, lkName: () => lkName, histLog: () => histLog, refreshAll: () => refreshAll, insUnlinked: () => insUnlinked, lkCheck: () => lkCheck });

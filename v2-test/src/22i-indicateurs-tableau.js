@@ -1,0 +1,2 @@
+    /* v842 : le TABLEAU DES INDICATEURS sorti du grand bloc → 28k-indicateurs-tableau.js (sviBdgIndicateursTableau) */
+    const { ibdChart, ibdFx, ibdR, ibdSave, ibdSeries, ibdSteps, ibdUnit } = sviBdgIndicateursTableau({ INS, INS_EDIT, RAT_C, budget, indCalc, indDesignWin, indEls, indNum, insId, insSave, lines, ratMigrate, ratPerSub, ratPeriods, refreshAll, shell, table, histLog: () => histLog });

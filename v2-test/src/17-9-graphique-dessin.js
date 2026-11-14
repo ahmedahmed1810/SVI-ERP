@@ -1,0 +1,2 @@
+    /* v877 : DESSIN DU GRAPHIQUE sorti du grand bloc → 28x-graphique-dessin.js (sviBdgGraphique) */
+    const { dlyGraphHTML } = sviBdgGraphique({ ECR, INS, dlyCurDates, insCal, ref, shell, dlyHSet: () => dlyHSet, dlyHRange: () => dlyHRange, dlyCurGK: () => dlyCurGK, dlyCapOK: () => dlyCapOK, dlyResSel: () => dlyResSel, dlyCapSegs: () => dlyCapSegs, dlyCapDef: () => dlyCapDef, dlyRdSt: () => dlyRdSt, dlyRdAt: () => dlyRdAt, dlyRdSrc: () => dlyRdSrc, dlyRdSegs: () => dlyRdSegs, dlyRdLim: () => dlyRdLim, lkName: () => lkName, dlyHistLab: () => dlyHistLab });

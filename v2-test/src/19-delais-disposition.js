@@ -1,0 +1,2 @@
+    /* v874 : DÉLAIS ET DISPOSITION sorti du grand bloc → 28u-delais-disposition.js (sviBdgDelaisDisposition) */
+    const { renderTab, dlyTable, coDrag, layDrag, layResize, roStart, DLY_COLS, layApply, layInit } = sviBdgDelaisDisposition({ CF, ECR, INS, INS_EDIT, body, byKindNow, cfApply, cfHead, dlyCfgPaint, insRenderTab, lines, refreshAll, roLoad, roSave, selRows, shell, table, tabs, recTabApply: () => recTabApply, histLog: () => histLog, colSelToggle: () => colSelToggle });
