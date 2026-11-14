@@ -652,8 +652,11 @@ function achArtFiche(id, done) {
   compDraw();
   d.addEventListener("change", e => { const s2 = e.target.closest(".art-cps"), q2 = e.target.closest(".art-cpq"); if (!s2 && !q2) return;
     if (s2) { const v = s2.value, i = s2.dataset.i; if (v && achCompHas(v, a0 && a0.id)) { svToast("COMPOSANT REFUSÉ : IL CONTIENT DÉJÀ CET ARTICLE (BOUCLE).", 3500, s2); compDraw(); return; }
-      if (i === "new") { if (v && !A.comp.some(c => c.id === v)) A.comp.push({ id: v, q: 0 }); } else if (!v) A.comp.splice(+i, 1); else if (!A.comp.some((c, j) => c.id === v && j !== +i)) A.comp[+i].id = v; else svToast("DÉJÀ DANS LA COMPOSITION.", 2500, s2); compDraw(); return; }
-    const c = A.comp[+q2.dataset.i]; if (c) { const n = achN(q2.value); if (!(n > 0)) { svToast("QUANTITÉ : NOMBRE POSITIF.", 2500, q2); compDraw(); return; } c.q = n; } compDraw(); });
+      if (i === "new") { if (v && A.comp.some(c => c.id === v)) svToast("DÉJÀ DANS LA COMPOSITION.", 2500, s2); else if (v) A.comp.push({ id: v, q: 0 }); } else if (!v) A.comp.splice(+i, 1); else if (!A.comp.some((c, j) => c.id === v && j !== +i)) A.comp[+i].id = v; else svToast("DÉJÀ DANS LA COMPOSITION.", 2500, s2); compDraw(); return; }
+    compQ(q2); });
+  /* v1186 : la quantité est lue aussi en quittant la case (la mise en forme des nombres peut empêcher « change ») */
+  const compQ = q2 => { const c = A.comp[+q2.dataset.i]; if (!c) return; const n = achN(q2.value); if (!(n > 0)) { svToast("QUANTITÉ : NOMBRE POSITIF — VALEUR GARDÉE.", 2500, q2); compDraw(); return; } if (n !== achN(c.q)) { c.q = n; compDraw(); } };
+  d.addEventListener("focusout", e => { const q2 = e.target.closest && e.target.closest(".art-cpq"); if (q2 && q2.isConnected) setTimeout(() => { if (q2.isConnected) compQ(q2); }, 0); });
   d.addEventListener("change", e => { const s2 = e.target.closest(".art-frs"); if (!s2) return; const v = s2.value, i = s2.dataset.i;
     if (i === "new") { if (v && !A.frsH.includes(v)) A.frsH.push(v); } else if (!v) A.frsH.splice(+i, 1); else if (!A.frsH.includes(v)) A.frsH[+i] = v; frhDraw(); });
   d.addEventListener("click", e => { const sg = e.target.closest("[data-frsug]"); if (sg) { if (!A.frsH.includes(sg.dataset.frsug)) A.frsH.push(sg.dataset.frsug); frhDraw(); return; }
@@ -662,6 +665,7 @@ function achArtFiche(id, done) {
   d.addEventListener("change", e => { const k = e.target.closest(".art-psk"), p2 = e.target.closest(".art-psp"); if (!k && !p2) return;
     if (k) { const i = k.dataset.i, v = k.value; if (i === "new") { if (v && !A.pstd.some(x => x.k === v)) A.pstd.push({ k: v, px: 0 }); } else if (!v) A.pstd.splice(+i, 1); else if (!A.pstd.some((x, j) => x.k === v && j !== +i)) A.pstd[+i].k = v; else svToast("DÉJÀ DANS LA LISTE.", 2500, k); pstdDraw(); return; }
     const x = A.pstd[+p2.dataset.i]; if (x) { const n = achN(p2.value); if (n < 0) { svToast("PRIX NON VALIDE.", 2500, p2); pstdDraw(); return; } x.px = n; } });
+  d.addEventListener("focusout", e => { const p2 = e.target.closest && e.target.closest(".art-psp"); if (!p2) return; const x = A.pstd[+p2.dataset.i]; if (x) { const n = achN(p2.value); if (n >= 0) x.px = n; } });
   d.addEventListener("change", e => { const s2 = e.target.closest(".art-eqs"); if (!s2) return; const v = s2.value, i = s2.dataset.i;
     if (i === "new") { if (v && !A.eqv.includes(v)) A.eqv.push(v); } else if (!v) A.eqv.splice(+i, 1); else if (!A.eqv.includes(v)) A.eqv[+i] = v; eqvDraw(); });
   d.addEventListener("click", e => { const u = e.target.closest("[data-equp], [data-eqdn]"); if (!u) return; const i = +(u.dataset.equp ?? u.dataset.eqdn), j = u.dataset.equp !== undefined ? i - 1 : i + 1;
@@ -781,7 +785,7 @@ function achArtNvMod(ctx) {
       newRow: "CRÉER UN ARTICLE ICI…", add: done => achArtFiche(null, done),
       w: { ref: 110, nom: 360, u: 70, cat: 200, pref: 110, pmax: 110, nfr: 120, freq: 120, val: 110, cree: 110 },
       cols: mode => [["ref", "RÉFÉRENCE", a => achRefSvi(a, achArts(), "ARA"), ""], ["nom", "DÉSIGNATION", a => a.des, ""], ["u", "UNT", a => a.u, "center"], ["cat", "FAMILLE", a => a.cat || "", ""],
-        ["pref", "PRIX RÉF. HT", a => achN(a.pref), "number"], ["pmax", "PLAFOND HT", a => achN(a.pmax) ? achN(a.pmax) : "", "number"],
+        ["pref", "PRIX RÉF. HT", a => (a.comp || []).length ? Math.round(achCompPx(a) * 100) / 100 : achN(a.pref), "number"], ["pmax", "PLAFOND HT", a => achN(a.pmax) ? achN(a.pmax) : "", "number"],
         ["nfr", "FOURNISSEURS", a => { const R = achRep(achKey(a.des, a.u)); return R.n + (R.n < R.need ? " !" : ""); }, "center"], ["freq", "FRÉQUENCE", a => achArtFreq(a).lab, "center"]]
         .concat(mode === "valid" ? [["val", "VALIDÉ LE", a => achDFr(a.val || a.cree), "center"]] : []).concat([["cree", "SAISI LE", a => achDFr(a.cree), "center"]]) },
     pageOf: id => { const a = achArts().find(x => x.id === id); if (!a) return null;

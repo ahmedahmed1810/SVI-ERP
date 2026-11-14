@@ -33,7 +33,7 @@ function sviAchInit() {
     ["cat", "CATÉGORIE", a => a.cat || "", ""],
     ["stk", "STOCKÉ", a => a.stk ? "OUI" : "NON", "center"],
     ["tva", "TVA %", a => achN(a.tva), "number"],
-    ["pref", "PRIX RÉF. HT", a => achN(a.pref), "number"],
+    ["pref", "PRIX RÉF. HT", a => (a.comp || []).length ? Math.round(achCompPx(a) * 100) / 100 : achN(a.pref), "number"],
     ["pmax", "PLAFOND HT", a => achN(a.pmax), "number"],
     ["bdg", "BUDGETS", a => achArtBudgets(a, BM).length, "center"],
     ["actif", "ACTIF", a => a.actif === false ? "NON" : "OUI", "center"]
