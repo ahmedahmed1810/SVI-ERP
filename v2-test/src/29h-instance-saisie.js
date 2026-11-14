@@ -590,7 +590,7 @@ function sviBdgInstanceSaisie(C) {
     const pmpWhy = pmp ? "PRIX MOYEN PONDÉRÉ : " + r.__det.map(x => x.o + " " + money(x.q) + " × " + money(x.p)).join(" ; ") : "";
     return `<td class="${cls} ins-td${pk ? " ins-pkc" : ""}${pmp ? " ins-pmp" : ""}${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : pmp ? ` data-why="${esc(pmpWhy)}"` : ""}><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
       ${type === "num" ? 'inputmode="decimal"' : ""} ${locked ? "disabled" : ""}
-      value="${esc(val)}" ${isNew && f === "des" ? `placeholder="${k === "chg" ? "CRÉER UNE CHARGE ICI…" : k === "prd" ? "CRÉER UN PRODUIT ICI…" : "CRÉER UNE LIGNE ICI…"}"` : artA ? `placeholder="${esc(artA)}"` : ""} autocomplete="off">${pk ? condBtn(r) : ""}</td>`;
+      value="${esc(val)}" ${isNew && f === "des" ? `placeholder="${k === "chg" ? "CRÉER UNE CHARGE ICI…" : k === "prd" ? "CRÉER UN PRODUIT ICI…" : "CRÉER UNE LIGNE ICI…"}"` : artA ? `placeholder="${esc(artA)}"` : ""} autocomplete="off">${pk ? condBtn(r) : ""}${pk && typeof sviArtCompOf === "function" && sviArtCompOf(r.des, r.u) ? `<button type="button" class="chg-cmp" tabindex="-1" data-des="${esc(r.des || "")}" data-u="${esc(r.u || "")}" data-q="${esc(String(r.q ?? ""))}" title="Article composé : composants" aria-label="Article composé">C</button>` : ""}</td>`;
   };
   let INS_CELL_LVL = 0;
   /* remarque 4 (v542) : conditionnement réglé sur l'article (tous les budgets, voir 26b) ou, avant, sur ce budget */

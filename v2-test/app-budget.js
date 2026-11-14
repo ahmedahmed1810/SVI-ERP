@@ -3814,6 +3814,29 @@ function sviBdgConditionnement(C) {
     }, true);
   }
 }
+
+/* =========================================================
+   v1187 (C2.5, 2e partie) : ARTICLE COMPOSÉ dans le budget — une charge dont la désignation et l'unité sont celles d'un article composé
+   (liste des articles des achats) est marquée « C » ; un toucher montre ses composants au prorata de la QCB de la charge, avec leurs prix standard
+   ========================================================= */
+const sviArtU = v => String(v ?? "").replace(/\s+/g, " ").trim().toUpperCase();
+const sviArtAll = () => { try { const raw = localStorage.getItem("svi_ach_art_v1"); if (raw === null) return []; const t = /^[\[{]/.test(raw) ? raw : SVI_LZ.dec(raw); const L = JSON.parse(t || "[]"); return Array.isArray(L) ? L.filter(a => a && !a.del) : []; } catch (e) { return []; } };
+const sviArtCompPx = (a, A, seen) => { seen = seen || new Set(); if (!a || seen.has(a.id)) return 0; seen.add(a.id); if (!(a.comp || []).length) return Number(a.pref) || 0;
+  return a.comp.reduce((t, c) => { const x = A.find(y => y.id === c.id); return t + (Number(c.q) || 0) * (x ? sviArtCompPx(x, A, new Set(seen)) : 0); }, 0); };
+function sviArtCompOf(des, u) { const A = sviArtAll(), k = sviArtU(des) + "|" + sviArtU(u), a = A.find(x => sviArtU(x.des) + "|" + sviArtU(x.u) === k && (x.comp || []).length); if (!a) return null;
+  return { a, px: sviArtCompPx(a, A), rows: a.comp.map(c => { const x = A.find(y => y.id === c.id); return { des: x ? x.des : "?", u: x ? x.u : "", q: Number(c.q) || 0, px: x ? sviArtCompPx(x, A) : 0 }; }) }; }
+function sviArtCompWin(des, u, qcb) { const C = sviArtCompOf(des, u); if (!C) return; const Q = Number(String(qcb ?? "").replace(/\s/g, "").replace(",", ".")) || 0, f2 = n => (Math.round(n * 100) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const d = sviWinNew(); let tot = 0;
+  const rows = C.rows.map(r => { const q = r.q * Q, m = q * r.px; tot += m; return `<tr><td>${esc(r.des)}</td><td class="number">${esc(f2(r.q))}</td><td class="number">${esc(f2(q))}</td><td class="center">${esc(r.u)}</td><td class="number">${r.px ? esc(f2(r.px)) : "—"}</td><td class="number">${r.px ? esc(f2(m)) : "—"}</td></tr>`; }).join("");
+  d.innerHTML = sviWinCard({ cls: "frs-card", close: "data-x", title: "ARTICLE COMPOSÉ — " + esc(sviArtU(des) + " (" + sviArtU(u) + ")"),
+    body: `<div class="frs-scroll"><div class="bsn-note">COMPOSANTS POUR LA QCB DE LA CHARGE : ${esc(f2(Q))} ${esc(sviArtU(u))} (COMPOSITION DE LA LISTE DES ARTICLES, AU PRORATA)</div>
+      <table class="prm-table frs-sub"><thead><tr><th>COMPOSANT</th><th class="number">POUR 1 ${esc(sviArtU(u))}</th><th class="number">QUANTITÉ</th><th class="center">U</th><th class="number">PRIX STANDARD</th><th class="number">MONTANT</th></tr></thead>
+      <tbody>${rows}<tr class="art-comptot"><td colspan="5">TOTAL (PRIX STANDARD ${esc(f2(C.px))} / ${esc(sviArtU(u))})</td><td class="number">${esc(f2(tot))}</td></tr></tbody></table></div>`,
+    foot: `<button type="button" class="svc-b" data-x>FERMER</button>` });
+  sviWinShow(d); d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) d.remove(); }); }
+if (typeof document !== "undefined" && !window.__sviCmpBound) { window.__sviCmpBound = true;
+  ["pointerdown", "mousedown"].forEach(t => document.addEventListener(t, e => { if (e.target.closest && e.target.closest(".chg-cmp")) { e.stopPropagation(); e.preventDefault(); } }, true));
+  document.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".chg-cmp"); if (!b) return; e.preventDefault(); e.stopPropagation(); sviArtCompWin(b.dataset.des, b.dataset.u, b.dataset.q); }, true); }
 /* ⟪ src/28c-etapes-onglets.js ⟫ */
 /* =========================================================
    v834 : DÉCOUPE DU GRAND BLOC (programme, point 4) — les ONGLETS DU BLOC DES ÉTAPES (avenants, scénarios, versions, recalages) sort de openBudgetDetail.
@@ -20310,7 +20333,7 @@ function sviBdgInstanceSaisie(C) {
     const pmpWhy = pmp ? "PRIX MOYEN PONDÉRÉ : " + r.__det.map(x => x.o + " " + money(x.q) + " × " + money(x.p)).join(" ; ") : "";
     return `<td class="${cls} ins-td${pk ? " ins-pkc" : ""}${pmp ? " ins-pmp" : ""}${locked ? " ins-lock" : ""}${er && er.f === f ? " ins-bad" : ""}"${er && er.f === f ? ` data-why="${esc(er.m)}"` : pmp ? ` data-why="${esc(pmpWhy)}"` : ""}><input class="ins-in ${cls}" data-f="${f}" enterkeyhint="next"
       ${type === "num" ? 'inputmode="decimal"' : ""} ${locked ? "disabled" : ""}
-      value="${esc(val)}" ${isNew && f === "des" ? `placeholder="${k === "chg" ? "CRÉER UNE CHARGE ICI…" : k === "prd" ? "CRÉER UN PRODUIT ICI…" : "CRÉER UNE LIGNE ICI…"}"` : artA ? `placeholder="${esc(artA)}"` : ""} autocomplete="off">${pk ? condBtn(r) : ""}</td>`;
+      value="${esc(val)}" ${isNew && f === "des" ? `placeholder="${k === "chg" ? "CRÉER UNE CHARGE ICI…" : k === "prd" ? "CRÉER UN PRODUIT ICI…" : "CRÉER UNE LIGNE ICI…"}"` : artA ? `placeholder="${esc(artA)}"` : ""} autocomplete="off">${pk ? condBtn(r) : ""}${pk && typeof sviArtCompOf === "function" && sviArtCompOf(r.des, r.u) ? `<button type="button" class="chg-cmp" tabindex="-1" data-des="${esc(r.des || "")}" data-u="${esc(r.u || "")}" data-q="${esc(String(r.q ?? ""))}" title="Article composé : composants" aria-label="Article composé">C</button>` : ""}</td>`;
   };
   let INS_CELL_LVL = 0;
   /* remarque 4 (v542) : conditionnement réglé sur l'article (tous les budgets, voir 26b) ou, avant, sur ce budget */
