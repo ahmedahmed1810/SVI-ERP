@@ -345,6 +345,7 @@ const achArtStd = (a, prj) => { if (!a) return { px: 0, src: "" }; const L = Arr
   if (k) { const R = achPrjRec(k), keys = [...new Set(["prj:" + k].concat(R ? ["prj:" + achU(R.code || R.intitule), "prj:" + achU(R.intitule || ""), "prj:" + achU(R.code || "")] : []))].filter(z => z !== "prj:");   /* v1177 : code ou intitulé */
     const x = L.find(y => keys.includes(y.k) && achN(y.px) > 0); if (x) return { px: achN(x.px), src: "PROJET " + (R ? achU(R.code || R.intitule) : k) };
     const z = achZoneOf(k), y = z && L.find(w => w.k === "zone:" + z && achN(w.px) > 0); if (y) return { px: achN(y.px), src: "ZONE " + z }; }
+  if ((a.comp || []).length) { const p = achCompPx(a, prj); if (p > 0) return { px: p, src: "COMPOSÉ" }; }   /* v1184 (C2.5) */
   return { px: achN(a.pref), src: achN(a.pref) > 0 ? "STANDARD" : "" }; };
 /* v1176 : projet d'une ligne de devis — son besoin, sinon le besoin de la même ligne dans sa consultation */
 const achDvfPrj = (v, l) => { let bid = l && l.bsn; if (!bid && v && v.caf) { const c = achCaf().find(x => x.id === v.caf), cl = c && (c.lignes || []).find(y => y.bsn && achKey(y.des, y.u) === achKey(l.des, l.u)); bid = cl && cl.bsn; }
@@ -353,6 +354,11 @@ const achDvfPrj = (v, l) => { let bid = l && l.bsn; if (!bid && v && v.caf) { co
 const achArtConso = a => { const k = achKey(a.des, a.u), lim = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10); let q = 0;
   achRcp().filter(r => r.state !== "annule" && String(r.date || r.cree || "").slice(0, 10) >= lim).forEach(r => (r.lignes || []).forEach(l => { if (l.st !== "ref" && achKey(l.des, l.u) === k) q += achN(l.q); }));
   return q > 0 ? achF2(q / 12) + " " + a.u + " / MOIS (" + achF2(q) + " SUR 12 MOIS)" : "AUCUNE RÉCEPTION SUR 12 MOIS"; };
+/* v1184 (C2.5) : article composé — prix = Σ quantité × prix standard du composant (récursif, sans boucle) ; boucle = un composant qui contient déjà l'article */
+const achCompPx = (a, prj, seen) => { seen = seen || new Set(); if (!a || seen.has(a.id)) return 0; seen.add(a.id);
+  return (a.comp || []).reduce((t, c) => { const x = achArts().find(y => y.id === c.id); if (!x) return t; const p = (x.comp || []).length ? achCompPx(x, prj, new Set(seen)) : achArtStd(x, prj).px; return t + achN(c.q) * p; }, 0); };
+const achCompHas = (cid, aid, seen) => { if (!aid) return false; if (cid === aid) return true; seen = seen || new Set(); if (seen.has(cid)) return false; seen.add(cid);
+  const x = achArts().find(y => y.id === cid); return !!x && (x.comp || []).some(c => achCompHas(c.id, aid, seen)); };
 const achStdPu = (des, u, pu, prj) => { const a = achArtOf(des, u), s = achArtStd(a, prj); return s.px > 0 ? s.px : achN(pu); };
 /* v1175 (C2.10) : écart d'un prix au standard (seuil : PARAMÉTRAGE › ACHATS › RÈGLES INTERNES) ; nettement plus bas = proposer de revoir le standard */
 const achStdGap = (des, u, pu, prj) => { const a = achArtOf(des, u), s = achArtStd(a, prj), p = achN(pu); if (!(s.px > 0) || !(p > 0)) return "";

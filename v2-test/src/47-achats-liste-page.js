@@ -604,6 +604,7 @@ function achArtFiche(id, done) {
       ${inp("pref", "PRIX DE RÉFÉRENCE HT", { num: 1 })}${inp("pmax", "PLAFOND HT", { num: 1 })}${inp("partMax", "PART MAXIMUM D'UN FOURNISSEUR (%)", { num: 1 })}${inp("tva", "TVA %", { num: 1 })}
       ${inp("cpt", "CODE COMPTABLE")}${inp("cptI", "INTITULÉ COMPTABLE")}
       <div class="frs-f frs-w frs-logo art-photo"><span>PHOTO</span><div>${A.photo ? `<img src="${esc(A.photo)}" alt="">` : ""}${ro ? "" : `<input type="file" accept="image/*" class="art-photo-in">${A.photo ? ` <button type="button" class="ach-b" data-photorm>RETIRER LA PHOTO</button>` : ""}`}</div></div>
+      <div class="frs-f frs-w art-comp"><span>ARTICLE COMPOSÉ — COMPOSITION POUR 1 ${esc(A.u || "UNITÉ")} (ARTICLES DE LA LISTE ; LE PRIX STANDARD EN DÉCOULE)</span><div class="art-comp-box"></div></div>
       <div class="frs-f frs-w art-frh"><span>FOURNISSEURS HABITUELS (PAR ORDRE DE PRÉFÉRENCE)</span><div class="art-frh-box"></div></div>
       <div class="frs-f frs-w art-pstd"><span>PRIX STANDARD PAR PROJET OU PAR ZONE (SINON LE PRIX DE RÉFÉRENCE)</span><div class="art-pstd-box"></div></div>
       <div class="frs-f frs-w art-eqv"><span>ARTICLES ÉQUIVALENTS (PAR ORDRE DE PRÉFÉRENCE)</span><div class="art-eqv-box"></div></div>
@@ -638,6 +639,21 @@ function achArtFiche(id, done) {
       ${ro ? "" : `<tr class="rec-new"><td></td><td><select class="ins-in art-frs" data-i="new">${opt("")}</select></td><td></td></tr>`}</tbody></table>
       ${!ro && sug.length ? `<div class="bsn-note">PROPOSÉS (ACHETÉS CES 12 MOIS) : ${sug.map(g => `<button type="button" class="ach-link" data-frsug="${esc(g)}">${esc(achFrsNom(g))}</button>`).join(" · ")}</div>` : ""}`; };
   frhDraw();
+  /* v1184 (C2.5) : ARTICLE COMPOSÉ — composition type par unité, faite d'articles de la liste ; prix standard = somme des quantités × prix standard des composants */
+  A.comp = Array.isArray(A.comp) ? A.comp.map(x => ({ ...x })) : [];
+  const compDraw = () => { const box = d.querySelector(".art-comp-box"); if (!box) return; const me = a0 && a0.id, AL = achLive(achArts()).filter(x => x.id !== me && (!x.arch || A.comp.some(c => c.id === x.id)));
+    const opt = v => `<option value="">—</option>${AL.map(x => `<option value="${esc(x.id)}"${x.id === v ? " selected" : ""}>${esc(x.des + " (" + x.u + ")")}</option>`).join("")}`;
+    const px = achCompPx({ ...A, id: me || "new" }); 
+    box.innerHTML = `<table class="prm-table frs-sub art-compt"><thead><tr><th>COMPOSANT</th><th class="number">QUANTITÉ</th><th class="center">U</th><th class="number">PRIX STANDARD</th><th class="number">MONTANT</th></tr></thead><tbody>${A.comp.map((c, i) => { const x = achArts().find(y => y.id === c.id), p = x ? achArtStd(x).px : 0;
+        return `<tr><td><select class="ins-in art-cps" data-i="${i}"${ro ? " disabled" : ""}>${opt(c.id)}</select></td><td><input class="ins-in number art-cpq" data-i="${i}" inputmode="decimal" value="${esc(c.q ? achF2(c.q) : "")}"${ro ? " readonly" : ""} autocomplete="off"></td><td class="center">${esc(x ? x.u : "")}</td><td class="number">${p ? esc(achF2(p)) : "—"}</td><td class="number">${p && c.q ? esc(achF2(p * achN(c.q))) : "—"}</td></tr>`; }).join("")}
+      ${ro ? "" : `<tr class="rec-new"><td><select class="ins-in art-cps" data-i="new">${opt("")}</select></td><td></td><td></td><td></td><td></td></tr>`}
+      ${A.comp.length ? `<tr class="art-comptot"><td colspan="4">PRIX STANDARD DE L'ARTICLE COMPOSÉ (POUR 1 ${esc(A.u || "")})</td><td class="number">${esc(achF2(px))}</td></tr>` : ""}</tbody></table>`;
+    const pr = d.querySelector('.art-x[data-k="pref"]'); if (pr) { pr.readOnly = !!A.comp.length || ro; if (A.comp.length) pr.value = achF2(px); } };
+  compDraw();
+  d.addEventListener("change", e => { const s2 = e.target.closest(".art-cps"), q2 = e.target.closest(".art-cpq"); if (!s2 && !q2) return;
+    if (s2) { const v = s2.value, i = s2.dataset.i; if (v && achCompHas(v, a0 && a0.id)) { svToast("COMPOSANT REFUSÉ : IL CONTIENT DÉJÀ CET ARTICLE (BOUCLE).", 3500, s2); compDraw(); return; }
+      if (i === "new") { if (v && !A.comp.some(c => c.id === v)) A.comp.push({ id: v, q: 0 }); } else if (!v) A.comp.splice(+i, 1); else if (!A.comp.some((c, j) => c.id === v && j !== +i)) A.comp[+i].id = v; else svToast("DÉJÀ DANS LA COMPOSITION.", 2500, s2); compDraw(); return; }
+    const c = A.comp[+q2.dataset.i]; if (c) { const n = achN(q2.value); if (!(n > 0)) { svToast("QUANTITÉ : NOMBRE POSITIF.", 2500, q2); compDraw(); return; } c.q = n; } compDraw(); });
   d.addEventListener("change", e => { const s2 = e.target.closest(".art-frs"); if (!s2) return; const v = s2.value, i = s2.dataset.i;
     if (i === "new") { if (v && !A.frsH.includes(v)) A.frsH.push(v); } else if (!v) A.frsH.splice(+i, 1); else if (!A.frsH.includes(v)) A.frsH[+i] = v; frhDraw(); });
   d.addEventListener("click", e => { const sg = e.target.closest("[data-frsug]"); if (sg) { if (!A.frsH.includes(sg.dataset.frsug)) A.frsH.push(sg.dataset.frsug); frhDraw(); return; }
@@ -669,6 +685,8 @@ function achArtFiche(id, done) {
     if (A.ua && A.ua !== A.u && sviUnitConv(1, A.ua, A.u, A.cv || (a0 && a0.cv), A.u) === null) { svToast("CONVERSION MANQUANTE ENTRE " + A.ua + " ET " + A.u + " : L'AJOUTER DANS PARAMÉTRAGE › ARTICLES › CONVERSIONS (OU ⋯ › UNITÉ DE CONVERSION DE L'ARTICLE).", 5000); return; }
     if (A.ua === A.u) A.ua = "";
     A.pstd = (A.pstd || []).filter(x => x.k && achN(x.px) > 0);   /* v1175 : ligne sans prix non gardée */
+    A.comp = (A.comp || []).filter(c => c.id); if (A.comp.some(c => !(achN(c.q) > 0))) { svToast("COMPOSITION : QUANTITÉ OBLIGATOIRE POUR CHAQUE COMPOSANT.", 3500); return; }
+    if (A.comp.length) A.pref = Math.round(achCompPx({ ...A, id: a0 ? a0.id : "new" }) * 100) / 100;   /* v1184 (C2.5) : prix standard tiré des composants */
     if (A.per && !(A.cons > 0)) { svToast("ARTICLE PÉRISSABLE : DURÉE DE CONSERVATION OBLIGATOIRE (JOURS).", 3500); return; }
     if (!A.per) A.cons = 0;
     if (A.qmin < 0) { svToast("QUANTITÉ MINIMALE : NOMBRE POSITIF.", 3000); return; }
@@ -678,10 +696,10 @@ function achArtFiche(id, done) {
     const dup = achArtDup(L, A.des, A.u, a0 ? a0.id : ""); if (dup) { svToast("DOUBLON : " + dup.code + " — " + dup.des + " (" + dup.u + ") EXISTE DÉJÀ.", 4000); return; }
     const nr = achArtNear(L, A.des, A.u, a0 ? a0.id : ""); if (nr) svToast("PRESQUE IDENTIQUE À " + nr.code + " — " + nr.des + " : À FUSIONNER SI C'EST LE MÊME ARTICLE.", 4500);
     let a;
-    if (a0) { a = L.find(x => x.id === a0.id); const LAB = { des: "DÉSIGNATION", u: "UNITÉ", cat: "FAMILLE", stk: "STOCKÉ", tva: "TVA", pref: "PRIX RÉF.", pmax: "PLAFOND", actif: "ACTIF", cpt: "CODE COMPTABLE", cptI: "INTITULÉ COMPTABLE", sfam: "SOUS-FAMILLE", nat: "TYPE", per: "PÉRISSABLE", cons: "DURÉE DE CONSERVATION", fab: "FABRICANTS", poids: "POIDS", vol: "VOLUME", cb: "CODE-BARRES", photo: "PHOTO", ft: "FICHE TECHNIQUE", ua: "UNITÉ D'ACHAT", eqv: "ÉQUIVALENTS", qmin: "QUANTITÉ MINIMALE", frsH: "FOURNISSEURS HABITUELS", pstd: "PRIX STANDARD PAR PROJET / ZONE" };
+    if (a0) { a = L.find(x => x.id === a0.id); const LAB = { des: "DÉSIGNATION", u: "UNITÉ", cat: "FAMILLE", stk: "STOCKÉ", tva: "TVA", pref: "PRIX RÉF.", pmax: "PLAFOND", actif: "ACTIF", cpt: "CODE COMPTABLE", cptI: "INTITULÉ COMPTABLE", sfam: "SOUS-FAMILLE", nat: "TYPE", per: "PÉRISSABLE", cons: "DURÉE DE CONSERVATION", fab: "FABRICANTS", poids: "POIDS", vol: "VOLUME", cb: "CODE-BARRES", photo: "PHOTO", ft: "FICHE TECHNIQUE", ua: "UNITÉ D'ACHAT", eqv: "ÉQUIVALENTS", qmin: "QUANTITÉ MINIMALE", comp: "COMPOSITION", frsH: "FOURNISSEURS HABITUELS", pstd: "PRIX STANDARD PAR PROJET / ZONE" };
       const nz = v => v === undefined || v === null || v === false || v === 0 || v === "" || (Array.isArray(v) && !v.length) ? "" : v;   /* v1173 : champ absent = vide */
       const ch = Object.keys(LAB).filter(k => JSON.stringify(nz(a[k])) !== JSON.stringify(nz(A[k]))); Object.assign(a, A, { mod: achNow() }); if (ch.length) achHist(a.code, "MODIFICATION", ch.map(k => LAB[k]).join(", ")); }
-    else { a = achArtNew(L, A); a.st = "instance"; a.cpt = A.cpt; a.cptI = A.cptI; ["sfam", "nat", "per", "cons", "fab", "poids", "vol", "cb", "photo", "ft", "ua", "eqv", "pstd", "qmin", "frsH"].forEach(k => { if (A[k] !== undefined) a[k] = A[k]; }); achHist(a.code, "CRÉATION", a.des + " (" + a.u + ")"); }
+    else { a = achArtNew(L, A); a.st = "instance"; a.cpt = A.cpt; a.cptI = A.cptI; ["sfam", "nat", "per", "cons", "fab", "poids", "vol", "cb", "photo", "ft", "ua", "eqv", "pstd", "qmin", "frsH", "comp"].forEach(k => { if (A[k] !== undefined) a[k] = A[k]; }); achHist(a.code, "CRÉATION", a.des + " (" + a.u + ")"); }
     if (ftBlob) { const k = "ach:art-ft:" + a.id; sviFiles.put(k, ftBlob).catch(() => {}); a.ft = k; ftBlob = null; }
     achArtsSave(L); d.remove(); if (done) done(a.id);
   });
