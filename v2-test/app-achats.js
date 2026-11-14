@@ -82,7 +82,7 @@ const achClTxt = x => [x.t === "autre" ? "" : achCltLab(x.t), [x.txt, [x.v, x.u]
 const achClG = p => Array.isArray(p.clG) ? p.clG : [["pay"], ["val"]].map(([t], i) => ({ id: "g" + (i + 1), t, txt: achCltDef(t), v: achCltOf(t)[5], u: achCltU(t) }));
 const achClP = p => Array.isArray(p.clP) ? p.clP : [{ id: "p1", t: "liv", txt: "" }, { id: "p2", t: "pen", txt: "" }];
 const achClCopy = L => (L || []).map(x => ({ t: x.t, txt: x.txt || "", v: x.v ?? "", u: x.u ?? achCltU(x.t) }));
-const achPrm0 = p => ({ tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: achEspJour(p), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: achAlrJ(p, "av", p.avj === undefined ? 90 : achN(p.avj)), chqj: achAlrJ(p, "chq", p.chqj === undefined ? 30 : achN(p.chqj)), dorm: p.dorm === undefined ? 12 : achN(p.dorm), directJ: p.directJ === undefined ? 30 : Math.max(1, Math.round(achN(p.directJ)) || 1), nfrs: p.nfrs === undefined ? 3 : Math.max(1, Math.round(achN(p.nfrs)) || 1), ncons: p.ncons === undefined ? 3 : Math.max(1, Math.round(achN(p.ncons)) || 1), avMax: p.avMax === undefined ? 30 : achN(p.avMax), delaiLeg: p.delaiLeg === undefined ? 60 : Math.max(1, achN(p.delaiLeg) || 60), seuilBdg: p.seuilBdg === undefined ? 90 : Math.min(100, Math.max(1, achN(p.seuilBdg) || 90)), exFin: p.exFin === undefined ? 12 : Math.min(12, Math.max(1, Math.round(achN(p.exFin)) || 12)), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), socIce: p.socIce || "", socIf: p.socIf || "", banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })), grp: ACH_ORIG.map(g => ({ ...g, req: g.req.slice() })), alr: achAlr(p), espL: achEspL(p), ment: p.ment && typeof p.ment === "object" ? p.ment : { ice: true, if: true }, seuV: Array.isArray(p.seuV) ? p.seuV : [], seuT: p.seuT && typeof p.seuT === "object" ? p.seuT : {},
+const achPrm0 = p => ({ tol: p.tol === undefined ? 5 : achN(p.tol), direct: p.direct === undefined ? 5000 : achN(p.direct), ecart: p.ecart === undefined ? 1 : achN(p.ecart), esp: achEspJour(p), rasT: p.rasT === undefined ? 75 : achN(p.rasT), avj: achAlrJ(p, "av", p.avj === undefined ? 90 : achN(p.avj)), chqj: achAlrJ(p, "chq", p.chqj === undefined ? 30 : achN(p.chqj)), dorm: p.dorm === undefined ? 12 : achN(p.dorm), directJ: p.directJ === undefined ? 30 : Math.max(1, Math.round(achN(p.directJ)) || 1), nfrs: p.nfrs === undefined ? 3 : Math.max(1, Math.round(achN(p.nfrs)) || 1), ncons: p.ncons === undefined ? 3 : Math.max(1, Math.round(achN(p.ncons)) || 1), avMax: p.avMax === undefined ? 30 : achN(p.avMax), ecStd: p.ecStd === undefined ? 15 : achN(p.ecStd), delaiLeg: p.delaiLeg === undefined ? 60 : Math.max(1, achN(p.delaiLeg) || 60), seuilBdg: p.seuilBdg === undefined ? 90 : Math.min(100, Math.max(1, achN(p.seuilBdg) || 90)), exFin: p.exFin === undefined ? 12 : Math.min(12, Math.max(1, Math.round(achN(p.exFin)) || 12)), cat: Array.isArray(p.cat) ? p.cat : ACH_PRM_DEF.cat.slice(), socIce: p.socIce || "", socIf: p.socIf || "", banques: Array.isArray(p.banques) ? p.banques : ACH_PRM_DEF.banques.map(b => ({ ...b })), grp: ACH_ORIG.map(g => ({ ...g, req: g.req.slice() })), alr: achAlr(p), espL: achEspL(p), ment: p.ment && typeof p.ment === "object" ? p.ment : { ice: true, if: true }, seuV: Array.isArray(p.seuV) ? p.seuV : [], seuT: p.seuT && typeof p.seuT === "object" ? p.seuT : {},
   freqA: p.freqA === undefined ? 3 : achN(p.freqA), freqB: p.freqB === undefined ? 6 : achN(p.freqB), plafT: p.plafU === "%" || p.plafT === undefined ? "" : p.plafT, plafP: p.plafP !== undefined ? p.plafP : p.plafU === "%" && p.plafT !== undefined ? p.plafT : "", plafU: "DH", nrep: p.nrep === undefined ? 3 : Math.max(1, Math.round(achN(p.nrep)) || 1), mrep: p.mrep === undefined ? 10 : achN(p.mrep), cafMan: p.cafMan !== false, refs: achRefs(p), clG: achClG(p), clP: achClP(p) });   /* v1134 (L24) : cafMan = prix saisi à la main → validateur obligatoire (OUI par défaut) */
 const achPrmSave = p => achW(ACH_K.prm, p);
 /* v811 : lectures mémorisées. Une donnée dérivée n'est recalculée que si le texte gardé dans l'appareil a changé :
@@ -337,7 +337,20 @@ const ACH_CIRC_T = [["gen", "GÉNÉRAL (PROPOSÉ PAR DÉFAUT)"], ["bsn", "BESOIN
 /* 06/11 (soir) : montant d'une pièce sans prix d'achat (besoin, consultation, devis) = quantités × PRIX STANDARD de l'article (prix de référence
    de la liste des articles) ; une ligne hors liste prend le prix saisi sur la ligne */
 const achArtOf = (des, u) => achArts().find(a => !a.del && achKey(a.des, a.u) === achKey(des, u)) || null;
-const achStdPu = (des, u, pu) => { const a = achArtOf(des, u); return a && achN(a.pref) > 0 ? achN(a.pref) : achN(pu); };
+/* v1175 (C2.9) : PRIX STANDARD par projet ou par zone — l'article peut porter des prix propres (pstd : [{ k: "prj:<projet>" | "zone:<zone>", px }]) ;
+   ordre : projet, puis zone du projet (sa ville dans PARAMÉTRAGE › ARTICLES › ZONES DE PRIX), puis prix de référence de l'article */
+const achPrjOfBdg = ref => { if (!ref) return ""; try { const b = sviInstGet().find(x => x.ref === ref); return b ? achU(b.project || "") : ""; } catch (e) { return ""; } };
+const achPrjRec = prj => { const k = achU(prj || ""); if (!k) return null; try { return achPrj().find(p => !p.del && (achU(p.code) === k || achU(p.intitule) === k)) || null; } catch (e) { return null; } };
+const achZoneOf = prj => { const P = achPrjRec(prj), v = P ? achU(P.ville || "") : ""; if (!v) return ""; const Z = sviPgL("zones").find(z => String(z.villes || "").split(/[;,]/).map(achU).includes(v)); return Z ? achU(Z.lab) : ""; };
+const achArtStd = (a, prj) => { if (!a) return { px: 0, src: "" }; const L = Array.isArray(a.pstd) ? a.pstd : [], k = achU(prj || "");
+  if (k) { const x = L.find(y => y.k === "prj:" + k && achN(y.px) > 0); if (x) return { px: achN(x.px), src: "PROJET " + k };
+    const z = achZoneOf(k), y = z && L.find(w => w.k === "zone:" + z && achN(w.px) > 0); if (y) return { px: achN(y.px), src: "ZONE " + z }; }
+  return { px: achN(a.pref), src: achN(a.pref) > 0 ? "STANDARD" : "" }; };
+const achStdPu = (des, u, pu, prj) => { const a = achArtOf(des, u), s = achArtStd(a, prj); return s.px > 0 ? s.px : achN(pu); };
+/* v1175 (C2.10) : écart d'un prix au standard (seuil : PARAMÉTRAGE › ACHATS › RÈGLES INTERNES) ; nettement plus bas = proposer de revoir le standard */
+const achStdGap = (des, u, pu, prj) => { const a = achArtOf(des, u), s = achArtStd(a, prj), p = achN(pu); if (!(s.px > 0) || !(p > 0)) return "";
+  const e = (p - s.px) / s.px * 100, lim = achPrm().ecStd; if (!(lim > 0) || Math.abs(e) <= lim) return "";
+  return des + " : " + achF2(p) + " HT, " + (e > 0 ? "+" : "") + Math.round(e) + " % / " + s.src + " (" + achF2(s.px) + ")" + (e < -2 * lim ? " — NETTEMENT PLUS BAS : REVOIR LE STANDARD ?" : ""); };
 const achStdMt = L => (L || []).reduce((t, l) => t + achN(l.q) * achStdPu(l.des, l.u, l.pu), 0);
 /* v1134 (L24, décision d'Ahmed du 11/11) : PRIX ESTIMÉ d'un article de consultation — prix du budget actif qui le porte (le moins cher s'il est
    dans plusieurs budgets), sinon prix standard de l'article ; dans ces deux cas il est bloqué (gris : les seuils de validation ne se contournent pas) ;
@@ -349,7 +362,7 @@ const achCafBdgPx = () => { const M = new Map(); let L = []; try { L = sviInstGe
 const achCafEst = (l, BP) => { const b = (BP || achCafBdgPx()).get(achKey(l.des, l.u)); if (b) return { pu: b.p, src: "bdg", lab: "BUDGET " + b.prj, ref: b.ref, lock: true };   /* v1136 (L24) : « BUDGET IME » (nom du projet) */
   /* v1141, v1142 (décision d'Ahmed du 12/11) : prix repris d'un besoin VALIDÉ (pas en instance) = prix connu (après le budget, avant le standard) */
   if (l.bsn) { const bs = achBsn().find(y => y.id === l.bsn); if (bs && bs.state === "valide" && achN(bs.pu) > 0) return { pu: achN(bs.pu), src: "bsn", lab: "BESOIN " + (bs.ref || ""), lock: true }; }
-  const a = achArtOf(l.des, l.u); if (a && achN(a.pref) > 0) return { pu: achN(a.pref), src: "std", lab: "STANDARD", lock: true };
+  { const a = achArtOf(l.des, l.u), bs = l.bsn ? achBsn().find(y => y.id === l.bsn) : null, st = achArtStd(a, bs ? achPrjOfBdg(bs.bdg) : ""); if (st.px > 0) return { pu: st.px, src: "std", lab: st.src, lock: true }; }
   return { pu: achN(l.pu), src: "man", lab: achN(l.pu) > 0 ? "SAISI À LA MAIN" : "À SAISIR", lock: false }; };
 const achCafEstMt = (c, BP) => { BP = BP || achCafBdgPx(); return (c.lignes || []).reduce((t, l) => t + achN(l.q) * achCafEst(l, BP).pu, 0); };
 /* une consultation avec au moins un prix saisi à la main passe par un validateur, quel que soit le seuil (réglage PARAMÉTRAGE › ACHATS › CONSULTATIONS) */
@@ -603,6 +616,7 @@ const achDvfTot = v => { let ht = 0, ttc = 0, brut = 0; (v.lignes || []).forEach
 const achDvfWhy = v => { const w = achRepWhy(v.state === "recu" ? v.lignes : [], v.frs), today = new Date().toISOString().slice(0, 10);
   if (v.state === "rejete" || v.state === "annule") return w;
   if (!(v.lignes || []).some(l => achN(l.pu) > 0)) w.push("PRIX MANQUANTS");
+  (v.lignes || []).forEach(l => { const g = achStdGap(l.des, l.u, l.pu); if (g) w.push("ÉCART AU STANDARD — " + g); });   /* v1175 (C2.10) */
   if (!v.refFrs) w.push("N° DU DEVIS FOURNISSEUR MANQUANT");
   if (v.validite && v.validite < today && v.state !== "retenu") w.push("DEVIS EXPIRÉ (VALIDITÉ " + v.validite.split("-").reverse().join("/") + ")");
   /* v814 : expiration proche (C5.60), reçu après la date limite (C5.44), total écrit ≠ calcul (C5.46), lignes non chiffrées (C5.43),
@@ -671,6 +685,7 @@ const achCmfWhy = (c, R, T) => { const w = [], today = new Date().toISOString().
   if (!c.frs) w.push("FOURNISSEUR MANQUANT");
   if (!(c.lignes || []).length) w.push("AUCUNE LIGNE");
   if ((c.lignes || []).some(l => !(achN(l.pu) > 0))) w.push("PRIX MANQUANTS");
+  (c.lignes || []).forEach(l => { const b = l.bsn ? achBsn().find(y => y.id === l.bsn) : null, g = achStdGap(l.des, l.u, l.pu, b ? achPrjOfBdg(b.bdg) : ""); if (g) w.push("ÉCART AU STANDARD — " + g); });   /* v1175 (C2.10) */
   if (c.urg) w.push("COMMANDE URGENTE À RÉGULARISER");
   achRepWhy(c.lignes, c.frs).forEach(x => w.push(x));
   const d = c.dConf || c.dProm, rest = (c.lignes || []).some(l => achResteQ(c, l, R, T) > 1e-9);
@@ -990,10 +1005,10 @@ function sviAchInit() {
 </div>
       </div>`;
     const R = [["direct", "SEUIL DE L'ACHAT DIRECT (SANS CONSULTATION), MONTANT HT", "DH", "ach-pdirect"], ["directJ", "ACHAT DIRECT — PÉRIODE DE CUMUL (J)", "JOURS"], ["tol", "TOLÉRANCE DE QUANTITÉ À LA RÉCEPTION", "%", "ach-ptol"],
-      ["ecart", "ÉCART TOLÉRÉ ENTRE LA FACTURE ET LE CALCUL, TTC", "DH"], ["rasT", "RETENUE À LA SOURCE SUR LA TVA, TAUX PAR DÉFAUT", "% DE LA TVA"], ["avMax", "AVANCE SUR COMMANDE : ALERTE AU-DELÀ DE", "%"],
+      ["ecart", "ÉCART TOLÉRÉ ENTRE LA FACTURE ET LE CALCUL, TTC", "DH"], ["rasT", "RETENUE À LA SOURCE SUR LA TVA, TAUX PAR DÉFAUT", "% DE LA TVA"], ["avMax", "AVANCE SUR COMMANDE : ALERTE AU-DELÀ DE", "%"], ["ecStd", "ÉCART AU PRIX STANDARD : ALERTE AU-DELÀ DE", "%"],
       ["dorm", "FOURNISSEUR DORMANT : SANS ACHAT DEPUIS", "MOIS"], ["freqA", "FRÉQUENCE : FRÉQUENT JUSQU'À", "MOIS ENTRE DEUX COMMANDES"], ["freqB", "FRÉQUENCE : NORMAL JUSQU'À (OCCASIONNEL AU-DELÀ)", "MOIS"],
       ["plafT", "PLAFOND DE TRANSACTIONS PAR FOURNISSEUR (PAR DÉFAUT), MONTANT SUR 12 MOIS", "DH HT"], ["plafP", "PLAFOND DE TRANSACTIONS PAR FOURNISSEUR (PAR DÉFAUT), PART DES ACHATS", "%"], ["nfrs", "NOMBRE MINIMUM DE DEVIS PAR CONSULTATION", "DEVIS"], ["nrep", "RÉPARTITION : NOMBRE DE FOURNISSEURS PAR ARTICLE", "FOURNISSEURS"], ["mrep", "RÉPARTITION : MARGE AUTOUR DE LA PART CIBLE", "± POINTS DE %"], ["exFin", "MOIS DE CLÔTURE DE L'EXERCICE (ARCHIVAGE JAMAIS AVANT 12 MOIS)", "MOIS (1 À 12)"]];
-    const tip = { directJ: "LE JOUR EST TOUJOURS CUMULÉ ; PAR ARTICLE ET PAR FOURNISSEUR", tol: "AU-DESSUS DU RESTE À RECEVOIR", ecart: "ARRONDIS", nfrs: "NON BLOQUANT : MOINS DE DEVIS = ! DEVANT LE PRIX RETENU", ncons: "NON BLOQUANT : MOINS DE FOURNISSEURS CONSULTÉS = ALERTE ⚠ SUR LA CONSULTATION", plafT: "REPRIS À LA CRÉATION DE CHAQUE FOURNISSEUR, MODIFIABLE SUR SA FICHE ; ATTEINT = FOURNISSEUR BLOQUÉ" };
+    const tip = { ecStd: "DEVIS ET COMMANDES : PRIX PLUS HAUT OU PLUS BAS QUE LE STANDARD DE PLUS DE CE POURCENTAGE = ALERTE ; NETTEMENT PLUS BAS = PROPOSITION DE REVOIR LE STANDARD", directJ: "LE JOUR EST TOUJOURS CUMULÉ ; PAR ARTICLE ET PAR FOURNISSEUR", tol: "AU-DESSUS DU RESTE À RECEVOIR", ecart: "ARRONDIS", nfrs: "NON BLOQUANT : MOINS DE DEVIS = ! DEVANT LE PRIX RETENU", ncons: "NON BLOQUANT : MOINS DE FOURNISSEURS CONSULTÉS = ALERTE ⚠ SUR LA CONSULTATION", plafT: "REPRIS À LA CRÉATION DE CHAQUE FOURNISSEUR, MODIFIABLE SUR SA FICHE ; ATTEINT = FOURNISSEUR BLOQUÉ" };
     const G = sviPgL("grades"), gl = s => String(s || "").split(/[,;\s]+/).filter(Boolean);
     const keep = { regl: ["ach-pgen", "ach-pesp", "ach-pseu"], alr: ["ach-palr"], ment: ["ach-pment"] }[T] || ["ach-pgen", "ach-pesp", "ach-pseu"];
     const tpl = document.createElement("template"); tpl.innerHTML = `<div class="ach-prm">
@@ -1910,7 +1925,7 @@ function achBsnFiche(id, done) {
     else Object.assign(b, B);
     b.bdgLab = b.centre === "SIÈGE" ? "" : (BL.find(x => x.ref === b.bdg) || {}).lab || b.bdgLab || b.bdg; b.mod = now;
     /* 06/11 (soir) : circuit de validation propre aux BESOINS — montant = quantité × prix standard de l'article */
-    if (valid && await achCircGate("bsn", b, achN(b.q) * achStdPu(b.des, b.u, b.pu), async lab => { save(L, b, lab); })) { d.remove(); if (done) done(); return; }
+    if (valid && await achCircGate("bsn", b, achN(b.q) * achStdPu(b.des, b.u, b.pu, achPrjOfBdg(b.bdg)), async lab => { save(L, b, lab); })) { d.remove(); if (done) done(); return; }
     if (valid) { b.state = "valide"; b.valide = now; b.valPar = typeof sviUser === "function" ? sviUser() : ""; }
     save(L, b, cur ? (valid ? "VALIDÉ" : "MODIFICATION") : "CRÉATION");
     if (!cur && ctl && ctl.over) svToast(b.ref + " ENREGISTRÉ : DÉPASSEMENT DU PRÉVU, BLOQUÉ JUSQU'AU DÉBLOCAGE.", 4500);
@@ -4329,6 +4344,7 @@ function achArtFiche(id, done) {
       ${inp("pref", "PRIX DE RÉFÉRENCE HT", { num: 1 })}${inp("pmax", "PLAFOND HT", { num: 1 })}${inp("partMax", "PART MAXIMUM D'UN FOURNISSEUR (%)", { num: 1 })}${inp("tva", "TVA %", { num: 1 })}
       ${inp("cpt", "CODE COMPTABLE")}${inp("cptI", "INTITULÉ COMPTABLE")}
       <div class="frs-f frs-w frs-logo art-photo"><span>PHOTO</span><div>${A.photo ? `<img src="${esc(A.photo)}" alt="">` : ""}${ro ? "" : `<input type="file" accept="image/*" class="art-photo-in">${A.photo ? ` <button type="button" class="ach-b" data-photorm>RETIRER LA PHOTO</button>` : ""}`}</div></div>
+      <div class="frs-f frs-w art-pstd"><span>PRIX STANDARD PAR PROJET OU PAR ZONE (SINON LE PRIX DE RÉFÉRENCE)</span><div class="art-pstd-box"></div></div>
       <div class="frs-f frs-w art-eqv"><span>ARTICLES ÉQUIVALENTS (PAR ORDRE DE PRÉFÉRENCE)</span><div class="art-eqv-box"></div></div>
       <div class="frs-f frs-w"><span>FICHE TECHNIQUE</span><div>${A.ft ? `<button type="button" class="ach-b" data-ftsee>VOIR LA FICHE TECHNIQUE</button> ` : ""}${ro ? "" : `<input type="file" class="art-ft-in" accept="image/*,application/pdf">`}</div></div>
       ${a0 ? (() => { const R = achRep(achKey(a0.des, a0.u)), FR = achFrsRO(), nm = g => { const L = FR.filter(f => achFrsRoot(f.id) === g); return L.map(f => f.nom).join(" + ") || g; };
@@ -4344,6 +4360,17 @@ function achArtFiche(id, done) {
     box.innerHTML = `<table class="prm-table frs-sub art-eqvt"><thead><tr><th class="center">RANG</th><th>ARTICLE</th><th class="center">ORDRE</th></tr></thead><tbody>${A.eqv.map((id, i) => `<tr data-i="${i}"><td class="center">${i + 1}</td><td><select class="ins-in art-eqs" data-i="${i}"${ro ? " disabled" : ""}>${opt(id)}</select></td><td class="center">${ro ? "" : `<button type="button" class="ach-b" data-equp="${i}"${i ? "" : " disabled"}>▲</button> <button type="button" class="ach-b" data-eqdn="${i}"${i < A.eqv.length - 1 ? "" : " disabled"}>▼</button>`}</td></tr>`).join("")}
       ${ro ? "" : `<tr class="rec-new"><td></td><td><select class="ins-in art-eqs" data-i="new">${opt("")}</select></td><td></td></tr>`}</tbody></table>`; };
   eqvDraw();
+  /* v1175 (C2.9) : prix standard propres à un projet ou à une zone */
+  A.pstd = Array.isArray(A.pstd) ? A.pstd.map(x => ({ ...x })) : [];
+  const pstdDraw = () => { const box = d.querySelector(".art-pstd-box"); if (!box) return; let PJ = []; try { PJ = achPrj().filter(p => !p.del); } catch (e) {}
+    const O = [...PJ.map(p => ["prj:" + achU(p.code || p.intitule), "PROJET " + achU(p.code || "") + (p.intitule ? " — " + achU(p.intitule) : "")]), ...sviPgL("zones").filter(z => z.lab).map(z => ["zone:" + achU(z.lab), "ZONE " + achU(z.lab)])];
+    const opt = v => `<option value="">—</option>${O.concat(v && !O.some(o => o[0] === v) ? [[v, v]] : []).map(o => `<option value="${esc(o[0])}"${o[0] === v ? " selected" : ""}>${esc(o[1])}</option>`).join("")}`;
+    box.innerHTML = `<table class="prm-table frs-sub art-pstdt"><thead><tr><th>PROJET OU ZONE</th><th class="number">PRIX STANDARD HT</th></tr></thead><tbody>${A.pstd.map((x, i) => `<tr data-i="${i}"><td><select class="ins-in art-psk" data-i="${i}"${ro ? " disabled" : ""}>${opt(x.k)}</select></td><td><input class="ins-in number art-psp" data-i="${i}" inputmode="decimal" value="${esc(x.px ? achF2(x.px) : "")}"${ro ? " readonly" : ""} autocomplete="off"></td></tr>`).join("")}
+      ${ro ? "" : `<tr class="rec-new"><td><select class="ins-in art-psk" data-i="new">${opt("")}</select></td><td></td></tr>`}</tbody></table>`; };
+  pstdDraw();
+  d.addEventListener("change", e => { const k = e.target.closest(".art-psk"), p2 = e.target.closest(".art-psp"); if (!k && !p2) return;
+    if (k) { const i = k.dataset.i, v = k.value; if (i === "new") { if (v && !A.pstd.some(x => x.k === v)) A.pstd.push({ k: v, px: 0 }); } else if (!v) A.pstd.splice(+i, 1); else if (!A.pstd.some((x, j) => x.k === v && j !== +i)) A.pstd[+i].k = v; else svToast("DÉJÀ DANS LA LISTE.", 2500, k); pstdDraw(); return; }
+    const x = A.pstd[+p2.dataset.i]; if (x) { const n = achN(p2.value); if (n < 0) { svToast("PRIX NON VALIDE.", 2500, p2); pstdDraw(); return; } x.px = n; } });
   d.addEventListener("change", e => { const s2 = e.target.closest(".art-eqs"); if (!s2) return; const v = s2.value, i = s2.dataset.i;
     if (i === "new") { if (v && !A.eqv.includes(v)) A.eqv.push(v); } else if (!v) A.eqv.splice(+i, 1); else if (!A.eqv.includes(v)) A.eqv[+i] = v; eqvDraw(); });
   d.addEventListener("click", e => { const u = e.target.closest("[data-equp], [data-eqdn]"); if (!u) return; const i = +(u.dataset.equp ?? u.dataset.eqdn), j = u.dataset.equp !== undefined ? i - 1 : i + 1;
@@ -4366,6 +4393,7 @@ function achArtFiche(id, done) {
     /* v1172 (C2.7) : unité d'achat ≠ unité de l'article → une conversion doit exister (article ou PARAMÉTRAGE › ARTICLES › CONVERSIONS, dans les deux sens) */
     if (A.ua && A.ua !== A.u && sviUnitConv(1, A.ua, A.u, A.cv || (a0 && a0.cv), A.u) === null) { svToast("CONVERSION MANQUANTE ENTRE " + A.ua + " ET " + A.u + " : L'AJOUTER DANS PARAMÉTRAGE › ARTICLES › CONVERSIONS (OU ⋯ › UNITÉ DE CONVERSION DE L'ARTICLE).", 5000); return; }
     if (A.ua === A.u) A.ua = "";
+    A.pstd = (A.pstd || []).filter(x => x.k && achN(x.px) > 0);   /* v1175 : ligne sans prix non gardée */
     if (A.per && !(A.cons > 0)) { svToast("ARTICLE PÉRISSABLE : DURÉE DE CONSERVATION OBLIGATOIRE (JOURS).", 3500); return; }
     if (!A.per) A.cons = 0;
     if (A.poids < 0 || A.vol < 0 || A.cons < 0) { svToast("POIDS, VOLUME ET DURÉE : NOMBRES POSITIFS.", 3000); return; }
@@ -4374,10 +4402,10 @@ function achArtFiche(id, done) {
     const dup = achArtDup(L, A.des, A.u, a0 ? a0.id : ""); if (dup) { svToast("DOUBLON : " + dup.code + " — " + dup.des + " (" + dup.u + ") EXISTE DÉJÀ.", 4000); return; }
     const nr = achArtNear(L, A.des, A.u, a0 ? a0.id : ""); if (nr) svToast("PRESQUE IDENTIQUE À " + nr.code + " — " + nr.des + " : À FUSIONNER SI C'EST LE MÊME ARTICLE.", 4500);
     let a;
-    if (a0) { a = L.find(x => x.id === a0.id); const LAB = { des: "DÉSIGNATION", u: "UNITÉ", cat: "FAMILLE", stk: "STOCKÉ", tva: "TVA", pref: "PRIX RÉF.", pmax: "PLAFOND", actif: "ACTIF", cpt: "CODE COMPTABLE", cptI: "INTITULÉ COMPTABLE", sfam: "SOUS-FAMILLE", nat: "TYPE", per: "PÉRISSABLE", cons: "DURÉE DE CONSERVATION", fab: "FABRICANTS", poids: "POIDS", vol: "VOLUME", cb: "CODE-BARRES", photo: "PHOTO", ft: "FICHE TECHNIQUE", ua: "UNITÉ D'ACHAT", eqv: "ÉQUIVALENTS" };
+    if (a0) { a = L.find(x => x.id === a0.id); const LAB = { des: "DÉSIGNATION", u: "UNITÉ", cat: "FAMILLE", stk: "STOCKÉ", tva: "TVA", pref: "PRIX RÉF.", pmax: "PLAFOND", actif: "ACTIF", cpt: "CODE COMPTABLE", cptI: "INTITULÉ COMPTABLE", sfam: "SOUS-FAMILLE", nat: "TYPE", per: "PÉRISSABLE", cons: "DURÉE DE CONSERVATION", fab: "FABRICANTS", poids: "POIDS", vol: "VOLUME", cb: "CODE-BARRES", photo: "PHOTO", ft: "FICHE TECHNIQUE", ua: "UNITÉ D'ACHAT", eqv: "ÉQUIVALENTS", pstd: "PRIX STANDARD PAR PROJET / ZONE" };
       const nz = v => v === undefined || v === null || v === false || v === 0 || v === "" || (Array.isArray(v) && !v.length) ? "" : v;   /* v1173 : champ absent = vide */
       const ch = Object.keys(LAB).filter(k => JSON.stringify(nz(a[k])) !== JSON.stringify(nz(A[k]))); Object.assign(a, A, { mod: achNow() }); if (ch.length) achHist(a.code, "MODIFICATION", ch.map(k => LAB[k]).join(", ")); }
-    else { a = achArtNew(L, A); a.st = "instance"; a.cpt = A.cpt; a.cptI = A.cptI; ["sfam", "nat", "per", "cons", "fab", "poids", "vol", "cb", "photo", "ft", "ua", "eqv"].forEach(k => { if (A[k] !== undefined) a[k] = A[k]; }); achHist(a.code, "CRÉATION", a.des + " (" + a.u + ")"); }
+    else { a = achArtNew(L, A); a.st = "instance"; a.cpt = A.cpt; a.cptI = A.cptI; ["sfam", "nat", "per", "cons", "fab", "poids", "vol", "cb", "photo", "ft", "ua", "eqv", "pstd"].forEach(k => { if (A[k] !== undefined) a[k] = A[k]; }); achHist(a.code, "CRÉATION", a.des + " (" + a.u + ")"); }
     if (ftBlob) { const k = "ach:art-ft:" + a.id; sviFiles.put(k, ftBlob).catch(() => {}); a.ft = k; ftBlob = null; }
     achArtsSave(L); d.remove(); if (done) done(a.id);
   });

@@ -135,7 +135,7 @@ function achBsnFiche(id, done) {
     else Object.assign(b, B);
     b.bdgLab = b.centre === "SIÈGE" ? "" : (BL.find(x => x.ref === b.bdg) || {}).lab || b.bdgLab || b.bdg; b.mod = now;
     /* 06/11 (soir) : circuit de validation propre aux BESOINS — montant = quantité × prix standard de l'article */
-    if (valid && await achCircGate("bsn", b, achN(b.q) * achStdPu(b.des, b.u, b.pu), async lab => { save(L, b, lab); })) { d.remove(); if (done) done(); return; }
+    if (valid && await achCircGate("bsn", b, achN(b.q) * achStdPu(b.des, b.u, b.pu, achPrjOfBdg(b.bdg)), async lab => { save(L, b, lab); })) { d.remove(); if (done) done(); return; }
     if (valid) { b.state = "valide"; b.valide = now; b.valPar = typeof sviUser === "function" ? sviUser() : ""; }
     save(L, b, cur ? (valid ? "VALIDÉ" : "MODIFICATION") : "CRÉATION");
     if (!cur && ctl && ctl.over) svToast(b.ref + " ENREGISTRÉ : DÉPASSEMENT DU PRÉVU, BLOQUÉ JUSQU'AU DÉBLOCAGE.", 4500);

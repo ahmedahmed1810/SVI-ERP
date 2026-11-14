@@ -15,6 +15,7 @@ const SVI_PG_DEF = {
   langues: ["FRANÇAIS", "ARABE", "ANGLAIS", "ESPAGNOL"],
   atypes: ["PRODUIT", "SERVICE", "LOCATION", "TRANSPORT"].map((lab, i) => ({ id: "n" + (i + 1), lab })),   /* v1169 (C2.1) : types (nature) des articles */
   sfam: [],
+  zones: [],   /* v1175 (C2.9) : zones de prix { lab, villes : « CASABLANCA; MOHAMMEDIA » } */
   ucv: [],   /* v1172 (C2.7) : conversions d'unités { a, r, b } : 1 a = r b, valables dans les deux sens */   /* v1169 (C2.1) : sous-familles { fam, lab } */
   adrtypes: ["SIÈGE", "FACTURATION", "LIVRAISON", "DÉPÔT", "CHANTIER"].map((lab, i) => ({ id: "a" + (i + 1), lab }))   /* v1165 (C1.3) */
 };
@@ -126,6 +127,7 @@ const SVI_PG_TABS = [
   { k: "ref", ach: "ref", lab: "RÉFÉRENCES", sub: "FORMAT DES RÉFÉRENCES DES PIÈCES" },
   { k: "cat", g: "art", ach: "cat", lab: "FAMILLES", sub: "FAMILLES D'ARTICLES (ANCIENNES CATÉGORIES)" },
   { k: "sfam", g: "art", lab: "SOUS-FAMILLES", sub: "SOUS-FAMILLES D'ARTICLES, RANGÉES PAR FAMILLE" },
+  { k: "zones", g: "art", lab: "ZONES DE PRIX", sub: "ZONE = VILLES (SÉPARÉES PAR ;) ; UN PROJET PREND LA ZONE DE SA VILLE POUR LE PRIX STANDARD" },
   { k: "ucv", g: "art", lab: "CONVERSIONS", sub: "1 UNITÉ = RATIO UNITÉ CIBLE ; VALABLE DANS LES DEUX SENS (UNE CONVERSION PROPRE À UN ARTICLE PASSE AVANT)" },
   { k: "atypes", g: "art", lab: "TYPES D'ARTICLE", sub: "NATURE DE L'ARTICLE : PRODUIT, SERVICE, LOCATION, TRANSPORT…" },
   { k: "aregl", g: "ach", ach: "regl", lab: "RÈGLES INTERNES", sub: "" }, { k: "aalr", g: "ach", ach: "alr", lab: "ALERTES DE RETARD", sub: "" },
@@ -192,6 +194,7 @@ function sviPgDraw2(k, pane) {
     sviPgTable(pane, pane.__pgc); return; }
   if (k === "grades") { pane.__pgc = { k: "grades", uniq: "n", newLab: "CRÉER UN GRADE ICI… (N°)", cols: [["n", "GRADE", 120, "num"], ["lab", "INTITULÉ", 460, ""]] }; sviPgTable(pane, pane.__pgc); return; }
   if (k === "ftypes") { pane.__pgc = { k: "ftypes", uniq: "lab", newLab: "CRÉER UN TYPE ICI…", cols: [["lab", "TYPE", 260, ""], ["pre", "PRÉFIXE DE RÉFÉRENCE", 170, ""], ["docs", "DOCUMENTS EXIGÉS (SÉPARÉS PAR ;)", 420, ""]] }; sviPgTable(pane, pane.__pgc); return; }
+  if (k === "zones") { pane.__pgc = { k: "zones", uniq: "lab", newLab: "CRÉER UNE ZONE ICI…", cols: [["lab", "ZONE", 220, ""], ["villes", "VILLES (SÉPARÉES PAR ;)", 460, ""]] }; sviPgTable(pane, pane.__pgc); return; }
   if (k === "ucv") { const U = () => (typeof sviUnits === "function" ? sviUnits() : []).map(u => u.a || u).filter(Boolean).map(u => [u, u]);
     pane.__pgc = { k: "ucv", uniq: "", newLab: "CRÉER UNE CONVERSION ICI… (UNITÉ)", cols: [["a", "1 UNITÉ", 160, ""], ["r", "= RATIO", 140, "dec"], ["b", "UNITÉ CIBLE", 160, "sel", U], ["_s", "SENS INVERSE", 260, "ro", x => x.a && x.b && achN0(x.r) > 0 ? "1 " + x.b + " = " + String(Math.round(1 / achN0(x.r) * 1e6) / 1e6).replace(".", ",") + " " + x.a : ""]] };
     sviPgTable(pane, pane.__pgc); return; }

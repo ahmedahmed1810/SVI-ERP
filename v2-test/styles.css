@@ -4083,3 +4083,6 @@ html.svi-nuit .svlk-go.svlk-off, html.svi-nuit .lk-go.lk-off, html.svi-nuit .svl
 html.svi-nuit :is(.frs-card, .pg-soc-card) .frs-c { color: #CBD5E1 !important; -webkit-text-fill-color: #CBD5E1 !important; }
 /* v1173 : mode nuit — boutons grisés des fiches (▲ ▼…) visibles */
 html.svi-nuit #ach .ach-b:disabled, html.svi-nuit .frs-card .ach-b:disabled { opacity: 1 !important; color: #64748B !important; -webkit-text-fill-color: #64748B !important; border-color: #334155 !important; background: #1B222C !important; }
+/* v1175 : blocs en tableau de la fiche article sur toute la largeur */
+.frs-card .frs-g > .art-pstd, .frs-card .frs-g > .art-eqv { grid-column: 1 / -1; }
+.frs-card .art-pstdt, .frs-card .art-eqvt { width: 100%; max-width: 760px; }

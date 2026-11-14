@@ -574,6 +574,7 @@ function achArtFiche(id, done) {
       ${inp("pref", "PRIX DE RÉFÉRENCE HT", { num: 1 })}${inp("pmax", "PLAFOND HT", { num: 1 })}${inp("partMax", "PART MAXIMUM D'UN FOURNISSEUR (%)", { num: 1 })}${inp("tva", "TVA %", { num: 1 })}
       ${inp("cpt", "CODE COMPTABLE")}${inp("cptI", "INTITULÉ COMPTABLE")}
       <div class="frs-f frs-w frs-logo art-photo"><span>PHOTO</span><div>${A.photo ? `<img src="${esc(A.photo)}" alt="">` : ""}${ro ? "" : `<input type="file" accept="image/*" class="art-photo-in">${A.photo ? ` <button type="button" class="ach-b" data-photorm>RETIRER LA PHOTO</button>` : ""}`}</div></div>
+      <div class="frs-f frs-w art-pstd"><span>PRIX STANDARD PAR PROJET OU PAR ZONE (SINON LE PRIX DE RÉFÉRENCE)</span><div class="art-pstd-box"></div></div>
       <div class="frs-f frs-w art-eqv"><span>ARTICLES ÉQUIVALENTS (PAR ORDRE DE PRÉFÉRENCE)</span><div class="art-eqv-box"></div></div>
       <div class="frs-f frs-w"><span>FICHE TECHNIQUE</span><div>${A.ft ? `<button type="button" class="ach-b" data-ftsee>VOIR LA FICHE TECHNIQUE</button> ` : ""}${ro ? "" : `<input type="file" class="art-ft-in" accept="image/*,application/pdf">`}</div></div>
       ${a0 ? (() => { const R = achRep(achKey(a0.des, a0.u)), FR = achFrsRO(), nm = g => { const L = FR.filter(f => achFrsRoot(f.id) === g); return L.map(f => f.nom).join(" + ") || g; };
@@ -589,6 +590,17 @@ function achArtFiche(id, done) {
     box.innerHTML = `<table class="prm-table frs-sub art-eqvt"><thead><tr><th class="center">RANG</th><th>ARTICLE</th><th class="center">ORDRE</th></tr></thead><tbody>${A.eqv.map((id, i) => `<tr data-i="${i}"><td class="center">${i + 1}</td><td><select class="ins-in art-eqs" data-i="${i}"${ro ? " disabled" : ""}>${opt(id)}</select></td><td class="center">${ro ? "" : `<button type="button" class="ach-b" data-equp="${i}"${i ? "" : " disabled"}>▲</button> <button type="button" class="ach-b" data-eqdn="${i}"${i < A.eqv.length - 1 ? "" : " disabled"}>▼</button>`}</td></tr>`).join("")}
       ${ro ? "" : `<tr class="rec-new"><td></td><td><select class="ins-in art-eqs" data-i="new">${opt("")}</select></td><td></td></tr>`}</tbody></table>`; };
   eqvDraw();
+  /* v1175 (C2.9) : prix standard propres à un projet ou à une zone */
+  A.pstd = Array.isArray(A.pstd) ? A.pstd.map(x => ({ ...x })) : [];
+  const pstdDraw = () => { const box = d.querySelector(".art-pstd-box"); if (!box) return; let PJ = []; try { PJ = achPrj().filter(p => !p.del); } catch (e) {}
+    const O = [...PJ.map(p => ["prj:" + achU(p.code || p.intitule), "PROJET " + achU(p.code || "") + (p.intitule ? " — " + achU(p.intitule) : "")]), ...sviPgL("zones").filter(z => z.lab).map(z => ["zone:" + achU(z.lab), "ZONE " + achU(z.lab)])];
+    const opt = v => `<option value="">—</option>${O.concat(v && !O.some(o => o[0] === v) ? [[v, v]] : []).map(o => `<option value="${esc(o[0])}"${o[0] === v ? " selected" : ""}>${esc(o[1])}</option>`).join("")}`;
+    box.innerHTML = `<table class="prm-table frs-sub art-pstdt"><thead><tr><th>PROJET OU ZONE</th><th class="number">PRIX STANDARD HT</th></tr></thead><tbody>${A.pstd.map((x, i) => `<tr data-i="${i}"><td><select class="ins-in art-psk" data-i="${i}"${ro ? " disabled" : ""}>${opt(x.k)}</select></td><td><input class="ins-in number art-psp" data-i="${i}" inputmode="decimal" value="${esc(x.px ? achF2(x.px) : "")}"${ro ? " readonly" : ""} autocomplete="off"></td></tr>`).join("")}
+      ${ro ? "" : `<tr class="rec-new"><td><select class="ins-in art-psk" data-i="new">${opt("")}</select></td><td></td></tr>`}</tbody></table>`; };
+  pstdDraw();
+  d.addEventListener("change", e => { const k = e.target.closest(".art-psk"), p2 = e.target.closest(".art-psp"); if (!k && !p2) return;
+    if (k) { const i = k.dataset.i, v = k.value; if (i === "new") { if (v && !A.pstd.some(x => x.k === v)) A.pstd.push({ k: v, px: 0 }); } else if (!v) A.pstd.splice(+i, 1); else if (!A.pstd.some((x, j) => x.k === v && j !== +i)) A.pstd[+i].k = v; else svToast("DÉJÀ DANS LA LISTE.", 2500, k); pstdDraw(); return; }
+    const x = A.pstd[+p2.dataset.i]; if (x) { const n = achN(p2.value); if (n < 0) { svToast("PRIX NON VALIDE.", 2500, p2); pstdDraw(); return; } x.px = n; } });
   d.addEventListener("change", e => { const s2 = e.target.closest(".art-eqs"); if (!s2) return; const v = s2.value, i = s2.dataset.i;
     if (i === "new") { if (v && !A.eqv.includes(v)) A.eqv.push(v); } else if (!v) A.eqv.splice(+i, 1); else if (!A.eqv.includes(v)) A.eqv[+i] = v; eqvDraw(); });
   d.addEventListener("click", e => { const u = e.target.closest("[data-equp], [data-eqdn]"); if (!u) return; const i = +(u.dataset.equp ?? u.dataset.eqdn), j = u.dataset.equp !== undefined ? i - 1 : i + 1;
@@ -611,6 +623,7 @@ function achArtFiche(id, done) {
     /* v1172 (C2.7) : unité d'achat ≠ unité de l'article → une conversion doit exister (article ou PARAMÉTRAGE › ARTICLES › CONVERSIONS, dans les deux sens) */
     if (A.ua && A.ua !== A.u && sviUnitConv(1, A.ua, A.u, A.cv || (a0 && a0.cv), A.u) === null) { svToast("CONVERSION MANQUANTE ENTRE " + A.ua + " ET " + A.u + " : L'AJOUTER DANS PARAMÉTRAGE › ARTICLES › CONVERSIONS (OU ⋯ › UNITÉ DE CONVERSION DE L'ARTICLE).", 5000); return; }
     if (A.ua === A.u) A.ua = "";
+    A.pstd = (A.pstd || []).filter(x => x.k && achN(x.px) > 0);   /* v1175 : ligne sans prix non gardée */
     if (A.per && !(A.cons > 0)) { svToast("ARTICLE PÉRISSABLE : DURÉE DE CONSERVATION OBLIGATOIRE (JOURS).", 3500); return; }
     if (!A.per) A.cons = 0;
     if (A.poids < 0 || A.vol < 0 || A.cons < 0) { svToast("POIDS, VOLUME ET DURÉE : NOMBRES POSITIFS.", 3000); return; }
@@ -619,10 +632,10 @@ function achArtFiche(id, done) {
     const dup = achArtDup(L, A.des, A.u, a0 ? a0.id : ""); if (dup) { svToast("DOUBLON : " + dup.code + " — " + dup.des + " (" + dup.u + ") EXISTE DÉJÀ.", 4000); return; }
     const nr = achArtNear(L, A.des, A.u, a0 ? a0.id : ""); if (nr) svToast("PRESQUE IDENTIQUE À " + nr.code + " — " + nr.des + " : À FUSIONNER SI C'EST LE MÊME ARTICLE.", 4500);
     let a;
-    if (a0) { a = L.find(x => x.id === a0.id); const LAB = { des: "DÉSIGNATION", u: "UNITÉ", cat: "FAMILLE", stk: "STOCKÉ", tva: "TVA", pref: "PRIX RÉF.", pmax: "PLAFOND", actif: "ACTIF", cpt: "CODE COMPTABLE", cptI: "INTITULÉ COMPTABLE", sfam: "SOUS-FAMILLE", nat: "TYPE", per: "PÉRISSABLE", cons: "DURÉE DE CONSERVATION", fab: "FABRICANTS", poids: "POIDS", vol: "VOLUME", cb: "CODE-BARRES", photo: "PHOTO", ft: "FICHE TECHNIQUE", ua: "UNITÉ D'ACHAT", eqv: "ÉQUIVALENTS" };
+    if (a0) { a = L.find(x => x.id === a0.id); const LAB = { des: "DÉSIGNATION", u: "UNITÉ", cat: "FAMILLE", stk: "STOCKÉ", tva: "TVA", pref: "PRIX RÉF.", pmax: "PLAFOND", actif: "ACTIF", cpt: "CODE COMPTABLE", cptI: "INTITULÉ COMPTABLE", sfam: "SOUS-FAMILLE", nat: "TYPE", per: "PÉRISSABLE", cons: "DURÉE DE CONSERVATION", fab: "FABRICANTS", poids: "POIDS", vol: "VOLUME", cb: "CODE-BARRES", photo: "PHOTO", ft: "FICHE TECHNIQUE", ua: "UNITÉ D'ACHAT", eqv: "ÉQUIVALENTS", pstd: "PRIX STANDARD PAR PROJET / ZONE" };
       const nz = v => v === undefined || v === null || v === false || v === 0 || v === "" || (Array.isArray(v) && !v.length) ? "" : v;   /* v1173 : champ absent = vide */
       const ch = Object.keys(LAB).filter(k => JSON.stringify(nz(a[k])) !== JSON.stringify(nz(A[k]))); Object.assign(a, A, { mod: achNow() }); if (ch.length) achHist(a.code, "MODIFICATION", ch.map(k => LAB[k]).join(", ")); }
-    else { a = achArtNew(L, A); a.st = "instance"; a.cpt = A.cpt; a.cptI = A.cptI; ["sfam", "nat", "per", "cons", "fab", "poids", "vol", "cb", "photo", "ft", "ua", "eqv"].forEach(k => { if (A[k] !== undefined) a[k] = A[k]; }); achHist(a.code, "CRÉATION", a.des + " (" + a.u + ")"); }
+    else { a = achArtNew(L, A); a.st = "instance"; a.cpt = A.cpt; a.cptI = A.cptI; ["sfam", "nat", "per", "cons", "fab", "poids", "vol", "cb", "photo", "ft", "ua", "eqv", "pstd"].forEach(k => { if (A[k] !== undefined) a[k] = A[k]; }); achHist(a.code, "CRÉATION", a.des + " (" + a.u + ")"); }
     if (ftBlob) { const k = "ach:art-ft:" + a.id; sviFiles.put(k, ftBlob).catch(() => {}); a.ft = k; ftBlob = null; }
     achArtsSave(L); d.remove(); if (done) done(a.id);
   });
