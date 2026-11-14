@@ -39,20 +39,23 @@ function sviImpText(txt) { const out = [], NUM = "(?:\\d{1,3}(?:[\\s\\u00a0\\u20
     out.push({ des: m[1].replace(/\s+/g, " ").trim(), u: m[2].toUpperCase().replace("M²", "M2").replace("M³", "M3"), q, pu: m[4] && !isNaN(sviImpNum(m[4].trim())) ? sviImpNum(m[4].trim()) : "", imp: true }); });
   return out; }
 /* tableau : ligne d'en-tête et colonnes reconnues (sinon devinées : la plus longue en texte = désignation, puis unité courte, quantité, prix) */
-function sviImpGuess(A, cols) { let h = -1, C = {};
+function sviImpGuess(A, cols, lead) { let h = -1, C = {}; lead = lead || "des";   /* v1190 : colonne-clé (lead) autre que DÉSIGNATION possible (ex. NOM d'un fournisseur) */
+  const noQ = !cols.some(x => x.k === "q");
   /* v1144 : une colonne du fichier ne va qu'à une destination (la première reconnue, dans l'ordre des colonnes) */
   const hit = (v, c) => { const cc = cols.find(x => c[x.k] === undefined && x.rx && x.rx.test(String(v || "").trim()) && !(x.k === "des" && /PRIX/i.test(v))); return cc ? cc.k : null; };
   for (let i = 0; i < Math.min(A.length, 15) && h < 0; i++) { const c = {}; A[i].forEach((v, j) => { const k = hit(v, c); if (k) c[k] = j; });
-    if (c.des !== undefined && (c.q !== undefined || cols.length < 3)) { h = i; C = c; } }
+    if (c[lead] !== undefined && (c.q !== undefined || cols.length < 3 || noQ)) { h = i; C = c; } }
   /* v1139 : en-tête reconnu même sans colonne QUANTITÉ (ex. une colonne collée qui commence par « DÉSIGNATION ») */
   if (h < 0 && A.length) { const c = {}; A[0].forEach((v, j) => { const k = hit(v, c); if (k) c[k] = j; });
-    if (c.des !== undefined && A[0].every(v => isNaN(sviImpNum(v)))) { h = 0; C = c; } }
-  if (h < 0 && A.length) { const n = Math.max(...A.map(r => r.length)), avg = j => A.reduce((s, r) => s + (isNaN(sviImpNum(r[j])) ? (r[j] || "").length : 0), 0) / A.length;
+    if (c[lead] !== undefined && A[0].every(v => isNaN(sviImpNum(v)))) { h = 0; C = c; } }
+  if (h < 0 && A.length && lead === "des") { const n = Math.max(...A.map(r => r.length)), avg = j => A.reduce((s, r) => s + (isNaN(sviImpNum(r[j])) ? (r[j] || "").length : 0), 0) / A.length;
     let d = 0; for (let j = 1; j < n; j++) if (avg(j) > avg(d)) d = j; C.des = d;
     for (let j = 0; j < n; j++) { if (j === d) continue; const num = A.filter(r => !isNaN(sviImpNum(r[j]))).length, sh = A.filter(r => r[j] && isNaN(sviImpNum(r[j])) && r[j].length <= 5).length;
       if (j > d && C.u === undefined && sh >= A.length / 3) C.u = j; else if (j > d && C.q === undefined && num >= A.length / 3) C.q = j; else if (j > d && C.pu === undefined && C.q !== undefined && num >= A.length / 3) C.pu = j; } }
   return { h, C }; }
-function sviImpFromAoa(A, h, C) { const out = []; A.slice(h + 1).forEach(r => { const des = String(r[C.des] ?? "").replace(/\s+/g, " ").trim(), q = C.q !== undefined ? sviImpNum(r[C.q]) : NaN;
+function sviImpFromAoa(A, h, C, lead) { const out = [];
+  if (lead && lead !== "des") { A.slice(h + 1).forEach(r => { const v = String(r[C[lead]] ?? "").replace(/\s+/g, " ").trim(); if (!v) return; const o = {}; Object.keys(C).forEach(k => { o[k] = String(r[C[k]] ?? "").replace(/\s+/g, " ").trim(); }); out.push(o); }); return out; }
+  A.slice(h + 1).forEach(r => { const des = String(r[C.des] ?? "").replace(/\s+/g, " ").trim(), q = C.q !== undefined ? sviImpNum(r[C.q]) : NaN;
     if (!des || /^TOTAL|^SOUS[- ]TOTAL/i.test(des)) return;
     if (C.q !== undefined && (isNaN(q) || q <= 0)) { if (!(C.u !== undefined && r[C.u])) out.push({ title: des }); return; }
     const o = { des, u: C.u !== undefined ? String(r[C.u] ?? "").trim() : "", q: isNaN(q) ? "" : q, pu: C.pu !== undefined && !isNaN(sviImpNum(r[C.pu])) ? sviImpNum(r[C.pu]) : "" };
@@ -89,8 +92,8 @@ function sviImpPick(title, items, one) { return new Promise(ok => { const d = sv
     if (e.target.closest("[data-ok]")) { keep(); const v = items.filter(x => x.on).map(x => String(x.v)); d.remove(); ok(v); } }); }); }
 /* aperçu avant OK : lignes reconnues, colonnes (choix de la destination pour un tableau), doublons ignorés */
 function sviImpPreview(o, R) { return new Promise(ok => { const cols = o.cols || SVI_IMP_COLS, d = sviWinNew(); const A = R.aoa ? R.aoa.filter(r => r.some(v => String(v).trim())) : null;
-  let G = A ? sviImpGuess(A, cols) : null;
-  const rowsNow = () => { let rows = A ? sviImpFromAoa(A, G.h, G.C).map(r => R.imp && !r.title ? { ...r, imp: true } : r) : (R.rows || []); const seen = new Set(o.have || []), K = o.key || (r => String(r.des || "").toUpperCase() + "|" + String(r.u || "").toUpperCase());
+  let G = A ? sviImpGuess(A, cols, o.lead) : null;
+  const rowsNow = () => { let rows = A ? sviImpFromAoa(A, G.h, G.C, o.lead).map(r => R.imp && !r.title ? { ...r, imp: true } : r) : (R.rows || []); const seen = new Set(o.have || []), K = o.key || (r => String(r.des || "").toUpperCase() + "|" + String(r.u || "").toUpperCase());
     let dup = 0; rows = rows.filter(r => { if (r.title) return true; const k = K(r); if (seen.has(k)) { dup++; return false; } seen.add(k); return true; }); return { rows, dup }; };
   const draw = () => { const { rows, dup } = rowsNow(), n = rows.filter(r => !r.title).length, nc = A ? Math.max(...A.map(r => r.length)) : 0;
     const head = A ? `<div class="frs-st">COLONNES DU TABLEAU (DESTINATION) — LIGNE D'EN-TÊTE : <select class="ins-in simp-h">${[-1].concat(A.slice(0, 15).map((_, i) => i)).map(i => `<option value="${i}"${i === G.h ? " selected" : ""}>${i < 0 ? "AUCUNE" : "LIGNE " + (i + 1)}</option>`).join("")}</select></div>

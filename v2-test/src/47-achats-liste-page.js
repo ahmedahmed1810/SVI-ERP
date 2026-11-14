@@ -935,21 +935,23 @@ const ACH_XL = {
 const achXlVal = (k, x, c) => { const t = c[2]; if (k === "art" && c[0] === "code") return achRefSvi(x, achArts(), "ARA"); if (k === "frs" && c[0] === "code") return achFrsRef ? achFrsRef(x) : x.code;
   if (t === "b") return x[c[0]] ? "OUI" : "NON"; if (t === "c") { const ct = (x.cte || []).find(y => y[c[0]]); return ct ? ct[c[0]] : ""; } if (t === "r") { const r = achFrsRibP(x); return r ? r.rib : ""; }
   if (t === "n") return achN(x[c[0]]) || ""; return x[c[0]] ?? ""; };
+/* v1190 : en-tête reconnu — parenthèse retirée d'abord, puis caractères protégés ; fin de mot qui marche avec les accents et « % » */
+const achXlRx = s => new RegExp("^" + s.replace(/\s*\(.*\)$/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?![\\p{L}\\d])", "iu");
 async function achXlExport(k) { const D = ACH_XL[k], L = (k === "art" ? achArts() : achFrs()).filter(x => !x.del);
   try { const X = await loadXLSX(), aoa = [D.cols.map(c => c[1])].concat(L.map(x => D.cols.map(c => achXlVal(k, x, c)))), ws = X.utils.aoa_to_sheet(aoa), wb = X.utils.book_new();
     ws["!cols"] = D.cols.map(c => ({ wch: Math.max(10, Math.min(40, c[1].length + 4)) })); X.utils.book_append_sheet(wb, ws, D.name);
     const out = X.write(wb, { bookType: "xlsx", type: "array" }), b = new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), u = URL.createObjectURL(b), a = document.createElement("a");
     a.href = u; a.download = D.name + " " + new Date().toISOString().slice(0, 10) + ".xlsx"; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(u); a.remove(); }, 1500);
     svToast(L.length + " " + D.name + " EXPORTÉS.", 2500); } catch (e) { sviImpErr ? sviImpErr(e) : svToast("EXPORT IMPOSSIBLE : " + (e.message || e), 4000); } }
-async function achXlImport(k) { const D = ACH_XL[k], rx = s => new RegExp("^" + s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s*\(.*\)$/, "") + "\\b", "i");
+async function achXlImport(k) { const D = ACH_XL[k], rx = achXlRx;   /* v1190 : parenthèse retirée d'abord, fin de mot avec accents */
   const R = await sviImport({ title: "IMPORTER DANS LES " + D.name, cols: D.cols.filter(c => c[0] !== "code").map(c => ({ k: c[0], lab: c[1], rx: rx(c[1]), num: c[2] === "n" })), file: true, online: true, clip: true,
-    key: r => k === "art" ? achKey(r.des, r.u) : (achDig(r.ice) || achU(r.nom)) });
+    lead: k === "art" ? "des" : "nom", key: r => k === "art" ? achKey(r.des, r.u) : (achDig(r.ice) || achU(r.nom)) });
   if (!R || !(R.rows || []).length) return;
   const rows = R.rows.filter(r => !r.title), L = k === "art" ? achArts() : achFrs(), up = [], cr = [], bad = [];
   rows.forEach((r, i) => { const v = c => r[c] === undefined || r[c] === null ? "" : String(r[c]).trim();
     if (k === "art") { const des = achU(v("des")), u = achU(v("u")); if (!des || !u) { bad.push("LIGNE " + (i + 1) + " : DÉSIGNATION ET UNITÉ OBLIGATOIRES"); return; } if (/^DIVERS\b/.test(des)) { bad.push("LIGNE " + (i + 1) + " : PAS D'ARTICLE « DIVERS »"); return; }
       const x = L.find(y => !y.del && achKey(y.des, y.u) === achKey(des, u)); (x ? up : cr).push({ r, x }); }
-    else { const nom = achU(v("nom")); if (!nom) { bad.push("LIGNE " + (i + 1) + " : NOM OBLIGATOIRE"); return; } const ice = achDig(v("ice")); if (ice && !achIceOk(ice)) { bad.push("LIGNE " + (i + 1) + " : " + achIceMsg()); return; }
+    else { const nom = achU(v("nom")); if (!nom) { bad.push("LIGNE " + (i + 1) + " : NOM OBLIGATOIRE"); return; } const ice = achDig(v("ice")); if (ice && !achIceOk(ice)) { bad.push("LIGNE " + (i + 1) + " : " + achIceMsg()); return; } const rib = achDig(v("rib")); if (rib && !achRibOk(rib)) { bad.push("LIGNE " + (i + 1) + " : RIB NON VALIDE (24 CHIFFRES ET CLÉ)"); return; }
       const x = L.find(y => !y.del && ((ice && achDig(y.ice) === ice) || (!ice && achU(y.nom) === nom))); (x ? up : cr).push({ r, x }); } });
   if (!(await svConfirm({ title: "IMPORTER DANS LES " + D.name, html: `<div class="svc-sub">${up.length} FICHE(S) MISE(S) À JOUR</div><div class="svc-sub">${cr.length} CRÉATION(S) PROPOSÉE(S) (EN INSTANCE, À VALIDER)</div>${bad.length ? `<div class="svc-sub svc-warn">${bad.length} LIGNE(S) REFUSÉE(S) :</div><ul class="svc-list">${bad.slice(0, 8).map(b => `<li>${esc(b)}</li>`).join("")}${bad.length > 8 ? `<li>… ET ${bad.length - 8} AUTRE(S)</li>` : ""}</ul>` : ""}`, ok: "IMPORTER", tone: "neutral" }))) return;
   const set = (x, r) => D.cols.forEach(c => { if (c[0] === "code" || r[c[0]] === undefined || String(r[c[0]]).trim() === "") return; const val = String(r[c[0]]).trim();
