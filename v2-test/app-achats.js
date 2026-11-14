@@ -3907,7 +3907,7 @@ function achNvList(ctx, o) {
       run: async ids => { if (o.kill) { const m = await achAsk("ANNULER LES PIÈCES COCHÉES (GARDÉES, VISIBLES DANS ANNULÉS)", "MOTIF DE L'ANNULATION"); if (!m) return;
           const L = o.all(), now = achNow(); ids.forEach(id => { const x = L.find(y => y.id === id); if (!x || !canDel(x) || (o.mOf && o.mOf(x))) return; x.state = "annule"; x.motifAnn = m; x.mod = now; achHist(x.ref || cdOf(x), "ANNULÉ — " + m, ""); }); o.save(L); draw(); return; }
         const L = o.all(), now = achNow(); ids.forEach(id => { const x = L.find(y => y.id === id); if (!x || !canDel(x)) return; x.del = now; x.mod = now; achHist(cdOf(x), "CORBEILLE", nmOf(x)); }); o.save(L); draw(); } }; }
-    const W = o.w || {}, CG = sviCwCols(o.t, cols.map(c => [c[0], W[c[0]] || 120]), (delCol ? [["_del", 44]] : []).concat(ACH_AP_ON(o.k) ? [["_ap", 30]] : [], [["_cb", 28]]));
+    const W = o.w || {}, CG = sviCwCols(o.t, cols.map(c => [c[0], W[c[0]] || 120]), (delCol ? [["_del", 44]] : []).concat(ACH_AP_ON(o.k) ? [["_ap", o.k === "art" ? 56 : 30]] : [], [["_cb", 28]]));
     const ED = o.edit || {};
     /* F14 (fin) : une colonne peut dépendre de la pièce (ex. CHARGE d'un besoin : liste des charges du budget, ou texte libre au SIÈGE) */
     const edOf = (k, x) => { const E = ED[k]; return typeof E === "function" ? E(x) : E; };
