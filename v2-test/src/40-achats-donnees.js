@@ -349,6 +349,10 @@ const achArtStd = (a, prj) => { if (!a) return { px: 0, src: "" }; const L = Arr
 /* v1176 : projet d'une ligne de devis — son besoin, sinon le besoin de la même ligne dans sa consultation */
 const achDvfPrj = (v, l) => { let bid = l && l.bsn; if (!bid && v && v.caf) { const c = achCaf().find(x => x.id === v.caf), cl = c && (c.lignes || []).find(y => y.bsn && achKey(y.des, y.u) === achKey(l.des, l.u)); bid = cl && cl.bsn; }
   const b = bid ? achBsn().find(y => y.id === bid) : null; return b ? achPrjOfBdg(b.bdg) : ""; };
+/* v1180 (C2.12) : CONSOMMATION MOYENNE d'un article — quantités reçues (acceptées ou avec réserves) sur les 12 derniers mois, par mois */
+const achArtConso = a => { const k = achKey(a.des, a.u), lim = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10); let q = 0;
+  achRcp().filter(r => r.state !== "annule" && String(r.date || r.cree || "").slice(0, 10) >= lim).forEach(r => (r.lignes || []).forEach(l => { if (l.st !== "ref" && achKey(l.des, l.u) === k) q += achN(l.q); }));
+  return q > 0 ? achF2(q / 12) + " " + a.u + " / MOIS (" + achF2(q) + " SUR 12 MOIS)" : "AUCUNE RÉCEPTION SUR 12 MOIS"; };
 const achStdPu = (des, u, pu, prj) => { const a = achArtOf(des, u), s = achArtStd(a, prj); return s.px > 0 ? s.px : achN(pu); };
 /* v1175 (C2.10) : écart d'un prix au standard (seuil : PARAMÉTRAGE › ACHATS › RÈGLES INTERNES) ; nettement plus bas = proposer de revoir le standard */
 const achStdGap = (des, u, pu, prj) => { const a = achArtOf(des, u), s = achArtStd(a, prj), p = achN(pu); if (!(s.px > 0) || !(p > 0)) return "";
@@ -688,6 +692,7 @@ const achCmfWhy = (c, R, T) => { const w = [], today = new Date().toISOString().
   if (!c.frs) w.push("FOURNISSEUR MANQUANT");
   if (!(c.lignes || []).length) w.push("AUCUNE LIGNE");
   if ((c.lignes || []).some(l => !(achN(l.pu) > 0))) w.push("PRIX MANQUANTS");
+  (c.lignes || []).forEach(l => { const ar = achArtOf(l.des, l.u); if (ar && achN(ar.qmin) > 0 && achN(l.q) > 0 && achN(l.q) < achN(ar.qmin)) w.push(l.des + " : QUANTITÉ " + achF2(l.q) + " SOUS LE MINIMUM DE COMMANDE (" + achF2(ar.qmin) + ")"); });   /* v1180 (C2.12) */
   (c.lignes || []).forEach(l => { const b = l.bsn ? achBsn().find(y => y.id === l.bsn) : null, g = achStdGap(l.des, l.u, l.pu, b ? achPrjOfBdg(b.bdg) : ""); if (g) w.push("ÉCART AU STANDARD — " + g); });   /* v1175 (C2.10) */
   if (c.urg) w.push("COMMANDE URGENTE À RÉGULARISER");
   achRepWhy(c.lignes, c.frs).forEach(x => w.push(x));

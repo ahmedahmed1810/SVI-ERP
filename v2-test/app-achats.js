@@ -350,6 +350,10 @@ const achArtStd = (a, prj) => { if (!a) return { px: 0, src: "" }; const L = Arr
 /* v1176 : projet d'une ligne de devis — son besoin, sinon le besoin de la même ligne dans sa consultation */
 const achDvfPrj = (v, l) => { let bid = l && l.bsn; if (!bid && v && v.caf) { const c = achCaf().find(x => x.id === v.caf), cl = c && (c.lignes || []).find(y => y.bsn && achKey(y.des, y.u) === achKey(l.des, l.u)); bid = cl && cl.bsn; }
   const b = bid ? achBsn().find(y => y.id === bid) : null; return b ? achPrjOfBdg(b.bdg) : ""; };
+/* v1180 (C2.12) : CONSOMMATION MOYENNE d'un article — quantités reçues (acceptées ou avec réserves) sur les 12 derniers mois, par mois */
+const achArtConso = a => { const k = achKey(a.des, a.u), lim = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10); let q = 0;
+  achRcp().filter(r => r.state !== "annule" && String(r.date || r.cree || "").slice(0, 10) >= lim).forEach(r => (r.lignes || []).forEach(l => { if (l.st !== "ref" && achKey(l.des, l.u) === k) q += achN(l.q); }));
+  return q > 0 ? achF2(q / 12) + " " + a.u + " / MOIS (" + achF2(q) + " SUR 12 MOIS)" : "AUCUNE RÉCEPTION SUR 12 MOIS"; };
 const achStdPu = (des, u, pu, prj) => { const a = achArtOf(des, u), s = achArtStd(a, prj); return s.px > 0 ? s.px : achN(pu); };
 /* v1175 (C2.10) : écart d'un prix au standard (seuil : PARAMÉTRAGE › ACHATS › RÈGLES INTERNES) ; nettement plus bas = proposer de revoir le standard */
 const achStdGap = (des, u, pu, prj) => { const a = achArtOf(des, u), s = achArtStd(a, prj), p = achN(pu); if (!(s.px > 0) || !(p > 0)) return "";
@@ -689,6 +693,7 @@ const achCmfWhy = (c, R, T) => { const w = [], today = new Date().toISOString().
   if (!c.frs) w.push("FOURNISSEUR MANQUANT");
   if (!(c.lignes || []).length) w.push("AUCUNE LIGNE");
   if ((c.lignes || []).some(l => !(achN(l.pu) > 0))) w.push("PRIX MANQUANTS");
+  (c.lignes || []).forEach(l => { const ar = achArtOf(l.des, l.u); if (ar && achN(ar.qmin) > 0 && achN(l.q) > 0 && achN(l.q) < achN(ar.qmin)) w.push(l.des + " : QUANTITÉ " + achF2(l.q) + " SOUS LE MINIMUM DE COMMANDE (" + achF2(ar.qmin) + ")"); });   /* v1180 (C2.12) */
   (c.lignes || []).forEach(l => { const b = l.bsn ? achBsn().find(y => y.id === l.bsn) : null, g = achStdGap(l.des, l.u, l.pu, b ? achPrjOfBdg(b.bdg) : ""); if (g) w.push("ÉCART AU STANDARD — " + g); });   /* v1175 (C2.10) */
   if (c.urg) w.push("COMMANDE URGENTE À RÉGULARISER");
   achRepWhy(c.lignes, c.frs).forEach(x => w.push(x));
@@ -4374,10 +4379,11 @@ function achArtFiche(id, done) {
   d.innerHTML = sviWinCard({ st: a0 ? achPcSt("art", a0) : "instance", cls: "frs-card", close: "data-x", title: a0 ? esc(a0.des + " (" + a0.u + ") : " + achRefSvi(a0, achArts(), "ARA")) : "NOUVEL ARTICLE",
     body: `<div class="frs-scroll art-scroll" data-at="inf">${a0 ? `<div class="rec-tabs frs-tabs"><button type="button" class="rec-tab active on" data-atab="inf">INFORMATIONS</button><button type="button" class="rec-tab" data-atab="frs">FOURNISSEURS</button></div>` : ""}<div class="frs-g">${inp("des", "DÉSIGNATION", { req: 1, w: 1 })}${inp("u", "UNITÉ", { req: 1, list: units })}${inp("ua", "UNITÉ D'ACHAT PAR DÉFAUT", { list: units })}${inp("cat", "FAMILLE", { req: 1, list: P.cat })}${inp("sfam", "SOUS-FAMILLE", { list: sviPgL("sfam").filter(x => !A.cat || achU(x.fam) === achU(A.cat)).map(x => x.lab) })}
       ${inp("nat", "TYPE (NATURE)", { list: sviPgL("atypes").map(x => x.lab) })}${inp("cons", "DURÉE DE CONSERVATION (JOURS)", { num: 1 })}${inp("fab", "FABRICANTS (POUR INFORMATION)", { w: 1 })}
-      ${inp("poids", "POIDS UNITAIRE (KG)", { num: 1 })}${inp("vol", "VOLUME UNITAIRE (M³)", { num: 1 })}${inp("cb", "CODE-BARRES")}
+      ${inp("poids", "POIDS UNITAIRE (KG)", { num: 1 })}${inp("vol", "VOLUME UNITAIRE (M³)", { num: 1 })}${inp("cb", "CODE-BARRES")}${inp("qmin", "QUANTITÉ MINIMALE DE COMMANDE", { num: 1 })}<label class="frs-f"><span>CONSOMMATION MOYENNE (12 MOIS)</span><input class="ins-in" value="${a0 ? esc(achArtConso(a0)) : "—"}" readonly></label>
       ${inp("pref", "PRIX DE RÉFÉRENCE HT", { num: 1 })}${inp("pmax", "PLAFOND HT", { num: 1 })}${inp("partMax", "PART MAXIMUM D'UN FOURNISSEUR (%)", { num: 1 })}${inp("tva", "TVA %", { num: 1 })}
       ${inp("cpt", "CODE COMPTABLE")}${inp("cptI", "INTITULÉ COMPTABLE")}
       <div class="frs-f frs-w frs-logo art-photo"><span>PHOTO</span><div>${A.photo ? `<img src="${esc(A.photo)}" alt="">` : ""}${ro ? "" : `<input type="file" accept="image/*" class="art-photo-in">${A.photo ? ` <button type="button" class="ach-b" data-photorm>RETIRER LA PHOTO</button>` : ""}`}</div></div>
+      <div class="frs-f frs-w art-frh"><span>FOURNISSEURS HABITUELS (PAR ORDRE DE PRÉFÉRENCE)</span><div class="art-frh-box"></div></div>
       <div class="frs-f frs-w art-pstd"><span>PRIX STANDARD PAR PROJET OU PAR ZONE (SINON LE PRIX DE RÉFÉRENCE)</span><div class="art-pstd-box"></div></div>
       <div class="frs-f frs-w art-eqv"><span>ARTICLES ÉQUIVALENTS (PAR ORDRE DE PRÉFÉRENCE)</span><div class="art-eqv-box"></div></div>
       <div class="frs-f frs-w"><span>FICHE TECHNIQUE</span><div>${A.ft ? `<button type="button" class="ach-b" data-ftsee>VOIR LA FICHE TECHNIQUE</button> ` : ""}${ro ? "" : `<input type="file" class="art-ft-in" accept="image/*,application/pdf">`}</div></div>
@@ -4402,6 +4408,20 @@ function achArtFiche(id, done) {
     box.innerHTML = `<table class="prm-table frs-sub art-pstdt"><thead><tr><th>PROJET OU ZONE</th><th class="number">PRIX STANDARD HT</th></tr></thead><tbody>${A.pstd.map((x, i) => `<tr data-i="${i}"><td><select class="ins-in art-psk" data-i="${i}"${ro ? " disabled" : ""}>${opt(x.k)}</select></td><td><input class="ins-in number art-psp" data-i="${i}" inputmode="decimal" value="${esc(x.px ? achF2(x.px) : "")}"${ro ? " readonly" : ""} autocomplete="off"></td></tr>`).join("")}
       ${ro ? "" : `<tr class="rec-new"><td><select class="ins-in art-psk" data-i="new">${opt("")}</select></td><td></td></tr>`}</tbody></table>`; };
   pstdDraw();
+  /* v1180 (C2.12) : fournisseurs habituels classés ; ceux qui ont vendu l'article ces 12 mois sont PROPOSÉS (un toucher les ajoute) */
+  A.frsH = Array.isArray(A.frsH) ? A.frsH.slice() : [];
+  const frhDraw = () => { const box = d.querySelector(".art-frh-box"); if (!box) return; const FL = achLive(achFrs()).filter(f => f.actif !== false || A.frsH.includes(f.id));
+    const opt = v => `<option value="">—</option>${FL.map(f => `<option value="${esc(f.id)}"${f.id === v ? " selected" : ""}>${esc((f.code ? f.code + " — " : "") + f.nom)}</option>`).join("")}`;
+    let sug = []; try { sug = a0 ? achRep(achKey(a0.des, a0.u)).rows.map(r => r.g).filter(g => g && !A.frsH.includes(g) && FL.some(f => f.id === g)) : []; } catch (e) {}
+    box.innerHTML = `<table class="prm-table frs-sub art-eqvt"><thead><tr><th class="center">RANG</th><th>FOURNISSEUR</th><th class="center">ORDRE</th></tr></thead><tbody>${A.frsH.map((id, i) => `<tr><td class="center">${i + 1}</td><td><select class="ins-in art-frs" data-i="${i}"${ro ? " disabled" : ""}>${opt(id)}</select></td><td class="center">${ro ? "" : `<button type="button" class="ach-b" data-frup="${i}"${i ? "" : " disabled"}>▲</button> <button type="button" class="ach-b" data-frdn="${i}"${i < A.frsH.length - 1 ? "" : " disabled"}>▼</button>`}</td></tr>`).join("")}
+      ${ro ? "" : `<tr class="rec-new"><td></td><td><select class="ins-in art-frs" data-i="new">${opt("")}</select></td><td></td></tr>`}</tbody></table>
+      ${!ro && sug.length ? `<div class="bsn-note">PROPOSÉS (ACHETÉS CES 12 MOIS) : ${sug.map(g => `<button type="button" class="ach-link" data-frsug="${esc(g)}">${esc(achFrsNom(g))}</button>`).join(" · ")}</div>` : ""}`; };
+  frhDraw();
+  d.addEventListener("change", e => { const s2 = e.target.closest(".art-frs"); if (!s2) return; const v = s2.value, i = s2.dataset.i;
+    if (i === "new") { if (v && !A.frsH.includes(v)) A.frsH.push(v); } else if (!v) A.frsH.splice(+i, 1); else if (!A.frsH.includes(v)) A.frsH[+i] = v; frhDraw(); });
+  d.addEventListener("click", e => { const sg = e.target.closest("[data-frsug]"); if (sg) { if (!A.frsH.includes(sg.dataset.frsug)) A.frsH.push(sg.dataset.frsug); frhDraw(); return; }
+    const u = e.target.closest("[data-frup], [data-frdn]"); if (!u) return; const i = +(u.dataset.frup ?? u.dataset.frdn), j = u.dataset.frup !== undefined ? i - 1 : i + 1;
+    if (j < 0 || j >= A.frsH.length) return; [A.frsH[i], A.frsH[j]] = [A.frsH[j], A.frsH[i]]; frhDraw(); });
   d.addEventListener("change", e => { const k = e.target.closest(".art-psk"), p2 = e.target.closest(".art-psp"); if (!k && !p2) return;
     if (k) { const i = k.dataset.i, v = k.value; if (i === "new") { if (v && !A.pstd.some(x => x.k === v)) A.pstd.push({ k: v, px: 0 }); } else if (!v) A.pstd.splice(+i, 1); else if (!A.pstd.some((x, j) => x.k === v && j !== +i)) A.pstd[+i].k = v; else svToast("DÉJÀ DANS LA LISTE.", 2500, k); pstdDraw(); return; }
     const x = A.pstd[+p2.dataset.i]; if (x) { const n = achN(p2.value); if (n < 0) { svToast("PRIX NON VALIDE.", 2500, p2); pstdDraw(); return; } x.px = n; } });
@@ -4413,7 +4433,7 @@ function achArtFiche(id, done) {
     if (e.target === d || e.target.closest("[data-x]")) { d.remove(); if (done) done(null); return; }
     const at = e.target.closest("[data-atab]"); if (at) { d.querySelector(".art-scroll").dataset.at = at.dataset.atab; d.querySelectorAll("[data-atab]").forEach(b => b.classList.toggle("active", b === at) || b.classList.toggle("on", b === at)); d.querySelectorAll("[data-atab]").forEach(b => b.classList.toggle("on", b === at)); return; }
     if (!e.target.closest("[data-save]")) return;
-    d.querySelectorAll(".art-x").forEach(i => { const k = i.dataset.k; A[k] = ["tva", "pref", "pmax", "partMax", "cons", "poids", "vol"].includes(k) ? achN(i.value) : k === "fab" ? achU(i.value) : achU(i.value); });
+    d.querySelectorAll(".art-x").forEach(i => { const k = i.dataset.k; A[k] = ["tva", "pref", "pmax", "partMax", "cons", "poids", "vol", "qmin"].includes(k) ? achN(i.value) : k === "fab" ? achU(i.value) : achU(i.value); });
     d.querySelectorAll(".art-c").forEach(i => { A[i.dataset.k] = i.checked; });
     const L = achArts();
     if (!A.des || !A.u) { svToast("DÉSIGNATION ET UNITÉ OBLIGATOIRES.", 3000); return; }
@@ -4430,16 +4450,17 @@ function achArtFiche(id, done) {
     A.pstd = (A.pstd || []).filter(x => x.k && achN(x.px) > 0);   /* v1175 : ligne sans prix non gardée */
     if (A.per && !(A.cons > 0)) { svToast("ARTICLE PÉRISSABLE : DURÉE DE CONSERVATION OBLIGATOIRE (JOURS).", 3500); return; }
     if (!A.per) A.cons = 0;
+    if (A.qmin < 0) { svToast("QUANTITÉ MINIMALE : NOMBRE POSITIF.", 3000); return; }
     if (A.poids < 0 || A.vol < 0 || A.cons < 0) { svToast("POIDS, VOLUME ET DURÉE : NOMBRES POSITIFS.", 3000); return; }
     if (A.cb) { const x = L.find(y => y.id !== (a0 ? a0.id : "") && !y.del && achU(y.cb || "") === A.cb); if (x) { svToast("CODE-BARRES DÉJÀ DONNÉ À " + x.code + " — " + x.des + ".", 4000); return; } }
     if (A.pmax > 0 && A.pref > A.pmax) { svToast("PRIX DE RÉFÉRENCE AU-DESSUS DU PLAFOND.", 3000); return; }
     const dup = achArtDup(L, A.des, A.u, a0 ? a0.id : ""); if (dup) { svToast("DOUBLON : " + dup.code + " — " + dup.des + " (" + dup.u + ") EXISTE DÉJÀ.", 4000); return; }
     const nr = achArtNear(L, A.des, A.u, a0 ? a0.id : ""); if (nr) svToast("PRESQUE IDENTIQUE À " + nr.code + " — " + nr.des + " : À FUSIONNER SI C'EST LE MÊME ARTICLE.", 4500);
     let a;
-    if (a0) { a = L.find(x => x.id === a0.id); const LAB = { des: "DÉSIGNATION", u: "UNITÉ", cat: "FAMILLE", stk: "STOCKÉ", tva: "TVA", pref: "PRIX RÉF.", pmax: "PLAFOND", actif: "ACTIF", cpt: "CODE COMPTABLE", cptI: "INTITULÉ COMPTABLE", sfam: "SOUS-FAMILLE", nat: "TYPE", per: "PÉRISSABLE", cons: "DURÉE DE CONSERVATION", fab: "FABRICANTS", poids: "POIDS", vol: "VOLUME", cb: "CODE-BARRES", photo: "PHOTO", ft: "FICHE TECHNIQUE", ua: "UNITÉ D'ACHAT", eqv: "ÉQUIVALENTS", pstd: "PRIX STANDARD PAR PROJET / ZONE" };
+    if (a0) { a = L.find(x => x.id === a0.id); const LAB = { des: "DÉSIGNATION", u: "UNITÉ", cat: "FAMILLE", stk: "STOCKÉ", tva: "TVA", pref: "PRIX RÉF.", pmax: "PLAFOND", actif: "ACTIF", cpt: "CODE COMPTABLE", cptI: "INTITULÉ COMPTABLE", sfam: "SOUS-FAMILLE", nat: "TYPE", per: "PÉRISSABLE", cons: "DURÉE DE CONSERVATION", fab: "FABRICANTS", poids: "POIDS", vol: "VOLUME", cb: "CODE-BARRES", photo: "PHOTO", ft: "FICHE TECHNIQUE", ua: "UNITÉ D'ACHAT", eqv: "ÉQUIVALENTS", qmin: "QUANTITÉ MINIMALE", frsH: "FOURNISSEURS HABITUELS", pstd: "PRIX STANDARD PAR PROJET / ZONE" };
       const nz = v => v === undefined || v === null || v === false || v === 0 || v === "" || (Array.isArray(v) && !v.length) ? "" : v;   /* v1173 : champ absent = vide */
       const ch = Object.keys(LAB).filter(k => JSON.stringify(nz(a[k])) !== JSON.stringify(nz(A[k]))); Object.assign(a, A, { mod: achNow() }); if (ch.length) achHist(a.code, "MODIFICATION", ch.map(k => LAB[k]).join(", ")); }
-    else { a = achArtNew(L, A); a.st = "instance"; a.cpt = A.cpt; a.cptI = A.cptI; ["sfam", "nat", "per", "cons", "fab", "poids", "vol", "cb", "photo", "ft", "ua", "eqv", "pstd"].forEach(k => { if (A[k] !== undefined) a[k] = A[k]; }); achHist(a.code, "CRÉATION", a.des + " (" + a.u + ")"); }
+    else { a = achArtNew(L, A); a.st = "instance"; a.cpt = A.cpt; a.cptI = A.cptI; ["sfam", "nat", "per", "cons", "fab", "poids", "vol", "cb", "photo", "ft", "ua", "eqv", "pstd", "qmin", "frsH"].forEach(k => { if (A[k] !== undefined) a[k] = A[k]; }); achHist(a.code, "CRÉATION", a.des + " (" + a.u + ")"); }
     if (ftBlob) { const k = "ach:art-ft:" + a.id; sviFiles.put(k, ftBlob).catch(() => {}); a.ft = k; ftBlob = null; }
     achArtsSave(L); d.remove(); if (done) done(a.id);
   });
