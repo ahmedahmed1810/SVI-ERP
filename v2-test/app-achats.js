@@ -3935,7 +3935,7 @@ function achNvList(ctx, o) {
       <div class="novapp-budget-table-wrap"><table id="${o.id}" class="novapp-budget-table svi-bdgl nv-one" data-sdel="${esc(o.t)}" data-ach="${o.k}" data-stf="${esc(SK)}" data-svcw="${esc(o.t)}" style="${CG.style}">
         ${CG.cg}
         <thead><tr>${cols.map(c => cfHead(o.t, c[0], c[1], "bdg-list-head" + (c[3] === "number" ? " number" : ""))).join("")}${delCol ? '<th class="bdg-act-h"></th>' : ""}${ACH_AP_ON(o.k) ? achApTh() : ""}${sviListCbTh()}</tr></thead>
-        <tbody>${rows.map(x => `<tr data-id="${esc(x.id)}" data-iid="${esc(x.id)}" data-nvo="${esc(x.id)}" data-st="${esc(ST.get(x.id)[0])}" class="${rowCls(x)}${x.del || x.state === "annule" ? " etat-bloque" : ""}${x.actif === false ? " etat-archive" : ""}">${cols.map(c => cell(x, c)).join("")}${delCol ? `<td class="bdg-action-cell">${canDel(x) ? `<button type="button" class="bdg-row-action bdg-row-del" data-nvdel="${esc(x.id)}" title="Supprimer" aria-label="Supprimer">${SVI_DEL_ICON}</button>` : ""}</td>` : ""}${ACH_AP_ON(o.k) ? achApTd(o.k + "|" + x.id) : ""}${sviListCbTd()}</tr>`).join("")
+        <tbody>${rows.map(x => `<tr data-id="${esc(x.id)}" data-iid="${esc(x.id)}" data-nvo="${esc(x.id)}" data-st="${esc(ST.get(x.id)[0])}" class="${rowCls(x)}${x.del || x.state === "annule" ? " etat-bloque" : ""}${x.actif === false ? " etat-archive" : ""}">${cols.map(c => cell(x, c)).join("")}${delCol ? `<td class="bdg-action-cell">${canDel(x) ? `<button type="button" class="bdg-row-action bdg-row-del" data-nvdel="${esc(x.id)}" title="Supprimer" aria-label="Supprimer">${SVI_DEL_ICON}</button>` : ""}</td>` : ""}${ACH_AP_ON(o.k) ? achApTd(o.k + "|" + x.id, o.k === "art" && !x.del ? x.id : "") : ""}${sviListCbTd()}</tr>`).join("")
           || ""}
           ${o.newRow ? `<tr class="bdg-newrow" data-nvnew data-st="instance"><td colspan="${cols.length + (delCol ? 2 : 1)}">${esc(o.newRow)}</td></tr>` : ""}</tbody>${totRow()}</table></div></div></div>`;
   };
@@ -4253,7 +4253,37 @@ const ACH_AP_ON = k => !!ACH_PREV[k];
 const ACH_AP_IC = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8s-2.4 4.5-6.5 4.5S1.5 8 1.5 8z" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>';
 const achApOf = r => { if (r.ap) return ACH_PREV[String(r.ap).split("|")[0]] ? r.ap : ""; const g = (r.go || []).find(z => z[0] === 0) || (r.go || [])[0]; return g && ACH_PREV[g[1]] ? g[1] + "|" + g[2] : ""; };
 const achApTh = () => `<th class="center nv-aph" data-cokey="_ap" aria-label="Aperçu"><span class="col-rs" data-col="_ap"></span></th>`;
-const achApTd = k => `<td class="center nv-apc">${k ? `<button type="button" class="nv-ap" data-ap="${esc(k)}" title="Aperçu" aria-label="Aperçu">${ACH_AP_IC}</button>` : ""}</td>`;
+const ACH_PXH_IC = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 14.5h13M2.5 11l3.5-4 3 2.5 4.5-6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const achApTd = (k, pxh) => `<td class="center nv-apc">${pxh ? `<button type="button" class="nv-ap nv-pxh" data-pxh="${esc(pxh)}" title="Historique des prix" aria-label="Historique des prix">${ACH_PXH_IC}</button>` : ""}${k ? `<button type="button" class="nv-ap" data-ap="${esc(k)}" title="Aperçu" aria-label="Aperçu">${ACH_AP_IC}</button>` : ""}</td>`;
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".nv-pxh[data-pxh]"); if (!b) return; e.preventDefault(); e.stopPropagation(); achArtPxHist(b.dataset.pxh); }, true);
+/* v1178 (C2.11) : HISTORIQUE DES PRIX d'un article — devis et commandes (hors annulés), par fournisseur et par date : tableau et graphique */
+const achArtPxRows = a => { const k = achKey(a.des, a.u), out = [], d0 = x => String(x || "").slice(0, 10);
+  achDvf().filter(v => v.state !== "annule").forEach(v => (v.lignes || []).forEach(l => { if (achKey(l.des, l.u) !== k || !(achN(l.pu) > 0)) return; out.push({ d: d0(v.date || v.cree), t: "DEVIS", ref: v.ref || "", frs: v.frs, px: achDvfPuNet(v, l), go: ["dvf", v.id] }); }));
+  achCmf().filter(c => c.state !== "annule").forEach(c => (c.lignes || []).forEach(l => { if (achKey(l.des, l.u) !== k || !(achN(l.pu) > 0)) return; out.push({ d: d0(c.date || c.valide || c.cree), t: "COMMANDE", ref: c.ref || "", frs: c.frs, px: achN(l.pu) * (1 - achN(c.rem) / 100), go: ["cmf", c.id] }); }));
+  return out.filter(r => r.d).sort((x, y) => y.d.localeCompare(x.d)); };
+function achArtPxHist(id) { const a = achArts().find(x => x.id === id); if (!a) return; const R = achArtPxRows(a), FR = [...new Set(R.map(r => r.frs).filter(Boolean))], d = sviWinNew(); let f = "";
+  const COL = ["#2563eb", "#dc2626", "#16a34a", "#d97706", "#7c3aed", "#0891b2", "#db2777", "#4b5563"];
+  const chart = L => { if (L.length < 1) return `<div class="bsn-note">AUCUN PRIX : NI DEVIS NI COMMANDE POUR CET ARTICLE.</div>`;
+    const W = 640, H = 220, P = 44, ds = L.map(r => Date.parse(r.d)), x0 = Math.min(...ds), x1 = Math.max(...ds), std = achN(a.pref), ys = L.map(r => r.px).concat(std > 0 ? [std] : []), y0 = Math.min(...ys) * .95, y1 = Math.max(...ys) * 1.05 || 1;
+    const X = t => P + (x1 > x0 ? (t - x0) / (x1 - x0) : .5) * (W - P - 10), Y = v => H - 24 - (y1 > y0 ? (v - y0) / (y1 - y0) : .5) * (H - 40);
+    const ser = FR.filter(g => !f || g === f).map((g, i) => { const pts = L.filter(r => r.frs === g).slice().reverse(), c = COL[FR.indexOf(g) % COL.length];
+      return `<polyline fill="none" stroke="${c}" stroke-width="2" points="${pts.map(r => X(Date.parse(r.d)).toFixed(1) + "," + Y(r.px).toFixed(1)).join(" ")}"/>${pts.map(r => `<circle cx="${X(Date.parse(r.d)).toFixed(1)}" cy="${Y(r.px).toFixed(1)}" r="3.5" fill="${c}"><title>${esc(achFrsNom(g) + " — " + achDFr(r.d) + " — " + achF2(r.px))}</title></circle>`).join("")}`; }).join("");
+    return `<svg class="art-pxg" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Graphique des prix"><line x1="${P}" y1="${H - 24}" x2="${W - 10}" y2="${H - 24}" stroke="currentColor" stroke-opacity=".3"/>
+      ${std > 0 ? `<line x1="${P}" y1="${Y(std).toFixed(1)}" x2="${W - 10}" y2="${Y(std).toFixed(1)}" stroke="currentColor" stroke-dasharray="5 4" stroke-opacity=".6"/><text x="${W - 12}" y="${(Y(std) - 4).toFixed(1)}" text-anchor="end" font-size="10" fill="currentColor">STANDARD ${esc(achF2(std))}</text>` : ""}
+      <text x="${P - 6}" y="${Y(y1 / 1.05).toFixed(1)}" text-anchor="end" font-size="10" fill="currentColor">${esc(achF2(y1 / 1.05))}</text><text x="${P - 6}" y="${Y(y0 / .95).toFixed(1)}" text-anchor="end" font-size="10" fill="currentColor">${esc(achF2(y0 / .95))}</text>
+      <text x="${P}" y="${H - 8}" font-size="10" fill="currentColor">${esc(achDFr(new Date(x0).toISOString().slice(0, 10)))}</text><text x="${W - 10}" y="${H - 8}" text-anchor="end" font-size="10" fill="currentColor">${esc(achDFr(new Date(x1).toISOString().slice(0, 10)))}</text>${ser}</svg>
+      <div class="art-pxl">${FR.filter(g => !f || g === f).map(g => `<span><i style="background:${COL[FR.indexOf(g) % COL.length]}"></i>${esc(achFrsNom(g))}</span>`).join("")}</div>`; };
+  const draw = () => { const L = R.filter(r => !f || r.frs === f);
+    d.innerHTML = sviWinCard({ cls: "frs-card art-pxcard", close: "data-x", title: "HISTORIQUE DES PRIX — " + esc(a.des + " (" + a.u + ")"),
+      body: `<div class="frs-scroll"><label class="frs-f"><span>FOURNISSEUR</span><select class="ins-in art-pxf"><option value="">TOUS (${FR.length})</option>${FR.map(g => `<option value="${esc(g)}"${g === f ? " selected" : ""}>${esc(achFrsNom(g))}</option>`).join("")}</select></label>
+        ${chart(L)}
+        <table class="prm-table frs-sub art-pxt"><thead><tr><th>DATE</th><th>PIÈCE</th><th>RÉFÉRENCE</th><th>FOURNISSEUR</th><th class="number">PRIX HT</th></tr></thead><tbody>${L.map(r => `<tr><td>${esc(achDFr(r.d))}</td><td>${r.t}</td><td><button type="button" class="ach-link" data-pxgo="${esc(r.go.join("|"))}">${esc(r.ref)}</button></td><td>${esc(r.frs ? achFrsNom(r.frs) : "")}</td><td class="number">${esc(achF2(r.px))}</td></tr>`).join("") || `<tr><td colspan="5" class="ach-0">AUCUN PRIX</td></tr>`}</tbody></table></div>`,
+      foot: `<button type="button" class="svc-b" data-x>FERMER</button>` });
+  };
+  draw(); sviWinShow(d);
+  d.addEventListener("change", e => { if (e.target.closest(".art-pxf")) { f = e.target.value; draw(); } });
+  d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-x]")) { d.remove(); return; } const g = e.target.closest("[data-pxgo]"); if (g) { const [t, gid] = g.dataset.pxgo.split("|"); d.remove(); achGo(t, gid); } });
+}
 document.addEventListener("click", e => { const b = e.target.closest && e.target.closest(".nv-ap[data-ap]"); if (!b) return; e.preventDefault(); e.stopPropagation();
   const [t, ...r] = b.dataset.ap.split("|"), f = ACH_PREV[t]; if (f) f(r.join("|")); }, true);
 /* 07/11 : redessin de la page ouverte (gestes hors clic : glisser une ligne) */
@@ -4490,7 +4520,7 @@ function achArtNvMod(ctx) {
     list: { k: "art", t: "ach_art2", id: "achArtT", name: "ARTICLES", one: "ARTICLE", stKeys: ["instance", "valide", "bloque", "archive", "annule", "alerte"], edit: ACH_ED.art, all: achArts, save: achArtsSave, code: a => achRefSvi(a, achArts(), "ARA"), nom: a => a.des, why: artWhy,
       newRow: "CRÉER UN ARTICLE ICI…", add: done => achArtFiche(null, done),
       w: { ref: 110, nom: 360, u: 70, cat: 200, pref: 110, pmax: 110, nfr: 120, freq: 120, val: 110, cree: 110 },
-      cols: mode => [["ref", "RÉFÉRENCE", a => achRefSvi(a, achArts(), "ARA"), ""], ["nom", "DÉSIGNATION", a => a.des, ""], ["u", "UNT", a => a.u, "center"], ["cat", "CATÉGORIE", a => a.cat || "", ""],
+      cols: mode => [["ref", "RÉFÉRENCE", a => achRefSvi(a, achArts(), "ARA"), ""], ["nom", "DÉSIGNATION", a => a.des, ""], ["u", "UNT", a => a.u, "center"], ["cat", "FAMILLE", a => a.cat || "", ""],
         ["pref", "PRIX RÉF. HT", a => achN(a.pref), "number"], ["pmax", "PLAFOND HT", a => achN(a.pmax) ? achN(a.pmax) : "", "number"],
         ["nfr", "FOURNISSEURS", a => { const R = achRep(achKey(a.des, a.u)); return R.n + (R.n < R.need ? " !" : ""); }, "center"], ["freq", "FRÉQUENCE", a => achArtFreq(a).lab, "center"]]
         .concat(mode === "valid" ? [["val", "VALIDÉ LE", a => achDFr(a.val || a.cree), "center"]] : []).concat([["cree", "SAISI LE", a => achDFr(a.cree), "center"]]) },
